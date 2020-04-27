@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 
+# additional rate reference https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1.full.pdf
+
 plt.style.use('seaborn-white')
 sns.set_style("ticks")
 sns.set_context("talk")
