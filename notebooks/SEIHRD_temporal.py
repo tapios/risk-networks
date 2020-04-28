@@ -13,6 +13,75 @@ plt.style.use('seaborn-white')
 sns.set_style("ticks")
 sns.set_context("talk")
 
+def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat):
+    
+    """ 
+    simulation of SEIHRD dynamics on temporal networks
+    
+    Parameters: 
+    G (dictionary): dictionary with time stamps (seconds) and networks
+    H (graph): spontaneous transitions
+    J (graph): induced transitions
+    IC (dictionary): initially infected nodes
+    return_statuses (array): specifying return compartments
+    deltat (float): simulation time interval
+
+    Returns: 
+    time_arr (array), states_arr (array): times and compartment values 
+  
+    """
+
+    time_arr = []
+    states_arr = {}
+    for s in return_statuses:
+        states_arr['%s'%s] = []
+        
+    for i in G.keys():
+        
+        # transition rates are given in units 1/day, 
+        # so we simulate in days as time units
+        
+        # float('Inf')
+            
+        #plt.close('all')
+        #nx.draw(G[i], pos=nx.spring_layout(G[i]), node_size=3)
+        #plt.show()
+    
+        # add all previously "active" nodes to current network
+        
+        print(i, len(G[i]))
+
+        res = EoN.Gillespie_simple_contagion(
+                                G[i],                        # Contact network
+                                H,                           # Spontaneous transitions (without any nbr influence)
+                                J,                           # Neighbor induced transitions
+                                IC,                          # Initial infected nodes
+                                return_statuses,             # 
+                                return_full_data = True,
+                                tmax = deltat/86400          # Contact network (division by 86400 because G time units are seconds)
+                            )
+    
+        times, states = res.summary()
+        node_status = res.get_statuses(time = times[-1])
+            
+        for x in node_status.keys():
+            
+            IC[x] = node_status[x]
+            
+            # need to add some random infections
+            #if node_status[x] == 'S' and np.random.rand() < 0.1:
+            #    IC[x] = 'I'
+        #print(IC)
+   
+        time_arr.extend(times+i/86400)
+        for s in return_statuses:
+            states_arr['%s'%s].extend(states['%s'%s])
+        
+        
+        
+    return time_arr, states_arr
+        
+    
 def temporal_network(edge_list, deltat):
     """ 
     temporal network construction 
@@ -22,7 +91,7 @@ def temporal_network(edge_list, deltat):
     deltat (float): time step (duration) of each network snapshot in seconds
   
     Returns: 
-    temporal network dictionary: dictionary with time stamps and networks
+    Gord: dictionary with time stamps (seconds) and networks
   
     """
     
@@ -34,13 +103,25 @@ def temporal_network(edge_list, deltat):
 
     T = edge_list[0][0]
     
+    nodes = edge_list[:,1]
+    nodes = np.append(nodes, edge_list[:,2])
+    nodes = set(nodes)
+    
+    Gnodes = nx.Graph()
+    Gnodes.add_nodes_from(nodes)
+    
     for i in range(len(edge_list)):
         
         if edge_list[i][0] <= T + deltat:
+            G1.add_nodes_from(nodes)
             G1.add_edge(edge_list[i][1],edge_list[i][2])
         else: 
-            G1 = nx.Graph()
-            G[(T-T0)] = G1
+            
+            if len(G1):
+                G[(T-T0)] = G1
+                G1 = nx.Graph()
+            else:
+                G[(T-T0)] = Gnodes
             T += deltat
      
     Gord = OrderedDict(sorted(G.items()))       
@@ -66,17 +147,17 @@ if __name__ == "__main__":
     
     G = temporal_network(edge_list, deltat)
     
-    plt.figure()
-    plt.plot(np.asarray([x for x in G.keys()])/(3600*24), [len(x) for x in G.values()])
-    plt.xlabel(r'time [days]')
-    plt.ylabel(r'number nodes')
-    plt.tight_layout()
-    plt.show()
+#    plt.figure()
+#    plt.plot(np.asarray([x for x in G.keys()])/(3600*24), [len(x) for x in G.values()])
+#    plt.xlabel(r'time [days]')
+#    plt.ylabel(r'number nodes')
+#    plt.tight_layout()
+#    plt.show()
     
     # Parameters
     
     # S-->E rate
-    beta = 0.06  
+    beta = 0.5
     
     # E-->I rate
     sigma =  1/3.5      
@@ -109,39 +190,37 @@ if __name__ == "__main__":
     J = nx.DiGraph()
     J.add_edge(('I', 'S'), ('I', 'E'), rate = beta)         # Transmission rate
     J.add_edge(('H', 'S'), ('H', 'E'), rate = beta)         # Transmission rate
-    #J.add_edge(('A', 'S'), ('A', 'E'), rate = beta)         # Transmission rate
+    #J.add_edge(('A', 'S'), ('A', 'E'), rate = beta)        # Transmission rate
     #J.add_edge(('E', 'S'), ('E', 'E'), rate = .2 * beta)   # Transmission rate
     
     IC = defaultdict(lambda: 'S')
-    for node in range(200):
-        IC[node] = 'I'
+    
+    initial_nodes = list(G[0].nodes())
+    for i in range(30):
+        IC[initial_nodes[i]] = 'I'
     
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
     
-    res = EoN.Gillespie_simple_contagion(
-                        G,                           # Contact network.
-                        H,                           # Spontaneous transitions (without any nbr influence).
-                        J,                           # Neighbor induced transitions.
-                        IC,                          # Initial infected nodes
-                        return_statuses,             # 
-                        return_full_data = True,
-                        tmax = float('Inf')          # Contact network
-                    )
-    
-    times, states = res.summary()
+    # simulate dynamics
+    times, states = temporal_network_epidemics(G, H, J, IC, return_statuses, deltat)
     
     fig, axes = plt.subplots(1, 2, figsize = (15, 4))
     
     axes[0].plot(times, states['S'], label = 'Susceptible', color = 'C0')
     axes[0].plot(times, states['R'], label = 'Resistant', color = 'C4')
     axes[0].plot(times, states['I'], label = 'Infected', color = 'C1')
-    axes[0].legend()
+    axes[0].legend(loc = 0)
     
     axes[1].plot(times, states['E'], label = 'Exposed', color = 'C3')
     axes[1].plot(times, states['I'], label = 'Infected', color = 'C1')
     axes[1].plot(times, states['H'], label = 'Hospitalized', color = 'C2')
     axes[1].plot(times, states['D'], label = 'Death', color = 'C6')
-    axes[1].legend()
+    axes[1].legend(loc = 0)
     
+    axes[0].set_xlabel('time [days]')
+    axes[0].set_ylabel('number')
+    axes[1].set_xlabel('time [days]')
+    axes[1].set_ylabel('number')
+    plt.tight_layout()
     plt.legend()
     plt.show()
