@@ -111,5 +111,50 @@ class static(epinet):
 
 class dynamic(epinet):
 
-	def __init__(self, N, G):
+	def __init__(self, N = 0, G = {}):
 		super().__init__(N, G)
+
+	def temporal_network(self, edge_list, deltat):
+		"""
+		temporal network construction
+
+		Parameters:
+		edge_list (array): edge list (1st column: time stamp UNIX format, 2nd-3rd columnm: edge i <-> j)
+		deltat (float): time step (duration) of each network snapshot in seconds
+
+		Returns:
+		Gord: dictionary with time stamps (seconds) and networks
+
+		"""
+
+		G = {}
+
+		G1 = nx.Graph()
+
+		T0 = edge_list[0][0]
+
+		T = edge_list[0][0]
+
+		nodes = edge_list[:,1]
+		nodes = np.append(nodes, edge_list[:,2])
+		nodes = set(nodes)
+
+		Gnodes = nx.Graph()
+		Gnodes.add_nodes_from(nodes)
+
+		for i in range(len(edge_list)):
+
+			if edge_list[i][0] <= T + deltat:
+				G1.add_nodes_from(nodes)
+				G1.add_edge(edge_list[i][1],edge_list[i][2])
+			else:
+
+				if len(G1):
+					G[(T-T0)] = G1
+					G1 = nx.Graph()
+				else:
+					G[(T-T0)] = Gnodes
+				T += deltat
+
+		Gord = OrderedDict(sorted(G.items()))
+		self.G = Gord
