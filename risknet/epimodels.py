@@ -73,7 +73,7 @@ class static(epinet):
 		self.T = T
 		self.solve_init = True
 
-	def kolmogorov_eqns(self, t, y):
+	def kolmogorov_eqns_ind(self, t, y):
 		"""
 		Inputs:
 		y (array): an array of dims (N_statuses, N_nodes)
@@ -102,7 +102,7 @@ class static(epinet):
 		"""
 		if self.solve_init:
 			res = integrate.solve_ivp(
-				fun = lambda t, y: self.kolmogorov_eqns(t, y, *args),
+				fun = lambda t, y: self.kolmogorov_eqns_ind(t, y, *args),
 				t_span = [0,self.T], y0 = y0,
 				t_eval = t, method = self.method, max_step = self.dt)
 		else:
