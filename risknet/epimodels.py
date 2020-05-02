@@ -18,27 +18,43 @@ class static(epinet):
 	def __init__(self, G, N):
 		super().__init__(G, N)
 
-	def create_spontaneous(self, sigma = 1/3.5, gamma = 1/13.7):
-		self.sigma = sigma
-		self.gamma = gamma
-		mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
-									np.array([[0.01 *(self.gamma)],[0.15 *(self.gamma)]]))
-		self.mu = mu[0]
-		self.delta = delta[0]
-
-		self.gammap = 1/(1/self.gamma + 7.0)
-		self.mup    = (0.1/(1-.1)) * (1/(self.gamma + 7.0))
+	def create_spontaneous(self, sigma = 1/3.5, gamma = 1/13.7, **kwargs):
 
 		self.H = nx.DiGraph()
 		self.H.add_node('S')
-		self.H.add_edge('E', 'I', rate = self.sigma)
-		self.H.add_edge('I', 'R', rate = self.gamma)
-		self.H.add_edge('H', 'R', rate = self.gammap)
-		self.H.add_edge('I', 'H', rate = self.delta)
-		self.H.add_edge('I', 'D', rate = self.mu)
-		self.H.add_edge('H', 'D', rate = self.mup)
 
-	def create_induced(self, beta = 0.06):
+		if self.__heterogoneous:
+
+			self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
+
+			self.H.add_edge('I', 'R', rate = 1., weight_label = 'theta')
+			self.H.add_edge('I', 'H', rate = 1., weight_label = 'delta')
+			self.H.add_edge('I', 'D', rate = 1., weight_label = 'mu')
+
+			self.H.add_edge('H', 'R', rate = 1., weight_label = 'thetap')
+			self.H.add_edge('H', 'D', rate = 1., weight_label = 'mup')
+
+		else:
+			self.sigma = sigma
+			self.gamma = gamma
+			mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
+										np.array([[0.01 *(self.gamma)],[0.15 *(self.gamma)]]))
+			self.mu = mu[0]
+			self.delta = delta[0]
+
+			self.gammap = 1/(1/self.gamma + 7.0)
+			self.mup    = (0.1/(1-.1)) * (1/(self.gamma + 7.0))
+
+			self.H.add_edge('E', 'I', rate = self.sigma)
+
+			self.H.add_edge('I', 'R', rate = self.gamma)
+			self.H.add_edge('I', 'H', rate = self.delta)
+			self.H.add_edge('I', 'D', rate = self.mu)
+
+			self.H.add_edge('H', 'R', rate = self.gammap)
+			self.H.add_edge('H', 'D', rate = self.mup)
+
+	def create_induced(self, beta = 0.06, **kwargs):
 		self.beta  = beta
 		self.betap = beta
 
@@ -51,9 +67,15 @@ class static(epinet):
 		for node in nodes:
 			self.IC[node] = 'I'
 
-	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06):
-		self.create_spontaneous(sigma, gamma)
-		self.create_induced(beta)
+	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
+		if kwargs.get('het', False):
+			self.__heterogoneous = True
+			self.heterogoneous = True
+		else:
+			self.__heterogoneous = False
+
+		self.create_spontaneous(sigma, gamma, **kwargs)
+		self.create_induced(beta, **kwargs)
 
 	def simulate(self, return_statuses, **kwargs):
 		simulation = EoN.Gillespie_simple_contagion(
