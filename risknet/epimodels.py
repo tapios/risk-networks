@@ -95,44 +95,31 @@ class static(epinet):
 		self.T = T
 		self.solve_init = True
 
-	def kolmogorov_eqns_ind(self, t, y):
-		"""
-		Solve master equations with individual-based closure: <SI> = <S> <I>
-
-		Inputs:
-		y (array): an array of dims (N_statuses, N_nodes)
-		t (array): times for ode solver
-
-		Returns:
-		y_dot (array): lhs of master eqns
-		"""
-		S, E, I, H, R, D = y.reshape(6, self.N)
-		S_dot, E_dot, I_dot, H_dot, R_dot, D_dot = np.zeros([6, self.N])
-
-		for ii, ngbr in self.G.adjacency():
-			jj = list(ngbr.keys())
-			S_dot[ii] = -(self.beta * I[jj] + self.betap * H[jj]).sum() * S[ii]
-			E_dot[ii] =  (self.beta * I[jj] + self.betap * H[jj]).sum() * S[ii] - self.sigma * E[ii]
-
-		I_dot = self.sigma * E - (self.gamma + self.delta + self.mu) * I
-		H_dot = self.delta * I - (self.gammap + self.mup) * H
-		R_dot = self.gamma * I + self.gammap * H
-		D_dot = self.mu * I + self.mup * H
-
-		return np.hstack((S_dot, E_dot, I_dot, H_dot, R_dot, D_dot))
+		self.set_parameters()
 
 	def set_parameters(self):
 		"""
 		Set and initialize master equation parameters
 		"""
-		self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
-		self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
-		self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
-		self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
-		self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
-		self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
-		self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
-		self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
+		if self.__heterogoneous:
+			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
+			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
+			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
+			self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
+			self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
+			self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
+			self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
+			self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
+		else:
+			self.sigma =  self.sigma * np.ones(self.N)
+			self.delta =  self.delta * np.ones(self.N)
+			self.theta =  self.gamma * np.ones(self.N)
+			self.thetap =  self.gammap * np.ones(self.N)
+			self.mu =  self.mu * np.ones(self.N)
+			self.mup =  self.mup * np.ones(self.N)
+			self.gamma =  (self.gamma + self.delta + self.mu) * np.ones(self.N)
+			self.gammap =  (self.gammap + self.mup) * np.ones(self.N)
+
 
 		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
 		   [sps.eye(self.N), sps.diags(-self.sigma), None, None, None, None],
@@ -150,29 +137,6 @@ class static(epinet):
 			self.adj[ii] = list(ngbr.keys())
 
 		self.checks = []
-
-	def kolmogorov_eqns_het(self, t, y):
-		"""
-		Inputs:
-		y (array): an array of dims (N_statuses, N_nodes)
-		t (array): times for ode solver
-
-		Returns:
-		y_dot (array): lhs of master eqns
-		"""
-		S, E, I, H, R, D = y.reshape(6, self.N)
-		S_dot, E_dot, I_dot, H_dot, R_dot, D_dot = np.zeros([6, self.N])
-
-		for ii in self.adj:
-			S_dot[ii] = -(self.beta * I[self.adj[ii]] + self.betap * H[self.adj[ii]]).sum() * S[ii]
-			E_dot[ii] =  (self.beta * I[self.adj[ii]] + self.betap * H[self.adj[ii]]).sum() * S[ii] - self.sigma[ii] * E[ii]
-
-		I_dot = self.sigma * E -  self.gamma * I
-		H_dot = self.delta * I - self.gammap * H
-		R_dot = self.theta * I + self.thetap * H
-		D_dot =    self.mu * I +    self.mup * H
-
-		return np.hstack((S_dot, E_dot, I_dot, H_dot, R_dot, D_dot))
 
 	def kolmogorov_eqns_het_sparse(self, t, y):
 		"""
@@ -198,24 +162,10 @@ class static(epinet):
 		"""
 		"""
 		if self.solve_init:
-			if self.__heterogoneous:
-				"""
-				Solve heterogoneous system
-				"""
-				self.set_parameters()
-
-				res = integrate.solve_ivp(
-					fun = lambda t, y: self.kolmogorov_eqns_het_sparse(t, y, *args),
-					t_span = [0,self.T], y0 = y0,
-					t_eval = t, method = self.method, max_step = self.dt)
-			else:
-				"""
-				Solve homogenous system
-				"""
-				res = integrate.solve_ivp(
-					fun = lambda t, y: self.kolmogorov_eqns_ind(t, y, *args),
-					t_span = [0,self.T], y0 = y0,
-					t_eval = t, method = self.method, max_step = self.dt)
+			res = integrate.solve_ivp(
+				fun = lambda t, y: self.kolmogorov_eqns_het_sparse(t, y, *args),
+				t_span = [0,self.T], y0 = y0,
+				t_eval = t, method = self.method, max_step = self.dt)
 		else:
 			res = np.empty()
 		return res
