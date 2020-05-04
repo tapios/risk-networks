@@ -4,6 +4,7 @@ import networkx as nx
 import random
 
 from scipy import integrate
+import scipy.sparse as sps
 from collections import defaultdict
 from tqdm.autonotebook import tqdm
 
@@ -133,6 +134,16 @@ class static(epinet):
 		self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
 		self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
 
+		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
+		   [sps.eye(self.N), sps.diags(-self.sigma), None, None, None, None],
+		   [None, sps.diags(self.sigma), sps.diags(-self.gamma), None, None, None],
+		   [None, None, sps.diags(self.delta), sps.diags(-self.gammap), None, None],
+		   [None, None, sps.diags(self.theta), sps.diags(self.thetap), None, None],
+		   [None, None, sps.diags(self.mu), sps.diags(self.mup), None, None]
+		  ], format = 'csr'), shape = [6 * self.N, 6 * self.N])
+		self.beta_closure = np.zeros(self.N,)
+		self.L = nx.to_scipy_sparse_matrix(self.G)
+
 		self.adj = defaultdict()
 
 		for ii, ngbr in self.G.adjacency():
@@ -163,6 +174,25 @@ class static(epinet):
 
 		return np.hstack((S_dot, E_dot, I_dot, H_dot, R_dot, D_dot))
 
+	def kolmogorov_eqns_het_sparse(self, t, y):
+		"""
+		Inputs:
+		y (array): an array of dims (N_statuses, N_nodes)
+		t (array): times for ode solver
+
+		Returns:
+		y_dot (array): lhs of master eqns
+		"""
+		S, E, I, H = [range(kk * self.N, (kk + 1) * self.N) for kk in range(4)]
+
+		self.beta_closure = sps.kron(np.array([self.beta, self.betap]),	self.L).dot(np.hstack([y[I], y[H]]))
+
+		self.coeffs[S,S] = - self.beta_closure
+		self.coeffs[E,S] =   self.beta_closure
+
+		y = self.coeffs.dot(y)
+
+		return y
 
 	def solve(self, y0, t, args = (), **kwargs):
 		"""
@@ -175,7 +205,7 @@ class static(epinet):
 				self.set_parameters()
 
 				res = integrate.solve_ivp(
-					fun = lambda t, y: self.kolmogorov_eqns_het(t, y, *args),
+					fun = lambda t, y: self.kolmogorov_eqns_het_sparse(t, y, *args),
 					t_span = [0,self.T], y0 = y0,
 					t_eval = t, method = self.method, max_step = self.dt)
 			else:
