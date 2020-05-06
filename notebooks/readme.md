@@ -6,3 +6,5 @@
 SocioPatterns data:
 - http://www.sociopatterns.org/datasets/high-school-contact-and-friendship-networks/
 - http://www.sociopatterns.org/datasets/high-school-dynamic-contact-networks/
+
+Currently, the first 5% of the SBM nodes belong to the hospital. The remaining 95% belong to the "city".
