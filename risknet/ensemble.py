@@ -59,7 +59,7 @@ class epiens(object):
 		Set and initialize master equation parameters
 		coeffs (array): an array of sparse matrices:
 		L (sparse matrix): adjacency Matrix.
-		PM (matrix): ensemble centering matrix (M times M).
+		PM (matrix): ensemble centering matrix (M times M), idempotent, symmetric.
 		"""
 		self.coeffs = np.empty(self.M, dtype = 'object')
 
@@ -121,8 +121,17 @@ class epiens(object):
 		self.beta_closure_ind = sps.kron(np.array([self.beta, self.betap]), self.L).dot(
 									(y.reshape(self.M, 6 * self.N))[:,[Iidx,Hidx]].reshape(self.M,-1).T
 									)
-		self.beta_closure_ens = np.sqrt(1/(self.M - 1)) * np.asarray(self.L.multiply(y.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot((self.beta * y.reshape(self.M, -1)[:,Iidx].T + self.betap * y.reshape(self.M, -1)[:,Hidx].T).T)).sum(axis = 1))
-		y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T + self.beta_closure_ens.T
+
+		# This is coded terrribly, but should be read as:
+		# Y[S] PM ( \beta Y[I] + \beta' Y[H]))^T/(M-1) = Cov(Y[S], \beta Y[I] + \beta' Y[H]),
+		# Then we apply the Hadamard product with L (the contact matrix):
+		# L • Cov(Y[S], \beta Y[I] + \beta' Y[H])
+		self.beta_closure_cov = (1/(self.M - 1)) * np.asarray(self.L.multiply(y.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot((self.beta * y.reshape(self.M, -1)[:,Iidx].T + self.betap * y.reshape(self.M, -1)[:,Hidx].T).T)).sum(axis = 1))
+
+		# This makes the update:
+		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
+		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
+		y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T + self.beta_closure_cov.T
 
 		# Matrix vector multiply for each
 		for mm, coeffs in enumerate(self.coeffs):
