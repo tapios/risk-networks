@@ -10,12 +10,12 @@ class MasterEqn:
     consists of 5 states by N nodes.
     '''
 
-    def __init__(self, G,
-                 model = epimodels.static(G, len(list(G.nodes)))):
+    def __init__(self, G, model = None):
 
-        N = len(list(G.nodes))
-
-        self.model = model
+        if model is None:
+            self.model = epimodels.static(G, len(list(G.nodes)))
+        else:
+            self.model = model
 
     def solve(self, params, state0, T, dt_max, t_range):
         '''
