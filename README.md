@@ -1,6 +1,6 @@
 # risk-networks
 
-Check out the `develop` branch for the latest work.
+*Check out the `develop` branch to see the latest work.*
 
 Code for risk networks: a blend of compartmental models, graphs, data assimilation and semi-supervised learning
 
