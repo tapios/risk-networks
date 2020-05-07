@@ -107,6 +107,7 @@ class EAKF:
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
         c_xx = c_xx + np.identity(c_xx.shape[0])*1e-6 
 
+        # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
         Sigma  = np.vstack([np.hstack([c_qq,c_qx]),np.hstack([c_qx.T,c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])

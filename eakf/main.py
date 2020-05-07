@@ -58,8 +58,8 @@ if __name__ == "__main__":
     print("Number of cpu : ", multiprocessing.cpu_count())
 
     # Number of EAKF steps
-    steps_DA = 10 
-    # Ensemble size
+    steps_DA = 10
+    # Ensemble size (required>=2)
     n_samples = 100
     # Number of status for each node
     n_status = 6
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Load network
     G, N = load_G()
 
-    # Set prior for unknow parameters
+    # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
     params[:,0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
 
@@ -83,10 +83,12 @@ if __name__ == "__main__":
 
     # Set time informations inside an EAKF step
     T = 10.0
-    dt = 1.0
+    dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
-    t_range = np.arange(0.0, T, dt)
-
+    #OD: Are you sure you want to exclude T here? .
+    t_range=np.arange(0.0,T,dt) 
+    dt_fsolve =T/10.
+    
     # Container for forward model evaluations
     x_forward_all = np.empty([n_samples, steps_T*steps_DA, n_status*N])
 
@@ -104,12 +106,10 @@ if __name__ == "__main__":
         start = time.time()
         # A simple decayed noise term to add into paramters during EAKF
         params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples) 
-        x_forward = ensemble_forward_model(G, ekf.q[iterN] + params_noises.reshape(n_samples,1), states_IC, \
-                                           T, T/10., t_range, \
-                                           parallel_flag = True)
+        x_forward = ensemble_forward_model(G, ekf.q[iterN] + params_noises.reshape(n_samples,1), states_IC,T, dt_fsolve, t_range, parallel_flag = True)
         end = time.time()
         print('Time elapsed for forward model: ', end - start)
-
+    
         ## EAKF to update joint states
         start = time.time()
         ekf.update(x_forward[:,-1,:])
@@ -126,3 +126,6 @@ if __name__ == "__main__":
         pickle.dump(ekf.x, open("data/g.pkl", "wb"))
         pickle.dump(ekf.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
+
+
+        
