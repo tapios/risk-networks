@@ -32,14 +32,14 @@ class epiens(object):
 			self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup, self.gamma, self.gammap = np.empty(shape = (8, self.M, self.N))
 
 			for mm, member in enumerate(self.ensemble):
-				self.sigma[mm,:]  =  member.sigma * np.random.uniform(.7, 1.3, size = self.N)
-				self.delta[mm,:]  =  member.delta * np.random.uniform(.7, 1.3, size = self.N)
-				self.theta[mm,:]  =  member.gamma * np.random.uniform(.7, 1.3, size = self.N)
-				self.thetap[mm,:] =  member.gammap * np.random.uniform(.7, 1.3, size = self.N)
-				self.mu[mm,:]     =  member.mu * np.random.uniform(.7, 1.3, size = self.N)
-				self.mup[mm,:]    =  member.mup * np.random.uniform(.7, 1.3, size = self.N)
-				self.gamma[mm,:]  =  (member.gamma + member.delta + member.mu) * np.random.uniform(.7, 1.3, size = self.N)
-				self.gammap[mm,:] =  (member.gammap + member.mup) * np.random.uniform(.7, 1.3, size = self.N)
+				self.sigma[mm,:]  =  member.sigma * np.random.uniform(.9, 1.1, size = self.N)
+				self.delta[mm,:]  =  member.delta * np.random.uniform(.9, 1.1, size = self.N)
+				self.theta[mm,:]  =  member.gamma * np.random.uniform(.9, 1.1, size = self.N)
+				self.thetap[mm,:] =  member.gammap * np.random.uniform(.9, 1.1, size = self.N)
+				self.mu[mm,:]     =  member.mu * np.random.uniform(.9, 1.1, size = self.N)
+				self.mup[mm,:]    =  member.mup * np.random.uniform(.9, 1.1, size = self.N)
+				self.gamma[mm,:]  =  (member.gamma + member.delta + member.mu) * np.random.uniform(.9, 1.1, size = self.N)
+				self.gammap[mm,:] =  (member.gammap + member.mup) * np.random.uniform(.9, 1.1, size = self.N)
 
 		else:
 			self.__heterogoneous = True
@@ -103,7 +103,7 @@ class epiens(object):
 
 		return Y_dot.flatten()
 
-	def ens_keqns_sparse_closure(self, t, y):
+	def ens_keqns_sparse_closure(self, t, y, **kwargs):
 		"""
 		Inputs:
 		y (array): an array of dims (M times N_statuses times N_nodes)
@@ -112,8 +112,9 @@ class epiens(object):
 		Returns:
 		y_dot (array): lhs of master eqns
 		"""
-		# Y = [y_1, .., y_M]
+		# Y = [y_1, .., y_M
 		y0 = np.copy(y)
+		self.y0 = y0
 		Y_dot = np.zeros([self.M, 6 * self.N])
 
 		Sidx, Eidx, Iidx, Hidx, Ridx, Didx = [range(jj * self.N, (jj + 1) * self.N) for jj in range(6)]
@@ -122,16 +123,44 @@ class epiens(object):
 									(y.reshape(self.M, 6 * self.N))[:,[Iidx,Hidx]].reshape(self.M,-1).T
 									)
 
-		# This is coded terrribly, but should be read as:
-		# Y[S] PM ( \beta Y[I] + \beta' Y[H]))^T/(M-1) = Cov(Y[S], \beta Y[I] + \beta' Y[H]),
-		# Then we apply the Hadamard product with L (the contact matrix):
-		# L • Cov(Y[S], \beta Y[I] + \beta' Y[H])
-		self.beta_closure_cov = (1/(self.M - 1)) * np.asarray(self.L.multiply(y.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot((self.beta * y.reshape(self.M, -1)[:,Iidx].T + self.betap * y.reshape(self.M, -1)[:,Hidx].T).T)).sum(axis = 1))
+		if kwargs.get('closure', None) == 'covariance':
+			# Ensemble-based closure: covariance -----------------------------------
+			# This is coded terrribly, but should be read as:
+			# Y[S] PM ( \beta Y[I] + \beta' Y[H]))^T/(M-1) = Cov(Y[S], \beta Y[I] + \beta' Y[H]),
+			# Then we apply the Hadamard product with L (the contact matrix):
+			# L • Cov(Y[S], \beta Y[I] + \beta' Y[H])
+			self.beta_closure_cov = (1/(self.M-1)) * np.asarray(self.L.multiply(y.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot((self.beta * y.reshape(self.M, -1)[:,Iidx].T + self.betap * y.reshape(self.M, -1)[:,Hidx].T).T)).sum(axis = 1))
 
-		# This makes the update:
-		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
-		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
-		y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T + self.beta_closure_cov.T
+			# This makes the update:
+			# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
+			# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
+			y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T + self.beta_closure_cov.T
+
+		elif kwargs.get('closure', None) == 'correlation':
+			# Ensemble-based closure: correlation -----------------------------------
+			# masked correlation matrix SI
+			self.LcorSI = self.L.multiply(y0.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot(y0.reshape(self.M, -1)[:,Iidx])/(self.M-1)).multiply(1/np.kron(
+				np.sqrt((y0.reshape(self.M, -1)[:,Sidx].T.dot(self.PM) * y0.reshape(self.M, -1)[:,Sidx].T).sum(axis = 1)/(self.M-1) + 0.0 * 1e-8).reshape(1,-1),
+				np.sqrt((y0.reshape(self.M, -1)[:,Iidx].T.dot(self.PM) * y0.reshape(self.M, -1)[:,Iidx].T).sum(axis = 1)/(self.M-1) + 0.0 * 1e-8).reshape(-1,1))).dot(
+					np.sqrt(y0.reshape(self.M, -1)[:,Iidx] * (1 - y0.reshape(self.M, -1)[:,Iidx])).T + 0.0 * 1e-8)
+
+			# masked correlation matrix SH
+			self.LcorSH = self.L.multiply(y0.reshape(self.M, -1)[:,Sidx].T.dot(self.PM).dot(y0.reshape(self.M, -1)[:,Hidx])/(self.M-1)).multiply(1/np.kron(
+				np.sqrt((y0.reshape(self.M, -1)[:,Sidx].T.dot(self.PM) * y0.reshape(self.M, -1)[:,Sidx].T).sum(axis = 1)/(self.M-1) + 0.0 * 1e-8).reshape(1,-1),
+				np.sqrt((y0.reshape(self.M, -1)[:,Hidx].T.dot(self.PM) * y0.reshape(self.M, -1)[:,Hidx].T).sum(axis = 1)/(self.M-1) + 0.0 * 1e-8).reshape(-1,1))).dot(
+					np.sqrt(y0.reshape(self.M, -1)[:,Hidx] * (1 - y0.reshape(self.M, -1)[:,Hidx])).T + 0.0 * 1e-8)
+
+			# closure: beta CorrSI + beta' CorrSH
+
+			self.beta_closure_cor = (self.beta *self.LcorSI + self.betap * self.LcorSH) * np.sqrt(y.reshape(self.M, -1)[:,Sidx] * (1 - y.reshape(self.M, -1)[:,Sidx]) + 0.0 * 1e-8).T
+
+			# This makes the update:
+			# Y[S] = Y[S] * beta_closure_ind + beta_closure_cor
+			# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
+			y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T + self.beta_closure_cor.T
+
+		else:
+			y0.reshape(self.M, -1)[:,Sidx] = y0.reshape(self.M, -1)[:,Sidx] * self.beta_closure_ind.T
 
 		# Matrix vector multiply for each
 		for mm, coeffs in enumerate(self.coeffs):
@@ -144,7 +173,7 @@ class epiens(object):
 		"""
 		if self.solve_init:
 			res = integrate.solve_ivp(
-				fun = lambda t, y: self.ens_keqns_sparse(t, y, *args),
+				fun = lambda t, y: self.ens_keqns_sparse(t, y, *args, **kwargs),
 				t_span = [0,self.T], y0 = y0,
 				t_eval = t, method = self.method, max_step = self.dt)
 		else:
@@ -156,7 +185,7 @@ class epiens(object):
 		"""
 		if self.solve_init:
 			res = integrate.solve_ivp(
-				fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, *args),
+				fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, *args, **kwargs),
 				t_span = [0,self.T], y0 = y0,
 				t_eval = t, method = self.method, max_step = self.dt)
 		else:
