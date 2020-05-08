@@ -1,4 +1,5 @@
 import numpy as np
+import pdb
 
 class EAKF:
 
@@ -29,8 +30,8 @@ class EAKF:
         self.error = np.empty(0)
 
     # Compute error
-    def compute_error(self):
-        diff = self.x_t - self.x[-1].mean(0)
+    def compute_error(self, x):
+        diff = self.x_t - x.mean(0)
         error = diff.dot(np.linalg.solve(self.cov, diff))
         # Normalize error
         norm = self.x_t.dot(np.linalg.solve(self.cov, self.x_t))
@@ -49,6 +50,10 @@ class EAKF:
         # Observation data statistics
         self.x_t = truth
         self.cov = r**2 * cov
+
+        self.cov = (1./np.maximum(self.x_t, 1e-9)/np.maximum(1-self.x_t, 1e-9))**2 * self.cov
+        self.x_t = np.log(np.maximum(self.x_t, 1e-9)/np.maximum(1.-self.x_t, 1e-9))
+
         try:
             self.cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
@@ -58,11 +63,14 @@ class EAKF:
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
     def update(self, x):
+
+        x = np.log(np.maximum(x, 1e-9)/np.maximum(1.-x, 1e-9))
         
         q = np.copy(self.q[-1])
         zp = np.hstack([q, x])
         x_t = self.x_t
         cov = self.cov
+
         
         # Ensemble size
         J = self.J
@@ -103,10 +111,13 @@ class EAKF:
         c_xx  = c_xx  / J - np.tensordot(x_bar, x_bar, axes=0)
 
         # Add noises to the diagonal of sample covariance 
-        # Current implementation involves a small constant (1e-6).
+        # Current implementation involves a small constant 
+        # (1e-6 for original space, 1e-2 for logistic transformed space).
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
-        c_xx = c_xx + np.identity(c_xx.shape[0])*1e-6 
+        #c_xx = c_xx + np.identity(c_xx.shape[0])*1e-6 
+        c_xx = c_xx + np.identity(c_xx.shape[0])*1e-2 
 
+        # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
         Sigma  = np.vstack([np.hstack([c_qq,c_qx]),np.hstack([c_qx.T,c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
@@ -135,8 +146,10 @@ class EAKF:
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
 
         # Store updated parameters and states
+        x_logit = np.dot(zu, H.T)
+        x_p = np.exp(x_logit)/(np.exp(x_logit)+1.)
         self.q = np.append(self.q, [np.dot(zu, Hq.T)], axis=0)
-        self.x = np.append(self.x, [np.dot(zu, H.T)], axis=0)
+        self.x = np.append(self.x, [x_p], axis=0)
 
         # Compute error
-        self.compute_error()
+        self.compute_error(x_logit)
