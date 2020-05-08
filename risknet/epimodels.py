@@ -71,8 +71,10 @@ class static(epinet):
 	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
 		if kwargs.get('het', False):
 			self.__heterogoneous = True
+			self.heterogoneous = True
 		else:
 			self.__heterogoneous = False
+			self.heterogoneous = False
 
 		self.create_spontaneous(sigma, gamma, **kwargs)
 		self.create_induced(beta, **kwargs)
@@ -89,13 +91,16 @@ class static(epinet):
 					)
 		return simulation
 
-	def set_solver(self, method = 'RK45', T = 200, dt = 0.1):
+	def set_solver(self, method = 'RK45', T = 200, dt = 0.1, **kwargs):
 		self.method = method
 		self.dt = dt
 		self.T = T
 		self.solve_init = True
 
-		self.set_parameters()
+		if kwargs.get('member_call', True):
+			self.set_parameters(**kwargs)
+		else:
+			pass
 
 	def set_parameters(self):
 		"""
@@ -117,8 +122,8 @@ class static(epinet):
 			self.thetap =  self.gammap * np.ones(self.N)
 			self.mu =  self.mu * np.ones(self.N)
 			self.mup =  self.mup * np.ones(self.N)
-			self.gamma =  (self.gamma + self.delta + self.mu) * np.ones(self.N)
-			self.gammap =  (self.gammap + self.mup) * np.ones(self.N)
+			self.gamma =  (self.theta + self.delta + self.mu)
+			self.gammap =  (self.thetap + self.mup)
 
 
 		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
