@@ -4,6 +4,7 @@ import multiprocessing
 from models import MasterEqn 
 import networkx as nx
 from eakf import EAKF
+from plot import plot_states
 import time
 import pickle
 import matplotlib.pyplot as plt
@@ -55,7 +56,7 @@ def ensemble_backward_model(G, qi, xi, T0, T, dt_max, t_range, parallel_flag = T
         states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
         for iterN in range(qi.shape[0]):
             states_all[iterN,:,:] = backward_model(G, qi[iterN,:], xi[iterN,:], T0, T, dt_max, t_range)
-    return states_all 
+    return states_all
 
 def load_G():
     N = 1000
@@ -73,6 +74,7 @@ def random_IC():
     infected = np.random.randint(N, size = 10)
     E, I, H, R, D = np.zeros([5, N])
     S = np.ones(N,)
+    I = np.zeros(N,)
     I[infected] = 1.
     S[infected] = 0.
     state0 = np.hstack((S, E, I, H, R, D))
@@ -83,40 +85,33 @@ if __name__ == "__main__":
     np.random.seed(10)
     print("Number of cpu : ", multiprocessing.cpu_count())
 
-    # Number of EAKF steps
-    steps_DA = 1
     # Ensemble size (required>=2)
     n_samples = 10
     # Number of status for each node
     n_status = 6
-
-    # Load the true data (beta=0.04, T=100, dt=1)
-    fin = 'data/states_truth_beta_0p04.pkl'
-    data = pickle.load(open(fin, 'rb'))
-    data = data.T
 
     # Load network
     G, N = load_G()
 
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
-
+    params[:,0] = np.random.uniform(np.log(0.06), np.log(0.06), n_samples)
+    
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
     for iterN in range(n_samples):
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 5.0
+    T = 50.
     dt = 0.1 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
-    dt_fsolve =0.1
-    dt_bsolve =0.1
-    
+    dt_fsolve =0.05
+    dt_bsolve =0.05
+    Tinit=0.0
     # Container for forward model evaluations
-    x_forward_all = np.empty([n_samples, steps_T*steps_DA, n_status*N])
+    x_forward_all = np.empty([n_samples, steps_T, n_status*N])
 
     ## Forward model evaluation of all ensemble members
     start = time.time()
@@ -127,26 +122,39 @@ if __name__ == "__main__":
     print('beta parameter for each ensemble: ')
     print(np.exp(params))
     x_forward = ensemble_forward_model(G, params + params_noise.reshape(n_samples,1), states_IC,T, dt_fsolve, t_range, parallel_flag = False)
-    end = time.time()
+    end = time.time() 
+    
     print('Time elapsed for forward model: ', end - start)
     print('Difference to ICs at time T: ', np.sqrt(np.sum(np.square(x_forward[:,-1,:]-states_IC))))
 
     ## Backward model evaluation of all ensemble members
     start = time.time()
-    x_backward = ensemble_backward_model(G, params + params_noise.reshape(n_samples,1), x_forward[:,-1,:],T, 0.0, dt_bsolve, t_range, parallel_flag = False)
+    x_backward = ensemble_backward_model(G, params + params_noise.reshape(n_samples,1), x_forward[:,-1,:],T, Tinit, dt_bsolve, t_range, parallel_flag = False)
+    
+    for ss in  range(n_samples):
+        for tt in range(t_range.shape[0]):
+            for uu in range(10):
+                if tt == t_range.shape[0]-1:
+                    print(x_forward[ss,tt,uu::N])
+                    print(x_backward[ss,-(tt+1),uu::N])
     end = time.time()
-        
+
+
+    
     print('Time elapsed for backward model: ', end - start)
     xdiff=np.zeros([t_range.shape[0],n_samples])
     for tt in range(t_range.shape[0]):
         for ss in range(n_samples):
             xdiff[tt,ss]=np.sqrt(np.sum(np.square(x_forward[ss,tt,:]-x_backward[ss,-(tt+1),:])))
 
-    print('Avereage difference in trajectory over times ')
+    print('Average difference in trajectory over times ')
     print(t_range)
     print('Given by: ')
     print(np.sum(xdiff,axis=1)/n_samples) 
     print('Average difference to initial conditions and time 0:' ,np.sqrt(np.sum(np.square(x_backward[:,-1,:]-states_IC)))/n_samples)
+
+        
+     
 
     #plot difference
     plt.plot(t_range,xdiff,'k',alpha=0.3)
@@ -154,4 +162,17 @@ if __name__ == "__main__":
     plt.legend()
     plt.title('Error in ensemble trajectory forward/backward model')
     plt.show()
-    exit()
+
+    plt.plot(t_range[100:],xdiff[100:,:],'k',alpha=0.3)
+    plt.plot(t_range[100:],(np.sum(xdiff[100:,:],axis=1)/n_samples),'r',label='ens average')
+    plt.legend()
+    plt.title('Error in ensemble trajectory forward/backward model')
+    plt.show()
+
+    
+    #plot states
+    plot_states(x_forward[1,:,:],x_forward,t_range,t_range,6,N,'forward')
+    x_backward_flip = np.flip(x_backward,axis=1)
+    plot_states(x_backward_flip[1,:,:],x_backward_flip,t_range,t_range,6,N,'backward')
+
+   

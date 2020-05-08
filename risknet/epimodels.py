@@ -110,6 +110,7 @@ class static(epinet):
                         self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
                         self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
                         self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
+                        
                 else:
                         self.sigma =  self.sigma * np.ones(self.N)
                         self.delta =  self.delta * np.ones(self.N)
@@ -119,8 +120,8 @@ class static(epinet):
                         self.mup =  self.mup * np.ones(self.N)
                         self.gamma =  (self.gamma + self.delta + self.mu) * np.ones(self.N)
                         self.gammap =  (self.gammap + self.mup) * np.ones(self.N)
-
-
+                       
+                        
                 self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
                                                        [sps.eye(self.N), sps.diags(-self.sigma), None, None, None, None],
                                                        [None, sps.diags(self.sigma), sps.diags(-self.gamma), None, None, None],
@@ -128,6 +129,7 @@ class static(epinet):
                                                        [None, None, sps.diags(self.theta), sps.diags(self.thetap), None, None],
                                                        [None, None, sps.diags(self.mu), sps.diags(self.mup), None, None]
                 ], format = 'csr'), shape = [6 * self.N, 6 * self.N])
+
                 self.beta_closure = np.zeros(self.N,)
                 self.L = nx.to_scipy_sparse_matrix(self.G)
 
@@ -153,7 +155,7 @@ class static(epinet):
 
                 self.coeffs[S,S] = - self.beta_closure
                 self.coeffs[E,S] =   self.beta_closure
-
+              
                 y = self.coeffs.dot(y)
 
                 return y
@@ -170,15 +172,13 @@ class static(epinet):
                 else:
                         res = np.empty()
                 return res
-
-        
         def set_backwards_parameters(self):
                 """
-        Set and initialize parameters for the backward master equations 
-        -Model parameters (same as the forward equations)
-        -Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
-        -Network parameters (same as the forward equations)
-        """
+                Set and initialize parameters for the backward master equations 
+                -Model parameters (same as the forward equations)
+                -Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
+                -Network parameters (same as the forward equations)
+                """
                 if self.__heterogoneous:
                         self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
                         self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
@@ -199,13 +199,13 @@ class static(epinet):
                         self.gammap =  (self.gammap + self.mup) * np.ones(self.N)
 
 
-                self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
-                                                       [sps.eye(self.N), sps.diags(self.sigma), None, None, None, None],
-                                                       [None, sps.diags(-self.sigma), sps.diags(self.gamma), None, None, None],
-                                                       [None, None, sps.diags(-self.delta), sps.diags(self.gammap), None, None],
-                                                       [None, None, sps.diags(-self.theta), sps.diags(-self.thetap), None, None],
-                                                       [None, None, sps.diags(-self.mu), sps.diags(-self.mup), None, None]
-                ], format = 'csr'), shape = [6 * self.N, 6 * self.N])
+                self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None],
+                                                       [sps.eye(self.N), sps.diags(self.sigma), None, None],
+                                                       [None, sps.diags(-self.sigma), sps.diags(self.gamma), None],
+                                                       [None, None, sps.diags(-self.delta), sps.diags(self.gammap)],
+                                                       [None, None, sps.diags(-self.theta), sps.diags(-self.thetap)],
+                                                       [None, None, sps.diags(-self.mu), sps.diags(-self.mup)]
+                ], format = 'csr'), shape = [6 * self.N, 4 * self.N])
                 self.beta_closure = np.zeros(self.N,)
                 self.L = nx.to_scipy_sparse_matrix(self.G)
 
@@ -221,7 +221,6 @@ class static(epinet):
                 Inputs:
                 y (array): an array of dims (N_statuses, N_nodes)
                 t (array): times for ode solver
-
                 Returns:
                 y_dot (array): lhs of backwards master eqns
                 """
@@ -232,10 +231,10 @@ class static(epinet):
                 self.coeffs[S,S] =   self.beta_closure
                 self.coeffs[E,S] = - self.beta_closure
 
-                y = self.coeffs.dot(y)
+                y = self.coeffs.dot(y[0:4*self.N])
 
                 return y
-    
+
         def set_backwards_solver(self, method = 'RK45', T = 200, dt = 0.1):
                 """
                 Inputs: 
@@ -253,7 +252,7 @@ class static(epinet):
         def backwards_solve(self, y0, t, args = (), **kwargs):
                 """
                 """
-                
+
                 if self.backwards_solve_init:
                         res = integrate.solve_ivp(
                                 fun = lambda t, y: self.kolmogorov_backwards_eqns_het_sparse(t, y, *args),
@@ -263,6 +262,8 @@ class static(epinet):
                 else:
                         res = np.empty()
                 return res
+        
+
 
         
 class dynamic(epinet):
