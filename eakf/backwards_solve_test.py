@@ -63,7 +63,7 @@ def load_G():
     G = nx.fast_gnp_random_graph(N, 5./(N-1))
     # G = nx.powerlaw_cluster_graph(N, 20, 5./(N-1))
 
-    edge_list = np.loadtxt('../notebooks/networks/High-School_data_2013.csv', usecols = [1,2], dtype = int)
+    edge_list = np.loadtxt('../data/networks/High-School_data_2013.csv', usecols = [1,2], dtype = int)
     # edge_list = np.loadtxt('networks/thiers_2012.csv', usecols = [1,2], dtype = int)
 
     G = nx.Graph([tuple(k) for k in edge_list])
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 50.
+    T = 20.
     dt = 0.1 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
