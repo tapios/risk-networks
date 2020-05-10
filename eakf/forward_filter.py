@@ -6,6 +6,7 @@ import networkx as nx
 from eakf import EAKF
 import time
 import pickle
+from plot import plot_states
 
 def forward_model(G, params, state0, T, dt_max, t_range):
     model = MasterEqn(G)
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     # Number of EAKF steps
     steps_DA = 10
     # Ensemble size (required>=2)
-    n_samples = 20
+    n_samples = 50
 
 
     # Set prior for unknown parameters
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     T_init = 0.0
     dt_init = 0.1 
     steps_T_init=int(T_init/dt_init)
-    t_range_init = np.linspace(dt_init, T_init, num=steps_T_init+1, endpoint=True)#includes 0 and T_init
+    t_range_init = np.linspace(0.0, T_init, num=steps_T_init+1, endpoint=True)#includes 0 and T_init
     dt_fsolve =T_init/10.
 
     # Parameters for each EAKF step
@@ -115,7 +116,6 @@ if __name__ == "__main__":
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
     t_range0=np.hstack([0.0,t_range])
-    print(t_range0)
     dt_fsolve =T/10.
 
     # Container for forward model evaluations
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         print('Time elapsed for initialization forward model: ', end - start)
 
     #Create (distinct) indices at which we obtain data:
-    obs_type="fixed"
+    obs_type="single_rand"
     
     if obs_type=="fixed": 
         #Case 1: single repeated obs time each window
@@ -139,12 +139,12 @@ if __name__ == "__main__":
     elif obs_type=="single_rand":
         #Case 2: single observation time per assimilation window 
         obs_times=steps_T*np.arange(steps_DA) + np.random.randint(steps_T,size=steps_DA)
-        print(obs_times)
+        #print(obs_times)
     elif obs_type=="mult_rand":
         #<Not Yet Implemented> Case 3:random observation times in whole path
-        #obs_total=20
-        #obs_times=shuffle(np.arange(steps_T*steps_DA))
-        #obs_times=np.array(sorted(obs_times[:obs_total]))
+        obs_total=20
+        obs_times=shuffle(np.arange(steps_T*steps_DA))
+        obs_times=np.array(sorted(obs_times[:obs_total]))
     else:
         print('observation type not recognised')
         exit()
@@ -170,10 +170,10 @@ if __name__ == "__main__":
         if (obs_in_window.size>0):
             obs_in_window=obs_times[obs_in_window]
             data_index=obs_in_window - 1- (iterN*steps_T)#the index of the window - iterations - the IC's in 0 index 
-            print('obs at time (excluding T_init):',iterN*T+t_range[data_index[0]], ', i.e indices ', data_index[0], 'in window ', iterN)
+            print('obs at time (excluding T_init):',iterN*T+t_range[data_index[0]], ', i.e indices ', data_index[0]+1, 'in window ', iterN)
             
             x_obs = data[obs_in_window[0],:]
-            x_cov = np.identity(x_obs.shape[0]) * 0.01 
+            x_cov = np.identity(x_obs.shape[0]) * 0.05 
             #currently, for EACH observation we need to add and update
             ekf.obs(x_obs, x_cov)
 
@@ -212,5 +212,15 @@ if __name__ == "__main__":
         pickle.dump(ekf.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
+
+    #plots
+    t_range_total=np.hstack([t_range+steps_T*i for i in np.arange(steps_DA)])
+    if T_init>0.0:
+        t_range_total=np.hstack([t_range_init,t_range_total])
+    else:
+        t_range_total=np.hstack([0.0,t_range_total])
+
+    print(t_range_total)
+    plot_states(data[obs_times,:],x_forward_all,T_init+obs_times*dt,t_range_total,6,N,'forward_filter')
 
         
