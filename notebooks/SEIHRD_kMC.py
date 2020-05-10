@@ -15,7 +15,7 @@ sns.set_style("ticks")
 sns.set_context("talk")
 
 # latent period distribution
-l = lambda x, k = 1.5, theta = 2: 2+np.random.gamma(k, theta)
+l = lambda x, k = 1.7, theta = 2: 2+np.random.gamma(k, theta)
 
 # infectiousness duration outside hospitals
 g = lambda x, k = 1.5, theta = 2: 1+np.random.gamma(k, theta)
@@ -23,33 +23,26 @@ g = lambda x, k = 1.5, theta = 2: 1+np.random.gamma(k, theta)
 # infectiousness duration in hospitals
 gp = lambda x, k = 1.5, theta = 3: 1+np.random.gamma(k, theta)
 
-# age structure Kings County, CA: https://datausa.io/profile/geo/kings-county-ca#demographics
+# age structure King County, WA: https://datausa.io/profile/geo/king-county-wa#demographics
 # we use the age classes: 0--19, 20--44, 45--64, 65--74, >= 75
 
-age_classes = np.asarray([0.312108117, 0.378902183, 0.214338507, 0.0548264451, 0.0398247471])
+age_classes = np.asarray([0.2298112587,0.3876994201,0.2504385036,0.079450985,0.0525998326])
 
 # age-dependent hospitalization and recovery rates
 
-fh = np.asarray([0.01, 0.1, 0.2, 0.3, 0.3])
+fh = np.asarray([0.02, 0.17, 0.25, 0.35, 0.45])
 
-bh = np.asarray([0.02, 0.15, 0.15, 0.15, 0.45])
+fd = np.asarray([1e-15, 0.001, 0.005, 0.02, 0.05])
 
-fd = np.asarray([0, 0.001, 0.005, 0.01, 0.03])
-
-bd = np.asarray([0, 0.001, 0.005, 0.01, 0.02])
-
-fdp = np.asarray([0, 0.001, 0.01, 0.02, 0.05])
-
-bdp = np.asarray([0, 0.001, 0.01, 0.01, 0.15])
+fdp = np.asarray([1e-15, 0.001, 0.01, 0.04, 0.1])
 
 # hospitalization fraction (a...age class integers to refer to 0--19, 20--44, 45--64, 65--74, >= 75)
-h = lambda a: fh[a]+np.random.uniform(low = 0, high = bh[a])
 
-# mortality fraction outside hospitals
-d = lambda a: fd[a]+np.random.uniform(low = 0, high = bd[a])
+h = lambda a, beta = 4: np.random.beta(beta*fh[a]/(1-fh[a]), b = beta)
 
-# mortality fraction in hospitals
-dp = lambda a: fdp[a]+np.random.uniform(low = 0, high = bdp[a])
+d = lambda a, beta = 4: np.random.beta(beta*fd[a]/(1-fd[a]), b = beta)
+
+dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat):
 
@@ -136,7 +129,7 @@ if __name__ == "__main__":
 
     IC = defaultdict(lambda: 'S')
 
-    for i in range(10):
+    for i in range(int(0.5*len(G)),int(0.5*len(G))+10):
         IC[i] = 'I'
 
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
