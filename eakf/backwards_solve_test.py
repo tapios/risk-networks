@@ -71,12 +71,12 @@ def load_G():
     return G, len(list(G.nodes)) 
 
 def random_IC():
-    infected = np.random.randint(N, size = 10)
+    infected = np.random.randint(N, size = 3)
     E, I, H, R, D = np.zeros([5, N])
-    S = np.ones(N,)
-    I = np.zeros(N,)
-    I[infected] = 1.
-    S[infected] = 0.
+    S = 0.99*np.ones(N,)
+    I = 0.01*np.ones(N,)
+    I[infected] = 0.99
+    S[infected] = 0.01
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.06), np.log(0.06), n_samples)
+    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
     
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
@@ -103,12 +103,12 @@ if __name__ == "__main__":
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 20.
+    T = 80.
     dt = 0.1 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
-    dt_fsolve =0.05
-    dt_bsolve =0.05
+    dt_fsolve =0.1
+    dt_bsolve =0.1
     Tinit=0.0
     # Container for forward model evaluations
     x_forward_all = np.empty([n_samples, steps_T, n_status*N])
