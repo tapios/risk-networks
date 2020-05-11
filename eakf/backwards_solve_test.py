@@ -4,7 +4,7 @@ import multiprocessing
 from models import MasterEqn 
 import networkx as nx
 from eakf import EAKF
-from plot import plot_states
+from DA_forward_plot import plot_states
 import time
 import pickle
 import matplotlib.pyplot as plt

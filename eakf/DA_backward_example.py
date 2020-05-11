@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Number of EAKF steps
     steps_DA = 10 
     # Ensemble size (required>=2)
-    n_samples = 100
+    n_samples = 10
     # Number of status for each node
     n_status = 6
 

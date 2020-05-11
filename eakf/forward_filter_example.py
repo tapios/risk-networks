@@ -6,7 +6,7 @@ import networkx as nx
 from eakf import EAKF
 import time
 import pickle
-from plot import plot_states
+from DA_forward_plot import plot_states
 
 def forward_model(G, params, state0, T, dt_max, t_range):
     model = MasterEqn(G)
