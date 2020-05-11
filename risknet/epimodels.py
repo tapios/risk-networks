@@ -125,14 +125,18 @@ class static(epinet):
 			self.gamma =  (self.theta + self.delta + self.mu)
 			self.gammap =  (self.thetap + self.mup)
 
+                # Make a sparse matrix of coefficients
+		self.coeffs = sps.csr_matrix(sps.bmat(
 
-		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
-		   [sps.eye(self.N), sps.diags(-self.sigma), None, None, None, None],
-		   [None, sps.diags(self.sigma), sps.diags(-self.gamma), None, None, None],
-		   [None, None, sps.diags(self.delta), sps.diags(-self.gammap), None, None],
-		   [None, None, sps.diags(self.theta), sps.diags(self.thetap), None, None],
-		   [None, None, sps.diags(self.mu), sps.diags(self.mup), None, None]
-		  ], format = 'csr'), shape = [6 * self.N, 6 * self.N])
+                    [ [sps.eye(self.N), None,                   None,                   None,                    None, None],
+		      [sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
+		      [None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
+		      [None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
+		      [None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
+		      [None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]  ],
+
+		    format = 'csr'), shape = [6 * self.N, 6 * self.N])
+
 		self.beta_closure = np.zeros(self.N,)
 		self.L = nx.to_scipy_sparse_matrix(self.G)
 

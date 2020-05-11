@@ -140,19 +140,23 @@ if __name__ == "__main__":
 
 
     # edge list data
-    edge_list = np.loadtxt('networks/thiers_2012.csv', usecols = [0,1,2], dtype = int)
+    edge_list = np.loadtxt('../data/networks/thiers_2012.csv', usecols = [0,1,2], dtype = int)
 
     # time step (duration) of each network snapshot in seconds
     deltat = 3600
 
     G = temporal_network(edge_list, deltat)
 
-#    plt.figure()
-#    plt.plot(np.asarray([x for x in G.keys()])/(3600*24), [len(x) for x in G.values()])
-#    plt.xlabel(r'time [days]')
-#    plt.ylabel(r'number nodes')
-#    plt.tight_layout()
-#    plt.show()
+    density = np.asarray([2*len(x.edges())/(len(x.nodes())*(len(x.nodes())-1)) for x in G.values()])
+    time = np.asarray([x for x in G.keys()])/(3600)
+    print(time)
+    plt.figure()
+    plt.plot(time, density/max(density))
+    plt.plot(time[time <= 20], 0.05+np.sin(time[time <= 20]/(3.8)))
+    plt.xlabel(r'time [days]')
+    plt.ylabel(r'normalized edge density')
+    plt.tight_layout()
+    plt.show()
 
     # Parameters
 

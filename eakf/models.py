@@ -61,8 +61,8 @@ class MasterEqn:
             dt_max (float) : maximum time step?
         '''
         #We integrate backwards equations T0 -> T, so, 0 -> Tback
-        Tback=T0-T
-        tback_range=np.flip(T0-t_range)
+        Tback = T0 - T
+        tback_range = np.flip(T0 - t_range)
         self.model.init(beta = np.exp(params[0]))
 
         self.model.set_backwards_solver(method = 'RK45', T = Tback, dt = dt_max)
