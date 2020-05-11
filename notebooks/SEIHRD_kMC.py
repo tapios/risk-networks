@@ -46,11 +46,15 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
+beta0 = 0.05
+
+betap0 = 0.75*beta0
+
 beta_distr = lambda x, beta = 4: beta0*np.random.beta(beta*0.05/(1-0.05), b = beta)
 
 betap_distr = lambda x, beta = 4: betap0*np.random.beta(beta*0.05/(1-0.05), b = beta)
 
-def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
+def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
 
     """
     simulation of SEIHRD dynamics on temporal networks
@@ -61,7 +65,7 @@ def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
     J (graph): induced transitions
     IC (dictionary): initially infected nodes
     return_statuses (array): specifying return compartments
-    deltat (float): simulation time interval
+    deltat (float): simulation time interval (in days)
     T (float): simulation period
 
     Returns:
@@ -74,45 +78,24 @@ def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
     for s in return_statuses:
         states_arr['%s'%s] = []
 
-    time_delta_arr = np.arange(0, 1+deltat, deltat)
+    time_delta_arr = np.arange(0, 2+deltat, deltat)
+    
+    contact_reduction = 1
     
     for i in range(int(T/deltat)):
         
         day_time = time_delta_arr[i%len(time_delta_arr)]
-        #print(day_time)
+
         if day_time <= 0.5:
+                        
+            print(contact_reduction)
             
-            edge_attribute_dict_beta = {edge: beta_distr(1)+beta0*np.sin(day_time*3.8) for edge in G.edges()}
-            edge_attribute_dict_betap = {edge: betap_distr(1)+betap0*np.sin(day_time*3.8) for edge in G.edges()}
-            
-#            arr.append(np.mean([x for x in edge_attribute_dict_beta.values()]))
-#            plt.close('all')            
-#            plt.figure()
-#            plt.plot(arr, '-o')
-#            plt.show()
-            
-            nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
-            nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
-            
-            # Neighbor induced transitions.
-            J = nx.DiGraph()
-            J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
-            J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
+            J = inducedTransitions(G, beta0*np.sin(day_time*6)*contact_reduction, betap0*np.sin(day_time*6)*contact_reduction)
        
         else:
             
-            edge_attribute_dict_beta = {edge: beta_distr(1) for edge in G.edges()}
-            edge_attribute_dict_betap = {edge: betap_distr(1) for edge in G.edges()}
-            
-            #arr.append(np.mean([x for x in edge_attribute_dict_beta.values()]))
-        
-            nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
-            nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
-            
-            # Neighbor induced transitions.
-            J = nx.DiGraph()
-            J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
-            J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
+            J = inducedTransitions(G)
+
     
         res = EoN.Gillespie_simple_contagion(
                                 G,                           # Contact network
@@ -126,6 +109,8 @@ def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
 
         times, states = res.summary()
         node_status = res.get_statuses(time = times[-1])
+
+        contact_reduction = np.exp(-31*states['I'][-1]/len(G))
 
         for x in node_status.keys():
 
@@ -141,18 +126,20 @@ def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
             states_arr['%s'%s].extend(states['%s'%s])
 
     return np.asarray(time_arr), states_arr
-  
-if __name__ == "__main__":
+
+def spontaneousTransitions(G):
     
-    arr = []
-    # edge list data
-    edge_list = np.loadtxt('../data/networks/edge_list_SBM_1e3.txt', dtype = int, comments = '#')
+    """
+    spontaneous transitions of SEIHRD dynamics
 
-    # time step (duration) of each network snapshot in seconds
+    Parameters:
+    G (graph): network
 
-    G = nx.Graph()
-    G.add_edges_from(edge_list)
+    Returns:
+    H (graph): spontaneous transitions
 
+    """
+    
     gamma_arr = [1/g(1) for node in G.nodes()]    
     gammap_arr = [1/gp(1) for node in G.nodes()]    
 
@@ -183,17 +170,27 @@ if __name__ == "__main__":
     H.add_edge('I', 'H', rate = 1, weight_label='infect2hospital_weight')  # Hospitalization rate
     H.add_edge('I', 'D', rate = 1, weight_label='infect2death_weight')     # Death rate
     H.add_edge('H', 'D', rate = 1, weight_label='hospital2death_weight')   # Death rate for severe cases
+    
+    return H
 
+def inducedTransitions(G, dbeta = 0, dbetap = 0):
 
-    # transmission rates
-    beta0 = 0.05
-    betap0 = 0.75*beta0
+    """
+    induced transitions of SEIHRD dynamics
+
+    Parameters:
+    G (graph): network
+    dbeta (float): delta beta
+    dbetap (float): delta beta prime
+
+    Returns:
+    H (graph): spontaneous transitions
+
+    """
     
-    edge_attribute_dict_beta = {edge: beta_distr(1) for edge in G.edges()}
-    edge_attribute_dict_betap = {edge: betap_distr(1) for edge in G.edges()}
-    
-    print(np.mean([x for x in edge_attribute_dict_beta.values()]))
-    
+    edge_attribute_dict_beta = {edge: beta_distr(1)+dbeta for edge in G.edges()}
+    edge_attribute_dict_betap = {edge: betap_distr(1)+dbetap for edge in G.edges()}
+        
     nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
     nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
     
@@ -201,6 +198,19 @@ if __name__ == "__main__":
     J = nx.DiGraph()
     J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
     J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
+    
+    return J
+    
+if __name__ == "__main__":
+    
+    arr = []
+    # edge list data
+    edge_list = np.loadtxt('../data/networks/edge_list_SBM_1e3.txt', dtype = int, comments = '#')
+
+    # time step (duration) of each network snapshot in seconds
+
+    G = nx.Graph()
+    G.add_edges_from(edge_list)
 
     IC = defaultdict(lambda: 'S')
 
@@ -209,10 +219,14 @@ if __name__ == "__main__":
 
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
 
-    # simulate dynamics
-    times, states = temporal_network_epidemics(G, H, J, IC, return_statuses, deltat = 0.25, T = 100)
+    # transition networks
 
+    H = spontaneousTransitions(G)
+    J = inducedTransitions(G)
     
+    # simulate dynamics
+    times, states = temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat = 0.125, T = 100)
+
     tau = 5
     plt.figure()
     
@@ -226,21 +240,22 @@ if __name__ == "__main__":
     
     fig, axes = plt.subplots(1, 2, figsize = (15, 4))
 
-    axes[0].plot(times, states['S'], '-', label = 'Susceptible', color = 'C0')
-    axes[0].plot(times, states['R'], '-', label = 'Resistant', color = 'C4')
-    axes[0].plot(times, len(G)-np.asarray(states['S']), '-', label = 'Total cases', color = 'C1')
+    axes[0].plot(times, np.asarray(states['S'])/len(G), '-', label = 'Susceptible', color = 'C0')
+    axes[0].plot(times, np.asarray(states['R'])/len(G), '-', label = 'Resistant', color = 'C4')
+    axes[0].plot(times, (len(G)-np.asarray(states['S']))/len(G), '-', label = 'Total cases', color = 'C1')
     axes[0].legend(loc = 0)
 
-    axes[1].plot(times, states['E'], label = 'Exposed', color = 'C3')
-    axes[1].plot(times, states['I'], label = 'Infected', color = 'C1')
-    axes[1].plot(times, states['H'], label = 'Hospitalized', color = 'C2')
-    axes[1].plot(times, states['D'], label = 'Death', color = 'C6')
+    axes[1].plot(times, np.asarray(states['E'])/len(G), label = 'Exposed', color = 'C3')
+    axes[1].plot(times, np.asarray(states['I'])/len(G), label = 'Infected', color = 'C1')
+    axes[1].plot(times, np.asarray(states['H'])/len(G), label = 'Hospitalized', color = 'C2')
+    axes[1].plot(times, np.asarray(states['D'])/len(G), label = 'Death', color = 'C6')
     axes[1].legend(loc = 0)
 
     axes[0].set_xlabel('time [days]')
-    axes[0].set_ylabel('number')
+    axes[0].set_ylabel('fraction')
     axes[1].set_xlabel('time [days]')
     axes[1].set_ylabel('number')
+    plt.ylim([0,0.1])
     plt.tight_layout()
     plt.legend()
     plt.show()
