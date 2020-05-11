@@ -44,7 +44,13 @@ d = lambda a, beta = 4: np.random.beta(beta*fd[a]/(1-fd[a]), b = beta)
 
 dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
-def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat):
+# transmission
+
+beta_distr = lambda x, beta = 4: beta0*np.random.beta(beta*0.05/(1-0.05), b = beta)
+
+betap_distr = lambda x, beta = 4: betap0*np.random.beta(beta*0.05/(1-0.05), b = beta)
+
+def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat, T):
 
     """
     simulation of SEIHRD dynamics on temporal networks
@@ -56,30 +62,91 @@ def temporal_network_epidemics(G, H, J, IC, return_statuses, deltat):
     IC (dictionary): initially infected nodes
     return_statuses (array): specifying return compartments
     deltat (float): simulation time interval
+    T (float): simulation period
 
     Returns:
     time_arr (array), states_arr (array): times and compartment values
 
     """
+    
+    time_arr = []
+    states_arr = {}
+    for s in return_statuses:
+        states_arr['%s'%s] = []
 
-    res = EoN.Gillespie_simple_contagion(
-                            G,                           # Contact network
-                            H,                           # Spontaneous transitions (without any nbr influence)
-                            J,                           # Neighbor induced transitions
-                            IC,                          # Initial infected nodes
-                            return_statuses,             
-                            return_full_data = True,
-                            tmax = 200                   # Contact network (division by 86400 because G time units are seconds)
-                        )
+    time_delta_arr = np.arange(0, 1+deltat, deltat)
+    
+    for i in range(int(T/deltat)):
+        
+        day_time = time_delta_arr[i%len(time_delta_arr)]
+        #print(day_time)
+        if day_time <= 0.5:
+            
+            edge_attribute_dict_beta = {edge: beta_distr(1)+beta0*np.sin(day_time*3.8) for edge in G.edges()}
+            edge_attribute_dict_betap = {edge: betap_distr(1)+betap0*np.sin(day_time*3.8) for edge in G.edges()}
+            
+#            arr.append(np.mean([x for x in edge_attribute_dict_beta.values()]))
+#            plt.close('all')            
+#            plt.figure()
+#            plt.plot(arr, '-o')
+#            plt.show()
+            
+            nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
+            nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
+            
+            # Neighbor induced transitions.
+            J = nx.DiGraph()
+            J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
+            J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
+       
+        else:
+            
+            edge_attribute_dict_beta = {edge: beta_distr(1) for edge in G.edges()}
+            edge_attribute_dict_betap = {edge: betap_distr(1) for edge in G.edges()}
+            
+            #arr.append(np.mean([x for x in edge_attribute_dict_beta.values()]))
+        
+            nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
+            nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
+            
+            # Neighbor induced transitions.
+            J = nx.DiGraph()
+            J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
+            J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
+    
+        res = EoN.Gillespie_simple_contagion(
+                                G,                           # Contact network
+                                H,                           # Spontaneous transitions (without any nbr influence)
+                                J,                           # Neighbor induced transitions
+                                IC,                          # Initial infected nodes
+                                return_statuses,             #
+                                return_full_data = True,
+                                tmax = deltat                # Contact network (division by 86400 because G time units are seconds)
+                            )
 
-    times, states = res.summary()
+        times, states = res.summary()
+        node_status = res.get_statuses(time = times[-1])
+
+        for x in node_status.keys():
+
+            IC[x] = node_status[x]
+
+            # need to add some random infections
+            #if node_status[x] == 'S' and np.random.rand() < 0.1:
+            #    IC[x] = 'I'
+        #print(IC)
+
+        time_arr.extend(times+i*deltat)
+        for s in return_statuses:
+            states_arr['%s'%s].extend(states['%s'%s])
+
+    return np.asarray(time_arr), states_arr
   
-    return times, states
-
 if __name__ == "__main__":
-
+    
+    arr = []
     # edge list data
-    edge_list = np.loadtxt('../data/networks/edge_list_SBM_1e4.txt', dtype = int, comments = '#')
+    edge_list = np.loadtxt('../data/networks/edge_list_SBM_1e3.txt', dtype = int, comments = '#')
 
     # time step (duration) of each network snapshot in seconds
 
@@ -119,13 +186,21 @@ if __name__ == "__main__":
 
 
     # transmission rates
-    beta = 0.02
-    betap = 0.75*beta
+    beta0 = 0.05
+    betap0 = 0.75*beta0
+    
+    edge_attribute_dict_beta = {edge: beta_distr(1) for edge in G.edges()}
+    edge_attribute_dict_betap = {edge: betap_distr(1) for edge in G.edges()}
+    
+    print(np.mean([x for x in edge_attribute_dict_beta.values()]))
+    
+    nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
+    nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
     
     # Neighbor induced transitions.
     J = nx.DiGraph()
-    J.add_edge(('I', 'S'), ('I', 'E'), rate = beta)         # Transmission rate
-    J.add_edge(('H', 'S'), ('H', 'E'), rate = betap)        # Transmission rate
+    J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
+    J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
 
     IC = defaultdict(lambda: 'S')
 
@@ -135,13 +210,13 @@ if __name__ == "__main__":
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
 
     # simulate dynamics
-    times, states = temporal_network_epidemics(G, H, J, IC, return_statuses, deltat = 100)
+    times, states = temporal_network_epidemics(G, H, J, IC, return_statuses, deltat = 0.25, T = 100)
 
     
     tau = 5
     plt.figure()
     
-    plt.plot(times, states['I'])
+    plt.plot(times, states['I'], '-o')
     
     plt.plot(times, 10*2.5**(times/tau))
     
@@ -151,9 +226,9 @@ if __name__ == "__main__":
     
     fig, axes = plt.subplots(1, 2, figsize = (15, 4))
 
-    axes[0].plot(times, states['S'], label = 'Susceptible', color = 'C0')
-    axes[0].plot(times, states['R'], label = 'Resistant', color = 'C4')
-    axes[0].plot(times, states['I'], label = 'Infected', color = 'C1')
+    axes[0].plot(times, states['S'], '-', label = 'Susceptible', color = 'C0')
+    axes[0].plot(times, states['R'], '-', label = 'Resistant', color = 'C4')
+    axes[0].plot(times, len(G)-np.asarray(states['S']), '-', label = 'Total cases', color = 'C1')
     axes[0].legend(loc = 0)
 
     axes[1].plot(times, states['E'], label = 'Exposed', color = 'C3')
