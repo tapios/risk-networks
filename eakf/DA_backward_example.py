@@ -71,8 +71,11 @@ if __name__ == "__main__":
     data = np.fliplr(data)
     data = data.T
 
+    # Load initial conditions of backward DA from a forward DA run
+    # Need to run DA_forward_example.py to output g.pkl
     fin = 'data/g.pkl'
-    x_IC = pickle.load(open(fin, 'rb'))
+    x_forward_all = pickle.load(open(fin, 'rb'))
+    x_backward_IC = x_forward_all[-1,:,:]
 
     # Load network
     G, N = load_G()
@@ -85,7 +88,7 @@ if __name__ == "__main__":
     states_IC = np.zeros([n_samples, n_status*N])
     for iterN in range(n_samples):
         #states_IC[iterN, :] = random_IC()
-        states_IC[iterN, :] = x_IC[-1, iterN, :] 
+        states_IC[iterN, :] = x_backward_IC[iterN, :] 
 
     # Set time informations inside an EAKF step
     T = 10.0
@@ -106,7 +109,7 @@ if __name__ == "__main__":
         print('DA step: ', iterN+1)
 
         ## Get observations for EAKF
-        x_obs = data[(iterN+1)*steps_T-1,:]
+        x_obs = data[(iterN+1)*int(T)-1,:]
         x_cov = np.identity(x_obs.shape[0]) * 0.01 
         #x_cov = np.diag(np.maximum((0.1*x_obs)**2, 1e-2))
         ekf.obs(x_obs, x_cov)

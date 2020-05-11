@@ -97,7 +97,7 @@ if __name__ == "__main__":
         print('DA step: ', iterN+1)
 
         ## Get observations for EAKF
-        x_obs = data[(iterN+1)*steps_T-1,:]
+        x_obs = data[(iterN+1)*int(T)-1,:]
         x_cov = np.identity(x_obs.shape[0]) * 0.01 
         #x_cov = np.diag(np.maximum((0.1*x_obs)**2, 1e-2))
         ekf.obs(x_obs, x_cov)
