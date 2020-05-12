@@ -6,7 +6,7 @@ import networkx as nx
 from eakf import EAKF
 import time
 import pickle
-from plot import plot_states
+from DA_forward_plot import plot_states
 
 def forward_model(G, params, state0, T, dt_max, t_range):
     model = MasterEqn(G)
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     ### Set up DA ###
 
     # Number of EAKF steps
-    steps_DA = 10
+    steps_DA = 20
     # Ensemble size (required>=2)
     n_samples = 50
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     dt_fsolve =T_init/10.
 
     # Parameters for each EAKF step
-    T = 10.0
+    T = 5.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
@@ -130,9 +130,10 @@ if __name__ == "__main__":
         end=time.time()
         print('Time elapsed for initialization forward model: ', end - start)
 
-    #Create (distinct) indices at which we obtain data:
+    #Choice of observations  [Make object for this info]
+    #When: Create (distinct) indices at which we obtain data
+
     obs_type="single_rand"
-    
     if obs_type=="fixed": 
         #Case 1: single repeated obs time each window
         obs_times=np.arange(steps_DA)*steps_T + (steps_T-1)
@@ -140,15 +141,27 @@ if __name__ == "__main__":
         #Case 2: single observation time per assimilation window 
         obs_times=steps_T*np.arange(steps_DA) + np.random.randint(steps_T,size=steps_DA)
         #print(obs_times)
-    elif obs_type=="mult_rand":
+    #elif obs_type=="mult_rand":
         #<Not Yet Implemented> Case 3:random observation times in whole path
-        obs_total=20
-        obs_times=shuffle(np.arange(steps_T*steps_DA))
-        obs_times=np.array(sorted(obs_times[:obs_total]))
+        #obs_times_tot=20
+        #obs_times=shuffle(np.arange(steps_T*steps_DA))
+        #obs_times=np.array(sorted(obs_times[:obs_times_tot]))
     else:
         print('observation type not recognised')
         exit()
+
+    # Which states to observe
+    # S E I H R D
+    obs_status=np.array([0,1,2,3,4,5])
+    obs_status=np.hstack([np.arange(N)+i*N for i in obs_status])
+
+    # Which nodes to observe
+    obs_nodes_tot=int(0.9*N)
+    obs_nodes=shuffle(np.arange(N))
+    obs_nodes=np.array(sorted(obs_nodes[:obs_nodes_tot]))
+    
         
+    
     ### ***ENTER LOOP*** ###
     for iterN in range(steps_DA):
         print('DA step: ', iterN+1)
