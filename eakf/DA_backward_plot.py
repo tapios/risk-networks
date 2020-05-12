@@ -42,7 +42,7 @@ def plot_states(states_t, states, t_t, t_states, num_status, N, fig_name):
     plot_range(axes[1], t_states, N * mean_H[:,2], N * min_H[:,2], N * max_H[:,2], 'C1')
     plot_range(axes[1], t_states, N * mean_H[:,-3], N * min_H[:,-3], N * max_H[:,-3], 'C2')
     plot_range(axes[1], t_states, N * mean_H[:,-1], N * min_H[:,-1], N * max_H[:,-1], 'C6')
-    axes[1].set_ylim([-50,200])
+    axes[1].set_ylim([0,400])
     
     axes[0].legend(['Susceptible', 'Resistant', 'Infected'],
                    bbox_to_anchor=(0., 1.02, 1., .102), loc=3,

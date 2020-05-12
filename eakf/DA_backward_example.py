@@ -110,8 +110,8 @@ if __name__ == "__main__":
 
         ## Get observations for EAKF
         x_obs = data[(iterN+1)*int(T)-1,:]
-        x_cov = np.identity(x_obs.shape[0]) * 0.01 
-        #x_cov = np.diag(np.maximum((0.1*x_obs)**2, 1e-2))
+        #x_cov = np.identity(x_obs.shape[0]) * 0.01 
+        x_cov = np.diag(np.maximum((0.01*x_obs)**2, 1e-3))
         ekf.obs(x_obs, x_cov)
 
         ## Forward model evaluation of all ensemble members
