@@ -57,10 +57,11 @@ if __name__ == "__main__":
     np.random.seed(10)
     print("Number of cpu : ", multiprocessing.cpu_count())
 
-    # Number of EAKF steps
-    steps_DA = 5
+    # Number of steps for the data assimilation algorithm.
+    # This data assimilation algorithm is called the Ensemble Adjusted Kalman Filter (EAKF).
+    steps_DA = 10
     # Ensemble size (required>=2)
-    n_samples = 10
+    n_samples = 10 # 100
     # Number of status for each node
     n_status = 6
 
@@ -74,7 +75,7 @@ if __name__ == "__main__":
 
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
+    params[:, 0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
 
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])

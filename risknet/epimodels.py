@@ -16,256 +16,259 @@ class epinet(object):
 
 class static(epinet):
 
-        def __init__(self, G, N):
-                super().__init__(G, N)
+	def __init__(self, G, N):
+		super().__init__(G, N)
 
-        def create_spontaneous(self, sigma = 1/3.5, gamma = 1/13.7, **kwargs):
+	def create_spontaneous(self, sigma = 1/3.5, gamma = 1/13.7, **kwargs):
 
-                self.H = nx.DiGraph()
-                self.H.add_node('S')
+		self.H = nx.DiGraph()
+		self.H.add_node('S')
 
-                if self.__heterogoneous:
+		if self.__heterogoneous:
 
-                        self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
+			self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
 
-                        self.H.add_edge('I', 'R', rate = 1., weight_label = 'theta')
-                        self.H.add_edge('I', 'H', rate = 1., weight_label = 'delta')
-                        self.H.add_edge('I', 'D', rate = 1., weight_label = 'mu')
+			self.H.add_edge('I', 'R', rate = 1., weight_label = 'theta')
+			self.H.add_edge('I', 'H', rate = 1., weight_label = 'delta')
+			self.H.add_edge('I', 'D', rate = 1., weight_label = 'mu')
 
-                        self.H.add_edge('H', 'R', rate = 1., weight_label = 'thetap')
-                        self.H.add_edge('H', 'D', rate = 1., weight_label = 'mup')
+			self.H.add_edge('H', 'R', rate = 1., weight_label = 'thetap')
+			self.H.add_edge('H', 'D', rate = 1., weight_label = 'mup')
 
-                else:
-                        self.sigma = sigma
-                        self.gamma = gamma
-                        mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
-                                                                                np.array([[0.01 *(self.gamma)],[0.15 *(self.gamma)]]))
-                        self.mu = mu[0]
-                        self.delta = delta[0]
+		else:
+			self.sigma = sigma
+			self.gamma = gamma
+			mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
+										np.array([[0.01 *(self.gamma)],[0.15 *(self.gamma)]]))
+			self.mu = mu[0]
+			self.delta = delta[0]
 
-                        self.gammap = 1/(1/self.gamma + 7.0)
-                        self.mup    = (0.1/(1-.1)) * (1/(self.gamma + 7.0))
+			self.gammap = 1/(1/self.gamma + 7.0)
+			self.mup    = (0.1/(1-.1)) * (1/(self.gamma + 7.0))
 
-                        self.H.add_edge('E', 'I', rate = self.sigma)
+			self.H.add_edge('E', 'I', rate = self.sigma)
 
-                        self.H.add_edge('I', 'R', rate = self.gamma)
-                        self.H.add_edge('I', 'H', rate = self.delta)
-                        self.H.add_edge('I', 'D', rate = self.mu)
+			self.H.add_edge('I', 'R', rate = self.gamma)
+			self.H.add_edge('I', 'H', rate = self.delta)
+			self.H.add_edge('I', 'D', rate = self.mu)
 
-                        self.H.add_edge('H', 'R', rate = self.gammap)
-                        self.H.add_edge('H', 'D', rate = self.mup)
+			self.H.add_edge('H', 'R', rate = self.gammap)
+			self.H.add_edge('H', 'D', rate = self.mup)
 
-        def create_induced(self, beta = 0.06, **kwargs):
-                self.beta  = beta
-                self.betap = 0.0001 * beta
+	def create_induced(self, beta = 0.06, **kwargs):
+		self.beta  = beta
+		self.betap = 0.0001 * beta
 
-                self.J = nx.DiGraph()
-                self.J.add_edge(('I', 'S'), ('I', 'E'), rate = self.beta)
-                self.J.add_edge(('H', 'S'), ('H', 'E'), rate = self.betap)
+		self.J = nx.DiGraph()
+		self.J.add_edge(('I', 'S'), ('I', 'E'), rate = self.beta)
+		self.J.add_edge(('H', 'S'), ('H', 'E'), rate = self.betap)
 
-        def init_infected(self, nodes):
-                self.IC = defaultdict(lambda: 'S')
-                for node in nodes:
-                        self.IC[node] = 'I'
+	def init_infected(self, nodes):
+		self.IC = defaultdict(lambda: 'S')
+		for node in nodes:
+			self.IC[node] = 'I'
 
-        def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
-                if kwargs.get('het', False):
-                        self.__heterogoneous = True
-                        self.heterogoneous = True
-                else:
-                        self.__heterogoneous = False
-                        self.heterogoneous = False
+	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
+		if kwargs.get('het', False):
+			self.__heterogoneous = True
+			self.heterogoneous = True
+		else:
+			self.__heterogoneous = False
+			self.heterogoneous = False
 
-                self.create_spontaneous(sigma, gamma, **kwargs)
-                self.create_induced(beta, **kwargs)
+		self.create_spontaneous(sigma, gamma, **kwargs)
+		self.create_induced(beta, **kwargs)
 
-        def simulate(self, return_statuses, **kwargs):
-                simulation = EoN.Gillespie_simple_contagion(
-                                                self.G,
-                                                self.H,
-                                                self.J,
-                                                self.IC,
-                                                return_statuses = return_statuses,
-                                                return_full_data = True,
-                                                tmax = float('Inf')
-                                        )
-                return simulation
+	def simulate(self, return_statuses, **kwargs):
+		simulation = EoN.Gillespie_simple_contagion(
+						self.G,
+						self.H,
+						self.J,
+						self.IC,
+						return_statuses = return_statuses,
+						return_full_data = True,
+						tmax = float('Inf')
+					)
+		return simulation
 
-        def set_solver(self, method = 'RK45', T = 200, dt = 0.1, **kwargs):
-                self.method = method
-                self.dt = dt
-                self.T = T
-                self.solve_init = True
+	def set_solver(self, method = 'RK45', T = 200, dt = 0.1, **kwargs):
+		self.method = method
+		self.dt = dt
+		self.T = T
+		self.solve_init = True
 
-                if kwargs.get('member_call', True):
-                        self.set_parameters(**kwargs)
-                else:
-                        pass
+		if kwargs.get('member_call', True):
+			self.set_parameters(**kwargs)
+		else:
+			pass
 
-        def set_parameters(self):
-                """
-                Set and initialize master equation parameters
-                """
-                if self.__heterogoneous:
-                        self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
-                        self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
-                        self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
-                        self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
-                        self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
-                        self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
-                        self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
-                        self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
-                else:
-                        self.sigma =  self.sigma * np.ones(self.N)
-                        self.delta =  self.delta * np.ones(self.N)
-                        self.theta =  self.gamma * np.ones(self.N)
-                        self.thetap =  self.gammap * np.ones(self.N)
-                        self.mu =  self.mu * np.ones(self.N)
-                        self.mup =  self.mup * np.ones(self.N)
-                        self.gamma =  (self.theta + self.delta + self.mu)
-                        self.gammap =  (self.thetap + self.mup)
+	def set_parameters(self):
+		"""
+		Set and initialize master equation parameters
+		"""
+		if self.__heterogoneous:
+			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
+			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
+			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
+			self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
+			self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
+			self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
+			self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
+			self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
+		else:
+			self.sigma =  self.sigma * np.ones(self.N)
+			self.delta =  self.delta * np.ones(self.N)
+			self.theta =  self.gamma * np.ones(self.N)
+			self.thetap =  self.gammap * np.ones(self.N)
+			self.mu =  self.mu * np.ones(self.N)
+			self.mup =  self.mup * np.ones(self.N)
+			self.gamma =  (self.theta + self.delta + self.mu)
+			self.gammap =  (self.thetap + self.mup)
 
+                # Make a sparse matrix of coefficients
+		self.coeffs = sps.csr_matrix(sps.bmat(
 
-                self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None, None, None],
-                   [sps.eye(self.N), sps.diags(-self.sigma), None, None, None, None],
-                   [None, sps.diags(self.sigma), sps.diags(-self.gamma), None, None, None],
-                   [None, None, sps.diags(self.delta), sps.diags(-self.gammap), None, None],
-                   [None, None, sps.diags(self.theta), sps.diags(self.thetap), None, None],
-                   [None, None, sps.diags(self.mu), sps.diags(self.mup), None, None]
-                  ], format = 'csr'), shape = [6 * self.N, 6 * self.N])
-                self.beta_closure = np.zeros(self.N,)
-                self.L = nx.to_scipy_sparse_matrix(self.G)
+                    [ [sps.eye(self.N), None,                   None,                   None,                    None, None],
+		      [sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
+		      [None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
+		      [None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
+		      [None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
+		      [None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]  ],
 
-                self.adj = defaultdict()
+		    format = 'csr'), shape = [6 * self.N, 6 * self.N])
 
-                for ii, ngbr in self.G.adjacency():
-                        self.adj[ii] = list(ngbr.keys())
+		self.beta_closure = np.zeros(self.N,)
+		self.L = nx.to_scipy_sparse_matrix(self.G)
 
-                self.checks = []
+		self.adj = defaultdict()
 
-        def kolmogorov_eqns_het_sparse(self, t, y):
-                """
-                Inputs:
-                y (array): an array of dims (N_statuses, N_nodes)
-                t (array): times for ode solver
+		for ii, ngbr in self.G.adjacency():
+			self.adj[ii] = list(ngbr.keys())
 
-                Returns:
-                y_dot (array): lhs of master eqns
-                """
-                S, E, I, H = [range(kk * self.N, (kk + 1) * self.N) for kk in range(4)]
+		self.checks = []
 
-                self.beta_closure = sps.kron(np.array([self.beta, self.betap]), self.L).dot(np.hstack([y[I], y[H]]))
+	def kolmogorov_eqns_het_sparse(self, t, y):
+		"""
+		Inputs:
+		y (array): an array of dims (N_statuses, N_nodes)
+		t (array): times for ode solver
 
-                self.coeffs[S,S] = - self.beta_closure
-                self.coeffs[E,S] =   self.beta_closure
+		Returns:
+		y_dot (array): lhs of master eqns
+		"""
+		S, E, I, H = [range(kk * self.N, (kk + 1) * self.N) for kk in range(4)]
 
-                y = self.coeffs.dot(y)
+		self.beta_closure = sps.kron(np.array([self.beta, self.betap]),	self.L).dot(np.hstack([y[I], y[H]]))
 
-                return y
+		self.coeffs[S,S] = - self.beta_closure
+		self.coeffs[E,S] =   self.beta_closure
 
-        def solve(self, y0, t, args = (), **kwargs):
-                """
-                """
-                if self.solve_init:
-                        res = integrate.solve_ivp(
-                                fun = lambda t, y: self.kolmogorov_eqns_het_sparse(t, y, *args),
-                                t_span = [0,self.T], y0 = y0,
-                                t_eval = t, method = self.method, max_step = self.dt)
-                else:
-                        res = np.empty()
-                return res
+		y = self.coeffs.dot(y)
 
-        def set_backwards_parameters(self):
-                """
-                Set and initialize parameters for the backward master equations
-                -Model parameters (same as the forward equations)
-                -Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
-                -Network parameters (same as the forward equations)
-                """
-                if self.__heterogoneous:
-                        self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
-                        self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
-                        self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
-                        self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
-                        self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
-                        self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
-                        self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
-                        self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
-                else:
-                        self.sigma =  self.sigma * np.ones(self.N)
-                        self.delta =  self.delta * np.ones(self.N)
-                        self.theta =  self.gamma * np.ones(self.N)
-                        self.thetap =  self.gammap * np.ones(self.N)
-                        self.mu =  self.mu * np.ones(self.N)
-                        self.mup =  self.mup * np.ones(self.N)
-                        self.gamma =  (self.theta + self.delta + self.mu) 
-                        self.gammap =  (self.thetap + self.mup) 
+		return y
 
-                self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None],
-                                                                                           [sps.eye(self.N), sps.diags(self.sigma), None, None],
-                                                                                           [None, sps.diags(-self.sigma), sps.diags(self.gamma), None],
-                                                                                           [None, None, sps.diags(-self.delta), sps.diags(self.gammap)],
-                                                                                           [None, None, sps.diags(-self.theta), sps.diags(-self.thetap)],
-                                                                                           [None, None, sps.diags(-self.mu), sps.diags(-self.mup)]
-                ], format = 'csr'), shape = [6 * self.N, 4 * self.N])
-                self.beta_closure = np.zeros(self.N,)
-                self.L = nx.to_scipy_sparse_matrix(self.G)
+	def solve(self, y0, t, args = (), **kwargs):
+		"""
+		"""
+		if self.solve_init:
+			res = integrate.solve_ivp(
+				fun = lambda t, y: self.kolmogorov_eqns_het_sparse(t, y, *args),
+				t_span = [0,self.T], y0 = y0,
+				t_eval = t, method = self.method, max_step = self.dt)
+		else:
+			res = np.empty()
+		return res
 
-                self.adj = defaultdict()
+	def set_backwards_parameters(self):
+		"""
+		Set and initialize parameters for the backward master equations
+		-Model parameters (same as the forward equations)
+		-Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
+		-Network parameters (same as the forward equations)
+		"""
+		if self.__heterogoneous:
+			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
+			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
+			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
+			self.theta = np.array(list(nx.get_node_attributes(self.G, 'theta').values()))
+			self.delta = np.array(list(nx.get_node_attributes(self.G, 'delta').values()))
+			self.mu = np.array(list(nx.get_node_attributes(self.G, 'mu').values()))
+			self.thetap = np.array(list(nx.get_node_attributes(self.G, 'thetap').values()))
+			self.mup = np.array(list(nx.get_node_attributes(self.G, 'mup').values()))
+		else:
+			self.sigma =  self.sigma * np.ones(self.N)
+			self.delta =  self.delta * np.ones(self.N)
+			self.theta =  self.gamma * np.ones(self.N)
+			self.thetap =  self.gammap * np.ones(self.N)
+			self.mu =  self.mu * np.ones(self.N)
+			self.mup =  self.mup * np.ones(self.N)
+			self.gamma =  (self.theta + self.delta + self.mu) 
+			self.gammap =  (self.thetap + self.mup) 
 
-                for ii, ngbr in self.G.adjacency():
-                                self.adj[ii] = list(ngbr.keys())
+		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None],
+											   [sps.eye(self.N), sps.diags(self.sigma), None, None],
+											   [None, sps.diags(-self.sigma), sps.diags(self.gamma), None],
+											   [None, None, sps.diags(-self.delta), sps.diags(self.gammap)],
+											   [None, None, sps.diags(-self.theta), sps.diags(-self.thetap)],
+											   [None, None, sps.diags(-self.mu), sps.diags(-self.mup)]
+		], format = 'csr'), shape = [6 * self.N, 4 * self.N])
+		self.beta_closure = np.zeros(self.N,)
+		self.L = nx.to_scipy_sparse_matrix(self.G)
 
-                self.checks = []
+		self.adj = defaultdict()
 
-        def kolmogorov_backwards_eqns_het_sparse(self, t, y):
-                """
-                Inputs:
-                y (array): an array of dims (N_statuses, N_nodes)
-                t (array): times for ode solver
+		for ii, ngbr in self.G.adjacency():
+				self.adj[ii] = list(ngbr.keys())
 
-                Returns:
-                y_dot (array): lhs of backwards master eqns
-                """
-                
-                S, E, I, H = [range(kk * self.N, (kk + 1) * self.N) for kk in range(4)]
+		self.checks = []
 
-                self.beta_closure = sps.kron(np.array([self.beta, self.betap]), self.L).dot(np.hstack([y[I], y[H]]))
+	def kolmogorov_backwards_eqns_het_sparse(self, t, y):
+		"""
+		Inputs:
+		y (array): an array of dims (N_statuses, N_nodes)
+		t (array): times for ode solver
 
-                self.coeffs[S,S] =   self.beta_closure
-                self.coeffs[E,S] = - self.beta_closure
+		Returns:
+		y_dot (array): lhs of backwards master eqns
+		"""
+		S, E, I, H = [range(kk * self.N, (kk + 1) * self.N) for kk in range(4)]
 
-                y = self.coeffs.dot(y[0:4*self.N])
+		self.beta_closure = sps.kron(np.array([self.beta, self.betap]), self.L).dot(np.hstack([y[I], y[H]]))
 
-                return y
+		self.coeffs[S,S] =   self.beta_closure
+		self.coeffs[E,S] = - self.beta_closure
 
-        def set_backwards_solver(self, method = 'RK45', T = 200, dt = 0.1):
-                """
-                Inputs:
-                T = length of integration (backwards in time)
-                dt = (largest) timestep of solver
-                method = scipy integration solver
-                """
-                self.method = method
-                self.dt = dt
-                self.T = T
-                self.backwards_solve_init = True
+		y = self.coeffs.dot(y[0:4*self.N])
 
-                self.set_backwards_parameters()
+		return y
 
-        def backwards_solve(self, y0, t, args = (), **kwargs):
-                """
-                """
+	def set_backwards_solver(self, method = 'RK45', T = 200, dt = 0.1):
+		"""
+		Inputs:
+		T = length of integration (backwards in time)
+		dt = (largest) timestep of solver
+		method = scipy integration solver
+		"""
+		self.method = method
+		self.dt = dt
+		self.T = T
+		self.backwards_solve_init = True
 
-                if self.backwards_solve_init:        
-                        res = integrate.solve_ivp(
-                                        fun = lambda t, y: self.kolmogorov_backwards_eqns_het_sparse(t, y, *args),
-                                        t_span = [0,self.T], y0 = y0,
-                                        t_eval = t, method = self.method, max_step = self.dt)
-                        print(res.message)
-                else:
-                        res = np.empty()
-                return res
+		self.set_backwards_parameters()
+
+	def backwards_solve(self, y0, t, args = (), **kwargs):
+		"""
+		"""
+
+		if self.backwards_solve_init:
+			res = integrate.solve_ivp(
+					fun = lambda t, y: self.kolmogorov_backwards_eqns_het_sparse(t, y, *args),
+					t_span = [0,self.T], y0 = y0,
+					t_eval = t, method = self.method, max_step = self.dt)
+			print(res.message)
+		else:
+			res = np.empty()
+		return res
 
 class dynamic(epinet):
 
