@@ -26,22 +26,22 @@ class epiens(object):
 		self.betap = 0.0001 * beta
 
 		if kwargs.get('hom', True):
-			self.__heterogoneous = False
+			self.__heterogeneous = False
 			[member.init(beta = kwargs.get('beta', self.beta)) for member in self.ensemble]
 
 			for member in self.ensemble:
 				# Homogeneous parametrization:
-				member.sigma  =  member.sigma * np.random.uniform(.2, 1.8, size = self.N)
-				member.delta  =  member.delta * np.random.uniform(.2, 1.8, size = self.N)
-				member.theta  =  member.gamma * np.random.uniform(.2, 1.8, size = self.N)
-				member.thetap =  member.gammap * np.random.uniform(.2, 1.8, size = self.N)
-				member.mu     =  member.mu * np.random.uniform(.2, 1.8, size = self.N)
-				member.mup    =  member.mup * np.random.uniform(.2, 1.8, size = self.N)
+				member.sigma  =  member.sigma * np.random.uniform(.9, 1.1, size = self.N)
+				member.delta  =  member.delta * np.random.uniform(.9, 1.1, size = self.N)
+				member.theta  =  member.gamma * np.random.uniform(.9, 1.1, size = self.N)
+				member.thetap =  member.gammap * np.random.uniform(.9, 1.1, size = self.N)
+				member.mu     =  member.mu * np.random.uniform(.9, 1.1, size = self.N)
+				member.mup    =  member.mup * np.random.uniform(.9, 1.1, size = self.N)
 				member.gamma  =  (member.theta + member.delta + member.mu)
 				member.gammap =  (member.thetap + member.mup)
 
 		else:
-			self.__heterogoneous = True
+			self.__heterogeneous = True
 
 			pass
 
@@ -89,7 +89,7 @@ class epiens(object):
 
 		return member.coeffs.dot(y0)
 
-	def ens_keqns_sparse_closure(self, t, y, member, **kwargs):
+	def ens_keqns_sparse_closure(self, t, y, member, member_id, **kwargs):
 		"""
 		Inputs:
 		y (array): an array of dims (M times N_statuses times N_nodes)
@@ -110,7 +110,8 @@ class epiens(object):
 		if kwargs.get('closure', 'individual') == 'covariance':
 			member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + self.beta_closure_cov
 		elif kwargs.get('closure', 'individual') == 'correlation':
-			member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + self.beta_closure_cor
+			member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + \
+								self.beta_closure_cor[:, member_id]
 		else:
 			member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx]
 
@@ -129,24 +130,24 @@ class epiens(object):
 			).flatten()
 
 		elif kwargs.get('closure', 'individual') == 'correlation':
-			self.LcorSI = self.L.multiply(y[:,Sidx].T.dot(self.PM).dot(y[:,Iidx])/(self.M-1)).multiply(1/np.kron(
-				np.sqrt((y[:,Sidx].T.dot(self.PM) * y[:,Sidx].T).sum(axis = 1)/(self.M-1)+1e-16).reshape(1,-1),
-				np.sqrt((y[:,Iidx].T.dot(self.PM) * y[:,Iidx].T).sum(axis = 1)/(self.M-1)+1e-16).reshape(-1,1)))
-			self.LcorSI = self.L.multiply(self.LcorSI)
+			# Might not be optimal, but at least the equations are readable
+			self.covSI = y[:,Sidx].T.dot(self.PM).dot(y[:,Iidx].T.dot(self.PM).T)/(self.M-1)
+			self.varS = np.sqrt((y[:,Sidx].T.dot(self.PM) * y[:,Sidx].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.varI = np.sqrt((y[:,Iidx].T.dot(self.PM) * y[:,Iidx].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.denSI = self.varS.reshape(-1,1).dot(self.varI.reshape(1,-1))
+			self.LcorSI = self.L.multiply(self.covSI * (1/self.denSI))
+			self.LcorSI.data[np.isnan(self.LcorSI.data)] = 0.
 
-			# TO DO:
-			# Computing the following at this stage is wrong. The above, already computes eq 4 and 5.
-			# Below computes part of the third line in eqn 3.
-			# self.LcorSI = self.LcorSI.dot(np.sqrt((y[:,Iidx] * (1 - y[:,Iidx])) + 1e-16).T)
-			self.LcorSH = self.L.multiply(y[:,Sidx].T.dot(self.PM).dot(y[:,Hidx])/(self.M-1)).multiply(1/np.kron(
-				np.sqrt((y[:,Sidx].T.dot(self.PM) * y[:,Sidx].T).sum(axis = 1)/(self.M-1)+1e-16).reshape(1,-1),
-				np.sqrt((y[:,Hidx].T.dot(self.PM) * y[:,Hidx].T).sum(axis = 1)/(self.M-1)+1e-16).reshape(-1,1)))
-			self.LcorSH = self.L.multiply(self.LcorSH)
-			# self.LcorSH = self.LcorSH.dot(np.sqrt((y[:,Hidx] * (1 - y[:,Hidx])) + 1e-16).T)
+			self.covSH = y[:,Sidx].T.dot(self.PM).dot(y[:,Hidx].T.dot(self.PM).T)/(self.M-1)
+			self.varH = np.sqrt((y[:,Hidx].T.dot(self.PM) * y[:,Hidx].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.denSH = self.varS.reshape(-1,1).dot(self.varH.reshape(1,-1))
+			self.LcorSH = self.L.multiply(self.covSH * (1/self.denSH))
+			self.LcorSH.data[np.isnan(self.LcorSH.data)] = 0.
 
-			# closure: beta CorrSI + beta' CorrSH
-			# self.beta_closure_cor = ((self.beta * self.LcorSI + self.betap * self.LcorSH) * \
-						# np.sqrt((y[:,Sidx] * (1 - y[:,Sidx])) + 1e-16).T)
+			#
+			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,Iidx] * (1-y[:,Iidx])).T) + \
+ 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,Hidx] * (1-y[:,Hidx])).T)) * \
+									       np.sqrt(y[:,Sidx] * (1-y[:,Sidx])).T)
 
 	def set_solver(self, method = 'RK45', T = 200, dt = 0.1):
 
@@ -170,7 +171,7 @@ class epiens(object):
 		if self.solve_init:
 			for mm, member in tqdm(enumerate(self.ensemble), desc = 'Solving member', total = self.M):
 				res = integrate.solve_ivp(
-						fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, member, **kwargs),
+						fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, member, mm, **kwargs),
 						t_span = [0, self.T], y0 = y0[mm],
 						t_eval = t, method = self.method, max_step = self.dt)
 				results.append(res)
@@ -184,23 +185,11 @@ class epiens(object):
 		yt = np.empty((len(y0.flatten()), len(t)))
 		yt[:,0] = np.copy(y0.flatten())
 
-		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass:', total = len(t[:-1])):
+		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
 			self.eval_closure(self.y0, **kwargs)
 			for mm, member in enumerate(self.ensemble):
-				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, **kwargs)
+				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
 			self.tf += self.dt
 			yt[:,jj + 1] = np.copy(self.y0.flatten())
 
 		return yt.reshape(self.M, -1, len(t))
-
-	def ens_solve_closure(self, y0, t, args = (), **kwargs):
-		"""
-		"""
-		if self.solve_init:
-			res = integrate.solve_ivp(
-				fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, *args, **kwargs),
-				t_span = [0,self.T], y0 = y0,
-				t_eval = t, method = self.method, max_step = self.dt)
-		else:
-			res = np.empty()
-		return res

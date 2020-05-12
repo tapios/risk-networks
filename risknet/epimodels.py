@@ -10,9 +10,9 @@ from tqdm.autonotebook import tqdm
 
 class epinet(object):
 
-		def __init__(self, G, N):
-				self.N = N
-				self.G = G
+	def __init__(self, G, N):
+		self.N = N
+		self.G = G
 
 class static(epinet):
 
@@ -24,7 +24,7 @@ class static(epinet):
 		self.H = nx.DiGraph()
 		self.H.add_node('S')
 
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 
 			self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
 
@@ -70,11 +70,9 @@ class static(epinet):
 
 	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
 		if kwargs.get('het', False):
-			self.__heterogoneous = True
-			self.heterogoneous = True
+			self.__heterogeneous = True
 		else:
-			self.__heterogoneous = False
-			self.heterogoneous = False
+			self.__heterogeneous = False
 
 		self.create_spontaneous(sigma, gamma, **kwargs)
 		self.create_induced(beta, **kwargs)
@@ -106,7 +104,7 @@ class static(epinet):
 		"""
 		Set and initialize master equation parameters
 		"""
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
@@ -125,17 +123,15 @@ class static(epinet):
 			self.gamma =  (self.theta + self.delta + self.mu)
 			self.gammap =  (self.thetap + self.mup)
 
-                # Make a sparse matrix of coefficients
-		self.coeffs = sps.csr_matrix(sps.bmat(
-
-                    [ [sps.eye(self.N), None,                   None,                   None,                    None, None],
-		      [sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
-		      [None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
-		      [None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
-		      [None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
-		      [None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]  ],
-
-		    format = 'csr'), shape = [6 * self.N, 6 * self.N])
+			# Make a sparse matrix of coefficients
+		self.coeffs = sps.csr_matrix(sps.bmat([
+				[sps.eye(self.N), None,                   None,                   None,                    None, None],
+				[sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
+				[None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
+				[None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
+				[None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
+				[None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]
+			], format = 'csr'), shape = [6 * self.N, 6 * self.N])
 
 		self.beta_closure = np.zeros(self.N,)
 		self.L = nx.to_scipy_sparse_matrix(self.G)
@@ -186,7 +182,7 @@ class static(epinet):
 		-Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
 		-Network parameters (same as the forward equations)
 		"""
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
@@ -202,8 +198,8 @@ class static(epinet):
 			self.thetap =  self.gammap * np.ones(self.N)
 			self.mu =  self.mu * np.ones(self.N)
 			self.mup =  self.mup * np.ones(self.N)
-			self.gamma =  (self.theta + self.delta + self.mu) 
-			self.gammap =  (self.thetap + self.mup) 
+			self.gamma =  (self.theta + self.delta + self.mu)
+			self.gammap =  (self.thetap + self.mup)
 
 		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None],
 											   [sps.eye(self.N), sps.diags(self.sigma), None, None],
