@@ -36,6 +36,12 @@ class StaticRiskNetworkModel:
         theta_prime = np.ones(self.N_nodes) * transition_rates.hospitalized_to_resistant
         mu_prime    = np.ones(self.N_nodes) * transition_rates.hospitalized_to_deceased
 
+        # The total transition rate out of the infected state is gamma.
+        gamma = delta + theta + mu
+
+        # The transition rate from hopsitalized to either resistant or deceased is gamma_prime.
+        gamma_prime = theta_prime + mu_prime
+
         # Build the matrix of transition rates to be used in forward and backward solves.
         self.transition_rates_matrix = sps.csr_matrix(sps.bmat([
 
@@ -48,7 +54,7 @@ class StaticRiskNetworkModel:
 
         ], format = 'csr'), shape = [6 * self.N_nodes, 6 * self.N_nodes])
 
-        self.transmission_matrix = np.array([transition_rates.beta_ij, self.beta_prime_ij])
+        self.transmission_matrix = np.array([transition_rates.beta_ij, transition_rates.beta_prime_ij])
 
     def set_contact_network(self, contact_network):
         """Set the contact network and convert contact network to a scipy sparse matrix."""
