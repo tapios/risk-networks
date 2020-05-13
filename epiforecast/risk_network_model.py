@@ -75,26 +75,13 @@ class StaticRiskNetworkModel:
         self.transition_rates_matrix[iS, iS] = - self.infection_pressure
         self.transition_rates_matrix[iE, iS] =   self.infection_pressure
 
-        dstates_dt = self.transition_rates_matrix.dot(state)
+        d_state_dt = self.transition_rates_matrix.dot(state)
 
-        return dstates_dt
+        return d_state_dt
 
     def calculate_backwards_tendency(self, time, state):
         """Calculate - d/dt state. This function is used by the scipy integrator."""
-
-        iS, iE, iI, iH = [range(j * self.N_nodes, (j + 1) * self.N_nodes) for j in range(4)]
-
-        self.infection_pressure = sps.kron(self.transmission_matrix, 
-                                           self.contact_matrix).dot(np.hstack([state[iI], state[iH]]))
-
-        self.add_infection_pressure_closure(self.infection_pressure)
-
-        self.transition_rates_matrix[iS, iS] = - self.infection_pressure
-        self.transition_rates_matrix[iE, iS] =   self.infection_pressure
-
-        dstates_dt = self.transition_rates_matrix.dot(state)
-
-        return - dstates_dt
+        return - self.calculate_forwards_tendency(time, state)
 
     def run_forwards(self, initial_state, **kwargs):
         forwards_tendency = lambda time, state: self.calculate_forwards_tendency(time, state)
