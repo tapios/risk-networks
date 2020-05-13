@@ -195,29 +195,4 @@ class epiens(object):
 			yt[:,jj + 1] = np.copy(self.y0.flatten())
 
 		return yt.reshape(self.M, -1, len(t))
-
-	def ens_solve_euler_positive(self, y0, t, args = (), **kwargs):
-		"""
-		"""
-		self.tf = 0.
-		self.y0 = np.copy(y0)
-		self.y_dot = np.zeros_like(y0)
-		yt = np.empty((len(y0.flatten()), len(t)))
-		yt[:,0] = np.copy(y0.flatten())
-		self.t = [0.]
-		self.alphas = []
-
-		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
-			self.eval_closure(self.y0, **kwargs)
-			self.alpha = 1.
-			for mm, member in enumerate(self.ensemble):
-				self.y_dot[mm] = self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
-			while (self.y0 + self.alpha * self.dt * self.y_dot).min() < -1e-8:
-				self.alpha *= 0.9
-			self.y0 += self.dt * self.alpha * self.y_dot
-			self.tf += self.alpha * self.dt
-			self.t.append(self.tf)
-			self.alphas.append(self.alpha)
-			yt[:,jj + 1] = np.copy(self.y0.flatten())
-
-		return yt.reshape(self.M, -1, len(t))
+		
