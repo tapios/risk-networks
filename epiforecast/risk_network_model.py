@@ -50,8 +50,24 @@ class StaticRiskNetworkModel:
         self.contact_network = contact_network
         self.contact_matrix = nx.to_scipy_sparse_matrix(self.contact_network)
 
-    def calculate_forwards_right_hand_side(self, time, state):
-        """Calculate d/dt (state). This function is used by the scipy integrator."""
+    def calculate_forwards_tendency(self, time, state):
+        """Calculate + d/dt state. This function is used by the scipy integrator."""
+
+        iS, iE, iI, iH = [range(j * self.N_nodes, (j + 1) * self.N_nodes) for j in range(4)]
+
+        self.infection_pressure = sps.kron(self.transmission_matrix, self.contact_matrix).dot(np.hstack([state[iI], state[iH]]))
+
+        self.add_infection_pressure_closure(self.infection_pressure)
+
+        self.transition_rates_matrix[iS, iS] = - self.infection_pressure
+        self.transition_rates_matrix[iE, iS] =   self.infection_pressure
+
+        dstates_dt = self.transition_rates_matrix.dot(state)
+
+        return dstates_dt
+
+    def calculate_backwards_tendency(self, time, state):
+        """Calculate - d/dt state. This function is used by the scipy integrator."""
 
         iS, iE, iI, iH = [range(j * self.N_nodes, (j + 1) * self.N_nodes) for j in range(4)]
 
@@ -64,11 +80,15 @@ class StaticRiskNetworkModel:
 
         dstates_dt = self.transition_rates_matrix.dot(state)
 
-        return dstates_dt
+        return - dstates_dt
 
-    def run_forwards(self):
+    def run_forwards(self, **kwargs):
+        return = scipy.integrate.solve_ivp(fun = lambda t, U: self.calculate_forwards_tendency(t, U),
+                                           **kwargs)
 
     def run_backwards(self):
+        return = scipy.integrate.solve_ivp(fun = lambda t, U: self.calculate_backwards_tendency(t, U),
+                                           **kwargs)
 
 
 class TransitionRates:
