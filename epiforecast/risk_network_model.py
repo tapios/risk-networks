@@ -22,13 +22,36 @@ def random_infection(model, size=1):
     model.state[model.iI] = I
     model.state[model.iS] = S
 
+def slice_and_dice(states, ii): 
+    return np.array([states[j][ii] for j in range(len(states))])
+
+def unpack_state_timeseries(model, states):
+    S = slice_and_dice(states, model.iS)
+    E = slice_and_dice(states, model.iE)
+    I = slice_and_dice(states, model.iI)
+    H = slice_and_dice(states, model.iH)
+    R = slice_and_dice(states, model.iR)
+    D = slice_and_dice(states, model.iD)
+
+    return S, E, I, H, R, D
+
+
 class StaticRiskNetworkModel:
     """
         StaticRiskNetworkModel(contact_network, transition_rates = None, 
                                infection_pressure_closure = trivial_closure)
 
-    A statistical epidemic model for the expected status of individuals
-    on a static `contact_network`.
+    A model for the 'risk' (expected probability) of the clinical
+    state of individuals on a static `contact_network`. The six clinical 
+    states are:
+
+        1. S : susceptible to infection
+        2. E : exposed to infection
+        3. I : infected
+        4. H : hospitalized
+        5. R : recovered from infection, and therefore resistant
+        6. D : deceased
+
     """
 
     def __init__(self, contact_network, transition_rates = None, 
@@ -71,6 +94,13 @@ class StaticRiskNetworkModel:
         self.iH = range(3 * self.nodes, 4 * self.nodes)
         self.iR = range(4 * self.nodes, 5 * self.nodes)
         self.iD = range(5 * self.nodes, 6 * self.nodes)
+
+    def susceptible(self):  return self.state[self.iS]
+    def exposed(self):      return self.state[self.iE]
+    def infected(self):     return self.state[self.iI]
+    def hospitalized(self): return self.state[self.iH]
+    def resistant(self):    return self.state[self.iR]
+    def deceased(self):     return self.state[self.iD]
 
     def set_state(self, state):
         self.state = state

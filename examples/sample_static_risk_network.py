@@ -31,15 +31,9 @@ for i in range(10):
     t.append(model.time)
     states.append(model.state.copy())
 
-def arrayify(states, ii): return np.array([states[j][ii] for j in range(len(states))])
-
 t = np.array(t)
-S = arrayify(states, model.iS)
-E = arrayify(states, model.iE)
-I = arrayify(states, model.iI)
-R = arrayify(states, model.iR)
-H = arrayify(states, model.iH)
-D = arrayify(states, model.iD)
+
+S, E, I, R, H, D = epiforecast.unpack_state_timeseries(model, states)
 
 mean_S = S.mean(axis=1)
 mean_E = E.mean(axis=1)

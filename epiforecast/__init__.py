@@ -1,4 +1,5 @@
 from .risk_network_model import StaticRiskNetworkModel, TransitionRates, random_infection
+from .risk_network_model import unpack_state_timeseries
 
 from .kinetic_network_model import KineticNetworkModel
 
