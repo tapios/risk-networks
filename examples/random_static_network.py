@@ -6,12 +6,18 @@ import networkx as nx
 
 import epiforecast
 
-# Instantiate a model with 1000 nodes
-model = epiforecast.StaticRiskNetworkModel(N_nodes=1000)
+# Load a sample contact network
+contact_network = epiforecast.load_sample_contact_network()
+
+# Instantiate a model on the sample network
+model = epiforecast.StaticRiskNetworkModel(contact_network)
 
 # Set to default transition rates
 model.set_transition_rates(epiforecast.TransitionRates())
 
-contact_network = epiforecast.load_sample_contact_network()
+# Initialize a state with a small, randomly-selected number of infected.
+initial_state = epiforecast.random_initial_state(model.nodes, infected=10)
 
-model.set_contact_network(contact_network)
+model.set_state(initial_state)
+
+residual = model.integrate_forwards(1.0)
