@@ -90,13 +90,15 @@ class StaticRiskNetworkModel:
 
         return - dstates_dt
 
-    def run_forwards(self, **kwargs):
-        return = scipy.integrate.solve_ivp(fun = lambda t, U: self.calculate_forwards_tendency(t, U),
-                                           **kwargs)
+    def run_forwards(self, initial_state, **kwargs):
+        forwards_tendency = lambda time, state: self.calculate_forwards_tendency(time, state)
+        return scipy.integrate.solve_ivp(forwards_tendency,
+                                         y0 = initial_state, **kwargs)
 
-    def run_backwards(self):
-        return = scipy.integrate.solve_ivp(fun = lambda t, U: self.calculate_backwards_tendency(t, U),
-                                           **kwargs)
+    def run_backwards(self, initial_state, **kwargs):
+        backwards_tendency = lambda time, state: self.calculate_backwards_tendency(time, state)
+        return scipy.integrate.solve_ivp(backwards_tendency,
+                                         y0 = initial_state, **kwargs)
 
 
 class TransitionRates:
@@ -111,7 +113,7 @@ class TransitionRates:
                             infected_to_deceased = 0, # d * gamma
                        hospitalized_to_resistant = 0, # (1 - d_prime ) * gamma_prime
                         hospitalized_to_deceased = 0, # d_prime * gamma_prime
-                  )
+                 ):
                        
         self.transmission_rate          = self.beta_ij       = transmission_rate
         self.hospital_transmission_rate = self.beta_prime_ij = hospital_transmission_rate
