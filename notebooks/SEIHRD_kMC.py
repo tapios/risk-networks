@@ -26,7 +26,13 @@ gp = lambda x, k = 1.5, theta = 3: 1+np.random.gamma(k, theta)
 # age structure King County, WA: https://datausa.io/profile/geo/king-county-wa#demographics
 # we use the age classes: 0--19, 20--44, 45--64, 65--74, >= 75
 
-age_classes = np.asarray([0.2298112587,0.3876994201,0.2504385036,0.079450985,0.0525998326])
+kids         = 0.23
+young_adults = 0.39
+middle_aged  = 0.25
+seniors      = 0.079
+elderly      = 1 - seniors - middle_aged - young_adults - kids
+
+age_classes = np.asarray([kids, young_adults, middle_aged, seniors, elderly])
 
 # age-dependent hospitalization and recovery rates
 
@@ -38,43 +44,45 @@ fdp = np.asarray([1e-15, 0.001, 0.01, 0.04, 0.1])
 
 # hospitalization fraction (a...age class integers to refer to 0--19, 20--44, 45--64, 65--74, >= 75)
 
-h = lambda a, beta = 4: np.random.beta(beta*fh[a]/(1-fh[a]), b = beta)
+h = lambda a, beta = 4: np.random.beta(beta * fh[a] / (1-fh[a]), b = beta)
 
-d = lambda a, beta = 4: np.random.beta(beta*fd[a]/(1-fd[a]), b = beta)
+d = lambda a, beta = 4: np.random.beta(beta * fd[a] / (1-fd[a]), b = beta)
 
-dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
+dp = lambda a, beta = 4: np.random.beta(beta * fdp[a] / (1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.05
+beta0  = 0.05
+betap0 = 0.75 * beta0
 
-betap0 = 0.75*beta0
-
-beta_distr = lambda x, beta = 4: beta0*np.random.beta(beta*0.05/(1-0.05), b = beta)
-
-betap_distr = lambda x, beta = 4: betap0*np.random.beta(beta*0.05/(1-0.05), b = beta)
+beta_distr  = lambda x, beta = 4: beta0  * np.random.beta(beta * 0.05 / (1 - 0.05), b = beta)
+betap_distr = lambda x, beta = 4: betap0 * np.random.beta(beta * 0.05 / (1 - 0.05), b = beta)
 
 def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
-
     """
-    simulation of SEIHRD dynamics on temporal networks
+    Simulation of SEIHRD dynamics on temporal networks.
 
     Parameters:
-    G (dictionary): dictionary with time stamps (seconds) and networks
-    H (graph): spontaneous transitions
-    J (graph): induced transitions
-    IC (dictionary): initially infected nodes
-    return_statuses (array): specifying return compartments
-    deltat (float): simulation time interval (in days)
-    T (float): simulation period
+    ----------
+
+    G (dictionary)          : dictionary with time stamps (seconds) and networks
+    H (graph)               : spontaneous transitions
+    J (graph)               : induced transitions
+    IC (dictionary)         : initially infected nodes
+    return_statuses (array) : specifying return compartments
+    deltat (float)          : simulation time interval (in days)
+    T (float)               : simulation period
 
     Returns:
+    -------
+
     time_arr (array), states_arr (array): times and compartment values
 
     """
     
     time_arr = []
     states_arr = {}
+
     for s in return_statuses:
         states_arr['%s'%s] = []
 
@@ -188,11 +196,11 @@ def inducedTransitions(G, dbeta = 0, dbetap = 0):
 
     """
     
-    edge_attribute_dict_beta = {edge: beta_distr(1)+dbeta for edge in G.edges()}
-    edge_attribute_dict_betap = {edge: betap_distr(1)+dbetap for edge in G.edges()}
+    edge_attribute_dict_beta =  { edge: beta_distr(1)  + dbeta  for edge in G.edges() }
+    edge_attribute_dict_betap = { edge: betap_distr(1) + dbetap for edge in G.edges() }
         
-    nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
-    nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
+    nx.set_edge_attributes(G, values = edge_attribute_dict_beta,  name='beta_weight')
+    nx.set_edge_attributes(G, values = edge_attribute_dict_betap, name='betap_weight')
     
     # Neighbor induced transitions.
     J = nx.DiGraph()
