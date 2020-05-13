@@ -5,17 +5,28 @@ import networkx as nx
 
 def trivial_closure(infection_pressure): return None
 
+def random_infection(model, size=1):
+    infected = np.random.randint(model.nodes, size=size)
+
+    I = np.zeros(model.nodes)
+    S = np.ones(model.nodes)
+
+    I[infected] = 1.0
+    S[infected] = 0.0
+
+    model.state[model.iI] = I
+    model.state[model.iS] = S
+
 class StaticRiskNetworkModel:
     """A statistical epidemic model for the expected status of individuals
     on a static contact network."""
-    def __init__(self, contact_network,
-                                transition_rates = None, 
-                      infection_pressure_closure = trivial_closure
-                 ):
-        self.set_contact_network(contact_network)
-        state_size = 6 * self.nodes
 
-        self.set_state(np.zeros(6 * self.nodes))
+    def __init__(self, contact_network, transition_rates = None, 
+                 infection_pressure_closure = trivial_closure):
+
+        self._initialize_contact_network(contact_network)
+        self._initialize_state()
+
         self.set_time(0.0)
         self.infection_pressure = np.zeros(self.state.size)
 
@@ -24,6 +35,32 @@ class StaticRiskNetworkModel:
         self.add_infection_pressure_closure = infection_pressure_closure
 
         if transition_rates is not None: self.set_transition_rates(transition_rates)
+
+    def _initialize_contact_network(self, contact_network):
+        """Initialize the contact network and convert contact network to a scipy sparse matrix."""
+
+        self.contact_network = contact_network
+        self.contact_matrix = nx.to_scipy_sparse_matrix(self.contact_network)
+        self.nodes = len(contact_network)
+
+    def _initialize_state(self):
+        """Initialize the state."""
+        S = np.ones(self.nodes)
+
+        E = np.zeros(self.nodes)
+        I = np.zeros(self.nodes)
+        R = np.zeros(self.nodes)
+        H = np.zeros(self.nodes)
+        D = np.zeros(self.nodes)
+
+        self.state = np.hstack((S, E, I, R, H, D))
+
+        self.iS = range(0, self.nodes)
+        self.iE = range(1 * self.nodes, 2 * self.nodes)
+        self.iI = range(2 * self.nodes, 3 * self.nodes)
+        self.iH = range(3 * self.nodes, 4 * self.nodes)
+        self.iR = range(4 * self.nodes, 5 * self.nodes)
+        self.iD = range(5 * self.nodes, 6 * self.nodes)
 
     def set_state(self, state):
         self.state = state
@@ -64,17 +101,13 @@ class StaticRiskNetworkModel:
 
         self.transmission_matrix = np.array([transition_rates.beta, transition_rates.beta_prime])
 
-    def set_contact_network(self, contact_network):
-        """Set the contact network and convert contact network to a scipy sparse matrix."""
-
-        self.contact_network = contact_network
-        self.contact_matrix = nx.to_scipy_sparse_matrix(self.contact_network)
-        self.nodes = len(contact_network)
-
     def calculate_forwards_tendency(self, time, state):
         """Calculate + d/dt state. This function is used by the scipy integrator."""
 
-        iS, iE, iI, iH = [range(j * self.nodes, (j + 1) * self.nodes) for j in range(4)]
+        iS = self.iS
+        iE = self.iE
+        iI = self.iI
+        iH = self.iH
 
         infected_and_hospitalized = np.hstack([state[iI], state[iH]])
         
