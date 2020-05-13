@@ -4,8 +4,7 @@ import multiprocessing
 from models import MasterEqn 
 import networkx as nx
 from data import HighSchoolData
-from observations import FixedTimeObservation, RandomTimeObservation
-from observations import FullStateObservation, RandomStateObservation
+from observations import RandomStatusObservation
 from data_assimilation import DAModel
 import time
 import pickle
@@ -94,7 +93,7 @@ if __name__ == "__main__":
     ######################
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.1), n_samples)
+    params[:,0] = np.random.uniform(np.log(0.03), np.log(0.06), n_samples)
 
     
     # Set initial states
@@ -138,17 +137,10 @@ if __name__ == "__main__":
     # Construct DA Models 
     # Data
     data=HighSchoolData(steps_T_init)
-    
-    # Observed states
-    #OSModel=FullStateObservation(N,n_status)
-    OSModel=RandomStateObservation(N,n_status,int(0.8*N))
-                                   
-    # Observed times
-    OTModel = FixedTimeObservation(t_range,steps_T-1)# F(t_range,k) evaluates at t_range[k] at every window)
-    #OTModel = RandomTimeObservation(t_range)
-    
+    #Observations (here random time, random node, observe onlyInfected[2] prob)
+    OModel = RandomStatusObservation(t_range,N,n_status,int(N),[2])
     #Build the DA
-    ekf=DAModel(params,x_forward_init[:,-1,:],OSModel,OTModel,data)
+    ekf=DAModel(params,x_forward_init[:,-1,:],OModel,data)
 
     ### ***ENTER LOOP*** ###
     for iterN in range(steps_DA):
@@ -175,16 +167,14 @@ if __name__ == "__main__":
         start = time.time()
         ekf.update(x_forward,iterN)
         #data_idx when obs took place, state_idx where was observed
-        data_idx=ekf.otmodel.obs_time_in_window
-        state_idx=ekf.osmodel.obs_states
+        data_idx=ekf.omodel.obs_time_in_window
+        state_idx=ekf.omodel.obs_states
         x_forward[:,data_idx,state_idx] = ekf.damodel.x[-1]
         
         end = time.time()
         print('Time elapsed for EAKF: ', end - start)
         print("Error: ", ekf.damodel.error[-1])
-        print('new parameters,')
-        print(np.exp(ekf.damodel.q[-1]))
-
+       
         ######################
         ### --- Step 3 --- ###
         ######################
@@ -196,7 +186,7 @@ if __name__ == "__main__":
             t_range_prop=t_range[data_idx:]-t_range[data_idx]
             start = time.time()
             params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples)
-            x_forward[:, data_idx: ,:] = ensemble_forward_model(G, ekf.damodel.q[-1] + params_noises.reshape(n_samples,1), ekf.damodel.x[-1], T_prop , dt_fsolve, t_range_prop, parallel_flag = parflag)
+            x_forward[:, data_idx: ,:] = ensemble_forward_model(G, ekf.damodel.q[-1] + params_noises.reshape(n_samples,1), x_forward[:,data_idx,:], T_prop , dt_fsolve, t_range_prop, parallel_flag = parflag)
             end = time.time()
             print('Time elapsed for forward model (to end of window): ', end - start)
         else:
@@ -208,19 +198,10 @@ if __name__ == "__main__":
         ## Output files 
         ## Overwrite for each EAKF step to facilitate debugging
         pickle.dump(ekf.damodel.q, open("data/u.pkl", "wb"))
-        pickle.dump(ekf.damodel.x, open("data/g.pkl", "wb"))
+        pickle.dump(ekf.damodel.x, open("data/g.pkl", "wb"))#note only includes observed states
         pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 
     #plots
-    #t_range_total=np.hstack([t_range+steps_T*i for i in np.arange(steps_DA)])
-    #if T_init>0.0:
-    #    t_range_total=np.hstack([t_range_init,t_range_total])
-    #else:
-    #    t_range_total=np.hstack([0.0,t_range_total])
-
-    #print(t_range_total)
-    #plot_states(data[obs_times,:],x_forward_all,T_init+obs_times*dt,t_range_total,6,N,'forward_filter')
-
-        
+    print("for plots, now use DA_forward_plot.py")
