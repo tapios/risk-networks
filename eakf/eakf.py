@@ -7,7 +7,7 @@ class EAKF:
     # parameters.shape = (num_ensembles, num_parameters)
     # states.shape = (num_ensembles, num_states)
     # Joint state: (q, x)
-    def __init__(self, parameters, states):
+    def __init__(self, parameters,states):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 
@@ -32,13 +32,14 @@ class EAKF:
         # Ensemble size
         self.J = parameters.shape[0]
         
-        # States 
+        # States  
         self.x = states[np.newaxis] 
-
+  
         # Error
         self.error = np.empty(0)
 
-    # Compute error
+
+        # Compute error
     def compute_error(self, x):
         diff = self.x_t - x.mean(0)
         error = diff.dot(np.linalg.solve(self.cov, diff))
@@ -63,14 +64,14 @@ class EAKF:
                           i may not be independent from observations of state j. For example, this
                           can occur when a test applied to person ni alters the certainty of a subsequent
                           test to person nj.
-        '''
+                '''
 
         assert (truth.ndim == 1), 'EAKF init: truth must be 1d array'
         assert (cov.ndim == 2), 'EAKF init: covariance must be 2d array'
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
         
-        # Observation data statistics
+        # Observation data statistics at the observed nodes
         self.x_t = truth
         self.cov = r**2 * cov
 
@@ -85,15 +86,16 @@ class EAKF:
        
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, x):
+    def update(self, xin):
 
         # States
-        x = np.log(np.maximum(x, 1e-9) / np.maximum(1.0 - x, 1e-9))
-        
+        x = np.log(np.maximum(xin, 1e-9) / np.maximum(1.0 - xin, 1e-9))
+
         # Parameters
         q = np.copy(self.q[-1])
 
         # Stacked parameters and states 
+        
         zp = np.hstack([q, x])
         x_t = self.x_t
         cov = self.cov
@@ -173,7 +175,10 @@ class EAKF:
 
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
+
+        # replace unchanged states
         x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+       
         self.q = np.append(self.q, [np.dot(zu, Hq.T)], axis=0)
         self.x = np.append(self.x, [x_p], axis=0)
 
