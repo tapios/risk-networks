@@ -1,4 +1,4 @@
-from .risk_network_model import RiskNetworkModel
+from .risk_network_model import RiskNetworkModel, TransitionRates
 
 from .kinetic_network_model import KineticNetworkModel
 
