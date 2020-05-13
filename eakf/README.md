@@ -40,18 +40,32 @@ It creates a plot using `DA_forward_plot.py`.
 
 ## New DA framework
 
-Seeks to make the observations and and data more modular. Key files
-   *'data.py': Where one defines the data class, contains a method 'makes_observation(time,state)'of data at a
-               time and which states to observe
-   *'observations': contains 2 types of observation classes (state or time).
-                    - State observations relate to which nodes/states are being observed, contains a
-                      method 'measurement(DA_window)' provides the observated states in a DA window
-                    - Time observations relate to which times we make observations at, contains a
-                      method 'measurement(DA_window)' providing time in the DA_window where observations made
-   *'eakf.py': as previously, contains 2 DA methods, 'obs(truth,cov)' to store an observation and  'update(state)'
-               to update a state based on these truth,cov values  
-   *'data_assimilation.py': holds all the data,observations,DA method with an 'update(DA_window)' that calls the
-                            above methods fo perform the update step
+Seeks to make the observations and and data more modular. Key files are
+
+ `data.py`
+
+Where one defines the data class, contains a method `makes_observation(time,state)`
+of data at a time and which states to observe
+               
+ `observations`
+
+contains 2 types of observation classes (state or time).
+
+- State observations relate to which nodes/states are being observed, contains a
+                      method `measurement(DA_window)` provides the observated states in a DA window
+
+- Time observations relate to which times we make observations at, contains a
+                      method `measurement(DA_window)` providing time in the DA_window where observations made
+
+ `eakf.py`:
+
+as previously, contains 2 DA methods, `obs(truth,cov)` to store an observation and  `update(state)`
+to update a state based on these truth,cov values  
+
+ `data_assimilation.py`
+
+holds all the data,observations,DA method with an `update(DA_window)` that calls the
+above methods fo perform the update step
      
 ## Example
 
