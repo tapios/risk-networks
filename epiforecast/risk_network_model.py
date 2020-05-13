@@ -6,6 +6,11 @@ import networkx as nx
 def trivial_closure(infection_pressure): return None
 
 def random_infection(model, size=1):
+    """
+        random_infection(model, size=1)
+
+    Infect a random population in `model of `size`.
+    """
     infected = np.random.randint(model.nodes, size=size)
 
     I = np.zeros(model.nodes)
@@ -18,8 +23,13 @@ def random_infection(model, size=1):
     model.state[model.iS] = S
 
 class StaticRiskNetworkModel:
-    """A statistical epidemic model for the expected status of individuals
-    on a static contact network."""
+    """
+        StaticRiskNetworkModel(contact_network, transition_rates = None, 
+                               infection_pressure_closure = trivial_closure)
+
+    A statistical epidemic model for the expected status of individuals
+    on a static `contact_network`.
+    """
 
     def __init__(self, contact_network, transition_rates = None, 
                  infection_pressure_closure = trivial_closure):
