@@ -93,7 +93,7 @@ class FixedTimeObservation:
 
         #The timesteps of a DA window
         self.t_range = t_range #[dt,2dt,....,T-dt,T]
-        self.T = t_range.size 
+        self.Tsize = t_range.size 
 
         #storage for time overall, and local time wrt window
         #note the index corresponds to the index in t_range
@@ -102,7 +102,7 @@ class FixedTimeObservation:
         
     def measurement(self,DAstep):
         #time_in_window is fixed
-        self.obs_time = DAstep*self.T  + self.obs_time_in_window
+        self.obs_time = DAstep*self.Tsize  + self.obs_time_in_window
 
 ### --- We observe at a random time in each DA window --- ###       
 class RandomTimeObservation:
@@ -111,16 +111,16 @@ class RandomTimeObservation:
 
         #The timesteps of a DA window
         self.t_range = t_range #[dt,2dt,....,T-dt,T]
-        self.T = t_range.size 
-
+        self.Tsize = t_range.size 
+        
         #storage for time overall, and local time wrt window
-        self.obs_time_in_window=np.random.randint(self.T)
+        self.obs_time_in_window=np.random.randint(self.Tsize)
         self.obs_time=self.obs_time_in_window
         
     def measurement(self,DAstep):
         #randomly generate new time
-        self.obs_time_in_window=np.random.randint(self.T)
-        self.obs_time = DAstep*self.T +self.obs_time_in_window
+        self.obs_time_in_window=np.random.randint(self.Tsize)
+        self.obs_time = DAstep*self.Tsize +self.obs_time_in_window
 
 
 ### --- Combined Observation --- ###
@@ -128,11 +128,12 @@ class RandomTimeObservation:
 #Random Observation 
 class RandomObservation(RandomTimeObservation,RandomStateObservation):
 
-    def __init__(self,t_range,N,status,obs_nodes):
+    def __init__(self,t_range,N,status,obs_nodes,obs_name):
     
         RandomTimeObservation.__init__(self,t_range)
         RandomStateObservation.__init__(self,N,status,obs_nodes)
-    
+        self.name=obs_name
+
     def measurement(self,DAstep):
         RandomTimeObservation.measurement(self,DAstep)
         RandomStateObservation.measurement(self,DAstep)
@@ -140,12 +141,14 @@ class RandomObservation(RandomTimeObservation,RandomStateObservation):
 #Random Observation of a defined set of status's SEIHRD (by idx)
 class RandomStatusObservation(RandomTimeObservation,RandomStatusStateObservation):
 
-    def __init__(self,t_range,N,status,obs_nodes,status_obs_idx):
+    def __init__(self,t_range,N,status,obs_nodes,status_obs_idx,obs_name):
 
         if not isinstance(status_obs_idx,np.ndarray):#if it's a scalar, not array
             status_obs_idx=np.array(status_obs_idx)
+
         RandomTimeObservation.__init__(self,t_range)
         RandomStatusStateObservation.__init__(self,N,status,obs_nodes,status_obs_idx)
+        self.name=obs_name
         
     def measurement(self,DAstep):
         RandomTimeObservation.measurement(self,DAstep)
