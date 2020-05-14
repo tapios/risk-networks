@@ -83,6 +83,32 @@ class epiens(object):
 
 		self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
+	def set_parameters_reduced(self):
+			"""
+			Set and initialize master equation parameters
+			coeffs (array): an array of sparse matrices:
+			L (sparse matrix): adjacency Matrix.
+			PM (matrix): ensemble centering matrix (M times M), idempotent, symmetric.
+			"""
+			Sidx, Eidx, Iidx, Hidx = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
+			for member in self.ensemble:
+					member.coeffs = sps.csr_matrix(sps.bmat(
+					[
+							[-sps.eye(self.N), None, None, None, None, None],
+							[sps.eye(self.N), None, None, None, None, None],
+							[-sps.diags(member.sigma), None, -sps.diags(member.sigma + member.gamma), -sps.diags(member.sigma),-sps.diags(member.sigma),-sps.diags(member.sigma)],
+							[None, None, sps.diags(member.delta), sps.diags(-member.gammap), None, None],
+							[None, None, sps.diags(member.theta), sps.diags(member.thetap), None, None],
+							[None, None, sps.diags(member.mu), sps.diags(member.mup), None, None]
+					], format = 'csr'), shape = [6 * self.N, 6 * self.N])
+					# Ideally I wouldn't have to do this, but I couldn't figure out a way of setting a complete block of zeros.
+					member.coeffs[Eidx, Sidx] = 0
+					member.offset = sps.lil_matrix((6 * self.N,1), dtype = 'float')
+					member.offset[Iidx] = member.sigma.reshape(-1,1)
+					member.offset = member.offset.tocsr()
+					member.L = nx.to_scipy_sparse_matrix(member.G)
+			self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
+
 	def ens_keqns_sparse(self, t, y, member):
 		"""
 		Inputs:
@@ -132,6 +158,38 @@ class epiens(object):
 
 		return member.coeffs.dot(member.y0)
 
+	def ens_keqns_sparse_closure_reduced(self, t, y, member, member_id, **kwargs):
+		"""
+		Inputs:
+		y (array): an array of dims (M times N_statuses times N_nodes)
+		t (array): times for ode solver
+
+		Returns:
+		y_dot (array): lhs of master eqns
+		"""
+		member.y0 = np.copy(y)
+		member.y_dot = np.zeros_like(y)
+
+		Sidx, Eidx, Iidx, Hidx = [range(jj * member.N, (jj + 1) * member.N) for jj in range(4)]
+
+		# This makes the update:
+		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
+		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
+		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(member.y0[Iidx[0]:(Hidx[-1]+1)])
+
+		if kwargs.get('closure', 'individual') == 'covariance':
+				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + self.beta_closure_cov
+		elif kwargs.get('closure', 'individual') == 'correlation':
+				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + \
+														self.beta_closure_cor[:, member_id]
+		else:
+				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx]
+
+		member.y_dot = member.coeffs.dot(member.y0) + member.offset.toarray().flatten()
+		member.y_dot[Eidx] = -member.y_dot.reshape(6, -1).sum(axis = 0)
+
+		return member.y_dot
+
 	def eval_closure(self, y, **kwargs):
 		iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
 		self.L = self.ensemble[0].L
@@ -161,8 +219,8 @@ class epiens(object):
 
 			#
 			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,iI] * (1-y[:,iI])).T) + \
- 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
-									       np.sqrt(y[:,iS] * (1-y[:,iS])).T)
+									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
+										   np.sqrt(y[:,iS] * (1-y[:,iS])).T)
 
 	def set_solver(self, method = 'RK45', T = 200, dt = 0.1):
 
@@ -209,4 +267,23 @@ class epiens(object):
 			self.tf += self.dt
 			yt[:,jj + 1] = np.copy(self.y0.flatten())
 
+		return yt.reshape(self.M, -1, len(t))
+
+
+	def ens_solve_euler_reduced(self, y0, t, args = (), **kwargs):
+		"""
+		"""
+		self.set_parameters_reduced()
+		self.tf = 0.
+		self.y0 = np.copy(y0)
+		yt = np.empty((len(y0.flatten()), len(t)))
+		yt[:,0] = np.copy(y0.flatten())
+
+		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
+			self.eval_closure(self.y0, **kwargs)
+			for mm, member in enumerate(self.ensemble):
+				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure_reduced(t, self.y0[mm], member, mm, **kwargs)
+				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
+				self.tf += self.dt
+				yt[:,jj + 1] = np.copy(self.y0.flatten())
 		return yt.reshape(self.M, -1, len(t))
