@@ -6,8 +6,8 @@ class EAKF:
     # INPUTS:
     # parameters.shape = (num_ensembles, num_parameters)
     # states.shape = (num_ensembles, num_states)
-    # Joint state: (q, x)
-    def __init__(self, parameters,states):
+    # Joint state: (q, x) but q only comes in update
+    def __init__(self, states):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 
@@ -18,19 +18,13 @@ class EAKF:
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
 
-        assert (parameters.ndim == 2), \
-            'EAKF init: parameters must be 2d array, num_ensembles x num_parameters'
         assert (states.ndim == 2), \
             'EAKF init: states must be 2d array, num_ensembles x num_states'
 
         num_x = states.shape[1] 
-        num_q = parameters.shape[1]
-
-        # Parameters
-        self.q = parameters[np.newaxis]
-
+        
         # Ensemble size
-        self.J = parameters.shape[0]
+        self.J = states.shape[0]
         
         # States  
         self.x = states[np.newaxis] 
@@ -86,13 +80,10 @@ class EAKF:
        
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, xin):
+    def update(self, xin, q):
 
         # States
         x = np.log(np.maximum(xin, 1e-9) / np.maximum(1.0 - xin, 1e-9))
-
-        # Parameters
-        q = np.copy(self.q[-1])
 
         # Stacked parameters and states 
         
@@ -176,14 +167,14 @@ class EAKF:
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
 
-        # Avoid overflow for exp
-        x_logit = np.minimum(x_logit, 1e2)
-
         # replace unchanged states
         x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
-       
-        self.q = np.append(self.q, [np.dot(zu, Hq.T)], axis=0)
+
+        qout=np.dot(zu,Hq.T)
+
         self.x = np.append(self.x, [x_p], axis=0)
 
         # Compute error
         self.compute_error(x_logit)
+
+        return qout 
