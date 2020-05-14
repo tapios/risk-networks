@@ -90,22 +90,21 @@ class epiens(object):
 			L (sparse matrix): adjacency Matrix.
 			PM (matrix): ensemble centering matrix (M times M), idempotent, symmetric.
 			"""
-			Sidx, Eidx, Iidx, Hidx = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
+			iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
 			for member in self.ensemble:
 					member.coeffs = sps.csr_matrix(sps.bmat(
 					[
 							[-sps.eye(self.N), None, None, None, None, None],
 							[sps.eye(self.N), None, None, None, None, None],
-							[-sps.diags(member.sigma), None, -sps.diags(member.sigma + member.gamma), -sps.diags(member.sigma),-sps.diags(member.sigma),-sps.diags(member.sigma)],
+							[-sps.diags(member.sigma), sps.eye(self.N), -sps.diags(member.sigma + member.gamma), -sps.diags(member.sigma),-sps.diags(member.sigma),-sps.diags(member.sigma)],
 							[None, None, sps.diags(member.delta), sps.diags(-member.gammap), None, None],
 							[None, None, sps.diags(member.theta), sps.diags(member.thetap), None, None],
 							[None, None, sps.diags(member.mu), sps.diags(member.mup), None, None]
 					], format = 'csr'), shape = [6 * self.N, 6 * self.N])
-					# Ideally I wouldn't have to do this, but I couldn't figure out a way of setting a complete block of zeros.
-					member.coeffs[Eidx, Sidx] = 0
-					member.offset = sps.lil_matrix((6 * self.N,1), dtype = 'float')
-					member.offset[Iidx] = member.sigma.reshape(-1,1)
-					member.offset = member.offset.tocsr()
+					# Ideally I wouldn't have to do this, but I couldn't figure out a way of setting a complete block of zeros (column-block and row-block).
+					member.coeffs[iE, iS] = 0.
+					member.coeffs[iI, iE] = 0.
+					member.offset = member.sigma
 					member.L = nx.to_scipy_sparse_matrix(member.G)
 			self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
@@ -170,23 +169,26 @@ class epiens(object):
 		member.y0 = np.copy(y)
 		member.y_dot = np.zeros_like(y)
 
-		Sidx, Eidx, Iidx, Hidx = [range(jj * member.N, (jj + 1) * member.N) for jj in range(4)]
+		iS, iE, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(4)]
 
 		# This makes the update:
 		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
 		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
-		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(member.y0[Iidx[0]:(Hidx[-1]+1)])
+		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(member.y0[iI[0]:(iH[-1]+1)])
 
 		if kwargs.get('closure', 'individual') == 'covariance':
-				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + self.beta_closure_cov
+				member.y0[iS] = member.beta_closure_ind * member.y0[iS] + self.beta_closure_cov
 		elif kwargs.get('closure', 'individual') == 'correlation':
-				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx] + \
+				member.y0[iS] = member.beta_closure_ind * member.y0[iS] + \
 														self.beta_closure_cor[:, member_id]
 		else:
-				member.y0[Sidx] = member.beta_closure_ind * member.y0[Sidx]
+				member.y0[iS] = member.beta_closure_ind * member.y0[iS]
 
-		member.y_dot = member.coeffs.dot(member.y0) + member.offset.toarray().flatten()
-		member.y_dot[Eidx] = -member.y_dot.reshape(6, -1).sum(axis = 0)
+		member.y_dot = member.coeffs.dot(member.y0)
+		member.y_dot[iI] += member.offset
+		# member.y_dot[iE] -= member.y_dot.reshape(6, -1).sum(axis = 0)
+		member.y_dot[np.abs(member.y_dot) < 1e-12] = 0.0
+		# member.y_dot[y < 1e-8 ] = 0.0
 
 		return member.y_dot
 
@@ -286,4 +288,5 @@ class epiens(object):
 				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
 				self.tf += self.dt
 				yt[:,jj + 1] = np.copy(self.y0.flatten())
+
 		return yt.reshape(self.M, -1, len(t))
