@@ -13,7 +13,10 @@ import epimodels
 class epiens(object):
 
 	def __init__(self, M, G, N):
-		self.ensemble = [epimodels.static(G, N) for m in range(M)]
+		if isinstance(G, list):
+			self.ensemble = [epimodels.static(Gmm, N) for Gmm in G]
+		else:
+			self.ensemble = [epimodels.static(G, N) for m in range(M)]
 		self.M = M
 		self.N = N
 
@@ -41,8 +44,21 @@ class epiens(object):
 				member.gammap =  (member.thetap + member.mup)                                # γ'
 		else:
 			self.__heterogeneous = True
+			self.beta  = beta
+			self.betap = 0.75 * beta
 
-			pass
+			for member in self.ensemble:
+				member.init(beta = kwargs.get('beta', self.beta), het = True)
+				member.betap = 0.75 * member.beta
+
+				member.sigma = np.array(list(nx.get_node_attributes(member.G, 'sigma').values()))
+				member.delta = np.array(list(nx.get_node_attributes(member.G, 'delta').values()))
+				member.theta = np.array(list(nx.get_node_attributes(member.G, 'theta').values()))
+				member.thetap = np.array(list(nx.get_node_attributes(member.G, 'thetap').values()))
+				member.mu = np.array(list(nx.get_node_attributes(member.G, 'mu').values()))
+				member.mup = np.array(list(nx.get_node_attributes(member.G, 'mup').values()))
+				member.gamma = np.array(list(nx.get_node_attributes(member.G, 'gamma').values()))
+				member.gammap = np.array(list(nx.get_node_attributes(member.G, 'gammap').values()))
 
 	def set_parameters(self):
 		"""

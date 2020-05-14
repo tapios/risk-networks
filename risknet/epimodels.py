@@ -36,6 +36,7 @@ class static(epinet):
 			self.H.add_edge('H', 'D', rate = 1., weight_label = 'mup')
 
 		else:
+			# Old homogeneous parametrization.
 			self.sigma = sigma
 			self.gamma = gamma
 			mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
