@@ -149,13 +149,13 @@ class epiens(object):
 			self.covSI = y[:,iS].T.dot(self.PM).dot(y[:,iI].T.dot(self.PM).T)/(self.M-1)
 			self.varS = np.sqrt((y[:,iS].T.dot(self.PM) * y[:,iS].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
 			self.varI = np.sqrt((y[:,iI].T.dot(self.PM) * y[:,iI].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
-			self.denSI = self.varS.reshape(-1,1).dot(self.varI.reshape(1,-1))
+			self.denSI = self.varS.reshape(-1,1).dot(self.varI.reshape(1,-1)) + 1e-8
 			self.LcorSI = self.L.multiply(self.covSI * (1/self.denSI))
 			self.LcorSI.data[np.isnan(self.LcorSI.data)] = 0.
 
 			self.covSH = y[:,iS].T.dot(self.PM).dot(y[:,iH].T.dot(self.PM).T)/(self.M-1)
 			self.varH = np.sqrt((y[:,iH].T.dot(self.PM) * y[:,iH].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
-			self.denSH = self.varS.reshape(-1,1).dot(self.varH.reshape(1,-1))
+			self.denSH = self.varS.reshape(-1,1).dot(self.varH.reshape(1,-1)) + 1e-8
 			self.LcorSH = self.L.multiply(self.covSH * (1/self.denSH))
 			self.LcorSH.data[np.isnan(self.LcorSH.data)] = 0.
 
@@ -205,7 +205,7 @@ class epiens(object):
 			for mm, member in enumerate(self.ensemble):
 				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
 				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
-				self.y0[mm] = (self.y0[mm].reshape(6, -1)/self.y0[mm].reshape(6, -1).sum(axis = 0)).reshape(-1,)
+				# self.y0[mm] = (self.y0[mm].reshape(6, -1)/self.y0[mm].reshape(6, -1).sum(axis = 0)).reshape(-1,)
 			self.tf += self.dt
 			yt[:,jj + 1] = np.copy(self.y0.flatten())
 
