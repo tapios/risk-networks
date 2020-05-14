@@ -45,10 +45,10 @@ def load_G():
 
 def random_IC():
     infected = np.random.randint(N, size = 10)
-    E, I, H, R, D = np.zeros([5, N])
-    S = np.ones(N,)
-    I[infected] = 1.
-    S[infected] = 0.
+    E, I, H, R, D =0.01*np.ones([5, N])
+    S = 0.95*np.ones(N,)
+    I[infected] = 0.95
+    S[infected] = 0.01
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 10.0
+    T = 5.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     #OD: Are you sure you want to exclude T here? .

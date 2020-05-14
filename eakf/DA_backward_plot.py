@@ -81,17 +81,20 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    steps_DA = 10 
+    steps_DA = 5
     N = 327
     num_status = 6
-    t_t = np.arange(0.0, 100, 1.0)
-    t_range = np.arange(0.0, 100., 1.0)
-    obs_interval = 10
+    t_t = np.arange(0.0, 25., 1.0)
+    t_range = np.arange(0.0, 25., 1.0)
+    obs_interval = 1
 
     x_all = pickle.load(open('data/x_back.pkl', 'rb'))
     x_all = x_all[:,::-1,:]
     data = pickle.load(open('data/states_truth_beta_0p04.pkl', 'rb'))
-    plot_states(data[:,::obs_interval], x_all, \
+    print(data.shape)
+    print(t_t[::obs_interval])
+
+    plot_states(data[:,:25], x_all, \
                 t_t[::obs_interval], t_range, \
                 num_status, N, 'figs/EAKF-master-Eqn-backward.pdf')
 

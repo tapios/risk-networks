@@ -46,10 +46,10 @@ def load_G():
 
 def random_IC():
     infected = np.random.randint(N, size = 10)
-    E, I, H, R, D = np.zeros([5, N])
-    S = np.ones(N,)
-    I[infected] = 1.
-    S[infected] = 0.
+    E, I, H, R, D = 0.01*np.ones([5, N])
+    S = 0.95*np.ones(N,)
+    I[infected] = 0.95
+    S[infected] = 0.01
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
@@ -59,30 +59,39 @@ if __name__ == "__main__":
     print("Number of cpu : ", multiprocessing.cpu_count())
 
     # Number of EAKF steps
-    steps_DA = 10 
+    steps_DA = 5
     # Ensemble size (required>=2)
     n_samples = 10
     # Number of status for each node
     n_status = 6
 
+    # Load initial conditions of backward DA from a forward DA run
+    # Need to run DA_forward_example.py to output g.pkl
+    fin = 'data/x.pkl'
+    x_forward_all = pickle.load(open(fin, 'rb'))
+    x_backward_IC = x_forward_all[:,-1,:]
+    
     # Load the true data (beta=0.04, T=100, dt=1)
     fin = 'data/states_truth_beta_0p04.pkl'
     data = pickle.load(open(fin, 'rb'))
+    print(data.shape)
+    data = data[:,:x_forward_all.shape[1]]
     data = np.fliplr(data)
     data = data.T
 
-    # Load initial conditions of backward DA from a forward DA run
-    # Need to run DA_forward_example.py to output g.pkl
-    fin = 'data/g.pkl'
-    x_forward_all = pickle.load(open(fin, 'rb'))
-    x_backward_IC = x_forward_all[-1,:,:]
-
+    
     # Load network
     G, N = load_G()
 
+    # in epimodels i use clipping
+    print('using clipping')
     # Set prior for unknown parameters
+    #fin = 'data/u.pkl'
+    #params_forward=pickle.load(open(fin,'rb'))
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.03), np.log(0.05), n_samples)
+    #print(params_forward.shape)
+    #params[:,0]=params_forward[-1,:,0]
+    params[:,0] = np.random.uniform(np.log(0.001), np.log(0.1), n_samples)
 
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
@@ -91,15 +100,13 @@ if __name__ == "__main__":
         states_IC[iterN, :] = x_backward_IC[iterN, :] 
 
     # Set time informations inside an EAKF step
-    T = 10.0
+    T = 5.0
     Tinit = 0.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
-    #OD: Are you sure you want to exclude T here? .
-    #t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
+    # t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
     t_range=np.arange(0.0,T,dt) 
-    dt_fsolve =T/10.
-    dt_bsolve =T/10.
+    dt_bsolve =0.1
     
     # Container for backward model evaluations
     x_backward_all = np.empty([n_samples, steps_T*steps_DA, n_status*N])
@@ -107,7 +114,7 @@ if __name__ == "__main__":
     ekf = EAKF(params, states_IC)
     for iterN in range(steps_DA):
         print('DA step: ', iterN+1)
-
+        print(np.exp(ekf.q[iterN]))
         ## Get observations for EAKF
         x_obs = data[(iterN+1)*int(T)-1,:]
         #x_cov = np.identity(x_obs.shape[0]) * 0.01 
@@ -120,7 +127,7 @@ if __name__ == "__main__":
         params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples) 
         x_backward = ensemble_backward_model(G, ekf.q[iterN] + params_noises.reshape(n_samples,1), \
                                              states_IC, \
-                                             T, Tinit, dt_bsolve, t_range, parallel_flag = True)
+                                             T, Tinit, dt_bsolve, t_range, parallel_flag = False)
         end = time.time()
         print('Time elapsed for backward model: ', end - start)
     

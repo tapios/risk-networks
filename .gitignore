@@ -133,4 +133,5 @@ dmypy.json
 # Temp files
 *.~lock.*
 
+# vim swap file
 *.swp

@@ -10,9 +10,9 @@ from tqdm.autonotebook import tqdm
 
 class epinet(object):
 
-		def __init__(self, G, N):
-				self.N = N
-				self.G = G
+	def __init__(self, G, N):
+		self.N = N
+		self.G = G
 
 class static(epinet):
 
@@ -24,7 +24,7 @@ class static(epinet):
 		self.H = nx.DiGraph()
 		self.H.add_node('S')
 
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 
 			self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
 
@@ -36,6 +36,7 @@ class static(epinet):
 			self.H.add_edge('H', 'D', rate = 1., weight_label = 'mup')
 
 		else:
+			# Old homogeneous parametrization.
 			self.sigma = sigma
 			self.gamma = gamma
 			mu, delta = np.linalg.solve(np.array([[1 - 0.01,  -0.01],[-0.15, 1 - 0.15]]),
@@ -70,11 +71,9 @@ class static(epinet):
 
 	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
 		if kwargs.get('het', False):
-			self.__heterogoneous = True
-			self.heterogoneous = True
+			self.__heterogeneous = True
 		else:
-			self.__heterogoneous = False
-			self.heterogoneous = False
+			self.__heterogeneous = False
 
 		self.create_spontaneous(sigma, gamma, **kwargs)
 		self.create_induced(beta, **kwargs)
@@ -106,7 +105,7 @@ class static(epinet):
 		"""
 		Set and initialize master equation parameters
 		"""
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
@@ -125,17 +124,15 @@ class static(epinet):
 			self.gamma =  (self.theta + self.delta + self.mu)
 			self.gammap =  (self.thetap + self.mup)
 
-                # Make a sparse matrix of coefficients
-		self.coeffs = sps.csr_matrix(sps.bmat(
-
-                    [ [sps.eye(self.N), None,                   None,                   None,                    None, None],
-		      [sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
-		      [None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
-		      [None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
-		      [None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
-		      [None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]  ],
-
-		    format = 'csr'), shape = [6 * self.N, 6 * self.N])
+			# Make a sparse matrix of coefficients
+		self.coeffs = sps.csr_matrix(sps.bmat([
+				[sps.eye(self.N), None,                   None,                   None,                    None, None],
+				[sps.eye(self.N), sps.diags(-self.sigma), None,                   None,                    None, None],
+				[None,            sps.diags(self.sigma),  sps.diags(-self.gamma), None,                    None, None],
+				[None,            None,                   sps.diags(self.delta),  sps.diags(-self.gammap), None, None],
+				[None,            None,                   sps.diags(self.theta),  sps.diags(self.thetap),  None, None],
+				[None,            None,                   sps.diags(self.mu),     sps.diags(self.mup),     None, None]
+			], format = 'csr'), shape = [6 * self.N, 6 * self.N])
 
 		self.beta_closure = np.zeros(self.N,)
 		self.L = nx.to_scipy_sparse_matrix(self.G)
@@ -186,7 +183,7 @@ class static(epinet):
 		-Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
 		-Network parameters (same as the forward equations)
 		"""
-		if self.__heterogoneous:
+		if self.__heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
@@ -202,8 +199,8 @@ class static(epinet):
 			self.thetap =  self.gammap * np.ones(self.N)
 			self.mu =  self.mu * np.ones(self.N)
 			self.mup =  self.mup * np.ones(self.N)
-			self.gamma =  (self.theta + self.delta + self.mu) 
-			self.gammap =  (self.thetap + self.mup) 
+			self.gamma =  (self.theta + self.delta + self.mu)
+			self.gammap =  (self.thetap + self.mup)
 
 		self.coeffs = sps.csr_matrix(sps.bmat([[sps.eye(self.N), None, None, None],
 											   [sps.eye(self.N), sps.diags(self.sigma), None, None],
@@ -272,50 +269,50 @@ class static(epinet):
 
 class dynamic(epinet):
 
-		def __init__(self, N = 0, G = {}):
-				super().__init__(N, G)
+                def __init__(self, N = 0, G = {}):
+                                super().__init__(N, G)
 
-		def temporal_network(self, edge_list, deltat):
-				"""
-				temporal network construction
+                def temporal_network(self, edge_list, deltat):
+                                """
+                                temporal network construction
 
-				Parameters:
-				edge_list (array): edge list (1st column: time stamp UNIX format, 2nd-3rd columnm: edge i <-> j)
-				deltat (float): time step (duration) of each network snapshot in seconds
+                                Parameters:
+                                edge_list (array): edge list (1st column: time stamp UNIX format, 2nd-3rd columnm: edge i <-> j)
+                                deltat (float): time step (duration) of each network snapshot in seconds
 
-				Returns:
-				Gord: dictionary with time stamps (seconds) and networks
+                                Returns:
+                                Gord: dictionary with time stamps (seconds) and networks
 
-				"""
+                                """
 
-				G = {}
+                                G = {}
 
-				G1 = nx.Graph()
+                                G1 = nx.Graph()
 
-				T0 = edge_list[0][0]
+                                T0 = edge_list[0][0]
 
-				T = edge_list[0][0]
+                                T = edge_list[0][0]
 
-				nodes = edge_list[:,1]
-				nodes = np.append(nodes, edge_list[:,2])
-				nodes = set(nodes)
+                                nodes = edge_list[:,1]
+                                nodes = np.append(nodes, edge_list[:,2])
+                                nodes = set(nodes)
 
-				Gnodes = nx.Graph()
-				Gnodes.add_nodes_from(nodes)
+                                Gnodes = nx.Graph()
+                                Gnodes.add_nodes_from(nodes)
 
-				for i in range(len(edge_list)):
+                                for i in range(len(edge_list)):
 
-						if edge_list[i][0] <= T + deltat:
-								G1.add_nodes_from(nodes)
-								G1.add_edge(edge_list[i][1],edge_list[i][2])
-						else:
+                                                if edge_list[i][0] <= T + deltat:
+                                                                G1.add_nodes_from(nodes)
+                                                                G1.add_edge(edge_list[i][1],edge_list[i][2])
+                                                else:
 
-								if len(G1):
-										G[(T-T0)] = G1
-										G1 = nx.Graph()
-								else:
-										G[(T-T0)] = Gnodes
-								T += deltat
+                                                                if len(G1):
+                                                                                G[(T-T0)] = G1
+                                                                                G1 = nx.Graph()
+                                                                else:
+                                                                                G[(T-T0)] = Gnodes
+                                                                T += deltat
 
-				Gord = OrderedDict(sorted(G.items()))
-				self.G = Gord
+                                Gord = OrderedDict(sorted(G.items()))
+                                self.G = Gord

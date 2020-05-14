@@ -82,13 +82,15 @@ if __name__ == "__main__":
     steps_DA = 10
     N = 327
     num_status = 6
-    t_t = np.arange(0.0, 100, 1.0)
+    t_t = np.arange(0.0, 100., 1.0)
     t_range = np.arange(0.0, 100., 1.0)
-    obs_interval = 10
-
+    obs_interval = 1
+    
     x_all = pickle.load(open('data/x.pkl', 'rb'))
     data = pickle.load(open('data/states_truth_beta_0p04.pkl', 'rb'))
-    plot_states(data[:,obs_interval-1::obs_interval], x_all, \
+
+    print( t_t[obs_interval-1::obs_interval])
+    plot_states(data[:,0:t_t.size:obs_interval], x_all[:,0:t_range.size,:], \
                 t_t[obs_interval-1::obs_interval], t_range, \
                 num_status, N, 'figs/EAKF-master-Eqn.pdf')
 

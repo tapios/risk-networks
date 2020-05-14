@@ -93,9 +93,18 @@ if __name__ == "__main__":
     # Load network
     G, N = load_G()
 
+
+    ##################
+    ##Quick test for bsolve only
+    
+    #fin = 'data/x.pkl'
+    #x_forward = pickle.load(open(fin, 'rb'))
+
+    #################
+    
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
+    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.08), n_samples)
     
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
@@ -103,8 +112,8 @@ if __name__ == "__main__":
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 80.
-    dt = 0.1 #timestep for OUTPUT not solver
+    T = 25.
+    dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range = np.linspace(0.0, T, num=steps_T+1, endpoint=True)#includes 0 and T
     dt_fsolve =0.1
@@ -117,8 +126,8 @@ if __name__ == "__main__":
     start = time.time()
 
     # A simple decayed noise term to add into paramters during EAKF
-    #params_noise = np.random.uniform(-2./np.sqrt(0+1), 2./np.sqrt(0+1), n_samples) 
-    params_noise = np.zeros([n_samples,1])
+    params_noise = np.random.uniform(-2./np.sqrt(0+1), 2./np.sqrt(0+1), n_samples) 
+    #params_noise = np.zeros([n_samples,1])
     print('beta parameter for each ensemble: ')
     print(np.exp(params))
     x_forward = ensemble_forward_model(G, params + params_noise.reshape(n_samples,1), states_IC,T, dt_fsolve, t_range, parallel_flag = False)
@@ -129,6 +138,7 @@ if __name__ == "__main__":
 
     ## Backward model evaluation of all ensemble members
     start = time.time()
+    params_noise = np.random.uniform(-2./np.sqrt(0+1), 2./np.sqrt(0+1), n_samples) 
     x_backward = ensemble_backward_model(G, params + params_noise.reshape(n_samples,1), x_forward[:,-1,:],T, Tinit, dt_bsolve, t_range, parallel_flag = False)
     
     for ss in  range(n_samples):
