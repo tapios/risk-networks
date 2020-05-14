@@ -81,6 +81,7 @@ class epiens(object):
 
 			member.L = nx.to_scipy_sparse_matrix(member.G)
 
+		self.__reduced = False
 		self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
 	def set_parameters_reduced(self):
@@ -90,22 +91,22 @@ class epiens(object):
 			L (sparse matrix): adjacency Matrix.
 			PM (matrix): ensemble centering matrix (M times M), idempotent, symmetric.
 			"""
-			iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
+			iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
 			for member in self.ensemble:
 					member.coeffs = sps.csr_matrix(sps.bmat(
 					[
-							[-sps.eye(self.N), None, None, None, None, None],
-							[sps.eye(self.N), None, None, None, None, None],
-							[-sps.diags(member.sigma), sps.eye(self.N), -sps.diags(member.sigma + member.gamma), -sps.diags(member.sigma),-sps.diags(member.sigma),-sps.diags(member.sigma)],
-							[None, None, sps.diags(member.delta), sps.diags(-member.gammap), None, None],
-							[None, None, sps.diags(member.theta), sps.diags(member.thetap), None, None],
-							[None, None, sps.diags(member.mu), sps.diags(member.mup), None, None]
-					], format = 'csr'), shape = [6 * self.N, 6 * self.N])
-					# Ideally I wouldn't have to do this, but I couldn't figure out a way of setting a complete block of zeros (column-block and row-block).
-					member.coeffs[iE, iS] = 0.
-					member.coeffs[iI, iE] = 0.
-					member.offset = member.sigma
+							[-sps.eye(self.N), None, None, None, None],
+							[sps.diags(-member.sigma), sps.diags(-member.sigma - member.gamma), sps.diags(-member.sigma),sps.diags(-member.sigma),sps.diags(-member.sigma)],
+							[None, sps.diags(member.delta), sps.diags(-member.gammap), None, None],
+							[None, sps.diags(member.theta), sps.diags(member.thetap), None, None],
+							[None, sps.diags(member.mu), sps.diags(member.mup), None, None]
+					], format = 'csr'), shape = [5 * self.N, 5 * self.N])
+					member.offset = np.zeros(5 * self.N,)
+					member.offset[iI] = member.sigma
+					member.y_dot = np.zeros_like(5 * self.N,)
 					member.L = nx.to_scipy_sparse_matrix(member.G)
+
+			self.__reduced = True
 			self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
 	def ens_keqns_sparse(self, t, y, member):
@@ -167,9 +168,8 @@ class epiens(object):
 		y_dot (array): lhs of master eqns
 		"""
 		member.y0 = np.copy(y)
-		member.y_dot = np.zeros_like(y)
 
-		iS, iE, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(4)]
+		iS, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(3)]
 
 		# This makes the update:
 		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
@@ -184,16 +184,19 @@ class epiens(object):
 		else:
 				member.y0[iS] = member.beta_closure_ind * member.y0[iS]
 
-		member.y_dot = member.coeffs.dot(member.y0)
-		member.y_dot[iI] += member.offset
-		# member.y_dot[iE] -= member.y_dot.reshape(6, -1).sum(axis = 0)
-		member.y_dot[np.abs(member.y_dot) < 1e-12] = 0.0
+		member.y_dot = member.coeffs.dot(member.y0) + member.offset
+		# member.y_dot[np.abs(member.y_dot) < 1e-12] = 0.0
+		member.y_dot[  (member.y_dot > member.y0/self.dt)   & ((member.y_dot < 0) &  (member.y0 < 1e-12)) ] = 0.
+		member.y_dot[(member.y_dot < (1-member.y0)/self.dt) & ((member.y_dot > 0) & (member.y0 > 1-1e-12))] = 0.
 		# member.y_dot[y < 1e-8 ] = 0.0
 
 		return member.y_dot
 
 	def eval_closure(self, y, **kwargs):
-		iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
+		if self.__reduced:
+			iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
+		else:
+			iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
 		self.L = self.ensemble[0].L
 		if kwargs.get('closure', 'individual') == 'covariance':
 			# This should be read as:
@@ -235,9 +238,6 @@ class epiens(object):
 
 		self.solve_init = True
 		self.set_parameters()
-
-	def ens_solver_euler(self, **kwargs):
-		pass
 
 	def ens_solve(self, y0, t, args = (), **kwargs):
 		"""
