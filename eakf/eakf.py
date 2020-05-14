@@ -176,6 +176,9 @@ class EAKF:
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
 
+        # Avoid overflow for exp
+        x_logit = np.minimum(x_logit, 1e2)
+
         # replace unchanged states
         x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
        
