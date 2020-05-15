@@ -149,11 +149,15 @@ if __name__ == "__main__":
 
     density = np.asarray([2*len(x.edges())/(len(x.nodes())*(len(x.nodes())-1)) for x in G.values()])
     time = np.asarray([x for x in G.keys()])/(3600)
+    
+    lamb = lambda t: np.max(np.asarray([0.1,1-np.cos(np.pi*t/24)**4]))
     print(time)
     plt.figure()
-    plt.plot(time, density/max(density))
-    plt.plot(time[time <= 20], 0.05+np.sin(time[time <= 20]/(3.8)))
-    plt.xlabel(r'time [days]')
+    plt.plot(time+6, density/max(density))
+    plt.plot(time[time <= 24],[lamb(t) for t in time[time <= 24]])
+    plt.xlim([0,25])
+    plt.ylim([0,1])
+    plt.xlabel(r'time [hours]')
     plt.ylabel(r'normalized edge density')
     plt.tight_layout()
     plt.show()
