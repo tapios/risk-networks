@@ -36,9 +36,9 @@ def unpack_state_timeseries(model, states):
     return S, E, I, H, R, D
 
 
-class StaticRiskNetworkModel:
+class RiskNetworkModel:
     """
-        StaticRiskNetworkModel(contact_network, transition_rates = None, 
+        RiskNetworkModel(contact_network, transition_rates = None, 
                                infection_pressure_closure = trivial_closure)
 
     A model for the 'risk' (expected probability) of the clinical
@@ -168,7 +168,7 @@ class StaticRiskNetworkModel:
 
     def integrate_forwards(self, interval, **kwargs):
         """
-        Integrate the StaticRiskNetworkModel forwards over the time `interval`,
+        Integrate the RiskNetworkModel forwards over the time `interval`,
         and update `self.time`. Returns the residual of the time integration.
         See `scipy.integrate.solve_ivp` for more information.
 
@@ -189,7 +189,7 @@ class StaticRiskNetworkModel:
 
     def integrate_backwards(self, interval, **kwargs):
         """
-        Integrate the StaticRiskNetworkModel *backwards* over the time `interval`,
+        Integrate the RiskNetworkModel *backwards* over the time `interval`,
         and update `self.time` to `self.time - interval`. Returns the residual 
         of the time integration. See `scipy.integrate.solve_ivp` for more information.
 

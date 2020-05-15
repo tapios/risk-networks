@@ -36,7 +36,7 @@ age_classes = np.asarray([kids, young_adults, middle_aged, seniors, elderly])
 
 # age distribution in working population: 20--44 and 45--64
 
-age_classes_working = np.asarray([0.3876994201,0.2504385036])/sum([0.3876994201,0.2504385036])
+age_classes_working = np.asarray([0.3876994201, 0.2504385036]) / sum([0.3876994201, 0.2504385036])
 
 # age-dependent hospitalization and recovery rates
 
@@ -105,7 +105,8 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
                         
             print(contact_reduction)
             
-            J = inducedTransitions(G, beta0*np.sin(day_time*6)*contact_reduction, betap0*np.sin(day_time*6)*contact_reduction)
+            J = inducedTransitions(G, beta0  * np.sin(day_time * 6) * contact_reduction, 
+                                      betap0 * np.sin(day_time * 6) * contact_reduction)
        
         else:
             
@@ -124,7 +125,7 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
         times, states = res.summary()
         node_status = res.get_statuses(time = times[-1])
 
-        contact_reduction = np.exp(-31*states['I'][-1]/len(G))
+        contact_reduction = np.exp(-31 * states['I'][-1] / len(G))
 
         for x in node_status.keys():
 
@@ -258,10 +259,10 @@ def inducedTransitions(G, dbeta = 0, dbetap = 0):
 
     """
     
-    edge_attribute_dict_beta = {edge: beta_distr(1)+dbeta for edge in G.edges()}
-    edge_attribute_dict_betap = {edge: betap_distr(1)+dbetap for edge in G.edges()}
+    edge_attribute_dict_beta =  { edge: beta_distr(1)  + dbeta  for edge in G.edges() }
+    edge_attribute_dict_betap = { edge: betap_distr(1) + dbetap for edge in G.edges() }
     
-    nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
+    nx.set_edge_attributes(G, values=edge_attribute_dict_beta,  name='beta_weight')
     nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
     
     # Neighbor induced transitions.
