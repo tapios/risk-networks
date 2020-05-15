@@ -9,6 +9,9 @@ class DAForwardModel:
 
     def __init__(self,parameters,states,Observations,data):
 
+        if not isinstance(Observations,list):#if it's a scalar, not array
+            Observations=[Observations]
+            
         #observation models(s)
         self.omodel = Observations
         
@@ -55,18 +58,33 @@ class DAForwardModel:
                        
         #observe ensemble states
         x=x[:,om.obs_time_in_window,:] #same time
-        x=x[:,om.obs_states] #same place
+        xtmp=x[:,om.obs_states] #same place
                        
         #update the da model with the data
         dam.obs(truth,cov)
 
         #perform da model update with x,q and update parameters.
-        q=dam.update(x,self.params[-1])
+        q=dam.update(xtmp,self.params[-1])
         np.append(self.params, [q], axis=0)
 
+        #enforce probabilities == 1, by placing excess in susceptible
+        #CUMBERSOME! (10,N,6), sum over 3rd axis ignoring S
+        
+        x[:,om.obs_states]=dam.x[-1]
+        x=om.sum_to_one(x)
+        #sumx=x.reshape(x.shape[0],om.status,om.N)
+        #sumx=np.sum(sumx[:,1:,:],axis=1)
+        #x[:,0:om.N]=1.0 - sumx
+        #xneg=np.minimum(x[:,0:om.N],0.0)
+        #print("total mass put from susceptible => exposed: ", np.sum(np.sum(xneg,axis=1),axis=0))
+        #x[:,0:om.N]=x[:,0:om.N]-xneg
+        #x[:,om.N:2*om.N]=x[:,om.N:2*om.N]-xneg #if susceptibles go negative, this will take the rest and put in exposed.
+
+        #iterate to next point
         self.data_pts_assimilated = pt+1
         
-
+        return x
+        
     #the next observation time if we have one, (it could be the same)
     #else if we have run out of points, give the end of window value
     def next_data_idx(self):
@@ -78,3 +96,4 @@ class DAForwardModel:
         else:
             return self.omodel[0].Tsize-1
         
+ 
