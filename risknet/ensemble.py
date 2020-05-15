@@ -80,6 +80,7 @@ class epiens(object):
 			], format = 'csr'), shape = [6 * self.N, 6 * self.N])
 
 			member.L = nx.to_scipy_sparse_matrix(member.G)
+			member.y_dot = np.zeros(6 * self.N,)
 
 		self.__reduced = False
 		self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
@@ -96,7 +97,7 @@ class epiens(object):
 					member.coeffs = sps.csr_matrix(sps.bmat(
 					[
 							[-sps.eye(self.N), None, None, None, None],
-							[sps.diags(-member.sigma), sps.diags(-member.sigma - member.gamma), sps.diags(-member.sigma),sps.diags(-member.sigma),sps.diags(-member.sigma)],
+							[sps.diags(-member.sigma), sps.diags(- member.sigma - member.gamma), sps.diags(-member.sigma),sps.diags(-member.sigma),sps.diags(-member.sigma)],
 							[None, sps.diags(member.delta), sps.diags(-member.gammap), None, None],
 							[None, sps.diags(member.theta), sps.diags(member.thetap), None, None],
 							[None, sps.diags(member.mu), sps.diags(member.mup), None, None]
@@ -156,7 +157,11 @@ class epiens(object):
 		else:
 			member.y0[iS] = member.beta_closure_ind * member.y0[iS]
 
-		return member.coeffs.dot(member.y0)
+		member.y_dot = member.coeffs.dot(member.y0)
+		member.y_dot[  (member.y_dot > member.y0/self.dt)   & ((member.y_dot < 0) &  (member.y0 < 1e-12)) ] = 0.
+		member.y_dot[(member.y_dot < (1-member.y0)/self.dt) & ((member.y_dot > 0) & (member.y0 > 1-1e-12))] = 0.
+
+		return member.y_dot
 
 	def ens_keqns_sparse_closure_reduced(self, t, y, member, member_id, **kwargs):
 		"""
@@ -174,6 +179,7 @@ class epiens(object):
 		# This makes the update:
 		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
 		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
+		# 									 Y[SH] = Y[S]·Y[H]
 		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(member.y0[iI[0]:(iH[-1]+1)])
 
 		if kwargs.get('closure', 'individual') == 'covariance':
@@ -286,7 +292,7 @@ class epiens(object):
 			for mm, member in enumerate(self.ensemble):
 				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure_reduced(t, self.y0[mm], member, mm, **kwargs)
 				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
-				self.tf += self.dt
-				yt[:,jj + 1] = np.copy(self.y0.flatten())
+			self.tf += self.dt
+			yt[:,jj + 1] = np.copy(self.y0.flatten())
 
 		return yt.reshape(self.M, -1, len(t))
