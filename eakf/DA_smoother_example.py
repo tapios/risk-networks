@@ -1,6 +1,7 @@
 import EoN
 import numpy as np
 import multiprocessing
+from multiprocessing import get_context
 from models import MasterEqn 
 import networkx as nx
 from eakf import EAKF
@@ -15,16 +16,17 @@ def forward_model(G, params, state0, T, dt_max, t_range):
 
 def ensemble_forward_model(G, qi, xi, T, dt_max, t_range, parallel_flag = True):
     if parallel_flag == True:
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        results = []
-        for iterN in range(qi.shape[0]):
-            results.append(pool.apply_async(forward_model, (G, qi[iterN,:], xi[iterN,:], T, dt_max, t_range)))
+        with get_context("spawn").Pool(multiprocessing.cpu_count()) as pool:
+            results = []
+            for iterN in range(qi.shape[0]):
+                results.append(pool.apply_async(forward_model, (G, qi[iterN,:], xi[iterN,:], T, dt_max, t_range)))
+            pool.close()
+            pool.join()
         iterN = 0
         states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
         for result in results:
             states_all[iterN,:,:] = result.get()
             iterN = iterN + 1
-        pool.close()
     else:
         states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
         for iterN in range(qi.shape[0]):
