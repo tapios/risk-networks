@@ -58,7 +58,7 @@ class static(epinet):
 
 	def create_induced(self, beta = 0.06, **kwargs):
 		self.beta  = beta
-		self.betap = 0.0001 * beta
+		self.betap = 0.75 * beta
 
 		self.J = nx.DiGraph()
 		self.J.add_edge(('I', 'S'), ('I', 'E'), rate = self.beta)

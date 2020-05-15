@@ -110,27 +110,6 @@ class epiens(object):
 			self.__reduced = True
 			self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
-	def ens_keqns_sparse(self, t, y, member):
-		"""
-		Inputs:
-		y (array): an array of dims (N_statuses, N_nodes)
-		t (array): times for ode solver
-
-		Returns:
-		y_dot (array): lhs of master eqns
-		"""
-		# Initial conditions: y
-		# Initial conditions for all ensemble members Y0 = [y0, ..., y0]
-		y0 = np.copy(y)
-
-		iS, iE, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(4)]
-
-		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(y0[iI[0]:(iH[-1]+1)])
-
-		y0[iS] = member.beta_closure_ind * y0[iS]
-
-		return member.coeffs.dot(y0)
-
 	def ens_keqns_sparse_closure(self, t, y, member, member_id, **kwargs):
 		"""
 		Inputs:
@@ -172,28 +151,26 @@ class epiens(object):
 		Returns:
 		y_dot (array): lhs of master eqns
 		"""
-		member.y0 = np.copy(y)
-
 		iS, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(3)]
 
 		# This makes the update:
 		# Y[S] = Y[S] * beta_closure_ind + beta_closure_cov
 		# where beta_closure_ind is based on Y[SI] = Y[S]·Y[I]
 		# 									 Y[SH] = Y[S]·Y[H]
-		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(member.y0[iI[0]:(iH[-1]+1)])
+		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(y[iI[0]:(iH[-1]+1)])
 
 		if kwargs.get('closure', 'individual') == 'covariance':
-				member.y0[iS] = member.beta_closure_ind * member.y0[iS] + self.beta_closure_cov
+				member.yS_holder = member.beta_closure_ind * y[iS] + self.beta_closure_cov
 		elif kwargs.get('closure', 'individual') == 'correlation':
-				member.y0[iS] = member.beta_closure_ind * member.y0[iS] + \
+				member.yS_holder = member.beta_closure_ind * y[iS] + \
 														self.beta_closure_cor[:, member_id]
 		else:
-				member.y0[iS] = member.beta_closure_ind * member.y0[iS]
+				member.yS_holder = member.beta_closure_ind * y[iS]
 
-		member.y_dot = member.coeffs.dot(member.y0) + member.offset
-		# member.y_dot[np.abs(member.y_dot) < 1e-12] = 0.0
-		member.y_dot[  (member.y_dot > member.y0/self.dt)   & ((member.y_dot < 0) &  (member.y0 < 1e-12)) ] = 0.
-		member.y_dot[(member.y_dot < (1-member.y0)/self.dt) & ((member.y_dot > 0) & (member.y0 > 1-1e-12))] = 0.
+		member.y_dot = member.coeffs.dot(y) + member.offset
+		member.y_dot[iS] = - member.yS_holder
+		member.y_dot[  (member.y_dot > y/self.dt)   & ((member.y_dot < 0) &  (y < 1e-12)) ] = 0.
+		member.y_dot[(member.y_dot < (1-y)/self.dt) & ((member.y_dot > 0) & (y > 1-1e-12))] = 0.
 		# member.y_dot[y < 1e-8 ] = 0.0
 
 		return member.y_dot
@@ -233,7 +210,7 @@ class epiens(object):
 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
 										   np.sqrt(y[:,iS] * (1-y[:,iS])).T)
 
-	def set_solver(self, method = 'RK45', T = 200, dt = 0.1):
+	def set_solver(self, method = 'RK45', T = 200, dt = 0.1, reduced = False):
 
 		for member in self.ensemble:
 			member.set_solver(method = method, T = T, dt = dt, member_call = False)
@@ -243,7 +220,11 @@ class epiens(object):
 		self.T = T
 
 		self.solve_init = True
-		self.set_parameters()
+
+		if reduced:
+			self.set_parameters_reduced()
+		else:
+			self.set_parameters()
 
 	def ens_solve(self, y0, t, args = (), **kwargs):
 		"""
@@ -251,10 +232,7 @@ class epiens(object):
 		results = []
 		if self.solve_init:
 			for mm, member in tqdm(enumerate(self.ensemble), desc = 'Solving member', total = self.M):
-				res = integrate.solve_ivp(
-						fun = lambda t, y: self.ens_keqns_sparse_closure(t, y, member, mm, **kwargs),
-						t_span = [0, self.T], y0 = y0[mm],
-						t_eval = t, method = self.method, max_step = self.dt)
+				res = member.solve(y0[mm], t, **kwargs)
 				results.append(res)
 		return results
 
@@ -269,28 +247,10 @@ class epiens(object):
 		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
 			self.eval_closure(self.y0, **kwargs)
 			for mm, member in enumerate(self.ensemble):
-				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
-				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
-				# self.y0[mm] = (self.y0[mm].reshape(6, -1)/self.y0[mm].reshape(6, -1).sum(axis = 0)).reshape(-1,)
-			self.tf += self.dt
-			yt[:,jj + 1] = np.copy(self.y0.flatten())
-
-		return yt.reshape(self.M, -1, len(t))
-
-
-	def ens_solve_euler_reduced(self, y0, t, args = (), **kwargs):
-		"""
-		"""
-		self.set_parameters_reduced()
-		self.tf = 0.
-		self.y0 = np.copy(y0)
-		yt = np.empty((len(y0.flatten()), len(t)))
-		yt[:,0] = np.copy(y0.flatten())
-
-		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
-			self.eval_closure(self.y0, **kwargs)
-			for mm, member in enumerate(self.ensemble):
-				self.y0[mm] += self.dt * self.ens_keqns_sparse_closure_reduced(t, self.y0[mm], member, mm, **kwargs)
+				if self.__reduced:
+					self.y0[mm] += self.dt * self.ens_keqns_sparse_closure_reduced(t, self.y0[mm], member, mm, **kwargs)
+				else:
+					self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
 				self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
 			self.tf += self.dt
 			yt[:,jj + 1] = np.copy(self.y0.flatten())
