@@ -6,8 +6,8 @@ from .infection_rate_distribution import InfectionRateDistribution
 
 class InfectiousPopulation:
     def __init__(self, contact_network,
-                       infection_rates = None, # aka, "neighbor-induced" transitions
-                        clinical_rates = None, # aka, "spontaneous" transitions
+                       infection_rates, # aka, "neighbor-induced" transitions
+                        clinical_rates, # aka, "spontaneous" transitions
                 ):
 
         self.contact_network = contact_network

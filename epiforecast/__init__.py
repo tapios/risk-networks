@@ -1,6 +1,9 @@
 # Files in this project:
 #
 
+#
+from .clinical_rates import ConstantClinicalRates, VariableClinicalRates
+
 # Ensemble Kalman Filters used for data assimilation 
 from .ensemble_kalman_filters import EnsembleAdjustedKalmanFilter
 
@@ -8,7 +11,7 @@ from .ensemble_kalman_filters import EnsembleAdjustedKalmanFilter
 from .example_utilities import load_sample_contact_network
 
 #
-from .infection_rate_distribution import InfectionRateDistribution
+from .infection_rates import ConstantInfectionRates, VariableInfectionRates
 
 # Abstraction for an infectious population, including:
 #

@@ -1,8 +1,7 @@
 from .samplers import ScaledBetaSampler
 
 class ConstantInfectionRates:
-    def __init__(self, contact_network, community_infection_rate, hospital_infection_rate):
-        self.contact_network = contact_network
+    def __init__(self, community_infection_rate, hospital_infection_rate):
         self.community = community_infection_rate
         self.hospital = hospital_infection_rate
 
@@ -15,7 +14,6 @@ class VariableInfectionRates:
                  ):
 
         self.contact_network = contact_network
-        self.initialize_infection_graph()
 
         # Sets self.community
         self.generate_community_infection_rates(   baseline = community_baseline,
