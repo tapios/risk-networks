@@ -55,6 +55,7 @@ def random_IC():
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
+                        
 if __name__ == "__main__":
     """ 
     This runs the EAKF as a moving 'forward smoother'.
@@ -138,9 +139,10 @@ if __name__ == "__main__":
     # Data
     data=HighSchoolData(steps_T_init)
     #Observations (here random time, random node, observe onlyInfected[2] prob)
-    InfectiousObs = RandomStatusObservation(t_range,N,n_status,int(N),[2],'0.8_Infected')
-    HospitalObs =  RandomStatusObservation(t_range,N,n_status,int(N),[3],'0.8_Hospitalised')
-    OModel =[InfectiousObs,HospitalObs]
+    InfectiousObs = RandomStatusObservation(t_range,N,n_status,int(0.2*N),[2],'0.2_Infected')
+    #HospitalObs =  RandomStatusObservation(t_range,N,n_status,int(0.2*N),[3],'1.0_Hospitalised')
+    #OModel =[InfectiousObs,HospitalObs]
+    OModel=InfectiousObs
     #Build the DA
     ekf=DAForwardModel(params,x_forward_init[:,-1,:],OModel,data)
 
@@ -177,14 +179,12 @@ if __name__ == "__main__":
             pt=ekf.data_pts_assimilated
             
             data_idx=ekf.omodel[pt].obs_time_in_window
-            state_idx=ekf.omodel[pt].obs_states
-
+            
             #Assimilate the point
-            ekf.update(x_forward)
-            x_forward[:,data_idx,state_idx] = ekf.damodel[pt].x[-1]
+            x_forward[:,data_idx,:]=ekf.update(x_forward)
+            
             #get next point
             next_data_idx=ekf.next_data_idx()
-        
             end = time.time()
             print('Assimilated', ekf.omodel[pt].name , ', at ', data_idx,', Time elapsed for EAKF: ', end - start)
             print("Error: ", ekf.damodel[pt].error[-1])
