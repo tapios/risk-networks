@@ -24,7 +24,7 @@ class static(epinet):
 		self.H = nx.DiGraph()
 		self.H.add_node('S')
 
-		if self.__heterogeneous:
+		if self.ix_heterogeneous:
 
 			self.H.add_edge('E', 'I', rate = 1., weight_label = 'sigma')
 
@@ -70,10 +70,10 @@ class static(epinet):
 			self.IC[node] = 'I'
 
 	def init(self, sigma = 1/3.5, gamma = 1/13.7, beta = 0.06, **kwargs):
-		if kwargs.get('het', False):
-			self.__heterogeneous = True
+		if kwargs.get('hom', True):
+			self.ix_heterogeneous = False
 		else:
-			self.__heterogeneous = False
+			self.ix_heterogeneous = True
 
 		self.create_spontaneous(sigma, gamma, **kwargs)
 		self.create_induced(beta, **kwargs)
@@ -105,7 +105,7 @@ class static(epinet):
 		"""
 		Set and initialize master equation parameters
 		"""
-		if self.__heterogeneous:
+		if self.ix_heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))
@@ -183,7 +183,7 @@ class static(epinet):
 		-Model coeffs for backward equation (negated wrt forward equations, closure in kolmogorov_backward_eqns_het_sparse.
 		-Network parameters (same as the forward equations)
 		"""
-		if self.__heterogeneous:
+		if self.ix_heterogeneous:
 			self.sigma = np.array(list(nx.get_node_attributes(self.G, 'sigma').values()))
 			self.gamma = np.array(list(nx.get_node_attributes(self.G, 'gamma').values()))
 			self.gammap = np.array(list(nx.get_node_attributes(self.G, 'gammap').values()))

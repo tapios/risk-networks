@@ -26,10 +26,10 @@ class epiens(object):
 		"""
 
 		self.beta  = beta
-		self.betap = 0.0001 * beta
+		self.betap = 0.75 * beta
 
 		if kwargs.get('hom', True):
-			self.__heterogeneous = False
+			self.ix_heterogeneous = False
 			[member.init(beta = kwargs.get('beta', self.beta)) for member in self.ensemble]
 
 			for member in self.ensemble:
@@ -43,12 +43,12 @@ class epiens(object):
 				member.gamma  =  (member.theta + member.delta + member.mu)                   # γ
 				member.gammap =  (member.thetap + member.mup)                                # γ'
 		else:
-			self.__heterogeneous = True
+			self.ix_heterogeneous = True
 			self.beta  = beta
 			self.betap = 0.75 * beta
 
 			for member in self.ensemble:
-				member.init(beta = kwargs.get('beta', self.beta), het = True)
+				member.init(beta = kwargs.get('beta', self.beta), **kwargs)
 				member.betap = 0.75 * member.beta
 
 				member.sigma = np.array(list(nx.get_node_attributes(member.G, 'sigma').values()))
@@ -82,7 +82,7 @@ class epiens(object):
 			member.L = nx.to_scipy_sparse_matrix(member.G)
 			member.y_dot = np.zeros(6 * self.N,)
 
-		self.__reduced = False
+		self.ix_reduced = False
 		self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
 	def set_parameters_reduced(self):
@@ -107,7 +107,7 @@ class epiens(object):
 					member.y_dot = np.zeros_like(5 * self.N,)
 					member.L = nx.to_scipy_sparse_matrix(member.G)
 
-			self.__reduced = True
+			self.ix_reduced = True
 			self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
 	def ens_keqns_sparse_closure(self, t, y, member, member_id, **kwargs):
@@ -167,7 +167,7 @@ class epiens(object):
 		else:
 				member.yS_holder = member.beta_closure_ind * y[iS]
 
-		member.y_dot = member.coeffs.dot(y) + member.offset
+		member.y_dot     = member.coeffs.dot(y) + member.offset
 		member.y_dot[iS] = - member.yS_holder
 		member.y_dot[  (member.y_dot > y/self.dt)   & ((member.y_dot < 0) &  (y < 1e-12)) ] = 0.
 		member.y_dot[(member.y_dot < (1-y)/self.dt) & ((member.y_dot > 0) & (y > 1-1e-12))] = 0.
@@ -176,11 +176,13 @@ class epiens(object):
 		return member.y_dot
 
 	def eval_closure(self, y, **kwargs):
-		if self.__reduced:
+		if self.ix_reduced:
 			iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
 		else:
 			iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
+
 		self.L = self.ensemble[0].L
+
 		if kwargs.get('closure', 'individual') == 'covariance':
 			# This should be read as:
 			# Y[S] PM ( \beta Y[I] + \beta' Y[H]))^T/(M-1) = Cov(Y[S], \beta Y[I] + \beta' Y[H]),
@@ -205,7 +207,6 @@ class epiens(object):
 			self.LcorSH = self.L.multiply(self.covSH * (1/self.denSH))
 			self.LcorSH.data[np.isnan(self.LcorSH.data)] = 0.
 
-			#
 			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,iI] * (1-y[:,iI])).T) + \
 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
 										   np.sqrt(y[:,iS] * (1-y[:,iS])).T)
@@ -215,10 +216,10 @@ class epiens(object):
 		for member in self.ensemble:
 			member.set_solver(method = method, T = T, dt = dt, member_call = False)
 
+		# Ensemble summary
 		self.method = method
 		self.dt = dt
 		self.T = T
-
 		self.solve_init = True
 
 		if reduced:
@@ -247,7 +248,7 @@ class epiens(object):
 		for jj, time in tqdm(enumerate(t[:-1]), desc = 'Forward pass', total = len(t[:-1])):
 			self.eval_closure(self.y0, **kwargs)
 			for mm, member in enumerate(self.ensemble):
-				if self.__reduced:
+				if self.ix_reduced:
 					self.y0[mm] += self.dt * self.ens_keqns_sparse_closure_reduced(t, self.y0[mm], member, mm, **kwargs)
 				else:
 					self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
