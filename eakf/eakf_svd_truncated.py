@@ -144,19 +144,19 @@ class EAKF:
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
         # c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-6 
         c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-2 
+        c_qq = c_qq + np.identity(c_qq.shape[0]) * 1e0 
 
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
         Sigma  = np.vstack([np.hstack([c_qq, c_qx]), np.hstack([c_qx.T, c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
         Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
-        svd1 = TruncatedSVD(n_components=Sigma.shape[0]-1, random_state=42)
-        #svd1 = TruncatedSVD(n_components=J, random_state=42)
+        #svd1 = TruncatedSVD(n_components=Sigma.shape[0]-1, random_state=42)
+        svd1 = TruncatedSVD(n_components=J, random_state=42)
         svd1.fit(Sigma)
         F = svd1.components_.T
         Dp_vec = svd1.singular_values_
         Dp = np.diag(Dp_vec)
-        Sigma = np.linalg.multi_dot([F, Dp, F.T])
         Sigma_inv = np.linalg.multi_dot([F, np.linalg.inv(Dp), F.T])
         G = np.diag(np.sqrt(Dp_vec))
         G_inv = np.diag(1./np.sqrt(Dp_vec))
@@ -170,6 +170,12 @@ class EAKF:
                                  F.T])
         Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
 
+        # Adding noises (model uncertainties) back to the truncated dimensions
+        # Need to further think about how to reduce the cost of full SVD here
+        F, Dp_vec, _ = np.linalg.svd(Sigma_u)
+        Dp_vec[J:] = 1e-3
+        Sigma_u = np.linalg.multi_dot([F, np.diag(Dp_vec), F.T])
+
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])
         # x_t = x_t + noise
@@ -179,8 +185,6 @@ class EAKF:
 
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
-        ## JW: Not sure if we need the following transformation 
-        #zu = np.dot(np.dot(zp - zp_bar, A.T) + zu_bar, np.matmul(F, F.T))
 
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
