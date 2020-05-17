@@ -4,6 +4,16 @@ import numpy as np
 from .populations import AgeDistribution
 from .infection_rate_distribution import InfectionRateDistribution
 
+#def rewire_network(contact_network, rewiring):
+#
+#    nx.set_edge_attributes(self.contact_network,
+#                           values = rewiring.community,
+#                             name = 'community infection rate')
+#
+#    nx.set_edge_attributes(self.contact_network,
+#                           values = rewiring.hospital,
+#                             name = 'hospital infection rate')
+
 class InfectiousPopulation:
     def __init__(self, contact_network,
                        infection_rates, # aka, "neighbor-induced" transitions

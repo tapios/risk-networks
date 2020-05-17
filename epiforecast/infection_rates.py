@@ -9,8 +9,8 @@ class VariableInfectionRates:
     def __init__(self, contact_network,
                     community_baseline = 0.05,
                      hospital_baseline = 0.1,
-                 community_variability = ScaledBetaSampler(scale=0.05, p=0.05, b=4)
-                  hospital_variability = ScaledBetaSampler(scale=0.75, p=0.05, b=4)
+                 community_variability = ScaledBetaSampler(scale=0.05, p=0.05, b=4),
+                  hospital_variability = ScaledBetaSampler(scale=0.75, p=0.05, b=4),
                  ):
 
         self.contact_network = contact_network
