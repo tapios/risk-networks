@@ -337,10 +337,10 @@ def edgeRenewal(edge_list):
     
     return edge_dict
     
-def betaInterpolation(G, edge_dict, deltat_kMC):
+def betaAverage(G, edge_dict, deltat_kMC):
     
     """
-    interpolation function for beta    
+    temporal average of beta    
     
     Parameters:
     G (graph): graph object
@@ -435,7 +435,7 @@ if __name__ == "__main__":
     deltat_kMC = 0.125 # unit: fraction of day
     
     edge_dict = edgeRenewal(edge_list)
-    beta_dict, betap_dict = betaInterpolation(G, edge_dict, deltat_kMC)
+    beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
 
 #%%   
     times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 50)
