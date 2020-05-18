@@ -25,14 +25,12 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
 
 # Overview
 
-This code does four things:
+To provide an overview of the code, we
 
-1. Generation of an epidemic scenario
-2. Kinetic model simulation
-3. Master equation forward and backward simulation
-4. Data assimilation
+1. Example simulation of an epidemic
+2. Perform data assimilation over a single window
 
-## An example epidemic
+## Example simulation of an epidemic
 
 An epidemic unfolds on a time-evolving contact network, in a population
 with a distribution of clinical and transmission properties.
