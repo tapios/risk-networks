@@ -133,7 +133,7 @@ contact_network = generate_time_averaged_contact_network(
                                 population = population,
                          start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
                         averaging_interval = static_contacts_interval,
-                                             **contact_network_generation_parameters
+                        **contact_network_generation_parameters
 )
 ```
 
@@ -221,7 +221,7 @@ for i in range(intervals_per_window):
                                           population = population,
                                    start_time_of_day = i * static_contacts_interval,
                                   averaging_interval = static_contacts_interval,
-                                                       **contact_network_generation_parameters,
+                                  **contact_network_generation_parameters,
                                   )
 
     contact_networks.append(contact_network)                                  
