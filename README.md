@@ -49,7 +49,7 @@ and the age category of each individual,
 ages = label_distribution(population, labels=6)
 ```
 
-in the above we define 6 age categories (for example, ages 0-19, 20-44, 45-64, 65-74, 75->).
+In the above we define 6 age categories (for example, ages 0-19, 20-44, 45-64, 65-74, 75->).
 
 Next we define the six clinical properties of the population:
 
