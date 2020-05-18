@@ -32,7 +32,7 @@ This code does four things:
 3. Master equation forward and backward simulation
 4. Data assimilation
 
-## Generation of epidemic scenario
+## An example epidemic
 
 An epidemic unfolds on a time-evolving contact network, in a population
 with a distribution of clinical and transmission properties.
@@ -133,7 +133,7 @@ for a population of 1000,
 ```python
 contact_network = generate_time_averaged_contact_network(
                                 population = population,
-                                start_time = 6, # am
+                         start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
                         averaging_interval = static_contacts_interval,
                                              **contact_network_generation_parameters
 )
@@ -221,7 +221,7 @@ for i in range(intervals_per_window):
 
     contact_network = generate_time_averaged_contact_network(
                                           population = population,
-                                          start_time = i * static_contacts_interval,
+                                   start_time_of_day = i * static_contacts_interval,
                                   averaging_interval = static_contacts_interval,
                                                        **contact_network_generation_parameters,
                                   )
