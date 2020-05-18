@@ -50,7 +50,7 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.06
+beta0 = 0.05
 
 alpha_hosp = 0.25
 
@@ -88,7 +88,7 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
     
     for i in range(int(T/deltat)):
         
-        J = inducedTransitions(beta_dict[i%len(beta_dict.keys())], betap_dict[i%len(beta_dict.keys())])
+        J = inducedTransitions(beta_dict,betap_dict)#(beta_dict[i%len(beta_dict.keys())], betap_dict[i%len(beta_dict.keys())])
 
         res = EoN.Gillespie_simple_contagion(
                                 G,                           # Contact network
@@ -103,14 +103,18 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
         times, states = res.summary()
         node_status = res.get_statuses(time = times[-1])
         
-        print(times[-1]+i*deltat)
-    
+        print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
+        
+        time_arr.extend(times+i*deltat)
+        for s in return_statuses:
+            states_arr['%s'%s].extend(states['%s'%s])
+            
         for x in node_status.keys():
 
             # hopsitalization update
 
             # if node is outside hospital and has status "H"
-            if x > init_placeholder and node_status[x] == 'H':
+            if x >= init_placeholder and node_status[x] == 'H':
                 
                 hosp_flag = 0
                 # check if hospital beds are available
@@ -122,14 +126,14 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
                         node_status[x] = 'P'
                         
                         # x gets transferred to j
-                        hospitalizations[j] = x 
+                        hospitalizations[j] = np.copy(x) 
                         
                         IC[j] = 'H'
                         IC[x] = 'P'
                         
                         # change relevant node attributes of G
-                        node_attribute_dict_H2R[j] = node_attribute_dict_H2R[x]
-                        node_attribute_dict_H2D[j] = node_attribute_dict_H2D[x]
+                        node_attribute_dict_H2R[j] = np.copy(node_attribute_dict_H2R[x])
+                        node_attribute_dict_H2D[j] = np.copy(node_attribute_dict_H2D[x])
                         
                         nx.set_node_attributes(G, values=node_attribute_dict_H2R, name='hospital2recover_weight')
                         nx.set_node_attributes(G, values=node_attribute_dict_H2D, name='hospital2death_weight')
@@ -137,8 +141,11 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
                         hosp_flag = 1
                         
                         break
+                    
+                if hosp_flag == 0:
+                    IC[x] = node_status[x]
                                     
-            elif x <= init_placeholder and node_status[x] in ['D', 'R']:
+            elif x < init_placeholder and node_status[x] in ['D', 'R']:
                 
                 node_status[hospitalizations[x]] = node_status[x]
                 node_status[x] = 'P'
@@ -146,17 +153,16 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
                 IC[hospitalizations[x]] = node_status[x]
                 del hospitalizations[x]
                 
-            else:
+            elif x >= init_placeholder and node_status[x] != 'H':
+                IC[x] = node_status[x]
+            
+            elif x < init_placeholder and node_status[x] not in ['D', 'R']:
                 IC[x] = node_status[x]
 
             # need to add some random infections
             #if node_status[x] == 'S' and np.random.rand() < 0.1:
             #    IC[x] = 'I'
         #print(IC)
-        
-        time_arr.extend(times+i*deltat)
-        for s in return_statuses:
-            states_arr['%s'%s].extend(states['%s'%s])
         
         # stop simulation if no new infection occur
         if states['I'][-1] == 0 and states['E'][-1] == 0:
@@ -419,10 +425,10 @@ if __name__ == "__main__":
         
     # initial deaths (placeholder hospital)
     init_placeholder = int(np.ceil(len(G)*0.005))
-    
+        
     for i in range(init_placeholder):
         IC[i] = 'P'
-
+    
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
 
     # transition networks
@@ -434,12 +440,13 @@ if __name__ == "__main__":
     # simulate dynamics
     deltat_kMC = 0.125 # unit: fraction of day
     
-    edge_dict = edgeRenewal(edge_list)
-    beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
+    #edge_dict = edgeRenewal(edge_list)
+    beta_dict, betap_dict = {edge: beta0 for edge in G.edges()}, {edge: alpha_hosp*beta0 for edge in G.edges()}#betaAverage(G, edge_dict, deltat_kMC)
 
 #%%   
-    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 50)
+    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 100)
 
+    print(states['H'])
 #%%
     tau = 5
     plt.figure()
@@ -469,8 +476,8 @@ if __name__ == "__main__":
     axes[0].set_ylabel('fraction')
     axes[1].set_xlabel('time [days]')
     axes[1].set_ylabel('fraction')
-    axes[0].set_ylim([0,0.2])
-    axes[1].set_ylim([0,0.03])
+    #axes[0].set_ylim([0,0.2])
+    #axes[1].set_ylim([0,0.03])
     plt.tight_layout()
     plt.legend()
     plt.show()
