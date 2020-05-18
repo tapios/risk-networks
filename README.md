@@ -45,11 +45,13 @@ First we define the population by the number of individuals:
 population = 1000
 ```
 
-*We may need to define the ages or age category of each node first, eg*
+and the age category of each individual,
 
 ```python
 ages = label_distribution(population, labels=6)
 ```
+
+in the above we define 6 age categories (for example, 0-19, 20-44, 45-64, 65-74, 75-).
 
 Next we define the six clinical properties of the population:
 
