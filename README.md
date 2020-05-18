@@ -39,7 +39,7 @@ with a distribution of clinical and transmission properties.
 
 ### Define the 'population' and its clinical characteristics
 
-First we define the population by the number of individuals. Here we use a population of 1000.
+First we define the population by the number of individuals:
 
 ```python
 population = 1000
