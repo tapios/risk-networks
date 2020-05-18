@@ -62,7 +62,7 @@ Next we define the six clinical properties of the population:
 5. `community_mortality_rate`, the mortality rate in the community,
 6. `hospital_mortality_rate`, the mortality rate in a hospital setting.
 
-The clinical properties of our population are generated random from statistical distributions:
+The clinical properties of our population are randomly generated from statistical distributions:
 
 ```python
 latent_periods                   = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
