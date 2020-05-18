@@ -31,10 +31,10 @@ run_forward_model(0,T_init,params)
 
 #Now, for DA stuff
 #Create a data object - see data.py below
-data=DataObject() 
+data=DataModel() 
 #Observation objects - see observations.py below
-infectious=ObservationModel(..., status=2)#
-hospital=ObservationModel(...,status=3)
+infectious=Observation(..., status=2)#
+hospital=Observation(...,status=3)
 omodels =[infectious,hospitalized] #Combine
 
 #Data assimilation model
@@ -75,7 +75,7 @@ for DA_window in range(DA_total_windows):
 #DATA.PY#
 #########
 
-class DataObject:
+class DataModel:
 
     def __init__(self):
         #load up some data source from file, or
@@ -93,7 +93,7 @@ class DataObject:
 #observations.py#
 #################
 
-class ObservationModel:
+class Observation:
 
     def __init__(self, time_params, state_params):
         #initialize time and state observation models
@@ -141,7 +141,7 @@ class DAForwardModel:
         self.omodel = observations
         self.data = data
         self.params = model_parameters
-        self.damodel=[EAKF(observations[i]) for i in range(len(observations))]
+        self.damodel=EAKF()
                       
         def initialize_obs_in_window(self,DA_window):
             for i in range(len(self.omodel)): #for each observation type
@@ -156,14 +156,13 @@ class DAForwardModel:
             #for current data point pt:
             obs_time=self.omodel[pt].obs_times
             obs_states=self.omodel[pt].obs_states
-            dam=self.damodel[pt]
+            dam=self.damodel
 
             #obtain data (&give to eakf)
             truth_mean,truth_cov = data.make_observation(obs_time,obs_states)
-            dam.obs(truth_mean,truth_cov)
 
             #update x, with corresponding EAKF
-            self.params,x[obs_time,obs_states] =dam.update(x[obs_time,obs_states])
+            self.params,x[obs_time,obs_states] =dam.update(x[obs_time,obs_states],truth_mean,truth_cov)
 
             return x
             
