@@ -4,7 +4,7 @@ import multiprocessing
 from models import MasterEqn 
 import networkx as nx
 from data import HighSchoolData
-from observations import RandomStatusObservation
+from observations import RandomStatusObservation, HighProbRandomStatusObservation
 from data_assimilation_forward import DAForwardModel
 import time
 import pickle
@@ -84,9 +84,9 @@ if __name__ == "__main__":
     ### Set up DA ###
 
     # Number of EAKF steps
-    steps_DA = 10
+    steps_DA = 25
     # Ensemble size (required>=2)
-    n_samples = 20
+    n_samples = 50
 
     
     ######################
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     ######################
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.1), n_samples)
+    params[:,0] = np.random.uniform(np.log(0.03), np.log(0.06), n_samples)
 
     
     # Set initial states
@@ -108,14 +108,14 @@ if __name__ == "__main__":
     steps_T_init=int(T_init/dt_init)
     #t_range_init = np.linspace(0.0, T_init, num=steps_T_init+1, endpoint=True)#includes 0 and T_init
     t_range_init=np.flip(np.arange(T_init,0.0,-dt_init)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =T_init/10.
+    dt_fsolve =1.0
  
     # Parameters for each EAKF step
-    T = 10.0
+    T = 1.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =T/10.
+    dt_fsolve =1.0
 
     # Container for forward model evaluations
     x_forward_all = np.empty([n_samples, (1+steps_T_init)+steps_T*steps_DA, n_status*N])
@@ -139,10 +139,12 @@ if __name__ == "__main__":
     # Data
     data=HighSchoolData(steps_T_init)
     #Observations (here random time, random node, observe onlyInfected[2] prob)
-    InfectiousObs = RandomStatusObservation(t_range,N,n_status,int(0.2*N),[2],'0.2_Infected')
-    #HospitalObs =  RandomStatusObservation(t_range,N,n_status,int(0.2*N),[3],'1.0_Hospitalised')
-    #OModel =[InfectiousObs,HospitalObs]
-    OModel=InfectiousObs
+    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,1.0,[2],0.5,'All_Infected>0.75')
+    #InfectiousObs = RandomStatusObservation(t_range,N,n_status,0.4,[2],'0.4_Infected') 
+    #HospitalizedObs =  RandomStatusObservation(t_range,N,n_status,0.2,[3],'0.2_Hospitalised')
+    #DeathObs = RandomStatusObservation(t_range,N,n_status,0.2,[5],'0.2_Deaths') 
+    #OModel =[InfectiousObs,HospitalizedObs,DeathObs]
+    OModel=SmartInfectiousObs
     #Build the DA
     ekf=DAForwardModel(params,x_forward_init[:,-1,:],OModel,data)
 
@@ -167,7 +169,7 @@ if __name__ == "__main__":
         ######################
         # We Assume there is an observation in the window
         #First get all observations from window and order them
-        ekf.order_obs_times_states(iterN)
+        ekf.initialize_obs_in_window(iterN)
 
         # Then: 
         # (While there are points to assimilate)

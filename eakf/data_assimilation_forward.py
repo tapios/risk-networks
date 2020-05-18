@@ -15,9 +15,10 @@ class DAForwardModel:
         #observation models(s)
         self.omodel = Observations
         
-        #In this simple setting we carry data here
+        #The data model
         self.data=data
 
+        #store the parameters
         self.params=parameters[np.newaxis]
         
         obs_states=[states[:,self.omodel[i].obs_states] for i in range(len(self.omodel))]
@@ -26,12 +27,12 @@ class DAForwardModel:
 
         self.data_pts_assimilated=0
 
-    def order_obs_times_states(self,DA_window):
+    def initialize_obs_in_window(self,DA_window):
 
         for i in np.arange(len(self.omodel)):
             #update observation models for the new DA window
             #this should update omodel.obs_states and omodel.obs_time
-            self.omodel[i].measurement(DA_window)
+            self.omodel[i].initialize_new_window(DA_window)
             
             
         #Order the models chronologically (Still assume just 1 point from each model atm)
@@ -52,37 +53,37 @@ class DAForwardModel:
         pt=self.data_pts_assimilated
         om=self.omodel[pt]
         dam=self.damodel[pt]
-        
-        #naive 1st attempt - update one point at a time
-        truth,cov=self.data.make_observation(om.obs_time , om.obs_states)
-                       
-        #observe ensemble states
+      
+        #Restrict to the the observation time...
         x=x[:,om.obs_time_in_window,:] #same time
-        xtmp=x[:,om.obs_states] #same place
-                       
-        #update the da model with the data
-        dam.obs(truth,cov)
-
-        #perform da model update with x,q and update parameters.
-        q=dam.update(xtmp,self.params[-1])
-        np.append(self.params, [q], axis=0)
-
-        #enforce probabilities == 1, by placing excess in susceptible
-        #CUMBERSOME! (10,N,6), sum over 3rd axis ignoring S
+        #initialize the observation model at observation time (may depend on state)
         
-        x[:,om.obs_states]=dam.x[-1]
-        x=om.sum_to_one(x)
-        #sumx=x.reshape(x.shape[0],om.status,om.N)
-        #sumx=np.sum(sumx[:,1:,:],axis=1)
-        #x[:,0:om.N]=1.0 - sumx
-        #xneg=np.minimum(x[:,0:om.N],0.0)
-        #print("total mass put from susceptible => exposed: ", np.sum(np.sum(xneg,axis=1),axis=0))
-        #x[:,0:om.N]=x[:,0:om.N]-xneg
-        #x[:,om.N:2*om.N]=x[:,om.N:2*om.N]-xneg #if susceptibles go negative, this will take the rest and put in exposed.
+        om.initialize_new_obs(x)
+        if (om.obs_states.size>0):
+            print("partial states to be assimilated", om.obs_states.size)
+
+      
+            #naive attempt: assimilate one type of observation at a time
+            truth,cov=self.data.make_observation(om.obs_time , om.obs_states)
+            
+            #observe ensemble states
+            xtmp=x[:,om.obs_states] #same place
+    
+            #perform da model update with x,q and update parameters.
+            q,x[:,om.obs_states]=dam.update(xtmp,self.params[-1],truth,cov)
+            np.append(self.params, [q], axis=0)
+         
+            #Force probabilities to sum to one    
+            om.sum_to_one(x)
+           
+            #print("temp removed sum-to-one")
+        else:
+            print("no assimilation required")
 
         #iterate to next point
         self.data_pts_assimilated = pt+1
-        
+
+        #return x at the observation time
         return x
         
     #the next observation time if we have one, (it could be the same)
