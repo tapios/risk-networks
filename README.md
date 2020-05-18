@@ -105,8 +105,8 @@ In general, the transmission rate can have a different value for each _pair_ of 
 therefore can be as large as `population**2`. Another possibility is that the transmission rate is
 a function of individual properties (such as the amount of protective equipment an individual wears)
 and that the transmission rate is a function of these individual-level properties. Here, we assume
-that it is constant for each pair of individuals. We choose the 'effective transmission rate' to
-reproduce a realistic epidemic in LA county.
+that the transmission rate is constant for each pair of individuals. We (attempt to) choose the 
+'effective transmission rate' to reproduce a realistic epidemic in LA county.
 
 ```python
 constant_transmission_rate = 0.1
