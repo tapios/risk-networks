@@ -189,7 +189,7 @@ if __name__ == "__main__":
             next_data_idx=ekf.next_data_idx()
             end = time.time()
             print('Assimilated', ekf.omodel[pt].name , ', at ', data_idx,', Time elapsed for EAKF: ', end - start)
-            print("Error: ", ekf.damodel[pt].error[-1])
+            print("Error: ", ekf.damodel.error[-1])
        
             ######################
             ### --- Step 3 --- ###
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         ## Overwrite for each EAKF step to facilitate debugging
         pickle.dump(ekf.params, open("data/u.pkl", "wb"))
         #pickle.dump(ekf.damodel.x, open("data/g.pkl", "wb"))#note only includes observed states
-        #pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
+        pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 

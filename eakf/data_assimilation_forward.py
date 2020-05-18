@@ -23,7 +23,8 @@ class DAForwardModel:
         
         obs_states=[states[:,self.omodel[i].obs_states] for i in range(len(self.omodel))]
         #the data assimilation models (One for each observation model)
-        self.damodel = [EAKF(obs_states[i]) for i in range(len(self.omodel))]
+        #self.damodel = [EAKF(obs_states[i]) for i in range(len(self.omodel))]
+        self.damodel = EAKF(obs_states[0])
 
         self.data_pts_assimilated=0
 
@@ -37,7 +38,8 @@ class DAForwardModel:
             
         #Order the models chronologically (Still assume just 1 point from each model atm)
         #first zip models together, sort by obs_time, then 'transpose and unzip', then convert from resulting tuples to lists
-        self.omodel,self.damodel = (list(t) for t in zip(*sorted(zip(self.omodel,self.damodel), key=lambda x: x[0].obs_time)))
+        #self.omodel,self.damodel = (list(t) for t in zip(*sorted(zip(self.omodel,self.damodel), key=lambda x: x[0].obs_time)))
+        self.omodel =sorted(self.omodel, key=lambda x: x.obs_time)
 
         self.data_pts_assimilated=0
       
@@ -52,7 +54,7 @@ class DAForwardModel:
 
         pt=self.data_pts_assimilated
         om=self.omodel[pt]
-        dam=self.damodel[pt]
+        dam=self.damodel
       
         #Restrict to the the observation time...
         x=x[:,om.obs_time_in_window,:] #same time
