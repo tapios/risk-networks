@@ -88,6 +88,17 @@ transition_rates = TransitionRates(latent_periods,
                                    hospital_mortality_rates)
 ```
 
+There are six transition rates:
+
+1. Exposed -> Infected
+2. Infected -> Hospitalized
+3. Infected -> Resistant
+4. Hospitalized -> Resistant
+5. Infected -> Deceased
+6. Hospitalized -> Deceased
+
+These six transition rates are determined by the six clinical characteristics above.
+
 ### Define the transmission rates
 
 In general, the transmission rate can have a different value for each _pair_ of individuals, and is
