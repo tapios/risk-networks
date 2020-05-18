@@ -33,4 +33,4 @@ from .risk_network_model import RiskNetworkModel, TransitionRates, random_infect
 from .risk_network_model import unpack_state_timeseries
 
 # Utilities for sampling from distributions
-from .samplers import ScaledBetaSampler
+from .samplers import ScaledBetaSampler, DisplacedGammaSampler

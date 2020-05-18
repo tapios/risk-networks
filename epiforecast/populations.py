@@ -1,3 +1,6 @@
+import numpy as np
+import networkx as nx
+
 class AgeDistribution(dict):
     def __init__(self, 
                      children, #  0 -- 19
@@ -8,10 +11,13 @@ class AgeDistribution(dict):
                      quantile = False,
                  ):
 
+        self.classes = 5
+
         self.children     = children
         self.young_adults = young_adults
         self.middle_aged  = middle_aged
         self.seniors      = seniors
+
         self.quantile     = quantile
 
         if quantile: # assume distribution sums to 1
@@ -19,12 +25,23 @@ class AgeDistribution(dict):
         else:
             self.elderly = elderly
 
-        self['children']     = self.children
-        self['young_adults'] = self.young_adults
-        self['middle_aged']  = self.middle_aged
-        self['seniors']      = self.seniors
-        self['elderly']      = self.elderly
+        self[0] = self.children
+        self[1] = self.young_adults
+        self[2] = self.middle_aged
+        self[3] = self.seniors
+        self[4] = self.elderly
 
+        self.values = np.array([self.children, self.young_adults, self.middle_aged,
+                                self.seniors, self.elderly])
+
+
+def assign_ages(contact_network, age_distribution):
+    age_classes = age_distribution.classes
+
+    ages = { node: np.random.choice(np.arange(age_classes), p=age_distribution.values)
+             for node in contact_network.nodes() }
+
+    nx.set_node_attributes(contact_network, values=ages, name='age')
 
 def king_county_distributions():
     """

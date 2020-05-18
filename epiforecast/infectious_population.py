@@ -67,10 +67,12 @@ class InfectiousPopulation:
 
         # The rate is set to 1 because rate variability across the population
         # is set to the contact network.
-        infection_transition_graph.add_edge(('I', 'S'), ('I', 'E'), rate=1, weight_label='Susceptible-to-Exposed, Infected-induced')
+        infection_transition_graph.add_edge(('I', 'S'), ('I', 'E'), 
+                                            rate=1, weight_label='Susceptible-to-Exposed, Infected-induced')
 
         # One edge representing a transition from suspectible to exposed,
         # 'induced' by a hopsitalized person.
-        infection_transition_graph.add_edge(('H', 'S'), ('H', 'E'), rate=1, weight_label='Susceptible-to-Exposed, Hospitalized-induced')
+        infection_transition_graph.add_edge(('H', 'S'), ('H', 'E'),
+                                            rate=1, weight_label='Susceptible-to-Exposed, Hospitalized-induced')
 
         self.infection_transition_graph = infection_transition_graph
