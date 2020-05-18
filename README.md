@@ -88,7 +88,7 @@ transition_rates = TransitionRates(latent_periods,
                                    hospital_mortality_rates)
 ```
 
-There are six transition rates:
+The transition rates have units `1 / day`. There are six transition rates:
 
 1. Exposed -> Infected
 2. Infected -> Hospitalized
@@ -109,7 +109,7 @@ that the transmission rate is constant for each pair of individuals. We (attempt
 'effective transmission rate' to reproduce a realistic epidemic in LA county.
 
 ```python
-constant_transmission_rate = 0.1
+constant_transmission_rate = 0.1 # per average number of contacts per day
 ```
 
 The `transition_rates` and `constant_transmission_rate` define the clinical characteristics of the population.
