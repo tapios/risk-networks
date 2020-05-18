@@ -116,39 +116,38 @@ The `transition_rates` and `constant_transmission_rate` define the clinical char
 
 ### Generation of a time-evolving contact network
 
-The network of human contacts is rapidly evolving in a realistic population.
-We average the contact rate of each individual over a `static_contacts_interval`,
-over which, for the purposes of solving the master equations, we assume that
-the graph of contacts is static.
-
-We therefore first specify the `static_contacts_interval`:
+Physical contact between people in realistic communities is rapidly evolving.
+We average the contact time between individuals over a `static_contacts_interval`,
+over which, for the purposes of solving both the kinetic and master equations, 
+we assume that the graph of contacts is static:
 
 ```python
 day = 1.0 # We use time units of "day"s
 static_contacts_interval = day / 4
 ```
 
-For example, to create a contact network averaged over `static_contacts_interval`
-for a population of 1000 people we write
+On a graph, or 'network', contact times are represnted by weighted edges between 
+individual nodes. We create a contact network averaged over `static_contacts_interval`
+for a population of 1000,
 
 ```python
 contact_network = generate_time_averaged_contact_network(
                                 population = population,
                                 start_time = 6, # am
                         averaging_interval = static_contacts_interval,
-                                             **contact_network_generation_parameters,
+                                             **contact_network_generation_parameters
 )
 ```
 
-Note that `contact_network_generation_parameters` is a dictionary of parameters that
-characterize the statistics of the (randomly generated) contact network.
+We have included the abstract `contact_network_generation_parameters` as a placeholder for
+a dictionary of parameters that characterize the contact network.
 
 ### Simulation of an epidemic
 
-We can now simulate an epidemic over the `static_contacts_interval`.
+With a population, its clinical properties, a transmission rate, and a contact network,
+we can now simulate an epidemic over the `static_contacts_interval`.
 
-For that, we generate an initial state corresponding to an epidemic seeded by
-a small number of randomly infected individuals.
+We seed the epidemic by randomly infecting a small number of individuals,
 
 ```python
 initial_state = random_infection(population, infected=10)
@@ -173,32 +172,37 @@ output = kinetic_model.simulate(static_contacts_interval)
 
 #### Simulation using the mean-field master equations
 
-For data assimilation, we need to simulate an *ensemble* of master equation
-models. Here we conduct a forward run of a single master equation model.
+The mean field equations represent the average behavior of many stochastic epidemics.
+Alternatively, we can interpret the mean-field state as the 'probability' that each individual
+has a certain epidemiological state. 
+
+For data assimilation, we simulate an *ensemble* of master equation models. 
+For this example, we conduct a forward run of a single master equation model.
 
 ```python
-master_model = MasterEquationModelEnsemble(        contact_network = contact_network,
-                                                     ensemble_size = 1,
+master_model = MasterEquationModelEnsemble(          ensemble_size = 1,
+                                                   contact_network = contact_network,
                                                 transmission_rates = constant_transmission_rate,
                                             state_transition_rates = transition_rates,
                                             # can also define mean_field_closure here
                                            )
 
-# Set the current state of the master equation ensemble
+# Set the master equation state to the same initial state as the kinetic model.
 master_model.set_state(initial_state)
 
-# Simulate an epidemic over the static_contacts_interval
+# Simulate an epidemic over the static_contacts_interval.
 output = master_model.simulate(static_contacts_interval)
 ```
 
-(We can then make a plot that compares the evolution of the epidemic in the two models.)
+(We can then make a plot that compares the evolution of the epidemic in the two models,
+and paste it here.)
 
 ## Data assimilation
 
 Here we demonstrate forward filter data assimilation over a single assimilation 'window',
 on a specific epidemic scenario. Our experiment begins at midnight (hour 00) on Tuesday,
 and proceeds for 1 day until hour 24 (midnight on Wednesday). We assimilate observations
-every 6 hours. We recall that `static_contacts_interval = day / 4`.
+every 6 hours. Recall that `static_contacts_interval = day / 4`,
 
 ```python
 static_contacts_interval = day / 4
@@ -206,7 +210,7 @@ data_assimilation_window = 1 * day
 intervals_per_window = int(data_assimilation_window / static_contacts_interval)
 ```
 
-To begin the experiment, we simulate the slow evolving of a contact network over one day:
+We begin the experiment by simulating the slow evolution of a contact network over one day:
 
 ```python
 static_contacts_times = []
