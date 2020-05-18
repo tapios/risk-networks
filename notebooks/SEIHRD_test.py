@@ -40,9 +40,11 @@ if __name__ == "__main__":
     # H-->R rate
     gammap = (1/(1/gamma + 7.0))
     
+    print(gammap)
     # H-->D rate
     mup = (0.1/(1-.1))*gammap
     
+    print(mup)
     # Spontaneous transitions (without any nbr influence). 
     H = nx.DiGraph()
     H.add_node('S')

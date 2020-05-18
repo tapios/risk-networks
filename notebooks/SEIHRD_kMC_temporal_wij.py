@@ -50,13 +50,11 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.05
+beta0 = 0.08
 
 alpha_hosp = 0.25
 
-beta_distr = lambda x, beta = 4: beta0*np.random.beta(beta*0.05/(1-0.05), b = beta)
-
-def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
+def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat, T):
 
     """
     simulation of SEIHRD dynamics on temporal networks
@@ -64,7 +62,8 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
     Parameters:
     G (dictionary): dictionary with time stamps (seconds) and networks
     H (graph): spontaneous transitions
-    J (graph): induced transitions
+    beta_dict (dictionary): edges and corresponding beta values
+    betap_dict (dictionary): edges and corresponding beta values
     IC (dictionary): initially infected nodes
     return_statuses (array): specifying return compartments
     deltat (float): simulation time interval (in days)
@@ -89,15 +88,7 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
     
     for i in range(int(T/deltat)):
         
-        day_time = time_delta_arr[i%len(time_delta_arr)]
-
-        if day_time <= 0.5:
-                                    
-            J, edge_attribute_dict_beta, edge_attribute_dict_betap = inducedTransitions(G, beta0*np.sin(day_time*6)*contact_reduction, beta0*np.sin(day_time*6)*contact_reduction)
-       
-        else:
-            
-            J, edge_attribute_dict_beta, edge_attribute_dict_betap = inducedTransitions(G)
+        J = inducedTransitions(beta_dict,betap_dict)#(beta_dict[i%len(beta_dict.keys())], betap_dict[i%len(beta_dict.keys())])
 
         res = EoN.Gillespie_simple_contagion(
                                 G,                           # Contact network
@@ -112,16 +103,18 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
         times, states = res.summary()
         node_status = res.get_statuses(time = times[-1])
         
-        print(times[-1]+i*deltat)
+        print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
         
-        contact_reduction = 1#np.exp(-31*states['I'][-1]/len(G))
-
+        time_arr.extend(times+i*deltat)
+        for s in return_statuses:
+            states_arr['%s'%s].extend(states['%s'%s])
+            
         for x in node_status.keys():
 
             # hopsitalization update
 
             # if node is outside hospital and has status "H"
-            if x > init_placeholder and node_status[x] == 'H':
+            if x >= init_placeholder and node_status[x] == 'H':
                 
                 hosp_flag = 0
                 # check if hospital beds are available
@@ -133,14 +126,14 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
                         node_status[x] = 'P'
                         
                         # x gets transferred to j
-                        hospitalizations[j] = x 
+                        hospitalizations[j] = np.copy(x) 
                         
-                        IC[j] = 'H'
-                        IC[x] = 'P'
+                        IC[j] = node_status[j]
+                        IC[x] = node_status[x]
                         
                         # change relevant node attributes of G
-                        node_attribute_dict_H2R[j] = node_attribute_dict_H2R[x]
-                        node_attribute_dict_H2D[j] = node_attribute_dict_H2D[x]
+                        node_attribute_dict_H2R[j] = np.copy(node_attribute_dict_H2R[x])
+                        node_attribute_dict_H2D[j] = np.copy(node_attribute_dict_H2D[x])
                         
                         nx.set_node_attributes(G, values=node_attribute_dict_H2R, name='hospital2recover_weight')
                         nx.set_node_attributes(G, values=node_attribute_dict_H2D, name='hospital2death_weight')
@@ -148,26 +141,30 @@ def temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat, T):
                         hosp_flag = 1
                         
                         break
-                                    
-            elif x <= init_placeholder and node_status[x] in ['D', 'R']:
-                
-                node_status[hospitalizations[x]] = node_status[x]
+                 
+                # if node cannot be hospitalized
+                if hosp_flag == 0:
+                    IC[x] = node_status[x]
+            
+            # if node is in hospital and resolved                        
+            elif x < init_placeholder and node_status[x] in ['D', 'R']:
+                                
+                node_status[int(hospitalizations[x])] = node_status[x]
+                IC[int(hospitalizations[x])] = node_status[x]
                 node_status[x] = 'P'
-                IC[x] = 'P'
-                IC[hospitalizations[x]] = node_status[x]
+                IC[x] = node_status[x]
                 del hospitalizations[x]
                 
-            else:
+            elif x >= init_placeholder and node_status[x] != 'H':
+                IC[x] = node_status[x]
+            
+            elif x < init_placeholder and node_status[x] not in ['D', 'R']:
                 IC[x] = node_status[x]
 
             # need to add some random infections
             #if node_status[x] == 'S' and np.random.rand() < 0.1:
             #    IC[x] = 'I'
         #print(IC)
-        
-        time_arr.extend(times+i*deltat)
-        for s in return_statuses:
-            states_arr['%s'%s].extend(states['%s'%s])
         
         # stop simulation if no new infection occur
         if states['I'][-1] == 0 and states['E'][-1] == 0:
@@ -215,7 +212,7 @@ def spontaneousTransitions(G):
     
     node_attribute_dict_E2I = {node: 1/l(node) for node in G.nodes()}
     node_attribute_dict_I2R = {node: (1-h_arr[node]-d_arr[node])*gamma_arr[node] for node in G.nodes()}
-    node_attribute_dict_H2R = {node: (1-dp_arr[node])*gammap_arr[node] if node < int(np.ceil(len(G)*0.005)) else 0 for node in G.nodes()}
+    node_attribute_dict_H2R = {node: (1-dp_arr[node])*gammap_arr[node] for node in G.nodes()}
     node_attribute_dict_I2H = {node: h_arr[node]*gamma_arr[node] for node in G.nodes()}
     node_attribute_dict_I2D = {node: d_arr[node]*gamma_arr[node] for node in G.nodes()}
     node_attribute_dict_H2D = {node: dp_arr[node]*gammap_arr[node] for node in G.nodes()}
@@ -240,34 +237,29 @@ def spontaneousTransitions(G):
     
     return H, node_attribute_dict_E2I, node_attribute_dict_I2R, node_attribute_dict_H2R, node_attribute_dict_I2H, node_attribute_dict_I2D, node_attribute_dict_H2D
 
-def inducedTransitions(G, dbeta = 0, dbetap = 0):
+def inducedTransitions(beta_dict, betap_dict):
 
     """
     induced transitions of SEIHRD dynamics
 
     Parameters:
-    G (graph): network
-    dbeta (float): delta beta
-    dbetap (float): delta beta prime
+    beta_dict (dictionary): edges and corresponding beta values
+    betap_dict (dictionary): edges and corresponding beta values
 
     Returns:
-    H (graph): spontaneous transitions
+    J (graph): inducedTransitions
 
     """
 
-            
-    edge_attribute_dict_beta = {edge: beta_distr(1)+dbeta for edge in G.edges()}
-    edge_attribute_dict_betap = {edge: alpha_hosp*(beta_distr(1)+dbeta) if edge[0] < int(np.ceil(len(G)*0.005)) else beta_distr(1)+dbeta for edge in G.edges()}
-        
-    nx.set_edge_attributes(G, values=edge_attribute_dict_beta, name='beta_weight')
-    nx.set_edge_attributes(G, values=edge_attribute_dict_betap, name='betap_weight')
+    nx.set_edge_attributes(G, values=beta_dict, name='beta_weight')
+    nx.set_edge_attributes(G, values=betap_dict, name='betap_weight')
     
     # Neighbor induced transitions.
     J = nx.DiGraph()
     J.add_edge(('I', 'S'), ('I', 'E'), rate = 1, weight_label='beta_weight')         # Transmission rate
     J.add_edge(('H', 'S'), ('H', 'E'), rate = 1, weight_label='betap_weight')        # Transmission rate
     
-    return J, edge_attribute_dict_beta, edge_attribute_dict_betap
+    return J
 
 
 def edgeRenewal(edge_list):
@@ -310,6 +302,8 @@ def edgeRenewal(edge_list):
     
     tmeas = dt
     
+    print("w_ji generation started")
+
     while t <= 24:
         
         # rate process 1: deactivation
@@ -334,37 +328,87 @@ def edgeRenewal(edge_list):
                 
         
         if t >= tmeas:
-            print(tmeas)
             it += 1
             edge_dict[it] = {'time': t, 'edge_list': np.copy(active_list)}
             tmeas += dt
 
-    plt.figure()
-    plt.plot([edge_dict[x]['time'] for x in range(len(edge_dict))], [len(edge_dict[x]['edge_list'])/len(edge_list) for x in range(len(edge_dict))])
-    plt.xlabel('hours')
-    plt.ylabel('fraction of active edges')
-    plt.xlim([0,25])
-    plt.ylim([0,0.15])
-    plt.tight_layout()
-    plt.show()
+    print("w_ji generation ended")
+
+#    plt.figure()
+#    plt.plot([edge_dict[x]['time'] for x in range(len(edge_dict))], [len(edge_dict[x]['edge_list'])/len(edge_list) for x in range(len(edge_dict))])
+#    plt.xlabel('hours')
+#    plt.ylabel('fraction of active edges')
+#    plt.xlim([0,25])
+#    plt.ylim([0,0.15])
+#    plt.tight_layout()
+#    plt.show()
     
     return edge_dict
     
-def betaInterpolation(edge_dict):
+def betaAverage(G, edge_dict, deltat_kMC):
     
     """
-    interpolation function for beta    
+    temporal average of beta    
     
     Parameters:
-    edge_dict (dictionary): index, time, and corresponding edge list
+    G (graph): graph object
+    edge_dict (dictionary): index, time, and corresponding active edge list
+    deltat_kMC: kMC time step
 
     Returns:
     beta_dict (dictionary): index, time, and corresponding beta list
 
     """
     
-if __name__ == "__main__":
+    print("beta_ji generation started")
     
+    beta_dict = {}
+    betap_dict = {}
+
+    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
+    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
+
+    deltat = edge_dict[1]['time']-edge_dict[0]['time']
+    
+    num_average = int(24*deltat_kMC/deltat)
+    
+    cnt = 0
+    
+    average_arr = []
+    
+    beta_dict_cnt = 1
+    
+    for i in range(len(edge_dict)):
+        
+        print(len(edge_dict), i)
+        
+        average_beta_dict = {edge: beta0 if edge in edge_dict[i]['edge_list'] else 0 for edge in G.edges()}
+        
+        values = [x for x in average_beta_dict.values()]
+        average_arr.append(values)
+        cnt += 1
+        
+        if cnt == num_average:
+            
+            average = np.mean(average_arr, axis = 0)
+                        
+            print(beta_dict_cnt, np.mean(average))
+            
+            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(G.edges(),average)}
+            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(G.edges(),average)}
+
+            beta_dict_cnt += 1
+            
+            average_arr = []
+            cnt = 0
+
+    print("beta_ji generation ended")
+
+    return beta_dict, betap_dict
+    
+if __name__ == "__main__":
+ 
+#%%   
     arr = []
     # edge list data
     edge_list = np.loadtxt('../data/networks/edge_list_SBM_1e3.txt', dtype = int, comments = '#')
@@ -374,8 +418,7 @@ if __name__ == "__main__":
     G = nx.DiGraph()
     G.add_edges_from(edge_list)
     
-    edgeRenewal(edge_list)
-
+   
     IC = defaultdict(lambda: 'S')
 
     for i in range(int(0.5*len(G)),int(0.5*len(G))+10):
@@ -384,10 +427,10 @@ if __name__ == "__main__":
         
     # initial deaths (placeholder hospital)
     init_placeholder = int(np.ceil(len(G)*0.005))
-    
+        
     for i in range(init_placeholder):
         IC[i] = 'P'
-
+    
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
 
     # transition networks
@@ -395,21 +438,18 @@ if __name__ == "__main__":
     H, node_attribute_dict_E2I, node_attribute_dict_I2R, \
     node_attribute_dict_H2R, node_attribute_dict_I2H, \
     node_attribute_dict_I2D, node_attribute_dict_H2D = spontaneousTransitions(G)
-    
-    J, edge_attribute_dict_beta, edge_attribute_dict_betap = inducedTransitions(G)  
-    
-    #edgeDict = G.edges(data=True)
-    #print(edgeDict)    
-
-    
-    #for edge in G.edges():
-    #    print(edge)
-    #    print(G.get_edge_data(edge[0], edge[1]))
-        
-    
+            
     # simulate dynamics
-    times, states = temporalNetworkEpidemics(G, H, J, IC, return_statuses, deltat = 0.125, T = 30)
+    deltat_kMC = 0.125 # unit: fraction of day
+    
+    #edge_dict = edgeRenewal(edge_list)
+    beta_dict, betap_dict = {edge: beta0 for edge in G.edges()}, {edge: alpha_hosp*beta0 for edge in G.edges()}#betaAverage(G, edge_dict, deltat_kMC)
 
+#%%   
+    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 50)
+
+    print(states['H'])
+#%%
     tau = 5
     plt.figure()
     
@@ -438,8 +478,8 @@ if __name__ == "__main__":
     axes[0].set_ylabel('fraction')
     axes[1].set_xlabel('time [days]')
     axes[1].set_ylabel('fraction')
-    axes[0].set_ylim([0,0.2])
-    axes[1].set_ylim([0,0.03])
+    #axes[0].set_ylim([0,0.2])
+    #axes[1].set_ylim([0,0.03])
     plt.tight_layout()
     plt.legend()
     plt.show()
