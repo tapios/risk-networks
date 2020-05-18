@@ -169,8 +169,8 @@ class epiens(object):
 
 		member.y_dot     = member.coeffs.dot(y) + member.offset
 		member.y_dot[iS] = - member.yS_holder
-		member.y_dot[  (member.y_dot > y/self.dt)   & ((member.y_dot < 0) &  (y < 1e-12)) ] = 0.
-		member.y_dot[(member.y_dot < (1-y)/self.dt) & ((member.y_dot > 0) & (y > 1-1e-12))] = 0.
+		# member.y_dot[  (member.y_dot > y/self.dt)   & ((member.y_dot < 0) &  (y < 1e-12)) ] = 0.
+		# member.y_dot[(member.y_dot < (1-y)/self.dt) & ((member.y_dot > 0) & (y > 1-1e-12))] = 0.
 		# member.y_dot[y < 1e-8 ] = 0.0
 
 		return member.y_dot
