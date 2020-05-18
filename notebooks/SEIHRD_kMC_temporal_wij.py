@@ -50,7 +50,7 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.05
+beta0 = 0.08
 
 alpha_hosp = 0.25
 
@@ -128,8 +128,8 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
                         # x gets transferred to j
                         hospitalizations[j] = np.copy(x) 
                         
-                        IC[j] = 'H'
-                        IC[x] = 'P'
+                        IC[j] = node_status[j]
+                        IC[x] = node_status[x]
                         
                         # change relevant node attributes of G
                         node_attribute_dict_H2R[j] = np.copy(node_attribute_dict_H2R[x])
@@ -141,16 +141,18 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
                         hosp_flag = 1
                         
                         break
-                    
+                 
+                # if node cannot be hospitalized
                 if hosp_flag == 0:
                     IC[x] = node_status[x]
-                                    
+            
+            # if node is in hospital and resolved                        
             elif x < init_placeholder and node_status[x] in ['D', 'R']:
-                
-                node_status[hospitalizations[x]] = node_status[x]
+                                
+                node_status[int(hospitalizations[x])] = node_status[x]
+                IC[int(hospitalizations[x])] = node_status[x]
                 node_status[x] = 'P'
-                IC[x] = 'P'
-                IC[hospitalizations[x]] = node_status[x]
+                IC[x] = node_status[x]
                 del hospitalizations[x]
                 
             elif x >= init_placeholder and node_status[x] != 'H':
@@ -210,7 +212,7 @@ def spontaneousTransitions(G):
     
     node_attribute_dict_E2I = {node: 1/l(node) for node in G.nodes()}
     node_attribute_dict_I2R = {node: (1-h_arr[node]-d_arr[node])*gamma_arr[node] for node in G.nodes()}
-    node_attribute_dict_H2R = {node: (1-dp_arr[node])*gammap_arr[node] if node < int(np.ceil(len(G)*0.005)) else 0 for node in G.nodes()}
+    node_attribute_dict_H2R = {node: (1-dp_arr[node])*gammap_arr[node] for node in G.nodes()}
     node_attribute_dict_I2H = {node: h_arr[node]*gamma_arr[node] for node in G.nodes()}
     node_attribute_dict_I2D = {node: d_arr[node]*gamma_arr[node] for node in G.nodes()}
     node_attribute_dict_H2D = {node: dp_arr[node]*gammap_arr[node] for node in G.nodes()}
@@ -444,7 +446,7 @@ if __name__ == "__main__":
     beta_dict, betap_dict = {edge: beta0 for edge in G.edges()}, {edge: alpha_hosp*beta0 for edge in G.edges()}#betaAverage(G, edge_dict, deltat_kMC)
 
 #%%   
-    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 100)
+    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 50)
 
     print(states['H'])
 #%%
