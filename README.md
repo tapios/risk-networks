@@ -124,8 +124,8 @@ day = 1.0 # We use time units of "day"s
 static_contacts_interval = day / 4
 ```
 
-On a graph, or 'network', contact times are represnted by weighted edges between 
-individual nodes. We create a contact network averaged over `static_contacts_interval`
+On a graph, or 'network', individuals are notes and contact times are the weighted edges
+between them. We create a contact network averaged over `static_contacts_interval`
 for a population of 1000,
 
 ```python
