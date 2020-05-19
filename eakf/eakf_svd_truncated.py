@@ -1,13 +1,14 @@
 import numpy as np
-import pdb
+import scipy as sp
+from sklearn.decomposition import TruncatedSVD
 
 class EAKF:
 
     # INPUTS:
     # parameters.shape = (num_ensembles, num_parameters)
     # states.shape = (num_ensembles, num_states)
-    # Joint state: (q, x) but q only comes in update
-    def __init__(self, states):
+    # Joint state: (q, x)
+    def __init__(self, parameters,states):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 
@@ -18,42 +19,45 @@ class EAKF:
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
 
+        assert (parameters.ndim == 2), \
+            'EAKF init: parameters must be 2d array, num_ensembles x num_parameters'
         assert (states.ndim == 2), \
             'EAKF init: states must be 2d array, num_ensembles x num_states'
 
         num_x = states.shape[1] 
-        
+        num_q = parameters.shape[1]
+
+        # Parameters
+        self.q = parameters[np.newaxis]
+
         # Ensemble size
-        self.J = states.shape[0]
+        self.J = parameters.shape[0]
         
         # States  
-        #self.x = states[np.newaxis] 
+        self.x = states[np.newaxis] 
   
         # Error
         self.error = np.empty(0)
 
 
         # Compute error
-    def compute_error(self, x,x_t,cov):
-        diff = x_t - x.mean(0)
-        error = diff.dot(np.linalg.solve(cov, diff))
+    def compute_error(self, x):
+        diff = self.x_t - x.mean(0)
+        error = diff.dot(np.linalg.solve(self.cov, diff))
         # Normalize error
-        norm = x_t.dot(np.linalg.solve(cov, x_t))
+        norm = self.x_t.dot(np.linalg.solve(self.cov, self.x_t))
         error = error/norm
 
         self.error = np.append(self.error, error)
 
-   
-    # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
-    # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, xin, q,truth,cov,r=1.0):
-
+    # Take observation
+    def obs(self, truth, cov, r = 1.0):
         '''
-        - xin (np.array): J x M of observed states for each of the J ensembles
-        
-        - q (np.array): number of model parameters for each of the J ensembles
-        
+        Parameters
+        ==========
+
         - truth (np.array): M x 1 array of observed states.
+                            For a population of size N, there are M = 6*N states.
 
         - cov (np.array): M x M array of covariances that represent observational uncertainty.
                           For example, an array of 0's represents perfect certainty.
@@ -69,27 +73,33 @@ class EAKF:
             'EAKF init: truth and cov are not the correct sizes'
         
         # Observation data statistics at the observed nodes
-        x_t = truth
-        cov = r**2 * cov
+        self.x_t = truth
+        self.cov = r**2 * cov
 
-        cov = (1./np.maximum(x_t, 1e-9)/np.maximum(1-x_t, 1e-9))**2 * cov
-        x_t = np.log(np.maximum(x_t, 1e-9)/np.maximum(1.-x_t, 1e-9))
+        self.cov = (1./np.maximum(self.x_t, 1e-9)/np.maximum(1-self.x_t, 1e-9))**2 * self.cov
+        self.x_t = np.log(np.maximum(self.x_t, 1e-9)/np.maximum(1.-self.x_t, 1e-9))
 
         try:
-            cov_inv = np.linalg.inv(cov)
+            self.cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
             print('cov not invertible')
-            cov_inv = np.ones(cov.shape)
+            self.cov_inv = np.ones(cov.shape)
        
+    # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
+    # q: model parameters, with shape (num_ensembles, num_elements)
+    def update(self, xin):
 
         # States
         x = np.log(np.maximum(xin, 1e-9) / np.maximum(1.0 - xin, 1e-9))
 
+        # Parameters
+        q = np.copy(self.q[-1])
+
         # Stacked parameters and states 
         
         zp = np.hstack([q, x])
-        x_t = x_t
-        cov = cov
+        x_t = self.x_t
+        cov = self.cov
         
         # Ensemble size
         J = self.J
@@ -135,46 +145,59 @@ class EAKF:
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
         # c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-6 
         c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-2 
+        c_qq = c_qq + np.identity(c_qq.shape[0]) * 1e0 
 
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
         Sigma  = np.vstack([np.hstack([c_qq, c_qx]), np.hstack([c_qx.T, c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
         Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
-        F, Dp_vec, _ = np.linalg.svd(Sigma)
+        #svd1 = TruncatedSVD(n_components=Sigma.shape[0]-1, random_state=42)
+        svd1 = TruncatedSVD(n_components=J, random_state=42)
+        svd1.fit(Sigma)
+        F = svd1.components_.T
+        Dp_vec = svd1.singular_values_
         Dp = np.diag(Dp_vec)
+        Sigma_inv = np.linalg.multi_dot([F, np.linalg.inv(Dp), F.T])
         G = np.diag(np.sqrt(Dp_vec))
-        U, D_vec, _ = np.linalg.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
-        B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0)) 
-        A = np.linalg.multi_dot([np.linalg.inv(F.T), \
+        G_inv = np.diag(1./np.sqrt(Dp_vec))
+        U, D_vec, _ = np.linalg.svd(np.linalg.multi_dot([G.T, F.T, H.T, self.cov_inv, H, F, G]))
+        B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+        A = np.linalg.multi_dot([F, \
                                  G.T, \
-                                 np.linalg.inv(U.T), \
+                                 U, \
                                  B.T, \
-                                 np.linalg.inv(G.T), \
+                                 G_inv, \
                                  F.T])
         Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-        
+
+        # Adding noises (model uncertainties) back to the truncated dimensions
+        # Need to further think about how to reduce the cost of full SVD here
+        F_u, Dp_u_vec, _ = sp.linalg.svd(Sigma_u)
+        Dp_u_vec[J:] = 1e-3
+        Sigma_u = np.linalg.multi_dot([F_u, np.diag(Dp_u_vec), F_u.T])
+
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])
         # x_t = x_t + noise
         zp_bar = np.hstack([q_bar, x_bar])
         zu_bar = np.matmul(Sigma_u, \
-                           (np.dot(np.linalg.inv(Sigma), zp_bar) + np.dot(np.matmul(H.T, cov_inv), x_t)))
-    
+                           (np.dot(Sigma_inv, zp_bar) + np.dot(np.matmul(H.T, self.cov_inv), x_t)))    
+
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
 
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
 
+        # Avoid overflow for exp
+        x_logit = np.minimum(x_logit, 1e2)
+
         # replace unchanged states
         x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
-
-        qout=np.dot(zu,Hq.T)
-
-        #self.x = np.append(self.x, [x_p], axis=0)
+       
+        self.q = np.append(self.q, [np.dot(zu, Hq.T)], axis=0)
+        self.x = np.append(self.x, [x_p], axis=0)
 
         # Compute error
-        self.compute_error(x_logit,x_t,cov)
-
-        return qout,x_p 
+        self.compute_error(x_logit)

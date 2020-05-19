@@ -1,6 +1,7 @@
 import EoN
 import numpy as np
 import multiprocessing
+from multiprocessing import get_context
 from models import MasterEqn 
 import networkx as nx
 from eakf import EAKF
@@ -15,16 +16,17 @@ def forward_model(G, params, state0, T, dt_max, t_range):
 
 def ensemble_forward_model(G, qi, xi, T, dt_max, t_range, parallel_flag = True):
     if parallel_flag == True:
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        results = []
-        for iterN in range(qi.shape[0]):
-            results.append(pool.apply_async(forward_model, (G, qi[iterN,:], xi[iterN,:], T, dt_max, t_range)))
-        iterN = 0
-        states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
-        for result in results:
-            states_all[iterN,:,:] = result.get()
-            iterN = iterN + 1
-        pool.close()
+        with get_context("spawn").Pool(multiprocessing.cpu_count()) as pool:
+            results = []
+            for iterN in range(qi.shape[0]):
+                results.append(pool.apply_async(forward_model, (G, qi[iterN,:], xi[iterN,:], T, dt_max, t_range)))
+            pool.close()
+            pool.join()
+            iterN = 0
+            states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
+            for result in results:
+                states_all[iterN,:,:] = result.get()
+                iterN = iterN + 1
     else:
         states_all = np.zeros([qi.shape[0], len(t_range), xi.shape[1]])
         for iterN in range(qi.shape[0]):
@@ -52,6 +54,13 @@ def random_IC():
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
+def add_noises(q, v_min, v_max, n_samples):
+    q = np.exp(q)
+    params_noises = np.random.uniform(v_min, v_max, n_samples)
+    q = np.clip(q + params_noises.reshape(n_samples,1), 0.01, 0.1)
+    q = np.log(np.maximum(q, 1e-6))
+    return q
+
 if __name__ == "__main__":
 
     np.random.seed(10)
@@ -61,7 +70,7 @@ if __name__ == "__main__":
     # This data assimilation algorithm is called the Ensemble Adjusted Kalman Filter (EAKF).
     steps_DA = 10
     # Ensemble size (required>=2)
-    n_samples = 10 # 100
+    n_samples = 100 # 100
     # Number of status for each node
     n_status = 6
 
@@ -75,7 +84,7 @@ if __name__ == "__main__":
 
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:, 0] = np.random.uniform(np.log(0.01), np.log(0.5), n_samples)
+    params[:, 0] = np.random.uniform(np.log(0.01), np.log(0.1), n_samples)
 
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
@@ -83,7 +92,7 @@ if __name__ == "__main__":
         states_IC[iterN, :] = random_IC()
 
     # Set time informations inside an EAKF step
-    T = 5.0
+    T = 10.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     #OD: Are you sure you want to exclude T here? .
@@ -99,15 +108,17 @@ if __name__ == "__main__":
 
         ## Get observations for EAKF
         x_obs = data[(iterN+1)*int(T)-1,:]
-        x_cov = np.identity(x_obs.shape[0]) * 0.01 
-        #x_cov = np.diag(np.maximum((0.1*x_obs)**2, 1e-2))
+        #x_cov = np.identity(x_obs.shape[0]) * 0.01 
+        x_cov = np.diag(np.maximum((0.01*x_obs)**2, 1e-3))
         ekf.obs(x_obs, x_cov)
 
         ## Forward model evaluation of all ensemble members
         start = time.time()
         # A simple decayed noise term to add into paramters during EAKF
-        params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples) 
-        x_forward = ensemble_forward_model(G, ekf.q[iterN] + params_noises.reshape(n_samples,1), states_IC,T, dt_fsolve, t_range, parallel_flag = True)
+        if iterN > 0:
+            ekf.q[iterN] = add_noises(ekf.q[iterN], -1e-2/np.sqrt(iterN+1), 1e-2/np.sqrt(iterN+1), n_samples)
+            ekf.q[iterN] = np.clip(ekf.q[iterN], np.log(0.01), np.log(0.1))
+        x_forward = ensemble_forward_model(G, ekf.q[iterN], states_IC,T, dt_fsolve, t_range, parallel_flag = True)
         end = time.time()
         print('Time elapsed for forward model: ', end - start)
     

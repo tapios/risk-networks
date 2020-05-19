@@ -4,7 +4,7 @@ import multiprocessing
 from models import MasterEqn 
 import networkx as nx
 from data import HighSchoolData
-from observations import RandomStatusObservation
+from observations import RandomStatusObservation, HighProbRandomStatusObservation
 from data_assimilation_forward import DAForwardModel
 import time
 import pickle
@@ -55,6 +55,7 @@ def random_IC():
     state0 = np.hstack((S, E, I, H, R, D))
     return state0
 
+                        
 if __name__ == "__main__":
     """ 
     This runs the EAKF as a moving 'forward smoother'.
@@ -83,9 +84,9 @@ if __name__ == "__main__":
     ### Set up DA ###
 
     # Number of EAKF steps
-    steps_DA = 10
+    steps_DA = 25
     # Ensemble size (required>=2)
-    n_samples = 20
+    n_samples = 50
 
     
     ######################
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     ######################
     # Set prior for unknown parameters
     params = np.zeros([n_samples,1])
-    params[:,0] = np.random.uniform(np.log(0.01), np.log(0.1), n_samples)
+    params[:,0] = np.random.uniform(np.log(0.03), np.log(0.06), n_samples)
 
     
     # Set initial states
@@ -107,14 +108,14 @@ if __name__ == "__main__":
     steps_T_init=int(T_init/dt_init)
     #t_range_init = np.linspace(0.0, T_init, num=steps_T_init+1, endpoint=True)#includes 0 and T_init
     t_range_init=np.flip(np.arange(T_init,0.0,-dt_init)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =T_init/10.
+    dt_fsolve =1.0
  
     # Parameters for each EAKF step
-    T = 10.0
+    T = 4.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =T/10.
+    dt_fsolve =1.0
 
     # Container for forward model evaluations
     x_forward_all = np.empty([n_samples, (1+steps_T_init)+steps_T*steps_DA, n_status*N])
@@ -138,9 +139,12 @@ if __name__ == "__main__":
     # Data
     data=HighSchoolData(steps_T_init)
     #Observations (here random time, random node, observe onlyInfected[2] prob)
-    InfectiousObs = RandomStatusObservation(t_range,N,n_status,int(N),[2],'0.8_Infected')
-    HospitalObs =  RandomStatusObservation(t_range,N,n_status,int(N),[3],'0.8_Hospitalised')
-    OModel =[InfectiousObs,HospitalObs]
+    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,0.2,[2],0.25,'mean','All_Infected>=0.5')
+    #InfectiousObs = RandomStatusObservation(t_range,N,n_status,0.4,[2],'0.4_Infected') 
+    #HospitalizedObs =  RandomStatusObservation(t_range,N,n_status,0.2,[3],'0.2_Hospitalised')
+    #DeathObs = RandomStatusObservation(t_range,N,n_status,0.2,[5],'0.2_Deaths') 
+    #OModel =[InfectiousObs,HospitalizedObs,DeathObs]
+    OModel=SmartInfectiousObs
     #Build the DA
     ekf=DAForwardModel(params,x_forward_init[:,-1,:],OModel,data)
 
@@ -165,7 +169,7 @@ if __name__ == "__main__":
         ######################
         # We Assume there is an observation in the window
         #First get all observations from window and order them
-        ekf.order_obs_times_states(iterN)
+        ekf.initialize_obs_in_window(iterN)
 
         # Then: 
         # (While there are points to assimilate)
@@ -177,17 +181,15 @@ if __name__ == "__main__":
             pt=ekf.data_pts_assimilated
             
             data_idx=ekf.omodel[pt].obs_time_in_window
-            state_idx=ekf.omodel[pt].obs_states
-
+            
             #Assimilate the point
-            ekf.update(x_forward)
-            x_forward[:,data_idx,state_idx] = ekf.damodel[pt].x[-1]
+            x_forward[:,data_idx,:]=ekf.update(x_forward)
+            
             #get next point
             next_data_idx=ekf.next_data_idx()
-        
             end = time.time()
             print('Assimilated', ekf.omodel[pt].name , ', at ', data_idx,', Time elapsed for EAKF: ', end - start)
-            print("Error: ", ekf.damodel[pt].error[-1])
+            print("Error: ", ekf.damodel.error[-1])
        
             ######################
             ### --- Step 3 --- ###
@@ -213,7 +215,7 @@ if __name__ == "__main__":
         ## Overwrite for each EAKF step to facilitate debugging
         pickle.dump(ekf.params, open("data/u.pkl", "wb"))
         #pickle.dump(ekf.damodel.x, open("data/g.pkl", "wb"))#note only includes observed states
-        #pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
+        pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 
