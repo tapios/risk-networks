@@ -28,11 +28,19 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
 This overview
 
 1. Performs an simulation of an example epidemic
-    1. Defines a population, its 'transition', or clinical characteristics, and the transmission rate.
+
+    1. Defines a population, including:
+        * Age distribution,
+        * Age-depednent clinical statistics,
+        * Transmission rate.
+
     2. Generates a time-averaged contact network.
-    3. Simulates the evolution of an epidemic in the given population and contact network with a stochastic kinetic model,
-     and a 'master equation' deterministic model for the evolution of the expected values of individual states.
-2. Perform data assimilation over a single window
+
+    3. Simulates an epidemic with a stochastic kinetic model.
+
+    4. Simulates an epidemic with a deterministic 'risk', or 'master equation' model.
+
+2. Performs data assimilation over a one-day window for the same population, but a different scenario.
 
 ## Import package functionality
 
@@ -111,18 +119,23 @@ The six clinical statistics are
 We randomly generate clinical properties for our example population,
 
 ```python
-latent_periods               = ClinicalStatistic(ages = ages, const = 2, sampler = GammaSampler(k=1.7, theta=2.0))
-community_infection_periods  = ClinicalStatistic(ages = ages, const = 1, sampler = GammaSampler(k=1.5, theta=2.0))
-hospital_infection_periods   = ClinicalStatistic(ages = ages, const = 1, sampler = GammaSampler(k=1.5, theta=3.0))
+latent_periods              = ClinicalStatistic(ages = ages, const = 2, 
+                                                sampler = GammaSampler(k=1.7, theta=2.0))
+
+community_infection_periods = ClinicalStatistic(ages = ages, const = 1,
+                                                sampler = GammaSampler(k=1.5, theta=2.0))
+
+hospital_infection_periods  = ClinicalStatistic(ages = ages, const = 1, 
+                                                sampler = GammaSampler(k=1.5, theta=3.0))
 
 hospitalization_fraction = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.02, 0.17, 0.25, 0.35, 0.45], b=4))
+    sampler = AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4))
 
 community_mortality_fraction = ClinicalStatistic(ages = ages,
     sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
 
 hospital_mortality_fraction  = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.01, 0.04, 0.1], b=4))
+    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
 ```
 
 `AgeAwareBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
@@ -163,7 +176,8 @@ Here, we pick an arbitrary constant,
 constant_transmission_rate = 0.1 # per average number of contacts per day
 ```
 
-The `transition_rates` and `constant_transmission_rate` define the clinical characteristics of the population.
+The `transition_rates` and `constant_transmission_rate` define the epidemiological 
+characteristics of the population.
 
 ### Generation of a time-evolving contact network
 
@@ -177,9 +191,9 @@ day = 1.0 # We use time units of "day"s
 static_contacts_interval = day / 4
 ```
 
-On a graph, or 'network', individuals are notes and contact times are the weighted edges
+On a graph, or 'network', individuals are nodes and contact times are the weighted edges
 between them. We create a contact network averaged over `static_contacts_interval`
-for a population of 1000,
+for a population of 1000 with diurnally-varying mean contact rate,
 
 ```python
 mean_contact_rate = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
