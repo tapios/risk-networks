@@ -25,15 +25,21 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
 
 # Overview
 
-To provide an overview of the code, we
+This overview
 
-1. Example simulation of an epidemic
+1. Performs an simulation of an example epidemic
 2. Perform data assimilation over a single window
 
 ## Example simulation of an epidemic
 
 An epidemic unfolds on a time-evolving contact network, in a population
 with a distribution of clinical and transmission properties.
+
+For this we import
+
+```python
+from epiforecast.utils import label_distribution
+```
 
 ### Define the 'population' and its clinical characteristics
 
@@ -51,24 +57,26 @@ ages = label_distribution(population, labels=6)
 
 In the above we define 6 age categories (for example, ages 0-19, 20-44, 45-64, 65-74, 75->).
 
-Next we define the six clinical properties of the population:
+Next we define the six 'transition characteristics', or the properties of each individual that
+determine when the recovery from an infection, become hospitalized, or die, for example.
+The transition characteristics have length `population`. The six transition characteristics are
 
-1. `latent_period` of infection,
-2. `community_infection_period` over which infection persists in the 'community',
-3. `hospital_infection_period` over which infection persists in a hospital setting,
-4. `fractional_hospitalization_rate`, the rate at which infected people become hospitalized,
-5. `community_mortality_rate`, the mortality rate in the community,
-6. `hospital_mortality_rate`, the mortality rate in a hospital setting.
+1. `latent_period` of infection (`σ⁻¹`)
+2. `community_infection_period` over which infection persists in the 'community' (`γ`),
+3. `hospital_infection_period` over which infection persists in a hospital setting (`γ′`),
+4. `hospitalization_fraction`, the fraction of infected that become hospitalized (`h`),
+5. `community_mortality_fraction`, the mortality rate in the community (`d`),
+6. `hospital_mortality_fraction`, the mortality rate in a hospital setting (`d′`).
 
-The clinical properties of our population are randomly generated from statistical distributions:
+The transition properties of our population are randomly generated from statistical distributions:
 
 ```python
-latent_periods                   = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
-community_infection_periods      = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
-hospital_infection_periods       = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
-fractional_hospitalization_rates = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
-community_mortality_rates        = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
-hospital_mortality_rates         = VariableClinicalCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+latent_periods               = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+community_infection_periods  = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+hospital_infection_periods   = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+hospitalization_fraction     = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+community_mortality_fraction = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
+hospital_mortality_fraction  = VariableTransitionCharacteristic(ages = ages, sampler = AgeAwareSampler(*sampler_properties))
 ```
 
 The `AgeAwareSampler` is a generic sampler of statistical distribution with a function `sampler.draw(age)`
@@ -103,7 +111,7 @@ In general, the transmission rate can have a different value for each _pair_ of 
 therefore can be as large as `population**2`. Another possibility is that the transmission rate is
 a function of individual properties (such as the amount of protective equipment an individual wears)
 and that the transmission rate is a function of these individual-level properties. Here, we assume
-that the transmission rate is constant for each pair of individuals. We (attempt to) choose the 
+that the transmission rate is constant for each pair of individuals. We (attempt to) choose the
 'effective transmission rate' to reproduce a realistic epidemic in LA county.
 
 ```python
@@ -116,7 +124,7 @@ The `transition_rates` and `constant_transmission_rate` define the clinical char
 
 Physical contact between people in realistic communities is rapidly evolving.
 We average the contact time between individuals over a `static_contacts_interval`,
-over which, for the purposes of solving both the kinetic and master equations, 
+over which, for the purposes of solving both the kinetic and master equations,
 we assume that the graph of contacts is static:
 
 ```python
@@ -129,11 +137,20 @@ between them. We create a contact network averaged over `static_contacts_interva
 for a population of 1000,
 
 ```python
+mean_contact_rate = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t / 24)**2)])
+
 contact_network = generate_time_averaged_contact_network(
-                                population = population,
-                         start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
-                        averaging_interval = static_contacts_interval,
-                        **contact_network_generation_parameters
+                                                population = population,
+                                         start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
+                                        averaging_interval = static_contacts_interval,
+                                          transition_rates = transition_rates,
+                                                lambda_min = 5/24,
+                                                lambda_max = 22/24,
+                        initial_fraction_of_activate_edges = 0.034,
+                                      measurement_interval = 0.1,
+                                     mean_contact_duration = 1/6,
+                                         mean_contact_rate = mean_contact_rate
+                        # **other_contact_network_generation_parameters?
 )
 ```
 
@@ -172,9 +189,9 @@ output = kinetic_model.simulate(static_contacts_interval)
 
 The mean field equations represent the average behavior of many stochastic epidemics.
 Alternatively, we can interpret the mean-field state as the 'probability' that each individual
-has a certain epidemiological state. 
+has a certain epidemiological state.
 
-For data assimilation, we simulate an *ensemble* of master equation models. 
+For data assimilation, we simulate an *ensemble* of master equation models.
 For this example, we conduct a forward run of a single master equation model.
 
 ```python
@@ -216,13 +233,19 @@ contact_networks = []
 
 # Generate 4 contact networks for hours 00-06, 06-12, 12-18, 18-24
 for i in range(intervals_per_window):
-
-    contact_network = generate_time_averaged_contact_network(
-                                          population = population,
-                                   start_time_of_day = i * static_contacts_interval,
-                                  averaging_interval = static_contacts_interval,
-                                  **contact_network_generation_parameters,
-                                  )
+  contact_network = generate_time_averaged_contact_network(
+                                                population = population,
+                                         start_time_of_day = i * static_contacts_interval,
+                                        averaging_interval = static_contacts_interval,
+                                          transition_rates = transition_rates,
+                                                lambda_min = 5/24,
+                                                lambda_max = 22/24,
+                        initial_fraction_of_activate_edges = 0.034,
+                                      measurement_interval = 0.1,
+                                     mean_contact_duration = 1/6,
+                                         mean_contact_rate = mean_contact_rate
+                        # **other_contact_network_generation_parameters?
+)
 
     contact_networks.append(contact_network)                                  
     static_contacts_times.append(i * static_contacts_interval)
