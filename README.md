@@ -291,7 +291,7 @@ We begin the experiment by simulating the slow evolution of a contact network ov
 ```python
 network_generator=EvolvingContactNetwork(
                                                  population = population,
-                                          start_time_of_day = i * static_contacts_interval,
+                                          start_time_of_day = 0,
                                          averaging_interval = static_contacts_interval,
                                            transition_rates = transition_rates,
                                                  lambda_min = 5,  # contacts per day during activity minimum
