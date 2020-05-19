@@ -40,9 +40,8 @@ We first import the package's functionality:
 
 ```python
 # Utilities for generating random populations
-from epiforecast.utils import populate_ages
+from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
-from epiforecast.populations import ClinicalStatistics, TransitionRates
 
 # Function that generates a time-averaged contact network from a rapidly-fluctuating
 # birth-death process.
