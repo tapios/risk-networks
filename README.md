@@ -198,7 +198,7 @@ for a population of 1000 with diurnally-varying mean contact rate,
 ```python
 diurnal_contacts_modulation = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
 
-network_generator = EvolvingContactNetwork(
+network_generator = EvolvingContactNetworkGenerator(
                                          population = population,  
                                   start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
                                  averaging_interval = static_contacts_interval,
