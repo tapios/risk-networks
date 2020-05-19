@@ -291,7 +291,7 @@ for i in range(intervals_per_window):
                                      mean_contact_duration = 1/6,
                                          mean_contact_rate = mean_contact_rate
                         # **other_contact_network_generation_parameters?
-)
+    )
 
     contact_networks.append(contact_network)                                  
     static_contacts_times.append(i * static_contacts_interval)
