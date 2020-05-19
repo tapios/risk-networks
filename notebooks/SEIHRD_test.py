@@ -1,4 +1,5 @@
-import EoN
+#import EoN
+from simulation import Gillespie_simple_contagion
 import numpy as np
 import networkx as nx
 from collections import defaultdict
@@ -14,7 +15,7 @@ sns.set_context("talk")
 
 if __name__ == "__main__":
     
-    N = int(1e4)
+    N = int(1e3)
     G = nx.fast_gnp_random_graph(N, 5./(N-1))
     
     node_attribute_dict = {node: 0.5+random.random() for node in G.nodes()}
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
     
-    res = EoN.Gillespie_simple_contagion(
+    res = Gillespie_simple_contagion(
                         G,                           # Contact network.
                         H,                           # Spontaneous transitions (without any nbr influence).
                         J,                           # Neighbor induced transitions.
