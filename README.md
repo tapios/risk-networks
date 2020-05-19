@@ -196,7 +196,7 @@ between them. We create a contact network averaged over `static_contacts_interva
 for a population of 1000 with diurnally-varying mean contact rate,
 
 ```python
-mean_contact_rate = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
+diurnal_contacts_modulation = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
 
 contact_network = generate_time_averaged_contact_network(
                                                 population = population,
@@ -207,8 +207,8 @@ contact_network = generate_time_averaged_contact_network(
                                                 lambda_max = 22,
                           initial_fraction_of_active_edges = 0.034,
                                       measurement_interval = 0.1,
-                                     mean_contact_duration = 24/6,
-                                         mean_contact_rate = mean_contact_rate
+                                     mean_contact_duration = 10 / 60 / 24, # 10 minutes
+                               diurnal_contacts_modulation = diurnal_contacts_modulation,
                         # **other_contact_network_generation_parameters?
 )
 ```
@@ -297,12 +297,12 @@ for i in range(intervals_per_window):
                                          start_time_of_day = i * static_contacts_interval,
                                         averaging_interval = static_contacts_interval,
                                           transition_rates = transition_rates,
-                                                lambda_min = 5/24,
-                                                lambda_max = 22/24,
+                                                lambda_min = 5,  # contacts per day during activity minimum
+                                                lambda_max = 22, # contacts per day during activity maximum
                           initial_fraction_of_active_edges = 0.034,
                                       measurement_interval = 0.1,
-                                     mean_contact_duration = 1/6,
-                                         mean_contact_rate = mean_contact_rate
+                                     mean_contact_duration = 10 / 60 / 24, # 10 minutes
+                               diurnal_contacts_modulation = diurnal_contacts_modulation,
                         # **other_contact_network_generation_parameters?
     )
 
