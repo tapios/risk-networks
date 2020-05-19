@@ -59,8 +59,10 @@ from epiforecast.risk_simulation import MasterEquationModelEnsemble
 from epiforecast.data_assimilation import DataAssimilator, EnsembleAdjustedKalmanFilter
 from epiforecast.data_assimilation import SixHourlyTotalStateObservations
 
-# Tools for simulation specific scenarios
-from epiforecast.scenarios import midnight_on_Tuesday, state_distribution_at_midnight_on_Tuesday
+# Tools for simulating specific scenarios
+from epiforecast.scenarios import random_infection
+from epiforecast.scenarios import midnight_on_Tuesday
+from epiforecast.scenarios import state_distribution_at_midnight_on_Tuesday
 from epiforecast.scenarios import transition_rates_distribution_at_midnight_on_Tuesday
 from epiforecast.scenarios import transmission_rates_distribution_at_midnight_on_Tuesday
 ```
@@ -115,18 +117,19 @@ community_infection_periods  = ClinicalStatistic(ages = ages, const = 1, sampler
 hospital_infection_periods   = ClinicalStatistic(ages = ages, const = 1, sampler = GammaSampler(k=1.5, theta=3.0))
 
 hospitalization_fraction = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.02, 0.17, 0.25, 0.35, 0.45], beta=4))
+    sampler = AgeAwareBetaSampler(mean=[0.02, 0.17, 0.25, 0.35, 0.45], b=4))
 
 community_mortality_fraction = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], beta=4))
+    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
 
 hospital_mortality_fraction  = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.01, 0.04, 0.1], beta=4))
+    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.01, 0.04, 0.1], b=4))
 ```
 
 `AgeAwareBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
-which generates clinical properties for each individual based on their `age` class.
-`const` is a random number to which `gamma_sampler.draw()` or `beta_sampler.draw(age)` is added.
+which generates clinical properties for each individual based on their `age` class (see `numpy.random.beta`
+for more information). `const` is a random number to which `gamma_sampler.draw()` or `beta_sampler.draw(age)`
+is added.
 
 We process the clinical data to determine transition rates between each
 epidemiological state,
@@ -189,7 +192,7 @@ contact_network = generate_time_averaged_contact_network(
                                           transition_rates = transition_rates,
                                                 lambda_min = 5/24,
                                                 lambda_max = 22/24,
-                        initial_fraction_of_activate_edges = 0.034,
+                          initial_fraction_of_active_edges = 0.034,
                                       measurement_interval = 0.1,
                                      mean_contact_duration = 1/6,
                                          mean_contact_rate = mean_contact_rate
@@ -208,7 +211,7 @@ we can now simulate an epidemic over the `static_contacts_interval`.
 We seed the epidemic by randomly infecting a small number of individuals,
 
 ```python
-initial_state = random_infection(population, infected=10)
+initial_state = random_infection(population, infected=20)
 ```
 
 #### Kinetic simulation
@@ -283,7 +286,7 @@ for i in range(intervals_per_window):
                                           transition_rates = transition_rates,
                                                 lambda_min = 5/24,
                                                 lambda_max = 22/24,
-                        initial_fraction_of_activate_edges = 0.034,
+                          initial_fraction_of_active_edges = 0.034,
                                       measurement_interval = 0.1,
                                      mean_contact_duration = 1/6,
                                          mean_contact_rate = mean_contact_rate
