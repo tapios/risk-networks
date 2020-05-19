@@ -198,23 +198,25 @@ for a population of 1000 with diurnally-varying mean contact rate,
 ```python
 diurnal_contacts_modulation = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
 
-contact_network = generate_time_averaged_contact_network(
-                                                population = population,
-                                         start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
-                                        averaging_interval = static_contacts_interval,
-                                          transition_rates = transition_rates,
-                                                lambda_min = 5,
-                                                lambda_max = 22,
-                          initial_fraction_of_active_edges = 0.034,
-                                      measurement_interval = 0.1,
-                                     mean_contact_duration = 10 / 60 / 24, # 10 minutes
-                               diurnal_contacts_modulation = diurnal_contacts_modulation,
-                        # **other_contact_network_generation_parameters?
+network_generator=EvolvingContactNetwork(
+                                         population = population,  
+                                  start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
+                                 averaging_interval = static_contacts_interval,
+                                   transition_rates = transition_rates,
+                                         lambda_min = 5,
+                                         lambda_max = 22,
+                   initial_fraction_of_active_edges = 0.034,
+                               measurement_interval = 0.1,
+                              mean_contact_duration = 10 / 60 / 24, # 10 minutes
+                        diurnal_contacts_modulation = diurnal_contacts_modulation,
+                        # **other_contact_network_generation_parameters? 
 )
+
+contact_network = network_generator.generate_time_averaged_contact_network( **network_generation_parameters   )
 ```
 
-We have included the abstract `contact_network_generation_parameters` as a placeholder for
-a dictionary of parameters that characterize the contact network.
+We have included the abstract `network_generation_parameters` as a placeholder for
+a dictionary of parameters that can characterize the contact network.
 
 ### Simulation of an epidemic
 
@@ -287,25 +289,27 @@ intervals_per_window = int(data_assimilation_window / static_contacts_interval)
 We begin the experiment by simulating the slow evolution of a contact network over one day:
 
 ```python
+network_generator=EvolvingContactNetwork(
+                                                 population = population,
+                                          start_time_of_day = i * static_contacts_interval,
+                                         averaging_interval = static_contacts_interval,
+                                           transition_rates = transition_rates,
+                                                 lambda_min = 5,  # contacts per day during activity minimum
+                                                 lambda_max = 22, # contacts per day during activity maximum
+                           initial_fraction_of_active_edges = 0.034,
+                                       measurement_interval = 0.1,
+                                      mean_contact_duration = 10 / 60 / 24, # 10 minutes
+                                diurnal_contacts_modulation = diurnal_contacts_modulation,
+                        # **other_contact_network_generation_parameters?
+)
+    
 static_contacts_times = []
 contact_networks = []
 
+
 # Generate 4 contact networks for hours 00-06, 06-12, 12-18, 18-24
 for i in range(intervals_per_window):
-  contact_network = generate_time_averaged_contact_network(
-                                                population = population,
-                                         start_time_of_day = i * static_contacts_interval,
-                                        averaging_interval = static_contacts_interval,
-                                          transition_rates = transition_rates,
-                                                lambda_min = 5,  # contacts per day during activity minimum
-                                                lambda_max = 22, # contacts per day during activity maximum
-                          initial_fraction_of_active_edges = 0.034,
-                                      measurement_interval = 0.1,
-                                     mean_contact_duration = 10 / 60 / 24, # 10 minutes
-                               diurnal_contacts_modulation = diurnal_contacts_modulation,
-                        # **other_contact_network_generation_parameters?
-    )
-
+    contact_network = network_generator.generate_time_averaged_contact_network(start_time_of_day=i*static_contacts_interval)
     contact_networks.append(contact_network)                                  
     static_contacts_times.append(i * static_contacts_interval)
 
@@ -355,18 +359,17 @@ master_model.populate_transmission_rates(distribution=transmission_rates_distrib
 # Initialize the data assimilation method
 assimilator = DataAssimilator(   observations = SixHourlyTotalStateObservations(),
                                        method = EnsembleAdjustedKalmanFilter(),
-                              contact_network = contact_networks[0]
                              )
 
 for i in range(intervals_per_window):
     # Set the contact network for the ensemble of master equation models
     master_model.set_contact_network(contact_networks[i])
-    assimilator.set_contact_network(contact_networks[i])
 
     # Run the master model ensemble forward for six hours
     master_model.simulate(static_contacts_interval)  
 
-    new_transition_rates, new_transmission_rates, new_ensemble = assimilator.update(master_model.ensemble,        
+    new_transition_rates, new_transmission_rates, new_ensemble = assimilator.update(network_generator.get_contact_networks()
+                                                                                    master_model.ensemble,        
                                                                                     synthetic_data)
 
     # Update the master model ensemble and parameters
@@ -376,7 +379,7 @@ for i in range(intervals_per_window):
 ```
 
 This completes data assimilation over one 'assimilaton window'. To apply interventions, we adjust
-the inputs to `generate_time_averaged_contact_network`, generate a new time series of
+the inputs to `network_generator.generate_time_averaged_contact_network`, generate a new time series of
 contact networks, and then simulate the evolution of the epidemic over a subsequent assimilation window.
 
 (Now we should compare the ensemble trajectory and the trajectory of the synthetic data...)
