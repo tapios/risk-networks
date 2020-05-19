@@ -56,7 +56,7 @@ class DAForwardModel:
         om=self.omodel[pt]
         dam=self.damodel
       
-        #Restrict to the the observation time...
+        #Restrict x to the the observation time
         x=x[:,om.obs_time_in_window,:] #same time
         #initialize the observation model at observation time (may depend on state)
         
@@ -77,8 +77,6 @@ class DAForwardModel:
          
             #Force probabilities to sum to one    
             om.sum_to_one(x)
-           
-            #print("temp removed sum-to-one")
         else:
             print("no assimilation required")
 

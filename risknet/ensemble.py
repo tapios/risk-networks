@@ -160,12 +160,14 @@ class epiens(object):
 		member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), member.L).dot(y[iI[0]:(iH[-1]+1)])
 
 		if kwargs.get('closure', 'individual') == 'covariance':
-				member.yS_holder = member.beta_closure_ind * y[iS] + self.beta_closure_cov
+			member.yS_holder = member.beta_closure_ind * y[iS] + self.beta_closure_cov
 		elif kwargs.get('closure', 'individual') == 'correlation':
-				member.yS_holder = member.beta_closure_ind * y[iS] + \
-														self.beta_closure_cor[:, member_id]
+			member.yS_holder = member.beta_closure_ind * y[iS] + \
+				self.beta_closure_cor[:, member_id]
+		elif kwargs.get('closure', 'individual') == 'independent':
+			member.yS_holder = self.beta_closure_indp[:, member_id] * y[iS]
 		else:
-				member.yS_holder = member.beta_closure_ind * y[iS]
+			member.yS_holder = member.beta_closure_ind * y[iS]
 
 		member.y_dot     = member.coeffs.dot(y) + member.offset
 		member.y_dot[iS] = - member.yS_holder
@@ -198,18 +200,27 @@ class epiens(object):
 			self.varS = np.sqrt((y[:,iS].T.dot(self.PM) * y[:,iS].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
 			self.varI = np.sqrt((y[:,iI].T.dot(self.PM) * y[:,iI].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
 			self.denSI = self.varS.reshape(-1,1).dot(self.varI.reshape(1,-1)) + 1e-8
-			self.LcorSI = self.L.multiply(self.covSI * (1/self.denSI))
+			self.LcorSI = self.L.multiply(self.covSI/self.denSI)
 			self.LcorSI.data[np.isnan(self.LcorSI.data)] = 0.
 
 			self.covSH = y[:,iS].T.dot(self.PM).dot(y[:,iH].T.dot(self.PM).T)/(self.M-1)
 			self.varH = np.sqrt((y[:,iH].T.dot(self.PM) * y[:,iH].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
 			self.denSH = self.varS.reshape(-1,1).dot(self.varH.reshape(1,-1)) + 1e-8
-			self.LcorSH = self.L.multiply(self.covSH * (1/self.denSH))
+			self.LcorSH = self.L.multiply(self.covSH/self.denSH)
 			self.LcorSH.data[np.isnan(self.LcorSH.data)] = 0.
 
 			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,iI] * (1-y[:,iI])).T) + \
 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
 										   np.sqrt(y[:,iS] * (1-y[:,iS])).T)
+
+		elif kwargs.get('closure', 'individual') == 'independent':
+			jSI = y[:,iS].T.dot(y[:,iI])/(self.M)
+			iSI = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iI].mean(axis = 0).reshape(1,-1))
+
+			jSH = y[:,iS].T.dot(y[:,iH])/(self.M)
+			iSH = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iH].mean(axis = 0).reshape(1,-1))
+			self.beta_closure_indp = self.beta * self.L.multiply((jSI/(iSI+1e-8))).dot(y[:,iI].T) + \
+									 self.betap * self.L.multiply((jSH/(iSH+1e-8))).dot(y[:,iH].T)
 
 	def set_solver(self, method = 'RK45', T = 200, dt = 0.1, reduced = False):
 

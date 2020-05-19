@@ -101,7 +101,7 @@ def plot_eon_ode(sims, ke_euler, t, xlims = (-.25, 40), reduced = True, leave = 
 
 	plt.tight_layout()
 
-def plot_node_probabilities(df, ke_euler, t, figsize = (12, 10), sharex = True, sharey = True):
+def plot_node_probabilities(df, ke_euler, t, figsize = (12, 10), sharex = False, sharey = False):
 	state_keys   = ['S', 'I', 'H', 'R', 'D']
 	state_names  = ['Susceptible', 'Infected', 'Hospitalized','Resistant',  'Death']
 	state_colors = ['C0', 'C1', 'C2', 'C4', 'C6']

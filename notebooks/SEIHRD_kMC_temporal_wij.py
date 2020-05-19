@@ -1,4 +1,5 @@
-import EoN
+#import EoN
+from simulation import Gillespie_simple_contagion
 import numpy as np
 import networkx as nx
 from collections import defaultdict
@@ -8,6 +9,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 
+np.random.seed(1123)
+random.seed(1123)
+    
 # additional rate reference https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1.full.pdf
 
 plt.style.use('seaborn-white')
@@ -50,11 +54,11 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.08
+beta0 = 1
 
 alpha_hosp = 0.25
 
-def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat, T):
+def temporalNetworkEpidemics(G, H, IC, return_statuses, deltat, T):
 
     """
     simulation of SEIHRD dynamics on temporal networks
@@ -62,8 +66,6 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
     Parameters:
     G (dictionary): dictionary with time stamps (seconds) and networks
     H (graph): spontaneous transitions
-    beta_dict (dictionary): edges and corresponding beta values
-    betap_dict (dictionary): edges and corresponding beta values
     IC (dictionary): initially infected nodes
     return_statuses (array): specifying return compartments
     deltat (float): simulation time interval (in days)
@@ -86,25 +88,36 @@ def temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, d
     
     contact_reduction = 1
     
-    for i in range(int(T/deltat)):
-        
-        J = inducedTransitions(beta_dict,betap_dict)#(beta_dict[i%len(beta_dict.keys())], betap_dict[i%len(beta_dict.keys())])
+    edge_dict = edgeRenewal(edge_list)
+    beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
+    
+    quarantine_flag = 0
+    
+    for i in range(int(T/deltat)):           
+    
+        J = inducedTransitions(beta_dict[i%len(beta_dict.keys())], betap_dict[i%len(beta_dict.keys())])#beta_dict,betap_dict)
 
-        res = EoN.Gillespie_simple_contagion(
+        res = Gillespie_simple_contagion(
                                 G,                           # Contact network
                                 H,                           # Spontaneous transitions (without any nbr influence)
                                 J,                           # Neighbor induced transitions
                                 IC,                          # Initial infected nodes
                                 return_statuses,             
                                 return_full_data = True,
-                                tmax = deltat                
-                            )
+                                tmax = deltat
+                                )
 
         times, states = res.summary()
         node_status = res.get_statuses(time = times[-1])
         
         print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
         
+        # contact reduction
+        if states['H'][-1]/len(G) >= 1 and quarantine_flag == 0:  
+            quarantine_flag = 1
+            edge_dict = edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 0.2*22/24)
+            beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
+              
         time_arr.extend(times+i*deltat)
         for s in return_statuses:
             states_arr['%s'%s].extend(states['%s'%s])
@@ -262,13 +275,14 @@ def inducedTransitions(beta_dict, betap_dict):
     return J
 
 
-def edgeRenewal(edge_list):
+def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
     
     """
     temporal edge activation/deactivation
     
     Parameters:
     edge_list: list
+    lamb_max: 
 
     Returns:
     edge_dict (dictionary): index, time, and corresponding edge list
@@ -279,7 +293,7 @@ def edgeRenewal(edge_list):
     muc = 6    
     
     # mean contact rate (unit t: h)
-    lamb = lambda t, lambmin = 5/24, lambji = 22/24: np.max([lambmin, lambji*(1-np.cos(np.pi*t/24)**2)])
+    lamb = lambda t: np.max([lamb_min, lamb_max*(1-np.cos(np.pi*t/24)**2)])
     
     
     # initial active and inactive lists
@@ -288,10 +302,10 @@ def edgeRenewal(edge_list):
     active_list = [tuple(edge) for edge in edge_list if np.random.random() < initial_active_frac]
     
     inactive_list = [tuple(edge) for edge in edge_list if tuple(edge) not in active_list]
-        
+    
     edge_dict = {}
 
-    edge_dict[0] = {'time': 0, 'edge_list': np.copy(active_list)}
+    edge_dict[0] = {'time': 0, 'edge_list': [x for x in active_list]}
     
     # loop over activation/deactivation processes
     t = 0
@@ -329,7 +343,7 @@ def edgeRenewal(edge_list):
         
         if t >= tmeas:
             it += 1
-            edge_dict[it] = {'time': t, 'edge_list': np.copy(active_list)}
+            edge_dict[it] = {'time': t, 'edge_list': [x for x in active_list]}
             tmeas += dt
 
     print("w_ji generation ended")
@@ -342,7 +356,7 @@ def edgeRenewal(edge_list):
 #    plt.ylim([0,0.15])
 #    plt.tight_layout()
 #    plt.show()
-    
+
     return edge_dict
     
 def betaAverage(G, edge_dict, deltat_kMC):
@@ -362,11 +376,13 @@ def betaAverage(G, edge_dict, deltat_kMC):
     
     print("beta_ji generation started")
     
+    sorted_edges = sorted(G.edges())
+    
     beta_dict = {}
     betap_dict = {}
 
-    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
-    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
+    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
+    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
 
     deltat = edge_dict[1]['time']-edge_dict[0]['time']
     
@@ -381,10 +397,9 @@ def betaAverage(G, edge_dict, deltat_kMC):
     for i in range(len(edge_dict)):
         
         print(len(edge_dict), i)
-        
-        average_beta_dict = {edge: beta0 if edge in edge_dict[i]['edge_list'] else 0 for edge in G.edges()}
-        
-        values = [x for x in average_beta_dict.values()]
+                        
+        values = np.asarray([1 if edge in edge_dict[i]['edge_list'] else 0 for edge in sorted_edges])
+                
         average_arr.append(values)
         cnt += 1
         
@@ -392,10 +407,10 @@ def betaAverage(G, edge_dict, deltat_kMC):
             
             average = np.mean(average_arr, axis = 0)
                         
-            print(beta_dict_cnt, np.mean(average))
+            print(beta_dict_cnt, beta0*np.mean(average))
             
-            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(G.edges(),average)}
-            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(G.edges(),average)}
+            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(sorted_edges,average)}
+            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(sorted_edges,average)}
 
             beta_dict_cnt += 1
             
@@ -407,7 +422,7 @@ def betaAverage(G, edge_dict, deltat_kMC):
     return beta_dict, betap_dict
     
 if __name__ == "__main__":
- 
+
 #%%   
     arr = []
     # edge list data
@@ -442,11 +457,10 @@ if __name__ == "__main__":
     # simulate dynamics
     deltat_kMC = 0.125 # unit: fraction of day
     
-    #edge_dict = edgeRenewal(edge_list)
-    beta_dict, betap_dict = {edge: beta0 for edge in G.edges()}, {edge: alpha_hosp*beta0 for edge in G.edges()}#betaAverage(G, edge_dict, deltat_kMC)
+    #{edge: beta0 for edge in G.edges()}, {edge: alpha_hosp*beta0 for edge in G.edges()}
 
 #%%   
-    times, states = temporalNetworkEpidemics(G, H, beta_dict, betap_dict, IC, return_statuses, deltat = deltat_kMC, T = 50)
+    times, states = temporalNetworkEpidemics(G, H, IC, return_statuses, deltat = deltat_kMC, T = 50)
 
     print(states['H'])
 #%%
@@ -471,7 +485,7 @@ if __name__ == "__main__":
     axes[1].plot(times, np.asarray(states['E'])/len(G), label = 'Exposed', color = 'C3')
     axes[1].plot(times, np.asarray(states['I'])/len(G), label = 'Infected', color = 'C1')
     axes[1].plot(times, np.asarray(states['H'])/len(G), label = 'Hospitalized', color = 'C2')
-    axes[1].plot(times, (np.asarray(states['D'])-init_placeholder)/len(G), label = 'Death', color = 'C6')
+    axes[1].plot(times, (np.asarray(states['D']))/len(G), label = 'Death', color = 'C6')
     axes[1].legend(loc = 0)
 
     axes[0].set_xlabel('time [days]')
