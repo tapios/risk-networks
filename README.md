@@ -203,11 +203,11 @@ contact_network = generate_time_averaged_contact_network(
                                          start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
                                         averaging_interval = static_contacts_interval,
                                           transition_rates = transition_rates,
-                                                lambda_min = 5/24,
-                                                lambda_max = 22/24,
+                                                lambda_min = 5,
+                                                lambda_max = 22,
                           initial_fraction_of_active_edges = 0.034,
                                       measurement_interval = 0.1,
-                                     mean_contact_duration = 1/6,
+                                     mean_contact_duration = 24/6,
                                          mean_contact_rate = mean_contact_rate
                         # **other_contact_network_generation_parameters?
 )
