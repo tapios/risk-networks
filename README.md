@@ -353,13 +353,15 @@ master_model.populate_transition_rates(distribution=transition_rates_distributio
 master_model.populate_transmission_rates(distribution=transmission_rates_distribution)
 
 # Initialize the data assimilation method
-assimilator = DataAssimilator(observations = SixHourlyTotalStateObservations(),
-                                    method = EnsembleAdjustedKalmanFilter(),
+assimilator = DataAssimilator(   observations = SixHourlyTotalStateObservations(),
+                                       method = EnsembleAdjustedKalmanFilter(),
+                              contact_network = contact_networks[0]
                              )
 
 for i in range(intervals_per_window):
     # Set the contact network for the ensemble of master equation models
     master_model.set_contact_network(contact_networks[i])
+    assimilator.set_contact_network(contact_networks[i])
 
     # Run the master model ensemble forward for six hours
     master_model.simulate(static_contacts_interval)  
