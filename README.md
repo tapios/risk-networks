@@ -183,7 +183,7 @@ between them. We create a contact network averaged over `static_contacts_interva
 for a population of 1000,
 
 ```python
-mean_contact_rate = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t / 24)**2)])
+mean_contact_rate = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
 
 contact_network = generate_time_averaged_contact_network(
                                                 population = population,
