@@ -1,11 +1,15 @@
-#import EoN
+import EoN
+import random
+import numpy as np   
 from simulation import Gillespie_simple_contagion
-import numpy as np
 import networkx as nx
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
-import random
+
+
+random.seed(1123)
+np.random.seed(1123)
 
 # additional rate reference https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1.full.pdf
 
@@ -15,12 +19,14 @@ sns.set_context("talk")
 
 if __name__ == "__main__":
     
+
+    
     N = int(1e3)
     G = nx.fast_gnp_random_graph(N, 5./(N-1))
     
     node_attribute_dict = {node: 0.5+random.random() for node in G.nodes()}
     edge_attribute_dict = {edge: 0.5+random.random() for edge in G.edges()}
-    
+        
     nx.set_node_attributes(G, values=node_attribute_dict, name='expose2infect_weight')
     nx.set_edge_attributes(G, values=edge_attribute_dict, name='transmission_weight')
     
@@ -66,7 +72,7 @@ if __name__ == "__main__":
     #J.add_edge(('E', 'S'), ('E', 'E'), rate = .2 * beta)   # Transmission rate
     
     IC = defaultdict(lambda: 'S')
-    for node in range(200):
+    for node in range(10):
         IC[node] = 'I'
     
     return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
@@ -78,11 +84,12 @@ if __name__ == "__main__":
                         IC,                          # Initial infected nodes
                         return_statuses,             # 
                         return_full_data = True,
-                        tmax = float('Inf')          # Contact network
+                        tmax = 100        # Contact network
                     )
     
     times, states = res.summary()
-    
+    print(states['I'][:10])
+        
     fig, axes = plt.subplots(1, 2, figsize = (15, 4))
     
     axes[0].plot(times, states['S'], label = 'Susceptible', color = 'C0')

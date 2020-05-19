@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 
+np.random.seed(1123)
+random.seed(1123)
+    
 # additional rate reference https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1.full.pdf
 
 plt.style.use('seaborn-white')
@@ -110,9 +113,9 @@ def temporalNetworkEpidemics(G, H, IC, return_statuses, deltat, T):
         print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
         
         # contact reduction
-        if states['H'][-1]/len(G) >= 0.004 and quarantine_flag == 0:  
+        if states['H'][-1]/len(G) >= 1 and quarantine_flag == 0:  
             quarantine_flag = 1
-            edge_dict = edgeRenewal(edge_list, lamb_max = 0.2*22/24)
+            edge_dict = edgeRenewal(edge_list, lamb_min = 0.2*5/24, lamb_max = 0.2*22/24)
             beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
               
         time_arr.extend(times+i*deltat)
@@ -272,7 +275,7 @@ def inducedTransitions(beta_dict, betap_dict):
     return J
 
 
-def edgeRenewal(edge_list, lamb_max = 22/24):
+def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
     
     """
     temporal edge activation/deactivation
@@ -290,7 +293,7 @@ def edgeRenewal(edge_list, lamb_max = 22/24):
     muc = 6    
     
     # mean contact rate (unit t: h)
-    lamb = lambda t, lambmin = 5/24: np.max([lambmin, lamb_max*(1-np.cos(np.pi*t/24)**2)])
+    lamb = lambda t: np.max([lamb_min, lamb_max*(1-np.cos(np.pi*t/24)**2)])
     
     
     # initial active and inactive lists
@@ -419,8 +422,6 @@ def betaAverage(G, edge_dict, deltat_kMC):
     
 if __name__ == "__main__":
 
-    np.random.seed(1123)
-    random.seed(1123)
 #%%   
     arr = []
     # edge list data
