@@ -111,7 +111,7 @@ if __name__ == "__main__":
     dt_fsolve =1.0
  
     # Parameters for each EAKF step
-    T = 1.0
+    T = 4.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # Data
     data=HighSchoolData(steps_T_init)
     #Observations (here random time, random node, observe onlyInfected[2] prob)
-    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,1.0,[2],0.5,'All_Infected>0.75')
+    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,0.2,[2],0.25,'mean','All_Infected>=0.5')
     #InfectiousObs = RandomStatusObservation(t_range,N,n_status,0.4,[2],'0.4_Infected') 
     #HospitalizedObs =  RandomStatusObservation(t_range,N,n_status,0.2,[3],'0.2_Hospitalised')
     #DeathObs = RandomStatusObservation(t_range,N,n_status,0.2,[5],'0.2_Deaths') 

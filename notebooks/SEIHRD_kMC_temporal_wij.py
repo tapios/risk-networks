@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 
+np.random.seed(1123)
+random.seed(1123)
+    
 # additional rate reference https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1.full.pdf
 
 plt.style.use('seaborn-white')
@@ -51,7 +54,7 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.08
+beta0 = 1
 
 alpha_hosp = 0.25
 
@@ -110,9 +113,9 @@ def temporalNetworkEpidemics(G, H, IC, return_statuses, deltat, T):
         print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
         
         # contact reduction
-        if states['H'][-1]/len(G) >= 0.004 and quarantine_flag == 0:  
+        if states['H'][-1]/len(G) >= 1 and quarantine_flag == 0:  
             quarantine_flag = 1
-            edge_dict = edgeRenewal(edge_list, lamb_max = 0.2*22/24)
+            edge_dict = edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 0.2*22/24)
             beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
               
         time_arr.extend(times+i*deltat)
@@ -272,7 +275,7 @@ def inducedTransitions(beta_dict, betap_dict):
     return J
 
 
-def edgeRenewal(edge_list, lamb_max = 22/24):
+def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
     
     """
     temporal edge activation/deactivation
@@ -290,7 +293,7 @@ def edgeRenewal(edge_list, lamb_max = 22/24):
     muc = 6    
     
     # mean contact rate (unit t: h)
-    lamb = lambda t, lambmin = 5/24: np.max([lambmin, lamb_max*(1-np.cos(np.pi*t/24)**2)])
+    lamb = lambda t: np.max([lamb_min, lamb_max*(1-np.cos(np.pi*t/24)**2)])
     
     
     # initial active and inactive lists
@@ -299,10 +302,10 @@ def edgeRenewal(edge_list, lamb_max = 22/24):
     active_list = [tuple(edge) for edge in edge_list if np.random.random() < initial_active_frac]
     
     inactive_list = [tuple(edge) for edge in edge_list if tuple(edge) not in active_list]
-        
+    
     edge_dict = {}
 
-    edge_dict[0] = {'time': 0, 'edge_list': np.copy(active_list)}
+    edge_dict[0] = {'time': 0, 'edge_list': [x for x in active_list]}
     
     # loop over activation/deactivation processes
     t = 0
@@ -340,7 +343,7 @@ def edgeRenewal(edge_list, lamb_max = 22/24):
         
         if t >= tmeas:
             it += 1
-            edge_dict[it] = {'time': t, 'edge_list': np.copy(active_list)}
+            edge_dict[it] = {'time': t, 'edge_list': [x for x in active_list]}
             tmeas += dt
 
     print("w_ji generation ended")
@@ -353,7 +356,7 @@ def edgeRenewal(edge_list, lamb_max = 22/24):
 #    plt.ylim([0,0.15])
 #    plt.tight_layout()
 #    plt.show()
-    
+
     return edge_dict
     
 def betaAverage(G, edge_dict, deltat_kMC):
@@ -373,11 +376,13 @@ def betaAverage(G, edge_dict, deltat_kMC):
     
     print("beta_ji generation started")
     
+    sorted_edges = sorted(G.edges())
+    
     beta_dict = {}
     betap_dict = {}
 
-    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
-    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
+    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
+    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
 
     deltat = edge_dict[1]['time']-edge_dict[0]['time']
     
@@ -392,10 +397,9 @@ def betaAverage(G, edge_dict, deltat_kMC):
     for i in range(len(edge_dict)):
         
         print(len(edge_dict), i)
-        
-        average_beta_dict = {edge: beta0 if edge in edge_dict[i]['edge_list'] else 0 for edge in G.edges()}
-        
-        values = [x for x in average_beta_dict.values()]
+                        
+        values = np.asarray([1 if edge in edge_dict[i]['edge_list'] else 0 for edge in sorted_edges])
+                
         average_arr.append(values)
         cnt += 1
         
@@ -403,10 +407,10 @@ def betaAverage(G, edge_dict, deltat_kMC):
             
             average = np.mean(average_arr, axis = 0)
                         
-            print(beta_dict_cnt, np.mean(average))
+            print(beta_dict_cnt, beta0*np.mean(average))
             
-            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(G.edges(),average)}
-            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(G.edges(),average)}
+            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(sorted_edges,average)}
+            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(sorted_edges,average)}
 
             beta_dict_cnt += 1
             
@@ -419,8 +423,6 @@ def betaAverage(G, edge_dict, deltat_kMC):
     
 if __name__ == "__main__":
 
-    np.random.seed(1123)
-    random.seed(1123)
 #%%   
     arr = []
     # edge list data
