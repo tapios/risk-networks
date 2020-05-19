@@ -3,7 +3,6 @@ import random
 import heapq
 import numpy as np
 import EoN
-from simulation_investigation import Simulation_Investigation
 from collections import defaultdict
 from collections import Counter
 
@@ -13,8 +12,7 @@ from collections import Counter
 #                     #
 #######################
 
-random.seed(1123)
-np.random.seed(1123)
+
 
 def _truncated_exponential_(rate, T):
     r'''returns a number between 0 and T from an
@@ -4109,7 +4107,8 @@ def Gillespie_simple_contagion(G, spontaneous_transition_graph,
     while total_rate>0 and t<tmax:
         times.append(t)
         r = random.random()
-        for transition in spontaneous_transitions+induced_transitions:
+        #print(r)
+        for transition in sorted(spontaneous_transitions)+sorted(induced_transitions):
             r -= rate[transition]*potential_transitions[transition].total_weight()/total_rate
             if r<0:
                 break
@@ -4242,6 +4241,6 @@ def Gillespie_simple_contagion(G, spontaneous_transition_graph,
     else:
         if sim_kwargs is None:
             sim_kwargs = {}
-        return Simulation_Investigation(G, node_history, transmissions, possible_statuses= return_statuses, **sim_kwargs)
+        return EoN.Simulation_Investigation(G, node_history, transmissions, possible_statuses= return_statuses, **sim_kwargs)
 
 

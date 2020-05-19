@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 from sklearn.decomposition import TruncatedSVD
 
 class EAKF:
@@ -172,9 +173,9 @@ class EAKF:
 
         # Adding noises (model uncertainties) back to the truncated dimensions
         # Need to further think about how to reduce the cost of full SVD here
-        F, Dp_vec, _ = np.linalg.svd(Sigma_u)
-        Dp_vec[J:] = 1e-3
-        Sigma_u = np.linalg.multi_dot([F, np.diag(Dp_vec), F.T])
+        F_u, Dp_u_vec, _ = sp.linalg.svd(Sigma_u)
+        Dp_u_vec[J:] = 1e-3
+        Sigma_u = np.linalg.multi_dot([F_u, np.diag(Dp_u_vec), F_u.T])
 
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])

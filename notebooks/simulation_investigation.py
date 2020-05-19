@@ -7,9 +7,6 @@ from matplotlib.animation import FuncAnimation
 
 from collections import defaultdict
 
-np.random.seed(1123)
-random.seed(1123)
-
 class Simulation_Investigation():
 
     r'''Simulation_Display is a class which is used for creating a particular
