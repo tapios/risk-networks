@@ -54,7 +54,7 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 0.08
+beta0 = 1
 
 alpha_hosp = 0.25
 
@@ -115,7 +115,7 @@ def temporalNetworkEpidemics(G, H, IC, return_statuses, deltat, T):
         # contact reduction
         if states['H'][-1]/len(G) >= 1 and quarantine_flag == 0:  
             quarantine_flag = 1
-            edge_dict = edgeRenewal(edge_list, lamb_min = 0.2*5/24, lamb_max = 0.2*22/24)
+            edge_dict = edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 0.2*22/24)
             beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
               
         time_arr.extend(times+i*deltat)
@@ -302,10 +302,10 @@ def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
     active_list = [tuple(edge) for edge in edge_list if np.random.random() < initial_active_frac]
     
     inactive_list = [tuple(edge) for edge in edge_list if tuple(edge) not in active_list]
-        
+    
     edge_dict = {}
 
-    edge_dict[0] = {'time': 0, 'edge_list': np.copy(active_list)}
+    edge_dict[0] = {'time': 0, 'edge_list': [x for x in active_list]}
     
     # loop over activation/deactivation processes
     t = 0
@@ -343,7 +343,7 @@ def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
         
         if t >= tmeas:
             it += 1
-            edge_dict[it] = {'time': t, 'edge_list': np.copy(active_list)}
+            edge_dict[it] = {'time': t, 'edge_list': [x for x in active_list]}
             tmeas += dt
 
     print("w_ji generation ended")
@@ -356,7 +356,7 @@ def edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 22/24):
 #    plt.ylim([0,0.15])
 #    plt.tight_layout()
 #    plt.show()
-    
+
     return edge_dict
     
 def betaAverage(G, edge_dict, deltat_kMC):
@@ -376,11 +376,13 @@ def betaAverage(G, edge_dict, deltat_kMC):
     
     print("beta_ji generation started")
     
+    sorted_edges = sorted(G.edges())
+    
     beta_dict = {}
     betap_dict = {}
 
-    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
-    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in G.edges()}
+    beta_dict[0] = {edge: beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
+    betap_dict[0] = {edge: alpha_hosp*beta0 if edge in edge_dict[0]['edge_list'] else 0 for edge in sorted_edges}
 
     deltat = edge_dict[1]['time']-edge_dict[0]['time']
     
@@ -395,10 +397,9 @@ def betaAverage(G, edge_dict, deltat_kMC):
     for i in range(len(edge_dict)):
         
         print(len(edge_dict), i)
-        
-        average_beta_dict = {edge: beta0 if edge in edge_dict[i]['edge_list'] else 0 for edge in G.edges()}
-        
-        values = [x for x in average_beta_dict.values()]
+                        
+        values = np.asarray([1 if edge in edge_dict[i]['edge_list'] else 0 for edge in sorted_edges])
+                
         average_arr.append(values)
         cnt += 1
         
@@ -406,10 +407,10 @@ def betaAverage(G, edge_dict, deltat_kMC):
             
             average = np.mean(average_arr, axis = 0)
                         
-            print(beta_dict_cnt, np.mean(average))
+            print(beta_dict_cnt, beta0*np.mean(average))
             
-            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(G.edges(),average)}
-            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(G.edges(),average)}
+            beta_dict[beta_dict_cnt] = {edge: beta0*av for (edge, av) in zip(sorted_edges,average)}
+            betap_dict[beta_dict_cnt] = {edge: alpha_hosp*beta0*av for (edge, av) in zip(sorted_edges,average)}
 
             beta_dict_cnt += 1
             
