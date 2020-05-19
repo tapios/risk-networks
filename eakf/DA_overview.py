@@ -9,16 +9,17 @@ from observations import ObservationModel
 from data_assimilation_forward import DAForwardModel
 
 def load_G():
-    #Loads a graph
+    # Loads a graph
+    pass
 
-def run_model(0,T_init,model_run_params):
-    #Parallelization 
-    #runs model for certain final time time T_init, outputs at given times.
+def run_model(0, T_init, model_run_params):
+    # Parallelization
+    # runs model for certain final time time T_init, outputs at given times.
+    pass
 
-    
 main:
 
-load_G()#Load graph
+load_G() # Load graph
 
 #Input DA steps, Ensemble size, etc.
 ...
@@ -31,7 +32,7 @@ run_forward_model(0,T_init,params)
 
 #Now, for DA stuff
 #Create a data object - see data.py below
-data=DataModel() 
+data=DataModel()
 #Observation objects - see observations.py below
 infectious=Observation(..., status=2)#
 hospital=Observation(...,status=3)
@@ -55,7 +56,7 @@ for DA_window in range(DA_total_windows):
     while(data pts assimilated < no. observations):
         #Assimilate ensembles with truth here
         x_forward[data_time] = ekf.update(x_forward)
-        
+
         #get next data point
         old_data_time=data_time
         data_time=ekf.next_data_idx()
@@ -80,13 +81,13 @@ class DataModel:
     def __init__(self):
         #load up some data source from file, or
         #initialized data model
-        
+
     def make_observation(self,time,state):
         #Given a time and state, observe the data
         #e.g read from stored data
         #or propagate the data model to the time/state
         return truth_mean, truth_covariance
-    
+
 ########################
 
 #################
@@ -99,19 +100,19 @@ class Observation:
         #initialize time and state observation models
         self.obs_times
         self.obs_states
-    def initialize_new_window(self,DA_window):
+    def initialize_new_window(self, DA_window):
         #update obs_times and obs_states for the new window
-        #This could be 
+        #This could be
         # - full/reduced statuses (S,E,I,H,R,D)
         # - at a fixed/random selection of nodes (1:N)
         # - at a fixed/random time in ([dt,...,K*dt=T])
         # Only 1 obs time per obs model per window (currently)
 
-    def initialize_new_obs(self,state):
-        #update obs_states at the obs_time, important if
-        #we observe based on the current state.
+    def initialize_new_obs(self, state):
+        # update obs_states at the obs_time, important if
+        # we observe based on the current state.
 
-        
+
 #########################
 
 #########
@@ -125,45 +126,55 @@ class EAKF:
         self.error=0
 
     def update(self,states,model_params,truth_mean, truth_cov):
-        #updates states and model_params based on the truth mean & covariance 
+        #updates states and model_params based on the truth mean & covariance
         return states,model_params
 
 ###########################
-    
+
 ##############################
 #data_assimilation_forward.py#
 ##############################
 
 class DAForwardModel:
 
-    def __init__(self,model_parameters,initial_states,observations,data):
-        #store observations, data, parameters and the EAKF for each observation set
-        self.omodel = observations
-        self.data = data
-        self.params = model_parameters
-        self.damodel=EAKF()
-                      
-        def initialize_obs_in_window(self,DA_window):
-            for i in range(len(self.omodel)): #for each observation type
-                self.omodel[i].initialize_new_window(DA_window) #Generate the observation points
+    def __init__(self, model_parameters, initial_states, observations, data):
+        # store observations, data, parameters and the EAKF for each observation set
+        self.omodel   = observations
+        self.data     = data
+        self.params   = model_parameters
+        self.damethod = EAKF()
 
-            #Then Chronologically order self.omodel, self.damodel
+        def initialize_obs_in_window(self, DA_window):
+            for i in range(len(self.omodel)): # for each observation type
+                self.omodel[i].initialize_new_window(DA_window) # Generate the observation points
 
-        def update(self,x):
+            # Then chronologically order self.omodel, self.damethod
 
-            self.omodel[pt].initialize_new_obs(x)
-            
-            #for current data point pt:
-            obs_time=self.omodel[pt].obs_times
-            obs_states=self.omodel[pt].obs_states
-            dam=self.damodel
+        def update(self, ensemble, observations, data):
 
-            #obtain data (&give to eakf)
-            truth_mean,truth_cov = data.make_observation(obs_time,obs_states)
+            observed_mean, observed_covariance, assimilated_indices = observations.make(data, ensemble)
 
-            #update x, with corresponding EAKF
-            self.params,x[obs_time,obs_states] =dam.update(x[obs_time,obs_states],truth_mean,truth_cov)
+            params, ensemble[assimilated_indices] = self.damethod.update(ensemble[assimilated_indices],
+                                                                         observed_mean,
+                                                                         observed_covariance)
 
-            return x
-            
-            
+            # Method 1:
+            #self.omodel[pt].initialize_new_obs(state)
+            #obs_state_indices = self.omodel[pt].obs_states
+
+            ## Method 2:
+            #obs_state_indices = self.omodel[pt].get_obs_state_indices(state)
+
+            ## For current data point pt:
+
+            #obs_time   = self.omodel[pt].obs_times
+
+            #data_assimilation_method = self.damethod
+
+            ## obtain data (& give to eakf)
+            #truth_mean, truth_cov = data.make_observation(obs_time, obs_states)
+
+            # update x, with corresponding EAKF
+            self.params, state[obs_time, obs_states] = data_assimilation_method.update(state[obs_time, obs_states], truth_mean, truth_cov)
+
+            return state
