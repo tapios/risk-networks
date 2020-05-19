@@ -28,9 +28,9 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
 This overview
 
 1. Performs an simulation of an example epidemic
-  1. Defines a population, its 'transition', or clinical characteristics, and the transmission rate.
-  2. Generates a time-averaged contact network.
-  3. Simulates the evolution of an epidemic in the given population and contact network with a stochastic kinetic model,
+    1. Defines a population, its 'transition', or clinical characteristics, and the transmission rate.
+    2. Generates a time-averaged contact network.
+    3. Simulates the evolution of an epidemic in the given population and contact network with a stochastic kinetic model,
      and a 'master equation' deterministic model for the evolution of the expected values of individual states.
 2. Perform data assimilation over a single window
 
