@@ -289,7 +289,7 @@ intervals_per_window = int(data_assimilation_window / static_contacts_interval)
 We begin the experiment by simulating the slow evolution of a contact network over one day:
 
 ```python
-network_generator = EvolvingContactNetwork(
+network_generator = EvolvingContactNetworkGenerator(
                                                  population = population,
                                           start_time_of_day = 0,
                                          averaging_interval = static_contacts_interval,
