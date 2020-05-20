@@ -150,9 +150,9 @@ epidemiological state,
 transition_rates = TransitionRates(latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,
-                                   fractional_hospitalization_rates,
-                                   community_mortality_rates,
-                                   hospital_mortality_rates)
+                                   hospitalization_fraction,
+                                   community_mortality_fraction,
+                                   hospital_mortality_fraction)
 ```
 
 The transition rates have units `1 / day`. There are six transition rates:

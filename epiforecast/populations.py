@@ -18,9 +18,9 @@ class ClinicalStatistics:
 
     The six clinical statistics are
 
-    1. latent_period of infection (σ⁻¹)
-    2. community_infection_period over which infection persists in the 'community' (γ),
-    3. hospital_infection_period over which infection persists in a hospital setting (γ′),
+    1. latent_period of infection (1/σ)
+    2. community_infection_period over which infection persists in the 'community' (1/γ),
+    3. hospital_infection_period over which infection persists in a hospital setting (1/γ′),
     4. hospitalization_fraction, the fraction of infected that become hospitalized (h),
     5. community_mortality_fraction, the mortality rate in the community (d),
     6. hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
@@ -35,6 +35,76 @@ class ClinicalStatistics:
         self.population = len(ages)
         self.ages = ages
         self.minimum = minimum
+
+
+
+
+
+class TransitionRates:
+    """
+    A container for transition rates.
+
+    Args:
+
+    latent_period of infection (σ⁻¹)
+
+    community_infection_period over which infection persists in the 'community' (γ),
+
+    hospital_infection_period over which infection persists in a hospital setting (γ′),
+
+    hospitalization_fraction, the fraction of infected that become hospitalized (h),
+
+    community_mortality_fraction, the mortality rate in the community (d),
+
+    hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
+
+    The six transition rates are
+
+    1. Exposed -> Infected
+    2. Infected -> Hospitalized
+    3. Infected -> Resistant
+    4. Hospitalized -> Resistant
+    5. Infected -> Deceased
+    6. Hospitalized -> Deceased
+
+    These correspond to the dictionaries:
+
+    1. transition_rates.exposed_to_infected
+    2. transition_rates.infected_to_hospitalized
+    3. transition_rates.infected_to_resistant
+    4. transition_rates.hospitalized_to_resistant
+    5. transition_rates.infected_to_deceased
+    6. transition_rates.hospitalized_to_deceased
+    """
+    def __init__(self, latent_periods,
+                       community_infection_periods,
+                       hospital_infection_periods,
+                       hospitalization_fraction,
+                       community_mortality_fraction,
+                       hospital_mortality_fraction):
+
+        self.population = len(latent_periods.values)
+        self.nodes = nodes = range(self.population)
+
+        σ = 1 / latent_periods.values
+        γ = 1 / community_infection_periods.values
+        h = hospitalization_fraction.values
+        d = community_mortality_fraction.values
+
+        γ_prime = 1 / hospital_infection_periods.values
+        d_prime = hospital_mortality_fraction.values
+
+        self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
+        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
+        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
+        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
+
+        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
+        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
+
+
+
+
 
 def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):
     """
