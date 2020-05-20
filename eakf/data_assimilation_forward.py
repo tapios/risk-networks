@@ -5,29 +5,30 @@ from eakf_multiobs import EAKF
 #the update method applies Per Window.
 #it will find all data from window, put them in forwards chronological order, and filter them:
 #i.e DA on first point, update ensemble, run to 2nd point, DA on 2nd point, etc.
-class DAForwardModel:
+class ForwardAssimilator:
 
-    def __init__(self,parameters,states,Observations,data):
+    def __init__(self,parameters,states,Observations,Errors):
 
         if not isinstance(Observations,list):#if it's a scalar, not array
             Observations=[Observations]
-            
+
+        if not isinstance(Errors,list):#if it's a scalar, not array
+            Errors=[Errors]
+       
         #observation models(s)
-        self.omodel = Observations
-        
-        #The data model
-        self.data=data
+        self.omodel = Observations      
 
         #store the parameters
         self.params=parameters[np.newaxis]
         
         obs_states=[states[:,self.omodel[i].obs_states] for i in range(len(self.omodel))]
         #the data assimilation models (One for each observation model)
-        #self.damodel = [EAKF(obs_states[i]) for i in range(len(self.omodel))]
-        self.damodel = EAKF(obs_states[0])
+        self.damethod = EAKF(obs_states[0])
 
         self.data_pts_assimilated=0
-
+        #online evaluations of errors, one needs an observation class to check differences in data
+        self.online_emodel= Errors
+        
     def initialize_obs_in_window(self,DA_window):
 
         for i in np.arange(len(self.omodel)):
@@ -37,54 +38,53 @@ class DAForwardModel:
             
             
         #Order the models chronologically (Still assume just 1 point from each model atm)
-        #first zip models together, sort by obs_time, then 'transpose and unzip', then convert from resulting tuples to lists
-        #self.omodel,self.damodel = (list(t) for t in zip(*sorted(zip(self.omodel,self.damodel), key=lambda x: x[0].obs_time)))
         self.omodel =sorted(self.omodel, key=lambda x: x.obs_time)
 
         self.data_pts_assimilated=0
       
         print(len(self.omodel), 'data points to be assimilated in window', DA_window )
         for i in range(len(self.omodel)):
-            print('observation ', self.omodel[i].name ,'at time: ', self.omodel[i].obs_time)#,', i.e in window ', DA_window, ' time ', self.omodel[i].obs_time_in_window)
+            print('observation ', self.omodel[i].name ,'at time: ', self.omodel[i].obs_time)
 
             
-    def update(self,x):
-
-        #Call order_obs_times_states before this to obtain the observation times with the models, with self.omodel re-ordered chronologically in the window
+    def update(self,x,data):
 
         pt=self.data_pts_assimilated
         om=self.omodel[pt]
-        dam=self.damodel
+        dam=self.damethod
       
         #Restrict x to the the observation time
-        x=x[:,om.obs_time_in_window,:] #same time
-        #initialize the observation model at observation time (may depend on state)
-        
-        om.initialize_new_obs(x)
+        x=x[:,om.obs_time_in_window,:]
+          
+        om.make_new_obs(x) #Generate states to observe at observation time 
+      
         if (om.obs_states.size>0):
+
             print("partial states to be assimilated", om.obs_states.size)
 
-      
-            #naive attempt: assimilate one type of observation at a time
-            truth,cov=self.data.make_observation(om.obs_time , om.obs_states)
+            truth = data.make_observation(om.obs_time,om.obs_states)
+            cov = om.get_observational_cov(truth)
             
-            #observe ensemble states
-            xtmp=x[:,om.obs_states] #same place
-    
             #perform da model update with x,q and update parameters.
-            q,x[:,om.obs_states]=dam.update(xtmp,self.params[-1],truth,cov)
+            q,x[:,om.obs_states]=dam.update(x[:,om.obs_states],self.params[-1],truth,cov)
             np.append(self.params, [q], axis=0)
          
             #Force probabilities to sum to one    
             om.sum_to_one(x)
+            
+            print("EAKF error:", dam.error[-1])
         else:
             print("no assimilation required")
+
+        #Error to truth
+        self.error_to_truth_state(x,data)
 
         #iterate to next point
         self.data_pts_assimilated = pt+1
 
+        
         #return x at the observation time
-        return x
+        return self.params[-1],x,self.next_data_idx()
         
     #the next observation time if we have one, (it could be the same)
     #else if we have run out of points, give the end of window value
@@ -97,4 +97,24 @@ class DAForwardModel:
         else:
             return self.omodel[0].Tsize-1
         
- 
+    #defines a method to take a difference to the data state
+    def error_to_truth_state(self,state,data):
+        
+        em=self.online_emodel[self.data_pts_assimilated] #get corresponding error model
+        otime=self.omodel[self.data_pts_assimilated].obs_time
+        #Make sure you have a deterministic ERROR model - or it will not match truth
+        #without further seeding
+        em.make_new_obs(state)
+        predicted_infected = em.obs_states
+        truth=data.make_observation(otime,np.arange(em.status*em.N))
+        print(truth[predicted_infected])
+        em.make_new_obs(truth[np.newaxis,:])
+        
+        #take error
+        actual_infected= em.obs_states
+        print(truth[actual_infected])
+        different_states=np.zeros(em.status*em.N)
+        different_states[predicted_infected]=1.0
+        different_states[actual_infected] = different_states[actual_infected]-1.0
+        number_different=np.maximum(different_states,0.0)-np.minimum(different_states,0.0)
+        print(np.sum(number_different))

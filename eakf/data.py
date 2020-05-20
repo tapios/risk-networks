@@ -16,8 +16,8 @@ class HighSchoolData:
         self.data = data[initial_steps:,:]
         
     def make_observation(self,times,states):
+        #noise is now added by observation class. This just obtains the data
         truth=self.data[times,:]
         truth=truth[states]
-        cov=np.identity(truth.shape[0])* 0.01
-
-        return truth,cov
+      
+        return truth
