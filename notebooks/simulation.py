@@ -4026,6 +4026,7 @@ def Gillespie_simple_contagion(G, spontaneous_transition_graph,
 
     spontaneous_transitions = list(spontaneous_transition_graph.edges())
     induced_transitions = list(nbr_induced_transition_graph.edges())
+        
     potential_transitions = {}
     rate = {}# intrinsic rate of a transition
     #weight_sum = defaultdict(lambda: 0)

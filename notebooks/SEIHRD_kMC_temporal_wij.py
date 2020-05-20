@@ -54,7 +54,7 @@ dp = lambda a, beta = 4: np.random.beta(beta*fdp[a]/(1-fdp[a]), b = beta)
 
 # transmission
 
-beta0 = 1
+beta0 = 0.14
 
 alpha_hosp = 0.25
 
@@ -113,7 +113,7 @@ def temporalNetworkEpidemics(G, H, IC, return_statuses, deltat, T):
         print(times[-1]+i*deltat, states['S'][-1], states['E'][-1], states['I'][-1], states['H'][-1], states['R'][-1], states['D'][-1], states['S'][-1]+states['E'][-1]+states['I'][-1]+states['H'][-1]+states['R'][-1]+states['D'][-1])
         
         # contact reduction
-        if states['H'][-1]/len(G) >= 1 and quarantine_flag == 0:  
+        if states['H'][-1]/len(G) >= 0.003 and quarantine_flag == 0:  
             quarantine_flag = 1
             edge_dict = edgeRenewal(edge_list, lamb_min = 5/24, lamb_max = 0.2*22/24)
             beta_dict, betap_dict = betaAverage(G, edge_dict, deltat_kMC)
@@ -213,15 +213,17 @@ def spontaneousTransitions(G):
         
         # health care workers have a different age structure: age_classes_working
         if i >= int(np.ceil(len(G)*0.005)) and i < int(np.ceil(len(G)*0.05)):
-            h_arr.append(h(np.random.choice(np.arange(2)+1, p = age_classes_working)))
-            d_arr.append(h(np.random.choice(np.arange(2)+1, p = age_classes_working)))
-            dp_arr.append(h(np.random.choice(np.arange(2)+1, p = age_classes_working)))
+            age = np.random.choice(np.arange(2)+1
+            h_arr.append(h(age, p = age_classes_working)))
+            d_arr.append(h(age, p = age_classes_working)))
+            dp_arr.append(h(age, p = age_classes_working)))
          
         # for all other nodes, we use all age classes: age_classes
         else:
-            h_arr.append(h(np.random.choice(np.arange(5), p = age_classes)))
-            d_arr.append(d(np.random.choice(np.arange(5), p = age_classes)))
-            dp_arr.append(dp(np.random.choice(np.arange(5), p = age_classes)))
+            age = np.random.choice(np.arange(2)+1
+            h_arr.append(h(age, p = age_classes)))
+            d_arr.append(d(age, p = age_classes)))
+            dp_arr.append(dp(age, p = age_classes)))
     
     node_attribute_dict_E2I = {node: 1/l(node) for node in G.nodes()}
     node_attribute_dict_I2R = {node: (1-h_arr[node]-d_arr[node])*gamma_arr[node] for node in G.nodes()}
