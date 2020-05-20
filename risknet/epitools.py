@@ -5,6 +5,18 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
 
+def add_identity(axes, *line_args, **line_kwargs):
+	identity, = axes.plot([], [], *line_args, **line_kwargs)
+	def callback(axes):
+		low_x, high_x = axes.get_xlim()
+		low_y, high_y = axes.get_ylim()
+		low = max(low_x, low_y)
+		high = min(high_x, high_y)
+		identity.set_data([low, high], [low, high])
+	callback(axes)
+	axes.callbacks.connect('xlim_changed', callback)
+	axes.callbacks.connect('ylim_changed', callback)
+	return axes
 
 def plot_eon_simulations(sims, **kwargs):
 	fig, axes = plt.subplots(1, 2, figsize = (15, 4))
@@ -101,6 +113,8 @@ def plot_eon_ode(sims, ke_euler, t, xlims = (-.25, 40), reduced = True, leave = 
 
 	plt.tight_layout()
 
+	return axes
+
 def plot_node_probabilities(df, ke_euler, t, figsize = (12, 10), sharex = False, sharey = False):
 	state_keys   = ['S', 'I', 'H', 'R', 'D']
 	state_names  = ['Susceptible', 'Infected', 'Hospitalized','Resistant',  'Death']
@@ -111,7 +125,7 @@ def plot_node_probabilities(df, ke_euler, t, figsize = (12, 10), sharex = False,
 	fig, axes = plt.subplots(len(times_plot), len(state_keys), figsize = figsize, sharex = sharex, sharey = sharey)
 
 	for ax in axes.flatten():
-		ax.plot([0, 1], [0, 1], transform=ax.transAxes, linestyle = '--', color = 'black')
+		add_identity(ax, color='black', ls='--')
 
 	for jj, tn in tqdm(enumerate(times_plot), desc = 'Snapshot', total = len(times_plot)):
 		for kk, ax in enumerate(axes[jj]):
@@ -137,11 +151,11 @@ def plot_node_state(df, ke_euler, t, ax, tn = 10, state = 'S'):
 	state_names  = ['Susceptible', 'Infected', 'Hospitalized','Resistant',  'Death']
 	state_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
 
-	state_to_plot=np.arange(5)[np.array([key == state for key in state_keys])][0]
+	state_to_plot= np.arange(5)[np.array([key == state for key in state_keys])][0]
 	times_plot   = np.unique(df.time)
 	M            = ke_euler.shape[0]
 
-	ax.plot([0, 1], [0, 1], transform=ax.transAxes, linestyle = '--', color = 'black')
+	add_identity(ax, color='black', ls='--')
 
 	ax.scatter(
 		df[df.time == tn][state_keys[state_to_plot]],
