@@ -46,11 +46,11 @@ class TransitionRates:
 
     Args:
 
-    latent_period of infection (σ⁻¹)
+    latent_period of infection (1/σ)
 
-    community_infection_period over which infection persists in the 'community' (γ),
+    community_infection_period over which infection persists in the 'community' (1/γ),
 
-    hospital_infection_period over which infection persists in a hospital setting (γ′),
+    hospital_infection_period over which infection persists in a hospital setting (1/γ′),
 
     hospitalization_fraction, the fraction of infected that become hospitalized (h),
 
