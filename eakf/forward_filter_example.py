@@ -5,7 +5,7 @@ from models import MasterEqn
 import networkx as nx
 from data import HighSchoolData
 from observations import RandomStatusObservation, HighProbRandomStatusObservation
-from data_assimilation_forward import DAForwardModel
+from data_assimilation_forward import ForwardAssimilator
 import time
 import pickle
 from DA_forward_plot import plot_states
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     ### Set up DA ###
 
     # Number of EAKF steps
-    steps_DA = 25
+    steps_DA = 20
     # Ensemble size (required>=2)
     n_samples = 50
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     dt_fsolve =1.0
  
     # Parameters for each EAKF step
-    T = 4.0
+    T = 5.0
     dt = 1.0 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
@@ -136,18 +136,24 @@ if __name__ == "__main__":
     ### --- Step 0b --- ###
     #######################
     # Construct DA Models 
+
     # Data
     data=HighSchoolData(steps_T_init)
+
     #Observations (here random time, random node, observe onlyInfected[2] prob)
-    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,0.2,[2],0.25,'mean','All_Infected>=0.5')
-    #InfectiousObs = RandomStatusObservation(t_range,N,n_status,0.4,[2],'0.4_Infected') 
-    #HospitalizedObs =  RandomStatusObservation(t_range,N,n_status,0.2,[3],'0.2_Hospitalised')
-    #DeathObs = RandomStatusObservation(t_range,N,n_status,0.2,[5],'0.2_Deaths') 
+    SmartInfectiousObs = HighProbRandomStatusObservation(t_range,N,n_status,0.5,[2],0.4,0.6,'mean','0.25<=All_Infected<=0.75',0.01)
+    #InfectiousObs = RandomStatusObservation(t_range,N,n_status,0.5,[2],'0.4_Infected',0.01) 
+    #HospitalizedObs =  RandomStatusObservation(t_range,N,n_status,0.5,[3],'0.2_Hospitalised',0.01)
+    #DeathObs = RandomStatusObservation(t_range,N,n_status,0.5,[5],'0.2_Deaths',0.01) 
+
     #OModel =[InfectiousObs,HospitalizedObs,DeathObs]
     OModel=SmartInfectiousObs
-    #Build the DA
-    ekf=DAForwardModel(params,x_forward_init[:,-1,:],OModel,data)
 
+    #EModel - error model, one, for each observation mode to check effectiveness of our observations
+    EModel = HighProbRandomStatusObservation(t_range,N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
+    #Build the DA
+    ekf=ForwardAssimilator(params,x_forward_init[:,-1,:],OModel,EModel)
+    new_params=params[:]
     ### ***ENTER LOOP*** ###
     for iterN in range(steps_DA):
         print('DA step: ', iterN+1)
@@ -156,11 +162,22 @@ if __name__ == "__main__":
         ### --- STEP 1 --- ###
         ######################
         
-        ## Forward model evaluation of all ensemble members from the final time of the previous step.
+        #First get all observations from window and order them
+        ekf.initialize_obs_in_window(iterN)
+            
+        #next observation at time:   
+        pt=ekf.data_pts_assimilated
+        
+        data_idx=ekf.omodel[pt].obs_time_in_window
+        T_next=t_range[data_idx]
+        t_range_next=t_range[:data_idx+1]#(includes data_idx)
+                   
+        ## Forward model evaluation of all ensemble members from the beginning of window.
         start = time.time()
+        x_forward=np.zeros([n_samples,t_range.size,n_status*N])
         # A simple decayed noise term to add into paramters during EAKF
         params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples)        
-        x_forward = ensemble_forward_model(G, ekf.params[-1] + params_noises.reshape(n_samples,1), x_forward_all[:,steps_T_init+iterN*steps_T,:],T, dt_fsolve, t_range, parallel_flag = parflag)
+        x_forward[:,:data_idx+1,:] = ensemble_forward_model(G, new_params + params_noises.reshape(n_samples,1), x_forward_all[:,steps_T_init+iterN*steps_T,:],T_next, dt_fsolve, t_range_next, parallel_flag = parflag)
         end = time.time()
         print('Time elapsed for forward model prediction run: ', end - start)
 
@@ -168,12 +185,9 @@ if __name__ == "__main__":
         ### --- Step 2 --- ###
         ######################
         # We Assume there is an observation in the window
-        #First get all observations from window and order them
-        ekf.initialize_obs_in_window(iterN)
-
-        # Then: 
         # (While there are points to assimilate)
         while(ekf.data_pts_assimilated<len(ekf.omodel)):
+     
             # EAKF to update joint states
             start = time.time()
         
@@ -183,39 +197,39 @@ if __name__ == "__main__":
             data_idx=ekf.omodel[pt].obs_time_in_window
             
             #Assimilate the point
-            x_forward[:,data_idx,:]=ekf.update(x_forward)
+            new_params,x_forward[:,data_idx,:],next_data_idx=ekf.update(x_forward,data)
             
             #get next point
-            next_data_idx=ekf.next_data_idx()
             end = time.time()
             print('Assimilated', ekf.omodel[pt].name , ', at ', data_idx,', Time elapsed for EAKF: ', end - start)
-            print("Error: ", ekf.damodel.error[-1])
-       
+    
             ######################
             ### --- Step 3 --- ###
             ######################
         
-            #Forward propogate (if needed) the data adjusted trajectories (and model parameters) to the end of the time window from the data point
+            #Forward propagate (if needed) the data adjusted trajectories (and model parameters) to the end of the time window from the data point
         
-            T_prop=t_range[next_data_idx]-t_range[data_idx] #Time remaining in interval 'after' t_range[data_idx] (where DA performed)
-            if (T_prop>0):
-                t_range_prop=t_range[data_idx:next_data_idx]-t_range[data_idx]
+            T_next=t_range[next_data_idx]-t_range[data_idx] #Time remaining in interval 'after' t_range[data_idx] (where DA performed)
+            if (T_next>0):
+                t_range_next=t_range[data_idx+1:next_data_idx+1]-t_range[data_idx]#want to include next_data_idx
                 start = time.time()
                 params_noises = np.random.uniform(-2./np.sqrt(iterN+1), 2./np.sqrt(iterN+1), n_samples)
-                x_forward[:, data_idx:next_data_idx ,:] = ensemble_forward_model(G, ekf.params[-1] + params_noises.reshape(n_samples,1), x_forward[:,data_idx,:], T_prop , dt_fsolve, t_range_prop, parallel_flag = parflag)
+                x_forward[:, data_idx+1:next_data_idx+1 ,:] = ensemble_forward_model(G, new_params[-1] + params_noises.reshape(n_samples,1), x_forward[:,data_idx,:], T_next , dt_fsolve, t_range_next, parallel_flag = parflag)
                 end = time.time()
                 print('Time elapsed for forward model: ', end - start)
             else:
                 print('no propagation required')
-    
+
+
+                
         #store pre data trajectory
         x_forward_all[:,(1+steps_T_init)+iterN*steps_T:(1+steps_T_init)+(iterN+1)*steps_T,:] = x_forward
 
         ## Output files 
         ## Overwrite for each EAKF step to facilitate debugging
         pickle.dump(ekf.params, open("data/u.pkl", "wb"))
-        #pickle.dump(ekf.damodel.x, open("data/g.pkl", "wb"))#note only includes observed states
-        pickle.dump(ekf.damodel.error, open("data/error.pkl", "wb"))
+        #pickle.dump(ekf.damethod.x, open("data/g.pkl", "wb"))#note only includes observed states
+        pickle.dump(ekf.damethod.error, open("data/error.pkl", "wb"))
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 
