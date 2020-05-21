@@ -1,5 +1,14 @@
+import numpy as np
+
 def random_infection(population, infected=10):
-    pass
+    """
+    Returns an `np.array` corresponding to the epidemiological state of a population.
+
+    Each person can be in 1 of 6 states, so `state.shape = (6, population)`.
+    """
+    state = np.zeros((6, population))
+
+    return state
 
 def midnight_on_Tuesday(kinetic_model):
     pass
