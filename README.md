@@ -109,9 +109,9 @@ Clinical statistics are individual properties that determine
 their recovery rate and risk of becoming hospitalized or dying, for example.
 The six clinical statistics are
 
-1. `latent_period` of infection (`σ⁻¹`)
-2. `community_infection_period` over which infection persists in the 'community' (`γ`),
-3. `hospital_infection_period` over which infection persists in a hospital setting (`γ′`),
+1. `latent_period` of infection (`1/σ`)
+2. `community_infection_period` over which infection persists in the 'community' (`1/γ`),
+3. `hospital_infection_period` over which infection persists in a hospital setting (`1/γ′`),
 4. `hospitalization_fraction`, the fraction of infected that become hospitalized (`h`),
 5. `community_mortality_fraction`, the mortality rate in the community (`d`),
 6. `hospital_mortality_fraction`, the mortality rate in a hospital setting (`d′`).
@@ -150,9 +150,9 @@ epidemiological state,
 transition_rates = TransitionRates(latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,
-                                   fractional_hospitalization_rates,
-                                   community_mortality_rates,
-                                   hospital_mortality_rates)
+                                   hospitalization_fraction,
+                                   community_mortality_fraction,
+                                   hospital_mortality_fraction)
 ```
 
 The transition rates have units `1 / day`. There are six transition rates:
