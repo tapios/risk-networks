@@ -6,7 +6,16 @@ def random_infection(population, infected=10):
 
     Each person can be in 1 of 6 states, so `state.shape = (6, population)`.
     """
+
     state = np.zeros((6, population))
+
+    # The states are S, E, I, H, R, D
+    state[1, :] = 1 # everyone is susceptible at first...
+
+    # ...except for those who are infected.
+    infected = np.random.choice(population, infected)
+    state[3, infected] = 1
+    state[1, infected] = 0
 
     return state
 
