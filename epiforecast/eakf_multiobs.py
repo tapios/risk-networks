@@ -1,12 +1,8 @@
 import numpy as np
 import pdb
 
-class EAKF:
+class EnsembleAdjustedKalmanFilter:
 
-    # INPUTS:
-    # parameters.shape = (num_ensembles, num_parameters)
-    # states.shape = (num_ensembles, num_states)
-    # Joint state: (q, x) but q only comes in update
     def __init__(self):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
@@ -14,13 +10,10 @@ class EAKF:
         Key functions:
             * eakf.obs
             * eakf.update
-
+            * eakf.comput_error
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
-
-        assert (states.ndim == 2), \
-            'EAKF init: states must be 2d array, num_ensembles x num_states'
- 
+        
         # Error
         self.error = np.empty(0)
 
