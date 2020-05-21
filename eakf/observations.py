@@ -1,29 +1,18 @@
 
 #This File has 3 sections:
-# - Time observations  - what time(s) during DA window is a data collected
 # - State observations - which portion of the state is observed when observation is carried out
+# - Observation noise - what sort of noise distribution is there on the observation
 # - Combined observations - this just combines the two to form the observation type.
-#
-# E.g if i would like to observe Infectiousness for all nodes at the first time in the window
-#     I can create:
-#         - "RandomStatusStateObservation" + "RandomTimeObservation" types
-#     if i also want to observe 5% of complete states of nodes at the beginning of each window
-#     I can create:
-#         - "RandomStateObservation" (with obs_nodes=0.05*N input)+ "FixedTimeObservation" (with 0 input)
+
 # Can create multiple combined observation types and put them in a list to feed into the data assimilation model
+# # - Time observations  - what time(s) during DA window is a data collected
+
+
 
 import numpy as np
 
 ### FRAMES FOR OBSERVATIONS ###
-#Useless, but tells you how to build new ones: 
-class TimeObservation:
-    
-    def __init__(self):
-        pass
-
-    #updates the observation model if required (here nothing changes)            
-    def initialize_new_window(self,DAstep):    
-        pass
+# tells you how to build new ones: 
 
 class StateObservation:
 
@@ -31,91 +20,39 @@ class StateObservation:
         self.obs_states = np.array([])
         pass
 
-    #updates the observation model at new window            
-    def initialize_new_window(self,DAstep):    
-        pass
     
     #updates the observation model when taking observation
     def make_new_obs(self,x):
         pass
     
-    #enforces statuses sum to 1 if required 
-    def sum_to_one(self,x):
-        pass
-
 #type of noise added to observation
 class ObservationNoise:
 
     def __init__(self):
         pass
 
-    def get_observational_cov(self,x):
-        cov=np.zeros(x.shape[0])
+    def get_observational_cov(self,obs_states):
+        cov=np.zeros(obs_states.size)
         return cov
-    
-class Observation(TimeObservation,StateObservation,ObservationNoise):
+
+#combine them    
+class Observation(StateObservation,ObservationNoise):
     
     def __init__(self):
     
-        TimeObservation.__init__(self)
         StateObservation.__init__(self)
         ObservationNoise.__init__(self)
         self.name=obs_name
 
-    def initialize_new_window(self,DAstep):
-        TimeObservation.initialize_new_window(self,DAstep)
-        StateObservation.initialize_new_window(self,DAstep)
-
     def make_new_obs(self,x):
         StateObservation.make_new_obs(self,x)
 
-    def sum_to_one(self,x):
-        StateObservation.sum_to_one(self,DAstep)
-
-    def get_observational_cov(self,x):
-        cov=ObservationNoise.get_observational_cov(self,x)
+    def get_observational_cov(self):
+        cov=ObservationNoise.get_observational_cov(self,StateObservation.obs_states)
         return cov
 
-### --- Time Observations --- ###
-            
-#We observe at a fixed time in each DA window
-class FixedTimeObservation(TimeObservation):
 
-    def __init__(self,t_range,obs_idx):
-
-        #The timesteps of a DA window
-        self.t_range = t_range #[dt,2dt,....,T-dt,T]
-        self.Tsize = t_range.size 
-
-        #storage for time overall, and local time wrt window
-        #note the index corresponds to the index in t_range
-        self.obs_time_in_window=obs_idx
-        self.obs_time= self.obs_time_in_window
-        
-    def initialize_new_window(self,DAstep):
-        #time_in_window is fixed
-        self.obs_time = DAstep*self.Tsize  + self.obs_time_in_window
-
-### --- We observe at a random time in each DA window --- ###       
-class RandomTimeObservation(TimeObservation):
-
-    def __init__(self,t_range):
-
-        #The timesteps of a DA window
-        self.t_range = t_range #[dt,2dt,....,T-dt,T]
-        self.Tsize = t_range.size 
-        
-        #storage for time overall, and local time wrt window
-        self.obs_time_in_window=np.random.randint(self.Tsize)
-        self.obs_time=self.obs_time_in_window
-        
-    def initialize_new_window(self,DAstep):
-        #randomly generate new time
-        self.obs_time_in_window=np.random.randint(0,self.Tsize-1)
-        #as t_range does not include "0" we must +1 here
-        self.obs_time = DAstep*self.Tsize +self.obs_time_in_window+1
-
-        
+    
 ### Implemented State Observations ###
     
 #We observe the entire system during observation
@@ -144,8 +81,8 @@ class RandomStateObservation(StateObservation):
         #default init observation
         self.obs_states = np.arange(obs_nodes*status)
 
-    #updates observation model (here generates a random set of nodes)
-    def initialize_new_window(self,DAstep):
+    #updates the observation model when taking observation
+    def make_new_obs(self,x):
         #This if statement gives consistency of Random and Full State
         #otherwise the pseudorandom generator is used one extra time here
         if self.obs_nodes<self.N:
@@ -153,8 +90,7 @@ class RandomStateObservation(StateObservation):
             np.random.shuffle(onetoN)#(in-place shuffle)
             tmp=np.array(sorted(onetoN[:self.obs_nodes]))
             self.obs_states=np.hstack([np.arange(self.status)+i*self.status for i in tmp])
-            print(self.obs_states.shape)
-
+            
 #We observe a random subset of nodes at a particular status (S,E,I,H,R,D)
 class RandomStatusStateObservation(StateObservation):
     def __init__(self,N,status,obs_frac,obs_status_idx):
@@ -169,8 +105,8 @@ class RandomStatusStateObservation(StateObservation):
         #default init observation
         self.obs_states = np.arange(self.obs_nodes*obs_status_idx.size)
 
-    #updates observation model (here generates random set of nodes)
-    def initialize_new_window(self,DAstep):
+    #updates the observation model when taking observation
+    def make_new_obs(self,x):
         #This if statement gives consistency of Random and Full State
         #otherwise the pseudorandom generator is used one extra time here
         if self.obs_nodes<self.N:
@@ -182,21 +118,6 @@ class RandomStatusStateObservation(StateObservation):
             onetoN=np.arange(self.N)
             self.obs_states=np.hstack([self.obs_status_idx+i*self.status for i in onetoN])
         
-    #as we measure a subset of states, we may need to enforce other states to sum to one
-    def sum_to_one(self,x):
-
-        #First enforce probabilities == 1, by placing excess in susceptible and Exposed
-        #split based on their current proportionality.
-        #(Put all in S or E leads quickly to [0,1] bounding issues.
-        #CUMBERSOME... (10,6,N), sum over 2nd axis ignoring S
-        sumx=x.reshape(x.shape[0],self.status,self.N)
-        sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
-        x1mass=np.sum(x[:,  0:self.N],axis=1)#mass in S
-        x2mass=np.sum(x[:,  self.N:2*self.N],axis=1) #mass in E
-        fracS=x1mass/(x1mass+x2mass)#get the proportion of mass in frac1
-        fracE=1.0-fracS
-        x[:,0:self.N]=((1.0-sumx).T*fracS).T #mult rows by fracS
-        x[:,self.N:2*self.N]= ((1.0-sumx).T*(fracE)).T 
 
    
 #We observe a subset of nodes at a status, only if the state exceeds a given threshold value.
@@ -247,114 +168,181 @@ class HighProbStatusStateObservation(StateObservation):
         elif (self.obs_frac == 1.0):
             self.obs_states=candidate_states_ens
         else: #The value is too small
-            self.obs_states=np.array([])
+            self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
         
-    #as we measure a subset of states, we may need to enforce other states to sum to one
-    def sum_to_one(self,x):
+        
 
-        #First enforce probabilities == 1, by placing excess in susceptible and Exposed
-        #split based on their current proportionality.
-        #(Put all in S or E leads quickly to [0,1] bounding issues.
-        #CUMBERSOME... (10,6,N), sum over 2nd axis ignoring S
-        sumx=x.reshape(x.shape[0],self.status,self.N)
-        sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
-        x1mass=np.sum(x[:,  0:self.N],axis=1)#mass in S
-        x2mass=np.sum(x[:,  self.N:2*self.N],axis=1) #mass in E
-        fracS=x1mass/(x1mass+x2mass)#get the proportion of mass in frac1
-        fracE=1.0-fracS
-        x[:,0:self.N]=((1.0-sumx).T*fracS).T #mult rows by fracS
-        x[:,self.N:2*self.N]= ((1.0-sumx).T*(fracE)).T 
-
-
-### --- Observation Noise --- ###
+### Implemented Observation Noise ###
 
 #Independent Gaussian
 class IndependentGaussian(ObservationNoise):
 
     def __init__(self,variance):
         self.variance=variance
-         
-    def get_observational_cov(self,x):
-        cov=self.variance*np.eye(x.shape[0])
+
+    #returns a vector
+    def get_observational_cov(self,obs_states):
+        cov=self.variance*np.ones(obs_states.shape[0])
         return cov
 
         
-### --- Combined Observation --- ###
+### Implemented Combined Observations ###
 
 #Random Observation 
-class RandomObservation(RandomTimeObservation,RandomStateObservation,IndependentGaussian):
+class RandomObservation(RandomStateObservation,IndependentGaussian):
 
-    def __init__(self,t_range,N,status,obs_nodes,obs_name,noise_var):
+    def __init__(self,N,status,obs_nodes,obs_name,noise_var):
     
-        RandomTimeObservation.__init__(self,t_range)
         RandomStateObservation.__init__(self,N,status,obs_nodes)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
 
-    def initialize_new_window(self,DAstep):
-        RandomTimeObservation.initialize_new_window(self,DAstep)
-        RandomStateObservation.initialize_new_window(self,DAstep)
-
     def make_new_obs(self,x):
         RandomStateObservation.make_new_obs(self,x)
 
-    def get_observational_cov(self,x):
-        cov=IndependentGaussian.get_observational_cov(self,x)
+    def get_observational_cov(self):
+        cov=IndependentGaussian.get_observational_cov(self,RandomStateObservation.obs_states)
         return cov
     
 #Random Observation of a defined set of status's SEIHRD (by idx)
-class RandomStatusObservation(RandomTimeObservation,RandomStatusStateObservation,IndependentGaussian):
+class RandomStatusObservation(RandomStatusStateObservation,IndependentGaussian):
 
-    def __init__(self,t_range,N,status,obs_frac,obs_status_idx,obs_name,noise_var):
+    def __init__(self,N,status,obs_frac,obs_status_idx,obs_name,noise_var):
 
         if not isinstance(obs_status_idx,np.ndarray):#if it's a scalar, not array
             obs_status_idx=np.array(obs_status_idx)
             
-        RandomTimeObservation.__init__(self,t_range)
         RandomStatusStateObservation.__init__(self,N,status,obs_frac,obs_status_idx)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
-        
-    def initialize_new_window(self,DAstep):
-        RandomTimeObservation.initialize_new_window(self,DAstep)
-        RandomStatusStateObservation.initialize_new_window(self,DAstep)
 
     def make_new_obs(self,x):
         RandomStatusStateObservation.make_new_obs(self,x)
         
-    def sum_to_one(self,x):
-        RandomStatusStateObservation.sum_to_one(self,x)
-
-    def get_observational_cov(self,x):
-        cov=IndependentGaussian.get_observational_cov(self,x)
+    def get_observational_cov(self):
+        cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
 
 
-class HighProbRandomStatusObservation(RandomTimeObservation,HighProbStatusStateObservation,IndependentGaussian):
+class HighProbRandomStatusObservation(HighProbStatusStateObservation,IndependentGaussian):
 
-    def __init__(self,t_range,N,status,obs_frac,obs_status_idx,min_threshold,max_threshold,threshold_type,obs_name,noise_var):
-
+    def __init__(self,N,status,obs_frac,obs_status_idx,min_threshold,max_threshold,threshold_type,obs_name,noise_var):
         if not isinstance(obs_status_idx,np.ndarray):#if it's a scalar, not array
             obs_status_idx=np.array(obs_status_idx)
 
-        RandomTimeObservation.__init__(self,t_range)
         HighProbStatusStateObservation.__init__(self,N,status,obs_frac,obs_status_idx,min_threshold,max_threshold,threshold_type)
         IndependentGaussian.__init__(self,noise_var)
-       
         self.name=obs_name
         
-        
-    def initialize_new_window(self,DAstep):
-        RandomTimeObservation.initialize_new_window(self,DAstep)
-        HighProbStatusStateObservation.initialize_new_window(self,DAstep)
-
     def make_new_obs(self,x):
         HighProbStatusStateObservation.make_new_obs(self,x)
               
-    def sum_to_one(self,x):
-        HighProbStatusStateObservation.sum_to_one(self,x)
-
-    def get_observational_cov(self,x):
-        cov=IndependentGaussian.get_observational_cov(self,x)
+    def get_observational_cov(self):
+        cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
+
+    
+
+
+#Taking multiple different observations        
+# class MultiObservation:
+    
+#     def __init__(self,ObservationArray):
+
+#         if not isinstance(obs_status_idx,list):#if it's a scalar, not array
+#             [ObservationArray]
+       
+#         for i in np.arange(len(ObservationArray)):
+#             ObservationArray[i].__init__(self)
+
+#         self.obs_array=ObservationArray
+#         self.name=obs_name
+        
+        
+#     def make_new_obs(self,x):
+#         observation_states=np.empty(0)
+#         for i in np.arange(self.obs_array):
+#             self.obs_array.make_new_obs(self,x)
+#             observation_states=self.obs_array.obs_states
+        
+            
+#     def sum_to_one(self,x):
+#         Observation[0].sum_to_one(self)
+
+#     def get_observational_cov(self,x):
+#         cov=[ np.array(ObservationNoise[i].get_observational_cov(self,x)) for i in np.arange(ObservationArray.size)
+#         return cov
+    
+
+
+
+
+
+
+
+
+# class Observation(TimeObservation,StateObservation,ObservationNoise):
+    
+#     def __init__(self):
+    
+#         TimeObservation.__init__(self)
+#         StateObservation.__init__(self)
+#         ObservationNoise.__init__(self)
+#         self.name=obs_name
+
+#     def initialize_new_window(self,DAstep):
+#         TimeObservation.initialize_new_window(self,DAstep)
+#         StateObservation.initialize_new_window(self,DAstep)
+
+#     def make_new_obs(self,x):
+#         StateObservation.make_new_obs(self,x)
+
+#     def sum_to_one(self,x):
+#         StateObservation.sum_to_one(self,DAstep)
+
+#     def get_observational_cov(self,x):
+#         cov=ObservationNoise.get_observational_cov(self,x)
+#         return cov
+
+# ### --- Time Observations --- ###
+            
+# #We observe at a fixed time in each DA window
+# class FixedTimeObservation(TimeObservation):
+
+#     def __init__(self,t_range,obs_idx):
+
+#         #The timesteps of a DA window
+#         self.t_range = t_range #[dt,2dt,....,T-dt,T]
+#         self.Tsize = t_range.size 
+
+#         #storage for time overall, and local time wrt window
+#         #note the index corresponds to the index in t_range
+#         self.obs_time_in_window=obs_idx
+#         self.obs_time= self.obs_time_in_window
+        
+#     def initialize_new_window(self,DAstep):
+#         #time_in_window is fixed
+#         self.obs_time = DAstep*self.Tsize  + self.obs_time_in_window
+
+# ### --- We observe at a random time in each DA window --- ###       
+# class RandomTimeObservation(TimeObservation):
+
+#     def __init__(self,t_range):
+
+#         #The timesteps of a DA window
+#         self.t_range = t_range #[dt,2dt,....,T-dt,T]
+#         self.Tsize = t_range.size 
+        
+#         #storage for time overall, and local time wrt window
+#         self.obs_time_in_window=np.random.randint(self.Tsize)
+#         self.obs_time=self.obs_time_in_window
+        
+#     def initialize_new_window(self,DAstep):
+#         #randomly generate new time
+#         self.obs_time_in_window=np.random.randint(0,self.Tsize-1)
+#         #as t_range does not include "0" we must +1 here
+#         self.obs_time = DAstep*self.Tsize +self.obs_time_in_window+1
+
+        
+    
