@@ -246,7 +246,7 @@ class KineticModel:
         self.return_statuses,
         return_full_data = True,
         tmin = t,
-        tmax = dt
+        tmax = t+dt
     )
     return res
 
