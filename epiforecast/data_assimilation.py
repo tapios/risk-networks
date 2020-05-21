@@ -1,10 +1,10 @@
-import numpy as npE
-from eakf_multiobs import EnsembleAdjustedKalmanFilter
+import numpy as np
+from epiforecast.eakf_multiobs import EnsembleAdjustedKalmanFilter
 
 class DataAssimilator:
 
     def __init__(self,parameters,Observations,Errors):
-           """
+        """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
            
@@ -13,10 +13,10 @@ class DataAssimilator:
            
            parameters (np.array): An array of initial model parameters 
                                   #Do we want a distribution here
-
+        
            #Observations (list, or Observation): A list of Observations, or a single Observation.
                                                  Generates the indices and covariances of observations
-
+        
            #Errors (list, or Observation): A list of Observations, or a single Observation for the purpose
                                            of error checking. Error observations are used to compute online
                                            differences at the observed (according to Errors) between 
@@ -43,7 +43,7 @@ class DataAssimilator:
                                                                     global time. 
                                                                     #Current implementation sums the difference in number of predicted states
                                                                     #and actual states in an given interval e.g 0.5 <= I <= 1.0
-           """
+        """
 
 
         
@@ -103,8 +103,9 @@ class DataAssimilator:
         dam=self.damethod
       
         #Restrict x to the the observation time
-        x=x[:,local_time,:]
-          
+        #x=x[:,local_time,:]
+        x=x[:,:,local_time]
+        xold=x
         obs_states=self.make_new_observation(x) #Generate states to observe at observation time 
       
         if (obs_states.size>0):
@@ -121,7 +122,7 @@ class DataAssimilator:
             self.params=np.append(self.params, [q], axis=0)
 
             #Force probabilities to sum to one
-            #self.sum_to_one(x)
+            self.sum_to_one(x)
             
             print("EAKF error:", dam.error[-1])
         else:
@@ -157,17 +158,23 @@ class DataAssimilator:
 
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
-    def sum_to_one(self,x):
+    
+    def sum_to_one(self,x,xprev):
         N=self.omodel[0].N
         status=self.omodel[0].status
-        #First enforce probabilities == 1, by placing excess in susceptible and Exposed
-        #split based on their current proportionality.
-        #(Put all in S or E leads quickly to [0,1] bounding issues.
-        sumx=x.reshape(x.shape[0],status,N)
-        sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
-        x1mass=np.sum(x[:,0:N],axis=1)#mass in S
-        x2mass=np.sum(x[:,N:2*N],axis=1) #mass in E
-        fracS=x1mass/(x1mass+x2mass)#get the proportion of mass in frac1
-        fracE=1.0-fracS
-        x[:,0:N]=((1.0-sumx).T*fracS).T #mult rows by fracS
-        x[:,N:2*N]= ((1.0-sumx).T*(fracE)).T 
+        if status == 6:
+            #First enforce probabilities == 1, by placing excess in susceptible and Exposed
+            #split based on their current proportionality.
+            #(Put all in S or E leads quickly to [0,1] bounding issues.
+            sumx=x.reshape(x.shape[0],status,N)
+            sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
+            x1mass=np.sum(x[:,0:N],axis=1)#mass in S
+            x2mass=np.sum(x[:,N:2*N],axis=1) #mass in E
+            fracS=x1mass/(x1mass+x2mass)#get the proportion of mass in frac1
+            fracE=1.0-fracS
+            x[:,0:N]=((1.0-sumx).T*fracS).T #mult rows by fracS
+            x[:,N:2*N]= ((1.0-sumx).T*(fracE)).T 
+        elif status==5:
+            #All mass automatically lumped into empty field: E
+            #If this requires smoothing - input here
+            pass
