@@ -3,10 +3,10 @@ import numpy as np
 import networkx as nx
 from collections import defaultdict
 from TemporalAdjacency import TemporalAdjacency
-from kMC_helper import *
+from KM_helper import *
 from EoN import Gillespie_simple_contagion
 
-class kMC:
+class KineticModel:
   # these are just for reference; not actually used in code
   indep_weight_labels = [
       'E->I', # Latent period
@@ -161,9 +161,9 @@ class kMC:
     N = self.static_graph.number_of_nodes()
 
     # sigma, gamma, gamma^prime don't depend on age; sample away
-    self.sigma  = 1 / kMC_sigma(N)
-    self.gamma  = 1 / kMC_gamma(N)
-    self.gammap = 1 / kMC_gamma_prime(N)
+    self.sigma  = 1 / KM_sigma(N)
+    self.gamma  = 1 / KM_gamma(N)
+    self.gammap = 1 / KM_gamma_prime(N)
 
     # prepare arrays
     self.h  = np.zeros(N)
@@ -180,16 +180,16 @@ class kMC:
     rest_classes = np.random.choice(self.ages.size, p=self.ages, size=rest_size)
 
     # age-dependent rates
-    HCW_h  = kMC_h (HCW_classes)
-    HCW_d  = kMC_d (HCW_classes)
-    HCW_dp = kMC_dp(HCW_classes)
+    HCW_h  = KM_h (HCW_classes)
+    HCW_d  = KM_d (HCW_classes)
+    HCW_dp = KM_dp(HCW_classes)
 
-    rest_h  = kMC_h (rest_classes)
-    rest_d  = kMC_d (rest_classes)
-    rest_dp = kMC_dp(rest_classes)
+    rest_h  = KM_h (rest_classes)
+    rest_d  = KM_d (rest_classes)
+    rest_dp = KM_dp(rest_classes)
 
     # combine HCW + rest into self arrays
-    not_HCW = kMC_complement_indices(N, self.__HCW) # complement of __HCW
+    not_HCW = KM_complement_indices(N, self.__HCW) # complement of __HCW
 
     self.h [self.__HCW] = HCW_h
     self.d [self.__HCW] = HCW_d
@@ -251,6 +251,6 @@ class kMC:
     return res
 
 
-# end of class kMC
+# end of class KineticModel
 
 

@@ -1,5 +1,5 @@
 import numpy as np
-from kMC_helper import *
+from KM_helper import *
 
 class TemporalAdjacency:
   '''
@@ -73,7 +73,7 @@ class TemporalAdjacency:
         size=M,
         p=[1 - self.initial_active, self.initial_active]
     )
-    #inactive = kMC_complement_indices(M, active)
+    #inactive = KM_complement_indices(M, active)
 
     #active_edges = self.edge_list[active]
     #inactive_edges = self.edge_list[inactive]
@@ -151,12 +151,12 @@ class TemporalAdjacency:
     #average_dt = np.mean(self.times[1:] - self.times[:-1])
 
     self.dt_averaging = dt_averaging
-    kMC_timespan = np.arange(self.t0, self.t1, step=dt_averaging)
-    if kMC_timespan[-1] < self.t1:
-      kMC_timespan = np.append(kMC_timespan, self.t1)
+    KM_timespan = np.arange(self.t0, self.t1, step=dt_averaging)
+    if KM_timespan[-1] < self.t1:
+      KM_timespan = np.append(KM_timespan, self.t1)
 
     # using dt_averaging as a timestep, determine averaging intervals
-    jump_indices = np.searchsorted(self.times, kMC_timespan)
+    jump_indices = np.searchsorted(self.times, KM_timespan)
     jump_indices[-1] += 1 # make sure the last column is included
 
     self.beta  = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )

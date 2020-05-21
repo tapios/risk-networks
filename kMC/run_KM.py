@@ -4,8 +4,8 @@ import sys
 import getopt
 import configparser
 
-from kMC import kMC
-from kMC_helper import kMC_print_states
+from KM import KM
+from KM_helper import KM_print_states
 
 
 ################################################################################
@@ -42,7 +42,7 @@ try:
   # simulation
   T0 = config.getfloat('SIMULATION', 'T0', fallback=0.0)  # start time
   T1 = config.getfloat('SIMULATION', 'T1', fallback=50.0) # end time
-  dt_kMC = config.getfloat('SIMULATION', 'dt_kMC', fallback=0.125) # time step
+  dt_KM = config.getfloat('SIMULATION', 'dt_KM', fallback=0.125) # time step
 
   # output
   output_dt = config.getfloat('OUTPUT', 'output_dt', fallback=1.0) # how often to do outputs
@@ -55,34 +55,34 @@ output_t = T0 # current output time
 ################################################################################
 # main section #################################################################
 ################################################################################
-kmc = kMC()
-kmc.load_edge_list()
-kmc.set_IC(
-    I0 = range(len(kmc.static_graph) // 2, len(kmc.static_graph) // 2 + 10)
+km = KM()
+km.load_edge_list()
+km.set_IC(
+    I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
 )
-kmc.set_ages()
-kmc.set_independent_rates()
-kmc.set_statuses('all') # can be 'SIR' or 'HRD' etc.
+km.set_ages()
+km.set_independent_rates()
+km.set_statuses('all') # can be 'SIR' or 'HRD' etc.
 
 # this is a dubious point... muc used to be 6 but in units [1/h]
 # we have now switched to days throughout the code everywhere, so should it be
 # muc = 144 instead? with 144 you get waaaay fewer contacts
-kmc.generate_temporal_adjacency(muc=6)
+km.generate_temporal_adjacency(muc=6)
 
-kmc.average_betas(dt_averaging=dt_kMC)
+km.average_betas(dt_averaging=dt_KM)
 
 while t < T1:
-  kmc.update_beta_rates(t)
-  res = kmc.do_Gillespie_step(t=t, dt=dt_kMC)
+  km.update_beta_rates(t)
+  res = km.do_Gillespie_step(t=t, dt=dt_KM)
 
   times, states = res.summary()
   node_status = res.get_statuses(time=times[-1])
-  kMC_print_states(t, times, states, 'SEIRHD')
+  KM_print_states(t, times, states, 'SEIRHD')
 
   if t >= output_t:
     print('t = {:>7.2f}'.format(t))
     output_t += output_dt
 
-  t += dt_kMC
+  t += dt_KM
 
 
