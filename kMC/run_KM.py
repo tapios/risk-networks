@@ -4,7 +4,7 @@ import sys
 import getopt
 import configparser
 
-from KM import KM
+from KineticModel import KineticModel
 from KM_helper import KM_print_states
 
 
@@ -55,7 +55,7 @@ output_t = T0 # current output time
 ################################################################################
 # main section #################################################################
 ################################################################################
-km = KM()
+km = KineticModel()
 km.load_edge_list()
 km.set_IC(
     I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
