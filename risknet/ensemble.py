@@ -179,10 +179,10 @@ class epiens(object):
 
 	def eval_closure(self, y, **kwargs):
 		if self.ix_reduced:
-			iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
+			iS, iI, iH     = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
 		else:
 			iS, iE, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(4)]
-
+			
 		self.L = self.ensemble[0].L
 
 		if kwargs.get('closure', 'individual') == 'covariance':
@@ -196,31 +196,31 @@ class epiens(object):
 
 		elif kwargs.get('closure', 'individual') == 'correlation':
 			# Might not be optimal, but at least the equations are readable
-			self.covSI = y[:,iS].T.dot(self.PM).dot(y[:,iI].T.dot(self.PM).T)/(self.M-1)
-			self.varS = np.sqrt((y[:,iS].T.dot(self.PM) * y[:,iS].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
-			self.varI = np.sqrt((y[:,iI].T.dot(self.PM) * y[:,iI].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
-			self.denSI = self.varS.reshape(-1,1).dot(self.varI.reshape(1,-1)) + 1e-8
+			self.covSI  = y[:,iS].T.dot(self.PM).dot(y[:,iI].T.dot(self.PM).T)/(self.M-1)
+			self.stdS   = np.sqrt((y[:,iS].T.dot(self.PM) * y[:,iS].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.stdI   = np.sqrt((y[:,iI].T.dot(self.PM) * y[:,iI].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.denSI  = self.stdS.reshape(-1,1).dot(self.stdI.reshape(1,-1)) + (1e-2/self.M)
 			self.LcorSI = self.L.multiply(self.covSI/self.denSI)
 			self.LcorSI.data[np.isnan(self.LcorSI.data)] = 0.
 
-			self.covSH = y[:,iS].T.dot(self.PM).dot(y[:,iH].T.dot(self.PM).T)/(self.M-1)
-			self.varH = np.sqrt((y[:,iH].T.dot(self.PM) * y[:,iH].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
-			self.denSH = self.varS.reshape(-1,1).dot(self.varH.reshape(1,-1)) + 1e-8
+			self.covSH  = y[:,iS].T.dot(self.PM).dot(y[:,iH].T.dot(self.PM).T)/(self.M-1)
+			self.stdH   = np.sqrt((y[:,iH].T.dot(self.PM) * y[:,iH].T.dot(self.PM)).sum(axis = 1)/(self.M-1))
+			self.denSH  = self.stdS.reshape(-1,1).dot(self.stdH.reshape(1,-1)) + (1e-2/self.M)
 			self.LcorSH = self.L.multiply(self.covSH/self.denSH)
 			self.LcorSH.data[np.isnan(self.LcorSH.data)] = 0.
 
-			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,iI] * (1-y[:,iI])).T) + \
+			self.beta_closure_cor = ((self.beta * self.LcorSI.dot(np.sqrt(y[:,iI] * (1-y[:,iI])).T)  + \
 									 self.betap * self.LcorSH.dot(np.sqrt(y[:,iH] * (1-y[:,iH])).T)) * \
 										   np.sqrt(y[:,iS] * (1-y[:,iS])).T)
 
 		elif kwargs.get('closure', 'individual') == 'independent':
-			jSI = y[:,iS].T.dot(y[:,iI])/(self.M)
-			iSI = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iI].mean(axis = 0).reshape(1,-1))
+			self.numSI = y[:,iS].T.dot(y[:,iI])/(self.M)
+			self.denSI = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iI].mean(axis = 0).reshape(1,-1))
 
-			jSH = y[:,iS].T.dot(y[:,iH])/(self.M)
-			iSH = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iH].mean(axis = 0).reshape(1,-1))
-			self.beta_closure_indp = self.beta * self.L.multiply((jSI/(iSI+1e-8))).dot(y[:,iI].T) + \
-									 self.betap * self.L.multiply((jSH/(iSH+1e-8))).dot(y[:,iH].T)
+			self.numSH = y[:,iS].T.dot(y[:,iH])/(self.M)
+			self.denSH = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iH].mean(axis = 0).reshape(1,-1))
+			self.beta_closure_indp = self.beta  * self.L.multiply((self.numSI/(self.denSI+1e-8))).dot(y[:,iI].T) + \
+									 self.betap * self.L.multiply((self.numSH/(self.denSH+1e-8))).dot(y[:,iH].T)
 
 	def set_solver(self, method = 'RK45', T = 200, dt = 0.1, reduced = False):
 

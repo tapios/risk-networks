@@ -12,12 +12,12 @@ class HighSchoolData:
         data = pickle.load(open(fin, 'rb'))
         data = data.T
         #we ignore the data over the initialization stage
-        #NB you need dt=1.0 to do this!!
+        #NB you need dt=1.0 to do this with this data set!!
         self.data = data[initial_steps:,:]
         
-    def make_observation(self,times,states):
-        truth=self.data[times,:]
+    def make_observation(self,time,states):
+        #noise is now added by observation class. This just obtains the data
+        truth=self.data[time,:]
         truth=truth[states]
-        cov=np.identity(truth.shape[0])* 0.01
-
-        return truth,cov
+      
+        return truth

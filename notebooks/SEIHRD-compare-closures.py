@@ -244,6 +244,7 @@ if __name__ == "__main__":
 
 	M_settings = [1000]
 	I_settings = [0.01, 0.05, 0.10, 0.20]
+	I_settings = [0.05, 0.10, 0.20]
 
 	T = 40.
 	t = np.linspace(0,T,201)
