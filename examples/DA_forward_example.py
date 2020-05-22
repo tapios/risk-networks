@@ -29,9 +29,9 @@ if __name__ == "__main__":
 
     # Number of steps for the data assimilation algorithm.
     # This data assimilation algorithm is called the Ensemble Adjusted Kalman Filter (EAKF).
-    steps_DA = 1
+    steps_DA = 50
     # Ensemble size (required>=2)
-    n_samples = 20 # 100
+    n_samples = 100 # 100
     # Number of status for each node
     # Statuses: S, I, H, R, D
     n_status = 5
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     dt = 0.25 #1/4 day update with data
     steps_T = int(T/dt)
     t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =0.25
+    dt_fsolve =0.25/4.0
    
     # Container for forward model evaluations
     x_forward_all = np.empty([n_samples, n_status*N, steps_T*steps_DA])
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     good_obs_var=1e-2
 
     
-    SmartInfectiousObs = HighProbRandomStatusObservation(N,n_status,0.1,[1],0.25,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
+    SmartInfectiousObs = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.1,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
     #DumbInfectiousObs = HighProbRandomStatusObservation(N,n_status,0.5,[1],0.25,0.75,'mean','0.25<=0.5_DumbInfected<=0.75',0.1)
     #SmartDeceasedObs= HighProbRandomStatusObservation(N,n_status,0.5,[1],0.5,0.75,'mean','0.5<=0.5_SmartDecesed<=0.75',0.01)
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     for DAstep in range(steps_DA):
         print('DA step: ', DAstep+1)
 
-        x_forward=np.zeros([n_samples,t_range.size,n_status*N])
+        x_forward=np.zeros([n_samples,n_status*N,t_range.size])
 
         #For each static contact interval:
         for idx_local,tt in enumerate(t_range):
@@ -130,11 +130,13 @@ if __name__ == "__main__":
 
             ## Forward model evaluation of all ensemble members
             start = time.time()
-            if idx_local==0:
-                x_forward[:,:,idx_local] = master_eqn_model.ens_solve_euler(states_IC, np.array(dt))
+            if idx_local==0: 
+                xftmp = master_eqn_model.ens_solve_euler(states_IC, [dt])
+                x_forward[:,:,idx_local] = xftmp[:,:,0]#as atm master_eqn can't deal with single "dt" input
             else:
-                x_forward[:,:,idx_local] = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], np.array(dt))
-
+                xftmp = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], [dt])
+                x_forward[:,:,idx_local] = xftmp[:,:,0]
+                
             end = time.time()
             print('Time elapsed for forward model: ', end - start)
     
@@ -142,17 +144,17 @@ if __name__ == "__main__":
             start = time.time()
             
             new_params,x_forward[:,:,idx_local]=ekf.update(x_forward,idx_local,data_mean,idx_global)
-
+            end = time.time()
+            print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)
+        
             #update master equation model parameters
             master_eqn_model.update_parameters(new_params)
             #this next line is overwritten at master_eqn_model runtime
             master_eqn_model.set_solver(T = T, dt = np.diff(t_range).min(), reduced = True)
             
-        x_forward_all[:,:,DAstep*steps_T:(DAstep+1)*steps_T] = x_forward[:,:,:-1]
-        end = time.time()
-        print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)
+        x_forward_all[:,:,DAstep*steps_T:(DAstep+1)*steps_T] = x_forward
         states_IC = x_forward[:,:,-1]
-        print("Error: ", ekf.damethod.error[-1])
+        #print("Error: ", ekf.damethod.error[-1])
 
         ## Output files 
         ## Overwrite for each EAKF step to facilitate debugging
@@ -162,19 +164,3 @@ if __name__ == "__main__":
         pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 
-
-##From the readme:
-# for i in range(intervals_per_window):
-#     # Set the contact network for the ensemble of master equation models
-
-#     # Run the master model ensemble forward for six hours
-#     master_model.simulate(static_contacts_interval)  
-
-#     new_transition_rates, new_transmission_rates, new_ensemble = assimilator.update(network_generator.get_contact_networks()
-#                                                                                     master_model.ensemble,        
-#                                                                                     synthetic_data)
-
-#     # Update the master model ensemble and parameters
-#     master_model.set_ensemble(new_ensemble)
-#     master_model.set_transition_rates(new_transition_rates)
-#     master_model.set_transmission_rates(new_transmission_rates)

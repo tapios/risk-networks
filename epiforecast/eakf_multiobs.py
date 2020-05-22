@@ -71,13 +71,13 @@ class EnsembleAdjustedKalmanFilter:
         x = np.log(np.maximum(xin, 1e-9) / np.maximum(1.0 - xin, 1e-9))
 
         # Stacked parameters and states 
-        
         zp = np.hstack([q, x])
+
         x_t = x_t
         cov = cov
         
         # Ensemble size
-        J = x[1].size
+        J = x.shape[0]
         
         # Sizes of q and x
         qs = q[0].size

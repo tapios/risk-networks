@@ -3,7 +3,7 @@ from epiforecast.eakf_multiobs import EnsembleAdjustedKalmanFilter
 
 class DataAssimilator:
 
-    def __init__(self,parameters,Observations,Errors):
+    def __init__(self,parameters,observations,error):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
@@ -12,16 +12,16 @@ class DataAssimilator:
            ----
            
            parameters (np.array): An array of initial model parameters 
-                                  #Do we want a distribution here
+                                  #Do we want to store these in here?
         
-           #Observations (list, or Observation): A list of Observations, or a single Observation.
+           #observations (list, or Observation): A list of Observations, or a single Observation.
                                                  Generates the indices and covariances of observations
         
-           #Errors (list, or Observation): A list of Observations, or a single Observation for the purpose
-                                           of error checking. Error observations are used to compute online
-                                           differences at the observed (according to Errors) between 
-                                           Kinetic and Master Equation models
-                                           #TODO currently one is requried
+           #errors (Observation): Observation for the purpose of error checking. Error 
+                                  observations are used to compute online differences at 
+                                  the observed (according to Errors) between Kinetic and 
+                                  Master Equation models
+                                  #TODO currently one is requried
            
            Methods
            -------
@@ -47,14 +47,11 @@ class DataAssimilator:
 
 
         
-        if not isinstance(Observations,list):#if it's a scalar, not array
-            Observations=[Observations]
-
-        if not isinstance(Errors,list):#if it's a scalar, not array
-            Errors=[Errors]
+        if not isinstance(observations,list):#if it's a scalar, not array
+            observations=[observations]
        
         #observation models(s)
-        self.omodel = Observations      
+        self.omodel = observations      
         
         #store the parameters
         self.params=parameters[np.newaxis]
@@ -63,7 +60,7 @@ class DataAssimilator:
         self.damethod = EnsembleAdjustedKalmanFilter()
 
         #online evaluations of errors, one needs an observation class to check differences in data
-        self.online_emodel= Errors
+        self.online_emodel= error
 
 
     def make_new_observation(self,x):
@@ -111,9 +108,10 @@ class DataAssimilator:
         if (obs_states.size>0):
 
             print("partial states to be assimilated", obs_states.size)
-
             #get the truth indices, for the observation(s)
-            truth = data.make_observation(global_time,obs_states)
+            #truth = data.make_observation(global_time,obs_states)
+            truth=data[global_time,obs_states]
+
             #get the covariances for the observation(s), with the minimum returned if two overlap
             cov = self.get_observation_cov()
             
@@ -136,14 +134,15 @@ class DataAssimilator:
         
     #defines a method to take a difference to the data state
     def error_to_truth_state(self,state,local_time,data,global_time):
-
-        pt=0
-        em=self.online_emodel[pt] #get corresponding error model
+        
+        em=self.online_emodel #get corresponding error model
         #Make sure you have a deterministic ERROR model - or it will not match truth
         #without further seeding
         em.make_new_obs(state)
         predicted_infected = em.obs_states
-        truth=data.make_observation(global_time,np.arange(em.status*em.N))
+        #truth=data.make_observation(global_time,np.arange(em.status*em.N))
+        truth=data[global_time,np.arange(em.status*em.N)]
+
         #print(truth[predicted_infected])
         em.make_new_obs(truth[np.newaxis,:])
         
@@ -159,7 +158,7 @@ class DataAssimilator:
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
     
-    def sum_to_one(self,x,xprev):
+    def sum_to_one(self,x):
         N=self.omodel[0].N
         status=self.omodel[0].status
         if status == 6:
