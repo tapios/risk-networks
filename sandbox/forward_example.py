@@ -6,6 +6,7 @@ from collections import defaultdict
 import random
 
 import matplotlib.pyplot as plt
+import matplotlib
 import scipy.sparse as sps
 import seaborn as sns
 
@@ -45,7 +46,7 @@ Gs = model_settings(model_n_samples, G)
 sigma_ensemble = np.zeros((model_n_samples,N))
 iterN = 0
 for G in Gs:
-    sigma_ensemble[iterN,:] = np.array(list(nx.get_node_attributes(Gs[0], 'sigma').values()))
+    sigma_ensemble[iterN,:] = np.array(list(nx.get_node_attributes(Gs[iterN], 'sigma').values()))
     iterN = iterN + 1
 pickle.dump(sigma_ensemble, open("sigma_ens.pkl", "wb"))
 
@@ -63,6 +64,8 @@ pickle.dump(ke_euler, open("states_truth_citynet.pkl", "wb"))
 elapsed_time = time.time() - start_time
 print("Elapsed time for solving ODEs: ", elapsed_time)
 
-epitools.plot_eon_ode([], ke_euler, t, alpha = .2)
+matplotlib.rcParams.update({'font.size':15})
+epitools.plot_ode(ke_euler, t, alpha = .2)
+plt.tight_layout()
 plt.savefig('ensemble_truth.png')
 plt.show()

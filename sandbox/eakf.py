@@ -1,5 +1,5 @@
 import numpy as np
-import pdb
+import scipy as sp
 
 class EAKF:
 
@@ -107,74 +107,46 @@ class EAKF:
         qs = q[0].size
         xs = x[0].size
         
-        # means and covariances
-        q_bar = np.zeros(qs)
-        x_bar = np.zeros(xs)
-        c_qq = np.zeros((qs, qs))
-        c_qx = np.zeros((qs, xs))
-        c_xx = np.zeros((xs, xs))
-        
-        # Loop through ensemble to start computing means and covariances
-        # (all the summations only)
-        for j in range(J):
-            
-            q_hat = q[j]
-            x_hat = x[j]
-            
-            # Means
-            q_bar += q_hat
-            x_bar += x_hat
-            
-            # Covariance matrices
-            c_qq += np.tensordot(q_hat, q_hat, axes=0)
-            c_qx += np.tensordot(q_hat, x_hat, axes=0)
-            c_xx += np.tensordot(x_hat, x_hat, axes=0)
-            
-        # Finalize means and covariances
-        # (divide by J, subtract of means from covariance sum terms)
-        q_bar = q_bar / J
-        x_bar = x_bar / J
-        c_qq  = c_qq  / J - np.tensordot(q_bar, q_bar, axes=0)
-        c_qx  = c_qx  / J - np.tensordot(q_bar, x_bar, axes=0)
-        c_xx  = c_xx  / J - np.tensordot(x_bar, x_bar, axes=0)
+        zp_bar = np.mean(zp, 0)
+        Sigma = np.cov(zp.T)
 
         # Add noises to the diagonal of sample covariance 
         # Current implementation involves a small constant 
-        # (1e-6 for original space, 1e-2 for logistic transformed space).
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
-        # c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-6 
-        c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-2 
+        Sigma = Sigma + np.identity(qs+xs) * 1e-3
 
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
-        Sigma  = np.vstack([np.hstack([c_qq, c_qx]), np.hstack([c_qx.T, c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
         Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
-        F, Dp_vec, _ = np.linalg.svd(Sigma)
+        F, Dp_vec, _ = sp.linalg.svd(Sigma)
         Dp = np.diag(Dp_vec)
         G = np.diag(np.sqrt(Dp_vec))
-        U, D_vec, _ = np.linalg.svd(np.linalg.multi_dot([G.T, F.T, H.T, self.cov_inv, H, F, G]))
+        G_inv = np.diag(1./np.sqrt(Dp_vec))
+        U, D_vec, _ = sp.linalg.svd(np.linalg.multi_dot([G.T, F.T, H.T, self.cov_inv, H, F, G]))
         B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0)) 
-        A = np.linalg.multi_dot([np.linalg.inv(F.T), \
+        A = np.linalg.multi_dot([F, \
                                  G.T, \
-                                 np.linalg.inv(U.T), \
+                                 U, \
                                  B.T, \
-                                 np.linalg.inv(G.T), \
+                                 G_inv, \
                                  F.T])
         Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
         
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])
         # x_t = x_t + noise
-        zp_bar = np.hstack([q_bar, x_bar])
-        zu_bar = np.matmul(Sigma_u, \
-                           (np.dot(np.linalg.inv(Sigma), zp_bar) + np.dot(np.matmul(H.T, self.cov_inv), x_t)))
+        zu_bar = np.dot(Sigma_u, \
+                           (np.dot(np.linalg.inv(Sigma), zp_bar) + np.dot(np.dot(H.T, self.cov_inv), x_t)))
     
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
 
         # Store updated parameters and states
         x_logit = np.dot(zu, H.T)
+
+        # Avoid overflow for exp
+        x_logit = np.minimum(x_logit, 1e2)
 
         # replace unchanged states
         x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)

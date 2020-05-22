@@ -5,6 +5,7 @@ from multiprocessing import get_context
 from models import MasterEqn 
 import networkx as nx
 #from eakf import EAKF
+#from eakf_profiler import EAKF
 from eakf_svd_truncated import EAKF
 import time
 import pickle
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     states_IC[:, :] = get_IC(model, model_n_samples, N)
 
     # Set time informations inside an EAKF step
-    T = 4.0
+    T = 1.0
     dt = 0.25 #timestep for OUTPUT not solver
     steps_T = int(T/dt)
     #OD: Are you sure you want to exclude T here? .
@@ -75,7 +76,7 @@ if __name__ == "__main__":
 
         ## Get observations for EAKF
         x_obs = data_mean[(iterN+1)*int(T/dt),:]
-        #x_cov = np.identity(x_obs.shape[0]) * 0.01 
+        #x_cov = np.identity(x_obs.shape[0]) * 1e-2 
         x_cov = np.diag(np.maximum((0.01*x_obs)**2, 1e-3))
         #x_cov = np.diag(np.maximum((0.1*x_obs)**2, 1e-2))
         #x_cov = np.diag(data_cov[(iterN+1)*int(T/dt),:])
@@ -92,8 +93,8 @@ if __name__ == "__main__":
         #                                   parallel_flag = True)
 
         ## Currently params are not updated by EAKF (just for code verification). 
-        #model.update_parameters(ekf.q[iterN])
-        model.update_parameters(params)
+        model.update_parameters(ekf.q[iterN])
+        #model.update_parameters(params)
 
         model.set_solver(T = T, dt = np.diff(t_range).min(), reduced = True)
         x_forward = model.ens_solve_euler(states_IC, t_range)

@@ -1,7 +1,6 @@
 import numpy as np
 import scipy as sp
 from sklearn.decomposition import TruncatedSVD
-import pdb
 
 class EAKF:
 
@@ -109,52 +108,14 @@ class EAKF:
         qs = q[0].size
         xs = x[0].size
         
-        # means and covariances
-        q_bar = np.zeros(qs)
-        x_bar = np.zeros(xs)
-        c_qq = np.zeros((qs, qs))
-        c_qx = np.zeros((qs, xs))
-        c_xx = np.zeros((xs, xs))
-        
-        # Loop through ensemble to start computing means and covariances
-        # (all the summations only)
-        for j in range(J):
-            
-            q_hat = q[j]
-            x_hat = x[j]
-            
-            # Means
-            q_bar += q_hat
-            x_bar += x_hat
-            
-            # Covariance matrices
-            c_qq += np.tensordot(q_hat, q_hat, axes=0)
-            c_qx += np.tensordot(q_hat, x_hat, axes=0)
-            c_xx += np.tensordot(x_hat, x_hat, axes=0)
-            
-        # Finalize means and covariances
-        # (divide by J, subtract of means from covariance sum terms)
-        q_bar = q_bar / J
-        x_bar = x_bar / J
-        c_qq  = c_qq  / J - np.tensordot(q_bar, q_bar, axes=0)
-        c_qx  = c_qx  / J - np.tensordot(q_bar, x_bar, axes=0)
-        c_xx  = c_xx  / J - np.tensordot(x_bar, x_bar, axes=0)
-
-        # Add noises to the diagonal of sample covariance 
-        # Current implementation involves a small constant 
-        # (1e-6 for original space, 1e-2 for logistic transformed space).
-        # This numerical trick can be deactivated if Sigma is not ill-conditioned
-        # c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-6 
-        c_xx = c_xx + np.identity(c_xx.shape[0]) * 1e-2 
-        #c_qq = c_qq + np.identity(c_qq.shape[0]) * 1e0 
+        zp_bar = np.mean(zp, 0)
+        Sigma = np.cov(zp.T)
 
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
-        Sigma  = np.vstack([np.hstack([c_qq, c_qx]), np.hstack([c_qx.T, c_xx])])
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
         Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
-        #svd1 = TruncatedSVD(n_components=Sigma.shape[0]-1, random_state=42)
-        svd1 = TruncatedSVD(n_components=J, random_state=42)
+        svd1 = TruncatedSVD(n_components=J-1, random_state=42)
         svd1.fit(Sigma)
         F = svd1.components_.T
         Dp_vec = svd1.singular_values_
@@ -172,18 +133,29 @@ class EAKF:
                                  F.T])
         Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
 
-        # Adding noises (model uncertainties) back to the truncated dimensions
+        # Adding noises (model uncertainties) to the truncated dimensions 
         # Need to further think about how to reduce the cost of full SVD here
-        F_u, Dp_u_vec, _ = sp.linalg.svd(Sigma_u)
-        Dp_u_vec[J:] = 1e-4
-        Sigma_u = np.linalg.multi_dot([F_u, np.diag(Dp_u_vec), F_u.T])
+        #F_u, Dp_u_vec, _ = sp.linalg.svd(Sigma_u)
+        #Dp_u_vec[J-1:] = np.min(Dp_u_vec[:J-1]) 
+        #Sigma_u = np.linalg.multi_dot([F_u, np.diag(Dp_u_vec), F_u.T])
+
+        # Adding noises approximately to the truncated dimensions (Option #1)
+        svd1.fit(Sigma_u)
+        noises = np.identity(Sigma_u.shape[0]) * svd1.singular_values_[-1] 
+        Sigma_u = Sigma_u + noises 
+
+        # Adding noises approximately to the truncated dimensions (Option #2)
+        #svd1.fit(Sigma_u)
+        #vec = np.diag(Sigma_u)
+        #vec = np.maximum(vec, svd1.singular_values_[-1])
+        ##vec = np.maximum(vec, np.sort(vec)[-J])
+        #np.fill_diagonal(Sigma_u, vec) 
 
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])
         # x_t = x_t + noise
-        zp_bar = np.hstack([q_bar, x_bar])
-        zu_bar = np.matmul(Sigma_u, \
-                           (np.dot(Sigma_inv, zp_bar) + np.dot(np.matmul(H.T, self.cov_inv), x_t)))    
+        zu_bar = np.dot(Sigma_u, \
+                           (np.dot(Sigma_inv, zp_bar) + np.dot(np.dot(H.T, self.cov_inv), x_t)))    
 
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
