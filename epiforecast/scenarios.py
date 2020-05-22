@@ -92,11 +92,32 @@ def midnight_on_Tuesday(kinetic_model,
 
     return state
 
-def state_distribution_at_midnight_on_Tuesday():
-    pass
+def percent_infected_at_midnight_on_Tuesday():
+    return 0.01
 
 def transition_rates_distribution_at_midnight_on_Tuesday():
     pass
 
 def transmission_rates_distribution_at_midnight_on_Tuesday():
     pass
+
+def populate_states(n_ensemble, population, percent_infected, random_seed=1234):
+    """
+    Returns an ensemble of states of 5 x population.
+    """
+
+    n_infected = int(np.round(population * percent_infected))
+
+    states = np.zeros([n_ensemble, n_states * population])
+
+    with temporary_seed(random_seed):
+        for m in range(n_ensemble):
+            infected = np.random.choice(population, size=n_infected)
+
+            i = np.arange(start=population, length=population)
+
+            states[m, i] = infected 
+
+            #states[m, i, :] = 
+
+    return states
