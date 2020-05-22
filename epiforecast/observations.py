@@ -34,7 +34,7 @@ class ObservationNoise:
     def __init__(self):
         pass
 
-    def get_observational_cov(self,obs_states):
+    def get_observational_cov(self, obs_states):
         cov=np.zeros(obs_states.size)
         return cov
 
@@ -58,43 +58,50 @@ class Observation(StateObservation,ObservationNoise):
     
 ### Implemented State Observations ###
     
-#We observe the entire system during observation
 class FullStateObservation(StateObservation):
+    """We observe the entire system during observation."""
     
-    def __init__(self,N,status):
-        #number of nodes in the graph
+    def __init__(self, N, status=5):
+        # Number of nodes in the graph
         self.N = N
-        #number of different states a node can be in
+
+        # Number of different states a node can be in
         self.status = status
 
-        #The states for observation
-        self.obs_states = np.arange(status*N)
+        # The states for observation
+        self.obs_states = np.arange(status * N)
     
 #We observe a random subset of nodes during observation
 class RandomStateObservation(StateObservation):
     
-    def __init__(self,N,status,obs_nodes):
-        #number of nodes in the graph
+    def __init__(self, N, status, obs_nodes):
+        # Number of nodes in the graph
         self.N = N
-        #number of different states a node can be in
+
+        # Number of different states a node can be in
         self.status = status
 
-        #The states for observation
+        # The states for observation
         self.obs_nodes = obs_nodes
-        #default init observation
+
+        # Default init observation
         self.obs_states = np.arange(obs_nodes*status)
 
-    #updates the observation model when taking observation
     def make_new_obs(self,state):
-        #This if statement gives consistency of Random and Full State
-        #otherwise the pseudorandom generator is used one extra time here
-        if self.obs_nodes<self.N:
-            onetoN=np.arange(self.N)
-            np.random.shuffle(onetoN)#(in-place shuffle)
-            tmp=np.array(sorted(onetoN[:self.obs_nodes]))
-            self.obs_states=np.hstack([np.arange(self.status)+i*self.status for i in tmp])
+        """ Updates the observation model when taking observation. """
+
+        # This if statement gives consistency of Random and Full State
+        # otherwise the pseudorandom generator is used one extra time here
+        if self.obs_nodes < self.N:
+            onetoN = np.arange(self.N)
+
+            np.random.shuffle(onetoN) # (in-place shuffle)
+
+            tmp = np.array(sorted(onetoN[:self.obs_nodes]))
+
+            self.obs_states = np.hstack([np.arange(self.status) + i * self.status for i in tmp])
             
-#We observe a random subset of nodes at a particular status (S,E,I,H,R,D)
+# We observe a random subset of nodes at a particular status (S,E,I,H,R,D)
 class RandomStatusStateObservation(StateObservation):
     def __init__(self,N,status,obs_frac,obs_status_idx):
         #number of nodes in the graph

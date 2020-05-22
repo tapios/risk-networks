@@ -3,7 +3,7 @@ from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFi
 
 class DataAssimilator:
 
-    def __init__(self,parameters,observations,errors):
+    def __init__(self, parameters, observations, errors):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
