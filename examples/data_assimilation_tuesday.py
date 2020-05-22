@@ -1,7 +1,6 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 import numpy as np
-import multiprocessing
 import time
 import pickle
 
@@ -10,7 +9,6 @@ from epiforecast.data_assimilation import DataAssimilator
 from sandbox.models import MasterEqn 
 from sandbox.utilities import load_G, model_settings, get_model, get_IC 
 
-
 def add_noises(q, v_min, v_max, n_samples):
     q = np.exp(q)
     params_noises = np.random.uniform(v_min, v_max, n_samples)
@@ -18,25 +16,20 @@ def add_noises(q, v_min, v_max, n_samples):
     q = np.log(np.maximum(q, 1e-6))
     return q
 
-
 np.random.seed(10)
-print("Number of cpu : ", multiprocessing.cpu_count())
 
 # Ensemble size (required>=2)
 n_samples = 100 # 100
+
 # Number of status for each node
 # Statuses: S, I, H, R, D
 n_status = 5
-
     
-#### STATICNETWORKGENERATOR GOES HERE 
+#### EvolvingContactNetworkGenerator goes here
 contact_network = load_G()
 N = len(contact_network)
 
-####
-    
-
-# MASTEREQUATIONMODELENSEMBLE GOES HERE
+# MasterEquationModelEnsemble goes here
 master_eqn_model_n_samples = n_samples 
 network_rates = model_settings(master_eqn_model_n_samples, contact_network)
 
@@ -51,8 +44,8 @@ params = pickle.load(open(os.getcwd()+'/../sandbox/sigma_ens.pkl', 'rb'))
 
 #### KINETICMODEL GOES HERE
 # Load the true data (beta=0.04, T=100, static_network_interval=1)
-#print("run forward_example.py in ../sandbox/ then comment these lines")
-#exit()
+# print("run forward_example.py in ../sandbox/ then comment these lines")
+# exit()
     
 fin = os.getcwd()+'/../sandbox/states_truth_citynet.pkl'
 data = pickle.load(open(fin, 'rb'))
