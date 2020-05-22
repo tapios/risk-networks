@@ -2,8 +2,8 @@ import os, sys; sys.path.append(os.path.join(".."))
 
 import numpy as np
 
-from epiforecast.observations import FullStateObservation, HighProbRandomStatusObservation
-from epiforecast.data_assimilation import DataAssimilator, EnsembleAdjustedKalmanFilter
+from epiforecast.observations import FullStateObservation
+from epiforecast.data_assimilation import DataAssimilator
 
 population = 100
 parameters = np.zeros(population)
