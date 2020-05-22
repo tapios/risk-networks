@@ -1,13 +1,9 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
-import EoN
 import numpy as np
 import multiprocessing
-from multiprocessing import get_context
-import networkx as nx
 import time
 import pickle
-import pdb
 
 from epiforecast.observations import HighProbRandomStatusObservation
 from epiforecast.data_assimilation import DataAssimilator
@@ -29,7 +25,7 @@ if __name__ == "__main__":
 
     # Number of steps for the data assimilation algorithm.
     # This data assimilation algorithm is called the Ensemble Adjusted Kalman Filter (EAKF).
-    steps_DA = 50
+    steps_da = 50
     # Ensemble size (required>=2)
     n_samples = 100 # 100
     # Number of status for each node
@@ -37,8 +33,8 @@ if __name__ == "__main__":
     n_status = 5
 
     
-    # Load the true data (beta=0.04, T=100, dt=1)
-    print("run forward_example.py in ../sandbox/ then comment these lines")
+    # Load the true data (beta=0.04, T=100, static_network_interval=1)
+    #print("run forward_example.py in ../sandbox/ then comment these lines")
     #exit()
     
     fin = os.getcwd()+'/../sandbox/states_truth_citynet.pkl'
@@ -50,12 +46,12 @@ if __name__ == "__main__":
     data_cov = data_cov.T
 
     # Load network
-    G = load_G()
-    N = len(G)
-    model_n_samples = n_samples 
-    Gs = model_settings(model_n_samples, G)
+    contact_network = load_G()
+    N = len(contact_network)
+    master_eqn_model_n_samples = n_samples 
+    network_rates = model_settings(master_eqn_model_n_samples, contact_network)
 
-    master_eqn_model = get_model(Gs, model_n_samples, N)
+    master_eqn_model = get_model(network_rates, master_eqn_model_n_samples, N)
     master_eqn_model.init(beta = 0.06, hom = False)
 
     # Set prior for unknown parameters
@@ -64,22 +60,23 @@ if __name__ == "__main__":
 
     # Set initial states
     states_IC = np.zeros([n_samples, n_status*N])
-    states_IC[:, :] = get_IC(master_eqn_model, model_n_samples, N)
+    states_IC[:, :] = get_IC(master_eqn_model, master_eqn_model_n_samples, N)
 
     #We have a long intervention window of time T 
-    #We have a short window for updates with data dt.
+    #We have a short window for updates with data static_network_interval.
     
-    T = 1.0 #1 day per intervention 
-    dt = 0.25 #1/4 day update with data
-    steps_T = int(T/dt)
-    t_range=np.flip(np.arange(T,0.0,-dt)) # [dt,2dt,3dt,...,T-dt,T] (Excludes '0')
-    dt_fsolve =0.25/4.0
+    intervention_interval = 1.0 #1 day per intervention 
+    static_network_interval = 0.25 #1/4 day update with data
+    steps_intervention_interval = int(intervention_interval/static_network_interval)
+    static_network_interval_range=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
    
     # Container for forward model evaluations
-    x_forward_all = np.empty([n_samples, n_status*N, steps_T*steps_DA])
+    x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*steps_da])
     #with the initial
     x_forward_all[:,:,0]=states_IC
-   
+
+    #Set initial solver
+    master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
     
     #Observations
     #HighProbRandomStatusObservation(N,
@@ -97,33 +94,33 @@ if __name__ == "__main__":
     good_obs_var=1e-2
 
     
-    SmartInfectiousObs = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.1,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
-    #DumbInfectiousObs = HighProbRandomStatusObservation(N,n_status,0.5,[1],0.25,0.75,'mean','0.25<=0.5_DumbInfected<=0.75',0.1)
-    #SmartDeceasedObs= HighProbRandomStatusObservation(N,n_status,0.5,[1],0.5,0.75,'mean','0.5<=0.5_SmartDecesed<=0.75',0.01)
+    smart_infectious_obs = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.1,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
+    #dumb_infectious_obs = HighProbRandomStatusObservation(N,n_status,0.5,[1],0.25,0.75,'mean','0.25<=0.5_DumbInfected<=0.75',0.1)
+    #smart_deceased_obs= HighProbRandomStatusObservation(N,n_status,0.5,[1],0.5,0.75,'mean','0.5<=0.5_SmartDecesed<=0.75',0.01)
 
-    #OModel=[SmartInfectiousObs,DumbInfectiousObs,SmartDeceasedObs]
-    OModel=SmartInfectiousObs
+    #omodel=[smart_infectious_obs, dumb_infectious_obs ,smart_deceased_obs ]
+    omodel= smart_infectious_obs 
     
     #EModel - error model, one, for each observation mode to check effectiveness of our observations
-    EModel = HighProbRandomStatusObservation(N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
+    emodel = HighProbRandomStatusObservation(N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
 
     #Build the DA
-    ekf=DataAssimilator(params,OModel,EModel)
+    ekf=DataAssimilator(params,omodel,emodel)
 
     #ekf = EAKF(params, states_IC)
     #For each DA intervention window
-    for DAstep in range(steps_DA):
-        print('DA step: ', DAstep+1)
+    for da_step in range(steps_da):
+        print('DA step: ', da_step+1)
 
-        x_forward=np.zeros([n_samples,n_status*N,t_range.size])
+        x_forward=np.zeros([n_samples,n_status*N,static_network_interval_range.size])
 
         #For each static contact interval:
-        for idx_local,tt in enumerate(t_range):
+        for idx_local,tt in enumerate(static_network_interval_range):
 
             #local index idx_local
             #global index idx_global
-            idx_global=1 + DAstep*steps_T + idx_local
-            tt_global=DAstep*T+tt
+            idx_global=1 + da_step*steps_intervention_interval + idx_local
+            tt_global=da_step*intervention_interval+tt
 
             #When we have a series of contact networks
             #master_eqn_model.set_contact_network(contact_networks[idx_global])
@@ -131,12 +128,12 @@ if __name__ == "__main__":
             ## Forward model evaluation of all ensemble members
             start = time.time()
             if idx_local==0: 
-                xftmp = master_eqn_model.ens_solve_euler(states_IC, [dt])
-                x_forward[:,:,idx_local] = xftmp[:,:,0]#as atm master_eqn can't deal with single "dt" input
+                xftmp = master_eqn_model.ens_solve_euler(states_IC, [static_network_interval,static_network_interval+1])
+                x_forward[:,:,idx_local] = xftmp[:,:,0]#as atm master_eqn can't deal with single "static_network_interval" input
             else:
-                xftmp = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], [dt])
+                xftmp = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], [static_network_interval,static_network_interval+1])
                 x_forward[:,:,idx_local] = xftmp[:,:,0]
-                
+            print(x_forward[:,1::5,idx_local])    
             end = time.time()
             print('Time elapsed for forward model: ', end - start)
     
@@ -144,15 +141,16 @@ if __name__ == "__main__":
             start = time.time()
             
             new_params,x_forward[:,:,idx_local]=ekf.update(x_forward,idx_local,data_mean,idx_global)
+         
             end = time.time()
             print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)
         
             #update master equation model parameters
             master_eqn_model.update_parameters(new_params)
             #this next line is overwritten at master_eqn_model runtime
-            master_eqn_model.set_solver(T = T, dt = np.diff(t_range).min(), reduced = True)
+            master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
             
-        x_forward_all[:,:,DAstep*steps_T:(DAstep+1)*steps_T] = x_forward
+        x_forward_all[:,:,da_step*steps_intervention_interval:(da_step+1)*steps_intervention_interval] = x_forward
         states_IC = x_forward[:,:,-1]
         #print("Error: ", ekf.damethod.error[-1])
 

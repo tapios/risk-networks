@@ -25,7 +25,7 @@ class StateObservation:
 
     
     #updates the observation model when taking observation
-    def make_new_obs(self,x):
+    def make_new_obs(self,state):
         pass
     
 #type of noise added to observation
@@ -47,8 +47,8 @@ class Observation(StateObservation,ObservationNoise):
         ObservationNoise.__init__(self)
         self.name=obs_name
 
-    def make_new_obs(self,x):
-        StateObservation.make_new_obs(self,x)
+    def make_new_obs(self,state):
+        StateObservation.make_new_obs(self,state)
 
     def get_observational_cov(self):
         cov=ObservationNoise.get_observational_cov(self,StateObservation.obs_states)
@@ -85,7 +85,7 @@ class RandomStateObservation(StateObservation):
         self.obs_states = np.arange(obs_nodes*status)
 
     #updates the observation model when taking observation
-    def make_new_obs(self,x):
+    def make_new_obs(self,state):
         #This if statement gives consistency of Random and Full State
         #otherwise the pseudorandom generator is used one extra time here
         if self.obs_nodes<self.N:
@@ -109,7 +109,7 @@ class RandomStatusStateObservation(StateObservation):
         self.obs_states = np.arange(self.obs_nodes*obs_status_idx.size)
 
     #updates the observation model when taking observation
-    def make_new_obs(self,x):
+    def make_new_obs(self,state):
         #This if statement gives consistency of Random and Full State
         #otherwise the pseudorandom generator is used one extra time here
         if self.obs_nodes<self.N:
@@ -144,19 +144,19 @@ class HighProbStatusStateObservation(StateObservation):
         self.obs_states = np.arange(int(self.obs_frac*self.N)*obs_status_idx.size)
         
     #updates the observation model when taking observation
-    def make_new_obs(self,x):
+    def make_new_obs(self,state):
         #Candidates for observations are those with a required state >= threshold
         onetoN=np.arange(self.N)
         candidate_states= np.hstack([self.obs_status_idx+i*self.status for i in onetoN]) 
         if self.obs_threshold_type == 'any':
             #Case 1: candidate state if ANY ensemble member is > threshold
-            candidate_states_ens=np.hstack([candidate_states[(x[i,candidate_states]>=self.obs_min_threshold) & \
-                                                             (x[i,candidate_states]<=self.obs_max_threshold)] \
-                                            for i in range(x.shape[0])])
+            candidate_states_ens=np.hstack([candidate_states[(state[i,candidate_states]>=self.obs_min_threshold) & \
+                                                             (state[i,candidate_states]<=self.obs_max_threshold)] \
+                                            for i in range(state.shape[0])])
             candidate_states_ens=np.unique(candidate_states_ens)
         elif self.obs_threshold_type == 'mean':
             #Case 2: candidate state if MEAN ensemble members is > threshold
-            xmean = np.mean(x[:,candidate_states],axis=0)
+            xmean = np.mean(state[:,candidate_states],axis=0)
             candidate_states_ens=candidate_states[(xmean>=self.obs_min_threshold) & \
                                                   (xmean<=self.obs_max_threshold)]
         else:
@@ -201,8 +201,8 @@ class RandomObservation(RandomStateObservation,IndependentGaussian):
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
 
-    def make_new_obs(self,x):
-        RandomStateObservation.make_new_obs(self,x)
+    def make_new_obs(self,state):
+        RandomStateObservation.make_new_obs(self,state)
 
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,RandomStateObservation.obs_states)
@@ -220,8 +220,8 @@ class RandomStatusObservation(RandomStatusStateObservation,IndependentGaussian):
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
 
-    def make_new_obs(self,x):
-        RandomStatusStateObservation.make_new_obs(self,x)
+    def make_new_obs(self,state):
+        RandomStatusStateObservation.make_new_obs(self,state)
         
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
@@ -238,8 +238,8 @@ class HighProbRandomStatusObservation(HighProbStatusStateObservation,Independent
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
         
-    def make_new_obs(self,x):
-        HighProbStatusStateObservation.make_new_obs(self,x)
+    def make_new_obs(self,state):
+        HighProbStatusStateObservation.make_new_obs(self,state)
               
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
