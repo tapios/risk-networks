@@ -25,23 +25,22 @@ class DataAssimilator:
            Methods
            -------
            
-           update(x,local_time,data,global_time): Perform an update of the ensemble states `x` at the `global_time` in the assimilation
-                                                  window (`local_time` required for indexing). Returns the updated model parameters `params`  and updated state `x`.
+           update(ensemble_state,data): Perform an update of the ensemble states `ensemble_state`. 
+                                        Returns the updated model parameters `params`  and updated state `ensemble_state`.
 
-           make_new_observation(x): For every Observation model, update the list of indices at which to observe (given by omodel.obs_states).
-                                    Returns a concatenated list of indices `observed_states` with duplicates removed.
+           make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by omodel.obs_states).
+                                        Returns a concatenated list of indices `observed_states` with duplicates removed.
            
            get_observation_cov(): For every Observation model, obtain the relevant variances when taking a measurement of data. Note we account for multiple node 
                                   measurements by using the minimum variance at that node (I.e if same node is queried twice in a time interval we take the most 
                                   accurate test). Returns a diagonal covariance matrix for the distinct observed states, with the minimum variances on the diagonal.
            
-           sum_to_one(x): Takes the state `x` and enforces that all statuses at a node sum to one. Does this by distributing the mass (1-(I+H+R+D)) into S and E, where 
+           sum_to_one(state): Takes the state `state` and enforces that all statuses at a node sum to one. Does this by distributing the mass (1-(I+H+R+D)) into S and E, where 
                           the mass is divided based on the previous state's relative mass in S and E. i.e Snew= S/(S+E)*(1-(I+H+R+D)), Enew = E/(S+E)*(1-(I+H+R+D)) 
            
-           error_to_truth_state(state,local_time,data,global_time): updates emodel.obs_states and measures (user prescribed) differences between the data and state at 
-                                                                    global time. 
-                                                                    #Current implementation sums the difference in number of predicted states
-                                                                    #and actual states in an given interval e.g 0.5 <= I <= 1.0
+           error_to_truth_state(state,data): updates emodel.obs_states and measures (user prescribed) differences between the data and state online.
+                                             #Current implementation sums the difference in number of predicted states
+                                             #and actual states in an given interval e.g 0.5 <= I <= 1.0
         """
 
 
@@ -65,9 +64,9 @@ class DataAssimilator:
         self.online_emodel= errors
 
 
-    def make_new_observation(self,x):
+    def make_new_observation(self,state):
         for i in range(len(self.omodel)):
-            self.omodel[i].make_new_obs(x)
+            self.omodel[i].make_new_obs(state)
         
         observed_states=np.hstack([self.omodel[i].obs_states for i in range(len(self.omodel))])
         observed_states=np.unique(observed_states)
@@ -96,24 +95,19 @@ class DataAssimilator:
         
         return distinct_cov
     
-    def update(self,ensemble_state,local_time,data,global_time):
+    def update(self,ensemble_state,data):
 
-
-        ensemble_state=ensemble_state[:,:,local_time]
-
-        if len(self.omodel)>1:
+        if len(self.omodel)>0:
             om=self.omodel
             dam=self.damethod
-      
-            #Restrict ensemble_state to the the observation time
-            obs_states=self.make_new_observation(ensemble_state) #Generate states to observe at observation time 
+
+            obs_states=self.make_new_observation(ensemble_state) #Generate states to observe
       
             if (obs_states.size>0):
                 
                 print("partial states to be assimilated", obs_states.size)
                 #get the truth indices, for the observation(s)
-                #truth = data.make_observation(global_time,obs_states)
-                truth=data[global_time,obs_states]
+                truth=data[obs_states]
                 
                 #get the covariances for the observation(s), with the minimum returned if two overlap
                 cov = self.get_observation_cov()
@@ -129,12 +123,11 @@ class DataAssimilator:
             else:
                 print("no assimilation required")
 
-            
             #Error to truth
-            if len(self.online_emodel)>1:
-                self.error_to_truth_state(ensemble_state,local_time,data,global_time)
+            if len(self.online_emodel)>0:
+                self.error_to_truth_state(ensemble_state,data)
         
-            #return ensemble_state at the observation time
+            #return ensemble_state and model params
             return self.params[-1],ensemble_state
 
         else: #if no observations performed
@@ -142,15 +135,14 @@ class DataAssimilator:
 
             
     #defines a method to take a difference to the data state
-    def error_to_truth_state(self,state,local_time,data,global_time):
+    def error_to_truth_state(self,state,data):
         
         em=self.online_emodel #get corresponding error model
         #Make sure you have a deterministic ERROR model - or it will not match truth
         #without further seeding
         em.make_new_obs(state)
         predicted_infected = em.obs_states
-        #truth=data.make_observation(global_time,np.arange(em.status*em.N))
-        truth=data[global_time,np.arange(em.status*em.N)]
+        truth=data[np.arange(em.status*em.N)]
 
         #print(truth[predicted_infected])
         em.make_new_obs(truth[np.newaxis,:])

@@ -66,7 +66,7 @@ states_IC[:, :] = get_IC(master_eqn_model, master_eqn_model_n_samples, N)
 intervention_interval = 1.0 #1 day per intervention 
 static_network_interval = 0.25 #1/4 day update with data
 steps_intervention_interval = int(intervention_interval/static_network_interval)
-static_network_interval_range=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
+intervals_per_window=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
    
 # Container for forward model evaluations
 x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*n_intervention_intervals+1])
@@ -74,7 +74,7 @@ x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*n_i
 x_forward_all[:,:,0]=states_IC
 
 #Set initial solver
-master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
+master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(intervals_per_window).min(), reduced = True)
     
 #Observations
 #HighProbRandomStatusObservation(N,
@@ -103,17 +103,16 @@ omodel= smart_infectious_obs
 emodel = HighProbRandomStatusObservation(N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
 
 #Build the DA
-ekf=DataAssimilator(params,omodel,emodel)
+assimilator=DataAssimilator(params,omodel,emodel)
 
-#ekf = EAKF(params, states_IC)
 #For each DA intervention window
 for intervention_interval in range(n_intervention_intervals):
     print('DA step: ', intervention_interval+1)
 
-    x_forward=np.zeros([n_samples,n_status*N,static_network_interval_range.size])
+    x_forward=np.zeros([n_samples,n_status*N,intervals_per_window.size])
     
     #For each static contact interval:
-    for idx_local,tt in enumerate(static_network_interval_range):
+    for idx_local,tt in enumerate(intervals_per_window):
         
         #local index idx_local
         #global index idx_global
@@ -138,7 +137,7 @@ for intervention_interval in range(n_intervention_intervals):
         ## EAKF to update joint states
         start = time.time()
         
-        new_params,x_forward[:,:,idx_local]=ekf.update(x_forward,idx_local,data_mean,idx_global)
+        new_params,x_forward[:,:,idx_local]=assimilator.update(x_forward[:,:,idx_local],data_mean[idx_global,:])
         
         end = time.time()
         print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)
@@ -146,17 +145,16 @@ for intervention_interval in range(n_intervention_intervals):
         #update master equation model parameters
         master_eqn_model.update_parameters(new_params)
         #this next line is overwritten at master_eqn_model runtime
-        master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
+        master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(intervals_per_window).min(), reduced = True)
             
     x_forward_all[:,:,intervention_interval*steps_intervention_interval+1:(intervention_interval+1)*steps_intervention_interval+1] = x_forward
     states_IC = x_forward[:,:,-1]
-    #print("Error: ", ekf.damethod.error[-1])
+    #print("Error: ", assimilator.damethod.error[-1])
     
     ## Output files 
     ## Overwrite for each EAKF step to facilitate debugging
-    pickle.dump(ekf.params, open("data/u.pkl", "wb"))
-    #pickle.dump(ekf.x, open("data/g.pkl", "wb"))
-    pickle.dump(ekf.damethod.error, open("data/error.pkl", "wb"))
+    pickle.dump(assimilator.params, open("data/u.pkl", "wb"))
+    pickle.dump(assimilator.damethod.error, open("data/error.pkl", "wb"))
     pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
     
 

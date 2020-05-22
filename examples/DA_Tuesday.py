@@ -56,11 +56,8 @@ params = pickle.load(open(os.getcwd()+'/../sandbox/sigma_ens.pkl', 'rb'))
     
 fin = os.getcwd()+'/../sandbox/states_truth_citynet.pkl'
 data = pickle.load(open(fin, 'rb'))
-data_mean = np.mean(data, 0)
-data_cov = np.var(data, 0)
-data_cov = np.maximum(data_cov, 1e-3)
-data_mean = data_mean.T
-data_cov = data_cov.T
+synthetic_data = np.mean(data, 0)
+synthetic_data = synthetic_data.T
 ##### 
 
 
@@ -70,10 +67,10 @@ states_IC = np.zeros([n_samples, n_status*N])
 states_IC[:, :] = get_IC(master_eqn_model, master_eqn_model_n_samples, N)
 
 #We have a short window for updates with data static_network_interval.    
-intervention_interval = 1.0 #1 day per intervention 
+intervention_interval = 1.0 #1 day 
 static_network_interval = 0.25 #1/4 day update with data
 steps_intervention_interval = int(intervention_interval/static_network_interval)
-static_network_interval_range=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
+intervals_per_window=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
 
 # Container for forward model evaluations
 x_forward_all = np.empty([n_samples, n_status*N, 1+steps_intervention_interval])
@@ -81,36 +78,36 @@ x_forward_all = np.empty([n_samples, n_status*N, 1+steps_intervention_interval])
 x_forward_all[:,:,0]=states_IC
 
 #Set initial solver
-master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
+master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(intervals_per_window).min(), reduced = True)
 
 
 #noise distribution:
-good_obs_var=1e-2
+obs_var=1e-2
 
 #Observations    
 
-smart_infectious_obs = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.1,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
-#dumb_infectious_obs = HighProbRandomStatusObservation(N,n_status,0.5,[1],0.25,0.75,'mean','0.25<=0.5_DumbInfected<=0.75',0.1)
-#smart_deceased_obs= HighProbRandomStatusObservation(N,n_status,0.5,[1],0.5,0.75,'mean','0.5<=0.5_SmartDecesed<=0.75',0.01)
+infectiousobs=HighProbRandomStatusObservation(N,n_status,1.0,[1],0.02,0.98,'mean','All_Infected>=0.5',obs_var)   
 
-#omodel=[smart_infectious_obs, dumb_infectious_obs ,smart_deceased_obs ]
-omodel= [] 
+omodel= [infectiousobs] 
     
 #EModel - error model, one, for each observation mode to check effectiveness of our observations
-#emodel = HighProbRandomStatusObservation(N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
+#emodel = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
+
 emodel=[]
 
 #Build the DA
-ekf=DataAssimilator(params,[],[])
+assimilator=DataAssimilator(params,omodel,[])
 
-#ekf = EAKF(params, states_IC)
+#assimilator = EAKF(params, states_IC)
 #For each DA intervention window
-x_forward=np.zeros([n_samples,n_status*N,static_network_interval_range.size])
+x_forward=np.zeros([n_samples,n_status*N,intervals_per_window.size])
 
 #For each static contact interval:
-for idx_local,tt in enumerate(static_network_interval_range):
-    #local idx does not see ICs so we add 1 where 'global' is required
-    #When we have a series of contact networks
+for idx_local,tt in enumerate(intervals_per_window):
+
+    #local idx does not see ICs so we add 1 where a more global index is required e.g indexing data (starts at 0)
+    
+    #### WHEN WE HAVE A SERIES OF CONTACT NETWORKS
     #master_eqn_model.set_contact_network(contact_networks[idx_local+1])
 
     ## Forward model evaluation of all ensemble members
@@ -128,7 +125,7 @@ for idx_local,tt in enumerate(static_network_interval_range):
     ## EAKF to update joint states
     start = time.time()
             
-    new_params,x_forward[:,:,idx_local]=ekf.update(x_forward,idx_local,data_mean,idx_local+1)
+    new_params,x_forward[:,:,idx_local]=assimilator.update(x_forward[:,:,idx_local],synthetic_data[idx_local+1,:])
          
     end = time.time()
     print('Assimilation time: ', tt,', Time elapsed for EAKF: ', end - start)
@@ -136,17 +133,17 @@ for idx_local,tt in enumerate(static_network_interval_range):
     #update master equation model parameters
     master_eqn_model.update_parameters(new_params)
     #this next line is overwritten at master_eqn_model runtime
-    master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
+    master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(intervals_per_window).min(), reduced = True)
     
 x_forward_all[:,:,1:] = x_forward
 states_IC = x_forward[:,:,-1]
-#print("Error: ", ekf.damethod.error[-1])
+
+#print("Error: ", assimilator.damethod.error[-1])
 
 ## Output files 
 ## Overwrite for each EAKF step to facilitate debugging
-pickle.dump(ekf.params, open("data/u.pkl", "wb"))
-#pickle.dump(ekf.x, open("data/g.pkl", "wb"))
-pickle.dump(ekf.damethod.error, open("data/error.pkl", "wb"))
+pickle.dump(assimilator.params, open("data/u.pkl", "wb"))
+pickle.dump(assimilator.damethod.error, open("data/error.pkl", "wb"))
 pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
 
 
