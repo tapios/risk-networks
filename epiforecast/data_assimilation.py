@@ -3,7 +3,7 @@ from epiforecast.eakf_multiobs import EnsembleAdjustedKalmanFilter
 
 class DataAssimilator:
 
-    def __init__(self,parameters,observations,error):
+    def __init__(self,parameters,observations,errors):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
@@ -14,15 +14,14 @@ class DataAssimilator:
            parameters (np.array): An array of initial model parameters 
                                   #Do we want to store these in here?
         
-           #observations (list, or Observation): A list of Observations, or a single Observation.
-                                                 Generates the indices and covariances of observations
+           #observations (list, [], or Observation): A list of Observations, or a single Observation.
+                                                     Generates the indices and covariances of observations
         
-           #errors (Observation): Observation for the purpose of error checking. Error 
-                                  observations are used to compute online differences at 
-                                  the observed (according to Errors) between Kinetic and 
-                                  Master Equation models
-                                  #TODO currently one is requried
-           
+           #errors (list, [],  or Observation): Observation for the purpose of error checking. Error 
+                                                observations are used to compute online differences at 
+                                                the observed (according to Errors) between Kinetic and 
+                                                Master Equation models
+                                 
            Methods
            -------
            
@@ -49,6 +48,9 @@ class DataAssimilator:
         
         if not isinstance(observations,list):#if it's a scalar, not array
             observations=[observations]
+
+        if not isinstance(errors,list):#if it's a scalar, not array
+            observations=[errors]
        
         #observation models(s)
         self.omodel = observations      
@@ -60,7 +62,7 @@ class DataAssimilator:
         self.damethod = EnsembleAdjustedKalmanFilter()
 
         #online evaluations of errors, one needs an observation class to check differences in data
-        self.online_emodel= error
+        self.online_emodel= errors
 
 
     def make_new_observation(self,x):
@@ -96,41 +98,49 @@ class DataAssimilator:
     
     def update(self,ensemble_state,local_time,data,global_time):
 
-        om=self.omodel
-        dam=self.damethod
-      
-        #Restrict ensemble_state to the the observation time
-        #ensemble_state=ensemble_state[:,local_time,:]
+
         ensemble_state=ensemble_state[:,:,local_time]
-        obs_states=self.make_new_observation(ensemble_state) #Generate states to observe at observation time 
+
+        if len(self.omodel)>1:
+            om=self.omodel
+            dam=self.damethod
       
-        if (obs_states.size>0):
-
-            print("partial states to be assimilated", obs_states.size)
-            #get the truth indices, for the observation(s)
-            #truth = data.make_observation(global_time,obs_states)
-            truth=data[global_time,obs_states]
-
-            #get the covariances for the observation(s), with the minimum returned if two overlap
-            cov = self.get_observation_cov()
+            #Restrict ensemble_state to the the observation time
+            obs_states=self.make_new_observation(ensemble_state) #Generate states to observe at observation time 
+      
+            if (obs_states.size>0):
+                
+                print("partial states to be assimilated", obs_states.size)
+                #get the truth indices, for the observation(s)
+                #truth = data.make_observation(global_time,obs_states)
+                truth=data[global_time,obs_states]
+                
+                #get the covariances for the observation(s), with the minimum returned if two overlap
+                cov = self.get_observation_cov()
+                
+                #perform da model update with ensemble_state: states,q parameters.
+                q,ensemble_state[:,obs_states]=dam.update(ensemble_state[:,obs_states],self.params[-1],truth,cov)
+                self.params=np.append(self.params, [q], axis=0)
+                
+                #Force probabilities to sum to one
+                self.sum_to_one(ensemble_state)
             
-            #perform da model update with ensemble_state: states,q parameters.
-            q,ensemble_state[:,obs_states]=dam.update(ensemble_state[:,obs_states],self.params[-1],truth,cov)
-            self.params=np.append(self.params, [q], axis=0)
+                print("EAKF error:", dam.error[-1])
+            else:
+                print("no assimilation required")
 
-            #Force probabilities to sum to one
-            self.sum_to_one(ensemble_state)
             
-            print("EAKF error:", dam.error[-1])
-        else:
-            print("no assimilation required")
+            #Error to truth
+            if len(self.online_emodel)>1:
+                self.error_to_truth_state(ensemble_state,local_time,data,global_time)
+        
+            #return ensemble_state at the observation time
+            return self.params[-1],ensemble_state
 
-        #Error to truth
-        self.error_to_truth_state(ensemble_state,local_time,data,global_time)
-        
-        #return ensemble_state at the observation time
-        return self.params[-1],ensemble_state
-        
+        else: #if no observations performed
+            return self.params[-1],ensemble_state
+
+            
     #defines a method to take a difference to the data state
     def error_to_truth_state(self,state,local_time,data,global_time):
         
