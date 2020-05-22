@@ -102,7 +102,6 @@ class DataAssimilator:
         #Restrict ensemble_state to the the observation time
         #ensemble_state=ensemble_state[:,local_time,:]
         ensemble_state=ensemble_state[:,:,local_time]
-        ensemble_stateold=ensemble_state
         obs_states=self.make_new_observation(ensemble_state) #Generate states to observe at observation time 
       
         if (obs_states.size>0):

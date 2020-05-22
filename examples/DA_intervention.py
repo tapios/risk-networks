@@ -71,7 +71,7 @@ if __name__ == "__main__":
     static_network_interval_range=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
    
     # Container for forward model evaluations
-    x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*steps_da])
+    x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*steps_da+1])
     #with the initial
     x_forward_all[:,:,0]=states_IC
 
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             #this next line is overwritten at master_eqn_model runtime
             master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(static_network_interval_range).min(), reduced = True)
             
-        x_forward_all[:,:,da_step*steps_intervention_interval:(da_step+1)*steps_intervention_interval] = x_forward
+        x_forward_all[:,:,da_step*steps_intervention_interval+1:(da_step+1)*steps_intervention_interval+1] = x_forward
         states_IC = x_forward[:,:,-1]
         #print("Error: ", ekf.damethod.error[-1])
 
