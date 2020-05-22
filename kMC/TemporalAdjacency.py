@@ -68,6 +68,8 @@ class TemporalAdjacency:
     M = self.edge_list.shape[0] # total number of edges
 
     # sample indices of initially active edges uniformly at random
+    # XXX if edge_list is a list of all edges (which it is), then this snippet
+    # XXX generates non-symmetric adjacency matrix
     active = np.random.choice(
         [False, True],
         size=M,
@@ -100,7 +102,7 @@ class TemporalAdjacency:
       if np.random.random() < Q1/(Q1+Q2):
         # sample uniformly at random which edge to deactivate
         k = np.random.choice(active_count)
-        ind_to_move = np.where(active)[0][k] # piece of black magic, yum!
+        ind_to_move = np.where(active)[0][k] # piece of black magic, woohoo!
         active[ind_to_move] = False
       else:
         # sample uniformly at random which edge to activate
