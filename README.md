@@ -357,8 +357,9 @@ master_model.populate_transition_rates(distribution=transition_rates_distributio
 master_model.populate_transmission_rates(distribution=transmission_rates_distribution)
 
 # Initialize the data assimilation method
-assimilator = DataAssimilator(   observations = SixHourlyTotalStateObservations(),
-                             )
+assimilator = DataAssimilator(observations = FullStateObservation(population), 
+                                parameters = parameters,
+                                    errors = [])
 
 for i in range(intervals_per_window):
     # Set the contact network for the ensemble of master equation models
