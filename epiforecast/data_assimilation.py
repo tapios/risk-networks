@@ -1,5 +1,5 @@
 import numpy as np
-from epiforecast.eakf_multiobs import EnsembleAdjustedKalmanFilter
+from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
 
 class DataAssimilator:
 
