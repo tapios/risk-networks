@@ -1,7 +1,7 @@
 import numpy as np
 import contextlib
 
-n_states = 6
+n_states = 5
 
 # Index guide:
 #
@@ -11,12 +11,11 @@ n_states = 6
 # 3: Hospitalized
 # 4: Resistant
 # (5: Decesased)
-Susceptible  = S = 0
-Exposed      = E = 1
-Infected     = I = 2
-Hospitalized = H = 3
-Resistant    = R = 4
-Deceased     = D = 5
+susceptible  = s = 0
+infected     = i = 1
+hospitalized = h = 2
+resistant    = r = 3
+deceased     = d = 4
 
 @contextlib.contextmanager
 def temporary_seed(seed):
@@ -40,7 +39,7 @@ def random_infection(population, infected=10):
     """
     Returns an `np.array` corresponding to the epidemiological state of a population.
 
-    Each person can be in 1 of 6 states, so `state.shape = (6, population)`.
+    Each person can be in 1 of 5 states, so `state.shape = (5, population)`.
     """
 
     # The states are S, E, I, H, R (, D)
@@ -48,10 +47,10 @@ def random_infection(population, infected=10):
 
     # Some are infected...
     infected = np.random.choice(population, infected)
-    state[I, infected] = 1
+    state[i, infected] = 1
 
     # ... and everyone else is susceptible
-    state[S, :] = 1 - state[I, :]
+    state[s, :] = 1 - state[i, :]
 
     return state
 
@@ -64,7 +63,7 @@ def midnight_on_Tuesday(kinetic_model,
     Returns an `np.array` corresponding to the epidemiological state of a population
     "at midnight on Tuesday".
 
-    Each person can be in 1 of 6 states, so `state.shape = (6, population)`.
+    Each person can be in 1 of 5 states, so `state.shape = (6, population)`.
     """
 
     population = kinetic_model.population
@@ -77,20 +76,17 @@ def midnight_on_Tuesday(kinetic_model,
         infected = np.random.choice(population, n_infected)
         exposed = np.random.choice(population, n_exposed)
 
-    print(infected)
-    print(exposed)
-
     state = np.zeros((n_states, population))
 
-    # Some are exposed ...
-    state[E, exposed] = 1
+    # Some are infected...
+    state[i, infected] = 1 
+    state[i, exposed] = 0 # (except those who are exposed)
 
-    # ... some are infected...
-    state[I, infected] = 1 
-    state[I, exposed] = 0 # (except those who are exposed)
+    # and everyone else is susceptible.
+    state[s, :] = 1 - state[i, :]
 
-    # ... and everyone else is susceptible.
-    state[S, :] = 1 - state[E, :] - state[I, :]
+    # (except those who are exposed).
+    state[s, exposed] = 0
 
     # (We may want to identify a hospitalized group as well.)
 
