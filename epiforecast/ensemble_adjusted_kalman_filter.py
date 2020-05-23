@@ -1,5 +1,5 @@
 import numpy as np
-import scipy as sp
+import scipy.linalg as la
 
 class EnsembleAdjustedKalmanFilter:
 
@@ -10,7 +10,7 @@ class EnsembleAdjustedKalmanFilter:
         Key functions:
             * eakf.obs
             * eakf.update
-            * eakf.comput_error
+            * eakf.compute_error
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
         
@@ -100,10 +100,10 @@ class EnsembleAdjustedKalmanFilter:
         # Preparing matrices for EAKF 
         H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
         Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
-        F, Dp_vec, _ = sp.linalg.svd(Sigma)
+        F, Dp_vec, _ = la.svd(Sigma)
         Dp = np.diag(Dp_vec)
         G = np.diag(np.sqrt(Dp_vec))
-        U, D_vec, _ = sp.linalg.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
+        U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
         B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0)) 
         A = np.linalg.multi_dot([np.linalg.inv(F.T), \
                                  G.T, \

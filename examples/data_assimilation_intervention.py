@@ -6,7 +6,7 @@ import time
 import pickle
 
 from epiforecast.observations import HighProbRandomStatusObservation
-from epiforecast.data_assimilation import DataAssimilator
+from epiforecast.data_assimilator import DataAssimilator
 from sandbox.models import MasterEqn 
 from sandbox.utilities import load_G, model_settings, get_model, get_IC 
 
@@ -84,23 +84,23 @@ master_eqn_model.set_solver(T = intervention_interval, dt = np.diff(intervals_pe
 #                                min probability threshold for observation,
 #                                max probability threshold for observation,
 #                                type of threshold requirement: 'mean' ensemble within threshold,
-#                                observation name,
-#                                Size of Gaussian noise variance in observation)   
+#                                Size of Gaussian noise variance in observation,   
+#                                observation name)
 
 #noise distribution:
 #JL: x_cov = np.diag(np.maximum((0.01*x_obs)**2, 1e-3))
 good_obs_var=1e-2
 
     
-smart_infectious_obs = HighProbRandomStatusObservation(N,n_status,1.0,[1],0.1,0.75,'mean','0.25<=0.1_SmartInfected<=0.75',good_obs_var)
-#dumb_infectious_obs = HighProbRandomStatusObservation(N,n_status,0.5,[1],0.25,0.75,'mean','0.25<=0.5_DumbInfected<=0.75',0.1)
-#smart_deceased_obs= HighProbRandomStatusObservation(N,n_status,0.5,[1],0.5,0.75,'mean','0.5<=0.5_SmartDecesed<=0.75',0.01)
+smart_infectious_obs = HighProbRandomStatusObservation(N,1.0,[1],0.1,0.75,'mean',,good_obs_var'0.25<=0.1_SmartInfected<=0.75')
+#dumb_infectious_obs = HighProbRandomStatusObservation(N,0.5,[1],0.25,0.75,'mean',0.1,'0.25<=0.5_DumbInfected<=0.75')
+#smart_deceased_obs= HighProbRandomStatusObservation(N,0.5,[1],0.5,0.75,'mean',0.01,'0.5<=0.5_SmartDecesed<=0.75')
 
 #omodel=[smart_infectious_obs, dumb_infectious_obs ,smart_deceased_obs ]
 omodel= smart_infectious_obs 
 
 #EModel - error model, one, for each observation mode to check effectiveness of our observations
-emodel = HighProbRandomStatusObservation(N,n_status,1.0,[2],0.5,1.0,'mean','All_Infected>=0.5',0.0)   
+emodel = HighProbRandomStatusObservation(N,1.0,[2],0.5,1.0,'mean',0.0,'All_Infected>=0.5')   
 
 #Build the DA
 assimilator=DataAssimilator(params,omodel,emodel)
@@ -125,11 +125,9 @@ for intervention_interval in range(n_intervention_intervals):
         ## Forward model evaluation of all ensemble members
         start = time.time()
         if idx_local==0: 
-            xftmp = master_eqn_model.ens_solve_euler(states_IC, [static_network_interval,static_network_interval+1])
-            x_forward[:,:,idx_local] = xftmp[:,:,0]#as atm master_eqn can't deal with single "static_network_interval" input
+            x_forward[:,:,idx_local] = master_eqn_model.ens_solve_euler(states_IC, static_network_interval)
         else:
-            xftmp = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], [static_network_interval,static_network_interval+1])
-            x_forward[:,:,idx_local] = xftmp[:,:,0]
+            x_forward[:,:,idx_local] = master_eqn_model.ens_solve_euler(x_forward[:,:,idx_local-1], static_network_interval) 
         print(x_forward[:,1::5,idx_local])    
         end = time.time()
         print('Time elapsed for forward model: ', end - start)

@@ -3,17 +3,13 @@ from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFi
 
 class DataAssimilator:
 
-    def __init__(self, parameters, observations, errors):
+    def __init__(self, observations, errors):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
            
            Args
            ----
-           
-           parameters (np.array): An array of initial model parameters 
-                                  #Do we want to store these in here?
-        
            #observations (list, [], or Observation): A list of Observations, or a single Observation.
                                                      Generates the indices and covariances of observations
         
@@ -25,8 +21,8 @@ class DataAssimilator:
            Methods
            -------
            
-           update(ensemble_state,data): Perform an update of the ensemble states `ensemble_state`. 
-                                        Returns the updated model parameters `params`  and updated state `ensemble_state`.
+           update(ensemble_state, ensemble_params, data): Perform an update of the ensemble states `ensemble_state`. 
+                                                          Returns the updated model parameters `ensemble_params`  and updated state `ensemble_state`.
 
            make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by omodel.obs_states).
                                         Returns a concatenated list of indices `observed_states` with duplicates removed.
@@ -53,10 +49,7 @@ class DataAssimilator:
        
         #observation models(s)
         self.omodel = observations      
-        
-        #store the parameters
-        self.params=parameters[np.newaxis]
-        
+                
         #the data assimilation models (One for each observation model)
         self.damethod = EnsembleAdjustedKalmanFilter()
 
@@ -95,7 +88,7 @@ class DataAssimilator:
         
         return distinct_cov
     
-    def update(self,ensemble_state,data):
+    def update(self,ensemble_state,ensemble_parameters,data):
 
         if len(self.omodel)>0:
             om=self.omodel
@@ -113,9 +106,8 @@ class DataAssimilator:
                 cov = self.get_observation_cov()
                 
                 #perform da model update with ensemble_state: states,q parameters.
-                q,ensemble_state[:,obs_states]=dam.update(ensemble_state[:,obs_states],self.params[-1],truth,cov)
-                self.params=np.append(self.params, [q], axis=0)
-                
+                q,ensemble_state[:,obs_states]=dam.update(ensemble_state[:,obs_states],ensemble_parameters,truth,cov)
+            
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)
             
@@ -128,10 +120,10 @@ class DataAssimilator:
                 self.error_to_truth_state(ensemble_state,data)
         
             #return ensemble_state and model params
-            return self.params[-1],ensemble_state
+            return ensemble_parameters,ensemble_state
 
         else: #if no observations performed
-            return self.params[-1],ensemble_state
+            return ensemble_parameters,ensemble_state
 
             
     #defines a method to take a difference to the data state
@@ -142,7 +134,7 @@ class DataAssimilator:
         #without further seeding
         em.make_new_obs(state)
         predicted_infected = em.obs_states
-        truth=data[np.arange(em.status*em.N)]
+        truth=data[np.arange(em.n_status*em.N)]
 
         #print(truth[predicted_infected])
         em.make_new_obs(truth[np.newaxis,:])
@@ -150,7 +142,7 @@ class DataAssimilator:
         #take error
         actual_infected= em.obs_states
         #print(truth[actual_infected])
-        different_states=np.zeros(em.status*em.N)
+        different_states=np.zeros(em.n_status*em.N)
         different_states[predicted_infected]=1.0
         different_states[actual_infected] = different_states[actual_infected]-1.0
         number_different=np.maximum(different_states,0.0)-np.minimum(different_states,0.0)
@@ -161,12 +153,12 @@ class DataAssimilator:
     
     def sum_to_one(self,ensemble_state):
         N=self.omodel[0].N
-        status=self.omodel[0].status
-        if status == 6:
+        n_status=self.omodel[0].n_status
+        if n_status == 6:
             #First enforce probabilities == 1, by placing excess in susceptible and Exposed
             #split based on their current proportionality.
             #(Put all in S or E leads quickly to [0,1] bounding issues.
-            sumx=ensemble_state.reshape(ensemble_state.shape[0],status,N)
+            sumx=ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
             sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
             x1mass=np.sum(ensemble_state[:,0:N],axis=1)#mass in S
             x2mass=np.sum(ensemble_state[:,N:2*N],axis=1) #mass in E
@@ -174,7 +166,7 @@ class DataAssimilator:
             fracE=1.0-fracS
             ensemble_state[:,0:N]=((1.0-sumx).T*fracS).T #mult rows by fracS
             ensemble_state[:,N:2*N]= ((1.0-sumx).T*(fracE)).T 
-        elif status==5:
+        elif n_status==5:
             #All mass automatically lumped into empty field: E
             #If this requires smoothing - input here
             pass
