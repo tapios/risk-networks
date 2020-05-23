@@ -57,9 +57,9 @@ class DataAssimilator:
         self.online_emodel= errors
 
 
-    def make_new_observation(self,state):
+    def make_new_observation(self,state,contact_network):
         for i in range(len(self.omodel)):
-            self.omodel[i].make_new_obs(state)
+            self.omodel[i].make_new_obs(state,contact_network)
         
         observed_states=np.hstack([self.omodel[i].obs_states for i in range(len(self.omodel))])
         observed_states=np.unique(observed_states)
@@ -88,13 +88,18 @@ class DataAssimilator:
         
         return distinct_cov
     
-    def update(self, ensemble_state, ensemble_transition_rates, ensemble_transmission_rates, data):
+    def update(self,
+               contact_network,
+               ensemble_state,
+               data,
+               ensemble_transition_rates=[],
+               ensemble_transmission_rates=[]):
 
         if len(self.omodel)>0:
             om=self.omodel
             dam=self.damethod
 
-            obs_states=self.make_new_observation(ensemble_state) #Generate states to observe
+            obs_states=self.make_new_observation(ensemble_state,contact_network) #Generate states to observe
       
             if (obs_states.size>0):
                 
