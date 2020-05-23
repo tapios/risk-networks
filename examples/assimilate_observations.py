@@ -27,9 +27,8 @@ synthetic_data = 1.0/6.0 * np.ones(population * n_status)
 # currently no implemented Observation classes rely upon this so unnecessary
 contact_network=[]
 
-new_state, new_transition_rates, new_transmission_rates = assimilator.update(contact_network,
-                                                                             current_state,
+new_state, new_transition_rates, new_transmission_rates = assimilator.update(current_state,
                                                                              synthetic_data,
-                                                                               ensemble_transition_rates=transition_rates,
-                                                                             ensemble_transmission_rates=transmission_rates,
-                                                                           )
+                                                                             contact_network=contact_network,
+                                                                             ensemble_transition_rates=transition_rates,
+                                                                             ensemble_transmission_rates=transmission_rates)

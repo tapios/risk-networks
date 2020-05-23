@@ -116,10 +116,12 @@ for idx_local,tt in enumerate(intervals_per_window):
     
     ## EAKF to update joint states
     start = time.time()
-    x_forward[:,:,idx_local],params[:,:,idx_local+1] = assimilator.update(x_forward[:,:,idx_local], params[:,:,idx_local], synthetic_data[idx_local+1,:])
+    x_forward[:,:,idx_local],params[:,:,idx_local+1],_ = assimilator.update(x_forward[:,:,idx_local],
+                                                                          synthetic_data[idx_local+1,:],
+                                                                          ensemble_transition_rates=params[:,:,idx_local+1])
     end = time.time()
     print('Assimilation time: ', tt,', Time elapsed for EAKF: ', end - start)
-        
+
     #update master equation model parameters
     master_eqn_model.update_parameters(params[idx_local+1])
     #this next line is overwritten at master_eqn_model runtime
@@ -135,5 +137,3 @@ states_IC = x_forward[:,:,-1]
 pickle.dump(assimilator.params, open("data/u.pkl", "wb"))
 pickle.dump(assimilator.damethod.error, open("data/error.pkl", "wb"))
 pickle.dump(x_forward_all, open("data/x.pkl", "wb"))
-
-

@@ -138,7 +138,9 @@ for intervention_interval in range(n_intervention_intervals):
         ## EAKF to update joint states
         start = time.time()
         
-        x_forward[:,:,idx_local], new_params[:,:,idx_global] = assimilator.update( x_forward[:,:,idx_local], params[:,:,idx_global], data_mean[idx_global,:])
+        x_forward[:,:,idx_local], new_params[:,:,idx_global],_ = assimilator.update(x_forward[:,:,idx_local],
+                                                                                    data_mean[idx_global,:],
+                                                                                    ensemble_transition_rates=params[:,:,idx_global])
         
         end = time.time()
         print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)

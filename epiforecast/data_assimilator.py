@@ -21,8 +21,10 @@ class DataAssimilator:
            Methods
            -------
            
-           update(ensemble_state, ensemble_params, data): Perform an update of the ensemble states `ensemble_state`. 
-                                                          Returns the updated model parameters `ensemble_params`  and updated state `ensemble_state`.
+           update(ensemble_state,data,contact_network=[],ensemble_transition_rates=[], ensemble_transmission_rates=[]):
+                                                          Perform an update of the ensemble states `ensemble_state`, and if provided, ensemble
+                                                          parameters `ensemble_transition rates`, `ensemble_transmission_rates` and the network
+                                                          `contact network`. Returns the updated model parameters and updated states.
 
            make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by omodel.obs_states).
                                         Returns a concatenated list of indices `observed_states` with duplicates removed.
@@ -57,9 +59,9 @@ class DataAssimilator:
         self.online_emodel= errors
 
 
-    def make_new_observation(self,state,contact_network):
+    def make_new_observation(self,ensemble_state,contact_network):
         for i in range(len(self.omodel)):
-            self.omodel[i].make_new_obs(state,contact_network)
+            self.omodel[i].make_new_obs(ensemble_state,contact_network)
         
         observed_states=np.hstack([self.omodel[i].obs_states for i in range(len(self.omodel))])
         observed_states=np.unique(observed_states)
@@ -89,9 +91,9 @@ class DataAssimilator:
         return distinct_cov
     
     def update(self,
-               contact_network,
                ensemble_state,
                data,
+               contact_network=[],
                ensemble_transition_rates=[],
                ensemble_transmission_rates=[]):
 
@@ -112,9 +114,9 @@ class DataAssimilator:
                 
                 #perform da model update with ensemble_state: states,q parameters.
                 ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rates = dam.update(ensemble_state[:,obs_states],
-                                                                                                                        ensemble_transition_rates,
-                                                                                                                        ensemble_transmission_rates,
-                                                                                                                        truth,cov)
+                                                                                                                          ensemble_transition_rates,
+                                                                                                                          ensemble_transmission_rates,
+                                                                                                                          truth,cov)
             
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)
@@ -131,16 +133,16 @@ class DataAssimilator:
             return ensemble_state, ensemble_transition_rates, ensemble_transmission_rates
 
         else: #if no observations performed
-            return ensemble_parameters,ensemble_state
+            return ensemble_state, ensemble_transition_rates,ensemble_transmission_rates
 
             
     #defines a method to take a difference to the data state
-    def error_to_truth_state(self,state,data):
+    def error_to_truth_state(self,ensemble_state,data):
         
         em=self.online_emodel #get corresponding error model
         #Make sure you have a deterministic ERROR model - or it will not match truth
         #without further seeding
-        em.make_new_obs(state)
+        em.make_new_obs(ensemble_state)
         predicted_infected = em.obs_states
         truth=data[np.arange(em.n_status*em.N)]
 
