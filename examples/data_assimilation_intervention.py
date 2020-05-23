@@ -52,14 +52,6 @@ network_rates = model_settings(master_eqn_model_n_samples, contact_network)
 master_eqn_model = get_model(network_rates, master_eqn_model_n_samples, N)
 master_eqn_model.init(beta = 0.06, hom = False)
 
-# Set prior for unknown parameters
-params = np.zeros([n_samples, n_status*N])
-params = pickle.load(open(os.getcwd()+'/../sandbox/sigma_ens.pkl', 'rb'))
-
-# Set initial states
-states_IC = np.zeros([n_samples, n_status*N])
-states_IC[:, :] = get_IC(master_eqn_model, master_eqn_model_n_samples, N)
-
 #We have a long intervention window of time T 
 #We have a short window for updates with data static_network_interval.
     
@@ -67,6 +59,17 @@ intervention_interval = 1.0 #1 day per intervention
 static_network_interval = 0.25 #1/4 day update with data
 steps_intervention_interval = int(intervention_interval/static_network_interval)
 intervals_per_window=np.flip(np.arange(intervention_interval,0.0,-static_network_interval)) # [static_network_interval, ... ,intervention_interval] (Excludes '0')
+
+
+# Set prior for unknown parameters
+params_from_file = pickle.load(open(os.getcwd()+'/../sandbox/sigma_ens.pkl', 'rb'))
+params = np.zeros([params_from_file.shape[0],params_from_file.shape[1],steps_intervention_interval*n_intervention_intervals+1])
+params[:,:,0] = params_from_file
+
+# Set initial states
+states_IC = np.zeros([n_samples, n_status*N])
+states_IC[:, :] = get_IC(master_eqn_model, master_eqn_model_n_samples, N)
+
    
 # Container for forward model evaluations
 x_forward_all = np.empty([n_samples, n_status*N, steps_intervention_interval*n_intervention_intervals+1])
@@ -103,7 +106,7 @@ omodel= smart_infectious_obs
 emodel = HighProbRandomStatusObservation(N,1.0,[2],0.5,1.0,'mean',0.0,'All_Infected>=0.5')   
 
 #Build the DA
-assimilator=DataAssimilator(params,omodel,emodel)
+assimilator=DataAssimilator(omodel,emodel)
 
 #For each DA intervention window
 for intervention_interval in range(n_intervention_intervals):
@@ -135,7 +138,7 @@ for intervention_interval in range(n_intervention_intervals):
         ## EAKF to update joint states
         start = time.time()
         
-        new_params,x_forward[:,:,idx_local]=assimilator.update(x_forward[:,:,idx_local],data_mean[idx_global,:])
+        x_forward[:,:,idx_local], new_params[:,:,idx_global] = assimilator.update( x_forward[:,:,idx_local], params[:,:,idx_global], data_mean[idx_global,:])
         
         end = time.time()
         print('Assimilation time: ', tt_global,', Time elapsed for EAKF: ', end - start)

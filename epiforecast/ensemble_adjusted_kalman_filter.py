@@ -34,12 +34,14 @@ class EnsembleAdjustedKalmanFilter:
    
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, xin, q, truth, cov, r=1.0):
+    def update(self, ensemble_state, transition_rates,transmission_rates, truth, cov, r=1.0):
 
         '''
-        - xin (np.array): J x M of observed states for each of the J ensembles
+        - ensemble_state (np.array): J x M of observed states for each of the J ensembles
         
-        - q (np.array): number of model parameters for each of the J ensembles
+        - transition_rates (np.array): transition rate model parameters for each of the J ensembles
+
+        - transmission_rates (np.array): transmission rate of model parameters for each of the J ensembles
         
         - truth (np.array): M x 1 array of observed states.
 
@@ -49,6 +51,9 @@ class EnsembleAdjustedKalmanFilter:
                           i may not be independent from observations of state j. For example, this
                           can occur when a test applied to person ni alters the certainty of a subsequent
                           test to person nj.
+
+        #TODO: how to deal with no transition and/or transmission rates. i.e empty array input.
+               (Could we just use an ensemble sized column of zeros? then output the empty array
                 '''
 
         assert (truth.ndim == 1), 'EAKF init: truth must be 1d array'
@@ -70,10 +75,14 @@ class EnsembleAdjustedKalmanFilter:
             cov_inv = np.ones(cov.shape)
 
         # States
-        x = np.log(np.maximum(xin, 1e-9) / np.maximum(1.0 - xin, 1e-9))
+        x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
 
-        # Stacked parameters and states 
-        zp = np.hstack([q, x])
+        # Stacked parameters and states
+        # the transition and transmission parameters act similarly in the algorithm
+        p=transition_rates
+        q=transmission_rates
+        
+        zp = np.hstack([p, q, x])
 
         x_t = x_t
         cov = cov
@@ -82,7 +91,7 @@ class EnsembleAdjustedKalmanFilter:
         J = x.shape[0]
         
         # Sizes of q and x
-        qs = q[0].size
+        pqs = q[0].size +p[0].size
         xs = x[0].size
 
         zp_bar = np.mean(zp, 0)
@@ -92,14 +101,14 @@ class EnsembleAdjustedKalmanFilter:
         # Current implementation involves a small constant 
         # This numerical trick can be deactivated if Sigma is not ill-conditioned
         if self.params_noise_active == True:
-            Sigma[:qs,:qs] = Sigma[:qs,:qs] + np.identity(qs) * self.params_cov_noise 
+            Sigma[:pqs,:pqs] = Sigma[:pqs,:pqs] + np.identity(pqs) * self.params_cov_noise 
         if self.states_noise_active == True:
-            Sigma[qs:,qs:] = Sigma[qs:,qs:] + np.identity(xs) * self.states_cov_noise
+            Sigma[pqs:,pqs:] = Sigma[pqs:,pqs:] + np.identity(xs) * self.states_cov_noise
 
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Preparing matrices for EAKF 
-        H = np.hstack([np.zeros((xs, qs)), np.eye(xs)])
-        Hq = np.hstack([np.eye(qs), np.zeros((qs, xs))])
+        H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
+        Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
         F, Dp_vec, _ = la.svd(Sigma)
         Dp = np.diag(Dp_vec)
         G = np.diag(np.sqrt(Dp_vec))
@@ -129,13 +138,14 @@ class EnsembleAdjustedKalmanFilter:
         x_logit = np.minimum(x_logit, 1e2)
 
         # replace unchanged states
-        x_p = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+        new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
 
-        qout=np.dot(zu,Hq.T)
-
+        pqout=np.dot(zu,Hpq.T)
+        new_transition_rates,new_transmission_rates=pqout[:,:transition_rates.shape[1]],pqout[:,transition_rates.shape[1]:]
+        
         #self.x = np.append(self.x, [x_p], axis=0)
 
         # Compute error
         self.compute_error(x_logit,x_t,cov)
 
-        return qout,x_p 
+        return new_ensemble_state, new_transition_rates, new_transmission_rates

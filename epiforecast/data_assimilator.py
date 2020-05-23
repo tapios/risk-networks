@@ -88,7 +88,7 @@ class DataAssimilator:
         
         return distinct_cov
     
-    def update(self,ensemble_state,ensemble_parameters,data):
+    def update(self, ensemble_state, ensemble_transition_rates, ensemble_transmission_rates, data):
 
         if len(self.omodel)>0:
             om=self.omodel
@@ -106,7 +106,10 @@ class DataAssimilator:
                 cov = self.get_observation_cov()
                 
                 #perform da model update with ensemble_state: states,q parameters.
-                q,ensemble_state[:,obs_states]=dam.update(ensemble_state[:,obs_states],ensemble_parameters,truth,cov)
+                ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rates = dam.update(ensemble_state[:,obs_states],
+                                                                                                                        ensemble_transition_rates,
+                                                                                                                        ensemble_transmission_rates,
+                                                                                                                        truth,cov)
             
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)
@@ -120,7 +123,7 @@ class DataAssimilator:
                 self.error_to_truth_state(ensemble_state,data)
         
             #return ensemble_state and model params
-            return ensemble_parameters,ensemble_state
+            return ensemble_state, ensemble_transition_rates, ensemble_transmission_rates
 
         else: #if no observations performed
             return ensemble_parameters,ensemble_state

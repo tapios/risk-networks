@@ -6,6 +6,9 @@ import pickle
 
 from epiforecast.observations import HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
+#When they exist:
+from epiforecast.risk_simulation import MasterEquationModelEnsemble
+
 from sandbox.models import MasterEqn 
 from sandbox.utilities import load_G, model_settings, get_model, get_IC 
 
@@ -113,7 +116,7 @@ for idx_local,tt in enumerate(intervals_per_window):
     
     ## EAKF to update joint states
     start = time.time()
-    params[:,:,idx_local+1],x_forward[:,:,idx_local]=assimilator.update(x_forward[:,:,idx_local],params[:,:,idx_local],synthetic_data[idx_local+1,:])
+    x_forward[:,:,idx_local],params[:,:,idx_local+1] = assimilator.update(x_forward[:,:,idx_local], params[:,:,idx_local], synthetic_data[idx_local+1,:])
     end = time.time()
     print('Assimilation time: ', tt,', Time elapsed for EAKF: ', end - start)
         
