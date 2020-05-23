@@ -370,7 +370,7 @@ for i in range(intervals_per_window):
     new_transition_rates, new_transmission_rates, new_ensemble = assimilator.update(network_generator.get_contact_networks()
                                                                                     master_model.ensemble,
                                                                                     master_model.transition_rates,
-                                                                                    master_model.simulate,
+                                                                                    master_model.transmission_rates,
                                                                                     synthetic_data)
 
     # Update the master model ensemble and parameters
