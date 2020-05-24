@@ -5,7 +5,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 # Import utilities for generating random populations
-from epiforecast.populations import populate_ages, ClinicalStatistics #, TransitionRates
+from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 # First we define the population by the number of individuals
@@ -48,3 +48,17 @@ hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
 
 # Print the latent periods
 print("Randomly-generated latent periods:\n", latent_periods.values)
+
+# We process the clinical data to determine transition rates between each epidemiological state,
+
+transition_rates = TransitionRates(latent_periods,
+                                   community_infection_periods,
+                                   hospital_infection_periods,
+                                   hospitalization_fraction,
+                                   community_mortality_fraction,
+                                   hospital_mortality_fraction)
+
+# The transition rates have units 1 / day. There are six transition rates. For example:
+print("\nInfected -> Deceased transition rates (1/days):\n")
+for node in transition_rates.nodes:
+    print("node ", node, ": ", transition_rates.infected_to_deceased[node])
