@@ -8,12 +8,12 @@ class NetworkCompartmentalModel(object):
         Model class
     """
 
-    def __init__(self, contact_network = contact_network, ix_reduced = True):
+    def __init__(self, contact_network, ix_reduced = True):
         self.G = self.contact_network = contact_network
-        self.N = len(G)
+        self.N = len(self.G)
 
-    def set_parameters(self, transmission_rate = 0.06,
-                             transition_rates  = transition_rates,
+    def set_parameters(self, transition_rates,
+                             transmission_rate = 0.06,
                              ix_reduced        = True):
         """
             Setup the parameters from the transition_rates container into the
@@ -22,7 +22,6 @@ class NetworkCompartmentalModel(object):
         """
         self.beta   = transmission_rate
         self.betap  = 0.75 * self.beta
-
 
         self.sigma  = np.array(transition_rates.exposed_to_infected.values())
         self.delta  = np.array(transition_rates.infected_to_hospitalized.values())
@@ -40,7 +39,7 @@ class NetworkCompartmentalModel(object):
             iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
             self.coeffs = sps.csr_matrix(sps.bmat(
                 [
-                    [-sps.eye(self.N),       None                                None,                    None,                   None],
+                    [-sps.eye(self.N),       None,                               None,                    None,                   None],
                     [sps.diags(-self.sigma), sps.diags(-self.sigma -self.gamma), sps.diags(-self.sigma),  sps.diags(-self.sigma), sps.diags(-self.sigma)],
                     [None,                   sps.diags(self.delta),              sps.diags(-self.gammap), None,                   None],
                     [None,                   sps.diags(self.theta),              sps.diags(self.thetap),  None,                   None],
@@ -54,18 +53,14 @@ class NetworkCompartmentalModel(object):
             print('Warning! Full system not yet implemented')
             pass
 
-    def get_parameters(self, parameter_names = 'All'):
+    def update_transition_rates(self, parameters, parameter_names = 'All'):
+        """
+        Inputs:
+        -------
+        parameters (2d array) of size (6, N)
+        """
         if parameter_names == 'All':
-            params = np.array([self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup])
-        else:
-            # Maybe we only want to to the filtering for a subset of params?
-            # TODO: Check with Jinlong and Ollie
-            pass
-        return params
-
-    def update_parameters(self, parameters, parameter_names = 'All'):
-        if parameter_names == 'All':
-            self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup = get_parameters
+            self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup = parameters
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
         else:
@@ -73,19 +68,36 @@ class NetworkCompartmentalModel(object):
             # TODO: Check with Jinlong and Ollie
             pass
 
+    def update_contact_network(self, contact_network):
+        self.G = self.contact_network = contact_network
+        self.N = len(self.G)
+
 class MasterEquationModelEnsemble(object):
-    def __init__(self, ensemble_size          = 1,
-                       contact_network        = contact_network,
-                       transmission_rates     = constant_transmission_rate,
-                       state_transition_rates = transition_rates):
+    def __init__(self, contact_network, state_transition_rates,
+                transmission_rate = 0.06,
+                ensemble_size = 1):
+        """
+        Inputs:
+        -------
+            ensemble_size (int,)
+            contact_network (networkx.graph)
+            transmission_rates (float)
+            state_transition_rates (list of) or (single instance of) TransitionRate container
+        """
         self.M = ensemble_size
-        self.G = contact_network
+        self.G = self.contact_network = contact_network
+        self.N = len(self.G)
         self.ensemble = []
 
-        for mm in tqdm(range(self.G), desc = 'Building ensemble', total = self.M):
-            member = NetworkCompartmentalModel(contact_network = G)
-            member.set_parameters(transmission_rate = constant_transmission_rate,
-                                   transition_rates = transition_rates[mm])
+        for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
+            member = NetworkCompartmentalModel(contact_network = contact_network)
+            if isinstance(state_transition_rates, list):
+                member.set_parameters(state_transition_rates[mm],
+                        transmission_rate = transmission_rate[mm])
+            else:
+                member.set_parameters(state_transition_rates,
+                        transmission_rate = transmission_rate)
+
             self.ensemble.append(member)
 
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
@@ -93,45 +105,46 @@ class MasterEquationModelEnsemble(object):
 
     #  Set methods -------------------------------------------------------------
 
-    def set_state(self, y):
-        # Set the master equation state to the same initial state as the kinetic model.
-        # master_model.set_state(initial_state)
-        self.y0 = y
+    def get_state(self):
+        # NOT SURE IF WE REALLY NEED THIS!!!
+        return self.y0
 
-    def set_contact_network(self):
+    def update_contact_network(self, new_contact_network):
         """
-            For update purposes
+        For update purposes
         """
-        pass
+        self.G = self.contact_network = new_contact_network
+        self.N = len(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G)
 
-    def set_ensemble(self, new_ensemble):
-        """
-            For update purposes
-        """
-        pass
+        [member.update_contact_network(self.G) for member in self.ensemble]
 
-    def set_transition_rates(self, new_transition_rates):
+    def udpate_transmission_rates(self, new_transmission_rate):
         """
-            For update purposes
+        new_transmission_rate (array) of size M
         """
-        pass
+        for mm, member in enumerate(self.ensemble):
+            member.beta  = new_transmission_rate[mm]
+            member.betap = 0.75 * member.beta
 
-    def set_transmission_rates(self, new_transmission_rates):
+    def update_transition_rates(self, new_transition_rates):
         """
-            For update purposes
+        new_transition_rates (multidimensional array) of size (M, N_params, N_nodes)
         """
-        pass
+        for mm, member in enumerate(self.ensemble):
+            member.update_transition_rates(new_transition_rates[mm])
 
-    def populate_states(self, distribution=state_distribution):
-        pass
+    def update_ensemble(self, new_contact_network,
+                              new_transmission_rate,
+                              new_transition_rates):
+        """
+        update all parameters of ensemeble
+        """
+        self.update_contact_network(new_contact_network)
+        self.update_transition_rates(new_transition_rates)
+        self.update_transmission_rates(new_transmission_rate)
 
-    def populate_transition_rates(self, distribution=transition_rates_distribution):
-        pass
-
-    def populate_transmission_rates(self, distribution=transmission_rates_distribution):
-        pass
-
-    # Ode solver methods -------------------------------------------------------
+    # ODE solver methods -------------------------------------------------------
     def do_step(self, t, y, member, member_id, **kwargs):
         """
             Inputs:
@@ -168,8 +181,15 @@ class MasterEquationModelEnsemble(object):
             self.beta_closure_indp = self.beta  * self.L.multiply((self.numSI/(self.denSI+1e-8))).dot(y[:,iI].T) + \
                                      self.betap * self.L.multiply((self.numSH/(self.denSH+1e-8))).dot(y[:,iH].T)
 
-    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, args = (), **kwargs):
+    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, **kwargs):
         """
+        Inputs:
+        -------
+        y0 (nd array): initial state for simulation of size (M, 5 times N)
+        T (float)    : final time of simulation
+        n_steps (int): number of Euler steps
+        t0 (float)   : initial time of simulation
+        **kargs      : by default consider that closure = 'independent'
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
@@ -181,8 +201,8 @@ class MasterEquationModelEnsemble(object):
         for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate forward', total = n_steps):
             self.eval_closure(self.y0, **kwargs)
             for mm, member in enumerate(self.ensemble):
-                self.y0[mm] += self.dt * self.ens_keqns_sparse_closure(t, self.y0[mm], member, mm, **kwargs)
-                self.y0[mm] = np.clip(self.y0[mm], 0., 1.)
+                self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, mm, **kwargs)
+                self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
             self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
