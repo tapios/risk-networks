@@ -74,7 +74,7 @@ class NetworkCompartmentalModel(object):
 
 class MasterEquationModelEnsemble(object):
     def __init__(self, contact_network, state_transition_rates,
-                transmission_rate = 0.06,
+                transmission_rate,
                 ensemble_size = 1):
         """
         Inputs:
@@ -134,9 +134,10 @@ class MasterEquationModelEnsemble(object):
         for mm, member in enumerate(self.ensemble):
             member.update_transition_rates(new_transition_rates[mm])
 
-    def update_ensemble(self, new_contact_network,
-                              new_transmission_rate,
-                              new_transition_rates):
+    def update_ensemble(self,
+                        new_contact_network,
+                        new_transition_rates,
+                        new_transmission_rate):
         """
         update all parameters of ensemeble
         """
