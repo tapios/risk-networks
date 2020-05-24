@@ -9,9 +9,9 @@ contact_network = []
 ensemble_size = 10
 
 # take the generated rates (typically)
-# transition_rates: array[ensemble_size, number of rate types (always 6?), population]
+# transition_rates: list [ensemble_size] of transition rates
 # transmission_rate: array[ensemble_size]
-state_transition_rates = np.random.uniform(0.01, 0.99, size=(ensemble_size,6,population))
+state_transition_rates = [transition_rates(...) for i in range(ensemble_size)] # See generate_clinical_statistics.py
 transmission_rate = 0.06*np.ones(ensemble_size)
 
 
@@ -24,11 +24,12 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network=contact_networ
 
 # in practice when we update we will always update rates and network at the same time:
 new_contact_network = [] 
-new_transition_rates = np.random.uniform(0.01, 0.99, size=(ensemble_size,6,population))
+new_transition_rates =  [transition_rates(...) for i in range(ensemble_size)] #See generate_clinical_statistics.py
 new_transmission_rate = 0.08*np.ones(ensemble_size)
 master_eqn_ensemble.update_ensemble(new_contact_network=new_contact_network,
                                     new_transition_rates=new_transition_rates,
                                     new_transmission_rate=new_transmission_rate)
+
 
 # simulate
 current_state = np.random.uniform(0.01, 0.2, size=(ensemble_size,5*population)) 

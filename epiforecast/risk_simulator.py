@@ -13,7 +13,7 @@ class NetworkCompartmentalModel(object):
         self.N = len(self.G)
 
     def set_parameters(self, transition_rates,
-                             transmission_rate = 0.06,
+                             transmission_rate,
                              ix_reduced        = True):
         """
             Setup the parameters from the transition_rates container into the
@@ -53,14 +53,23 @@ class NetworkCompartmentalModel(object):
             print('Warning! Full system not yet implemented')
             pass
 
-    def update_transition_rates(self, parameters, parameter_names = 'All'):
+    def update_transition_rates(self, transition_rates, parameter_names = 'All'):
         """
         Inputs:
         -------
-        parameters (2d array) of size (6, N)
+        transition_rates object
         """
         if parameter_names == 'All':
-            self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup = parameters
+
+            self.sigma  = np.array(transition_rates.exposed_to_infected.values())
+            self.delta  = np.array(transition_rates.infected_to_hospitalized.values())
+            self.theta  = np.array(transition_rates.infected_to_resistant.values())
+            self.thetap = np.array(transition_rates.hospitalized_to_resistant.values())
+            self.mu     = np.array(transition_rates.infected_to_deceased.values())
+      
+            #self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup = parameters
+
+            
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
         else:
@@ -73,7 +82,9 @@ class NetworkCompartmentalModel(object):
         self.N = len(self.G)
 
 class MasterEquationModelEnsemble(object):
-    def __init__(self, contact_network, state_transition_rates,
+    def __init__(self,
+                contact_network,
+                state_transition_rates,
                 transmission_rate,
                 ensemble_size = 1):
         """
@@ -81,8 +92,8 @@ class MasterEquationModelEnsemble(object):
         -------
             ensemble_size (int,)
             contact_network (networkx.graph)
-            transmission_rates (float)
             state_transition_rates (list of) or (single instance of) TransitionRate container
+            transmission_rates (float)
         """
         self.M = ensemble_size
         self.G = self.contact_network = contact_network
@@ -119,7 +130,7 @@ class MasterEquationModelEnsemble(object):
 
         [member.update_contact_network(self.G) for member in self.ensemble]
 
-    def udpate_transmission_rates(self, new_transmission_rate):
+    def update_transmission_rates(self, new_transmission_rate):
         """
         new_transmission_rate (array) of size M
         """
@@ -129,7 +140,7 @@ class MasterEquationModelEnsemble(object):
 
     def update_transition_rates(self, new_transition_rates):
         """
-        new_transition_rates (multidimensional array) of size (M, N_params, N_nodes)
+       list of (or single) transition_rates object
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transition_rates(new_transition_rates[mm])
