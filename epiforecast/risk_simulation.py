@@ -169,10 +169,10 @@ class MasterEquationModelEnsemble(object):
 
         return member.y_dot
 
-    def eval_closure(self, y, **kwargs):
+    def eval_closure(self, y, closure = 'independent'):
         iS, iI, iH     = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
 
-        if kwargs.get('closure', 'individual') == 'independent':
+        if 'closure' == 'independent':
             self.numSI = y[:,iS].T.dot(y[:,iI])/(self.M)
             self.denSI = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iI].mean(axis = 0).reshape(1,-1))
 
@@ -181,7 +181,7 @@ class MasterEquationModelEnsemble(object):
             self.beta_closure_indp = self.beta  * self.L.multiply((self.numSI/(self.denSI+1e-8))).dot(y[:,iI].T) + \
                                      self.betap * self.L.multiply((self.numSH/(self.denSH+1e-8))).dot(y[:,iH].T)
 
-    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, **kwargs):
+    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent'):
         """
         Inputs:
         -------
@@ -201,7 +201,7 @@ class MasterEquationModelEnsemble(object):
         for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate forward', total = n_steps):
             self.eval_closure(self.y0, **kwargs)
             for mm, member in enumerate(self.ensemble):
-                self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, mm, **kwargs)
+                self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, mm, closure = closure)
                 self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
             self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
