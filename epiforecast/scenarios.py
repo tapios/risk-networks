@@ -17,6 +17,16 @@ hospitalized = h = 2
 resistant    = r = 3
 deceased     = d = 4
 
+# The indices are:
+#
+# Susceptible: s = np.arange(start=0, stop=population)
+# Infected:    i = np.arange(start=0, stop=population)
+def susecptible_indices(population):  return np.arange(start = 0 * population, stop = 1 * population)
+def infected_indices(population):     return np.arange(start = 1 * population, stop = 2 * population)
+def hospitalized_indices(population): return np.arange(start = 2 * population, stop = 3 * population)
+def resistant_indices(population):    return np.arange(start = 3 * population, stop = 4 * population)
+def deceased_indices(population):     return np.arange(start = 4 * population, stop = 5 * population)
+
 @contextlib.contextmanager
 def temporary_seed(seed):
     """
@@ -63,7 +73,7 @@ def midnight_on_Tuesday(kinetic_model,
     Returns an `np.array` corresponding to the epidemiological state of a population
     "at midnight on Tuesday".
 
-    Each person can be in 1 of 5 states, so `state.shape = (6, population)`.
+    Each person can be in 1 of 5 states, so `state.shape = (5, population)`.
     """
 
     population = kinetic_model.population
@@ -101,23 +111,46 @@ def transition_rates_distribution_at_midnight_on_Tuesday():
 def transmission_rates_distribution_at_midnight_on_Tuesday():
     pass
 
-def populate_states(n_ensemble, population, percent_infected, random_seed=1234):
+def randomly_infected_ensemble(n_ensemble, population, percent_infected, random_seed=1234):
     """
-    Returns an ensemble of states of 5 x population.
+    Returns an ensemble of states of 5 x population. In each member of the ensemble,
+    `percent_infected` of the population is infected.
+
+    Args
+    ----
+
+    n_ensemble: The number of ensemble members.
+
+    population: The population. Each ensemble has a state of size `5 * population`. The total
+                size of the ensemble of states is `n_ensemble x 5 * population`.
+
+    percent_infected: The percent of people who are infected in each ensemble member.                    
+
+    random_seed: A random seed so that the outcome is reproducible.
     """
 
     n_infected = int(np.round(population * percent_infected))
 
+    # Extract the indices corresponding to infected and susceptible states
+    s = susceptible_indices(population)
+    i = infected_indices(population) # is needed later
+
+    # Initialize states with susceptible = 1.
     states = np.zeros([n_ensemble, n_states * population])
+    states[:, s] = 1
 
     with temporary_seed(random_seed):
         for m in range(n_ensemble):
-            infected = np.random.choice(population, size=n_infected)
 
-            i = np.arange(start=population, length=population)
+            # Select random indices from a list of indices = [0, population)
+            randomly_infected = np.random.choice(population, size=n_infected)
 
-            states[m, i] = infected 
+            # Translate random indices to indices of the infected state
+            i_randomly_infected = i[randomly_infected]
+            s_randomly_infected = s[randomly_infected]
 
-            #states[m, i, :] = 
+            # Infect the people
+            states[m, i_randomly_infected] = 1
+            states[m, s_randomly_infected] = 0
 
     return states
