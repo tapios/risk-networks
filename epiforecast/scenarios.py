@@ -17,10 +17,8 @@ hospitalized = h = 2
 resistant    = r = 3
 deceased     = d = 4
 
-# The indices are:
-#
-# Susceptible: s = np.arange(start=0, stop=population)
-# Infected:    i = np.arange(start=0, stop=population)
+# Our state is a 1D vector. Thus, accessing the values for a particular state requires
+# slicing into this vector. These functions return the appropritate subranges for each state.
 def susecptible_indices(population):  return np.arange(start = 0 * population, stop = 1 * population)
 def infected_indices(population):     return np.arange(start = 1 * population, stop = 2 * population)
 def hospitalized_indices(population): return np.arange(start = 2 * population, stop = 3 * population)
@@ -49,18 +47,21 @@ def random_infection(population, infected=10):
     """
     Returns an `np.array` corresponding to the epidemiological state of a population.
 
-    Each person can be in 1 of 5 states, so `state.shape = (5, population)`.
+    Each person can be in 1 of 5 states, so `state.shape = (5 * population)`.
     """
 
     # The states are S, E, I, H, R (, D)
-    state = np.zeros((n_states, population))
+    state = np.zeros((n_states * population,))
+    i = infected_indices(population)
+    s = infected_indices(population)
 
     # Some are infected...
     infected = np.random.choice(population, infected)
-    state[i, infected] = 1
+    i_infected = i[infected]
+    state[i_infected] = 1
 
     # ... and everyone else is susceptible
-    state[s, :] = 1 - state[i, :]
+    state[s] = 1 - state[i]
 
     return state
 
