@@ -47,10 +47,10 @@ class KineticModel:
         ('H','S'), ('H','E'), rate=1, weight_label='SH->E'
     )
 
-    self.IC = defaultdict(lambda: 'S') # initial conditions for Gillespie
-    self.__P0  = None # an array of initial placeholder nodes
-    self.__HCW = None # an array of healthcare-worker nodes
-    self.__I0  = None # an array of initially infected nodes
+    self.IC = None # initial conditions for Gillespie
+    self.__P0  = None # array of initial placeholder nodes
+    self.__HCW = None # array of healthcare-worker nodes
+    self.__I0  = None # array of initially infected nodes
 
     # numpy arrays (when initialized) of independent rates
     self.sigma  = None # sigma_i
@@ -109,8 +109,8 @@ class KineticModel:
     '''
     Set initial placeholder, infected and healthcare-worker nodes
 
-    P0:       (array_like of ints, or float)
-              an array of nodes or a fraction of nodes that starts from 0
+    P0:       (float)
+              a fraction of nodes that starts from 0
     HCW:      (array_like of ints, or float)
               an array of nodes or a fraction of nodes that starts after P0
     I0:       (array_like of ints, or float)
@@ -121,11 +121,10 @@ class KineticModel:
     self.TA.set_initial_active(active)
 
     N = self.static_graph.number_of_nodes()
+    self.IC = np.empty(N, dtype='<U1') # numpy array of characters
+    self.IC.fill('S') # initialize as susceptible
 
-    if type(P0) == float:
-      self.__P0 = np.arange(int(P0 * N))
-    else:
-      self.__P0 = np.array(P0)
+    self.__P0 = np.arange(int(P0 * N)) # essentially, immutable
 
     if type(HCW) == float:
       self.__HCW = np.arange(int(HCW * N)) + int(P0 * N)
@@ -151,11 +150,8 @@ class KineticModel:
       mask = np.searchsorted(self.__HCW, self.__HCW[P0_HCW])
       self.__HCW = np.delete(self.__HCW, mask)
 
-    for i in self.__I0:
-      self.IC[i] = 'I'
-
-    for i in self.__P0:
-      self.IC[i] = 'P'
+    self.IC[ self.__I0 ] = 'I'
+    self.IC[ self.__P0 ] = 'P'
 
   def set_independent_rates(self):
     N = self.static_graph.number_of_nodes()
