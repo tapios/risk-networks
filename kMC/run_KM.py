@@ -5,7 +5,7 @@ import getopt
 import configparser
 
 from KineticModel import KineticModel
-from KM_helper import KM_print_states
+from KM_helper import KM_print_states, KM_print_start
 
 
 ################################################################################
@@ -67,20 +67,21 @@ km.set_statuses('all') # can be 'SIR' or 'HRD' etc.
 # this is a dubious point... muc used to be 6 but in units [1/h]
 # we have now switched to days throughout the code everywhere, so should it be
 # muc = 144 instead? with 144 you get waaaay fewer contacts
+# even worse, it's 1920 per day now? according to overleaf?
 km.generate_temporal_adjacency(muc=6)
 
 km.average_betas(dt_averaging=dt_KM)
 
+KM_print_start(t, km.IC, 'SEIRHD')
 while t < T1:
   km.update_beta_rates(t)
   res = km.do_Gillespie_step(t=t, dt=dt_KM)
 
   times, states = res.summary()
   node_status = res.get_statuses(time=times[-1])
-  KM_print_states(t, times, states, 'SEIRHD')
 
   if t >= output_t:
-    print('t = {:>7.2f}'.format(t))
+    KM_print_states(t, states, 'SEIRHD')
     output_t += output_dt
 
   t += dt_KM

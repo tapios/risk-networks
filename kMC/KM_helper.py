@@ -71,17 +71,36 @@ def KM_complement_indices(N, idx):
   not_idx[idx] = False
   return not_idx
 
-def KM_print_states(t_offset, times, states, which):
+def KM_print_start(t, IC, which):
+  print(' '*7, end='')
+  if 'S' in which: print('{:>7}'.format('S'), end='')
+  if 'E' in which: print('{:>7}'.format('E'), end='')
+  if 'I' in which: print('{:>7}'.format('I'), end='')
+  if 'H' in which: print('{:>7}'.format('H'), end='')
+  if 'R' in which: print('{:>7}'.format('R'), end='')
+  if 'D' in which: print('{:>7}'.format('D'))
+
+  states = {
+      'S': [ np.count_nonzero(IC == 'S') ],
+      'E': [ np.count_nonzero(IC == 'E') ],
+      'I': [ np.count_nonzero(IC == 'I') ],
+      'H': [ np.count_nonzero(IC == 'H') ],
+      'R': [ np.count_nonzero(IC == 'R') ],
+      'D': [ np.count_nonzero(IC == 'D') ],
+  }
+  KM_print_states(t, states, which)
+
+def KM_print_states(t, states, which):
   '''
   Print summary of states using output from networkx
   '''
 
-  print(
-      states['S'][-1],
-      states['E'][-1],
-      states['I'][-1],
-      states['H'][-1],
-      states['R'][-1],
-      states['D'][-1]
-  )
+  print('{:>7.2f}'.format(t), end='')
+  if 'S' in which: print('{:>7}'.format(states['S'][-1]), end='')
+  if 'E' in which: print('{:>7}'.format(states['E'][-1]), end='')
+  if 'I' in which: print('{:>7}'.format(states['I'][-1]), end='')
+  if 'H' in which: print('{:>7}'.format(states['H'][-1]), end='')
+  if 'R' in which: print('{:>7}'.format(states['R'][-1]), end='')
+  if 'D' in which: print('{:>7}'.format(states['D'][-1]))
+
 
