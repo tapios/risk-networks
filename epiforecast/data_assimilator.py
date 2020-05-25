@@ -4,7 +4,9 @@ from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFi
 
 class DataAssimilator:
 
-    def __init__(self, observations, errors, *, transition_rates_to_update_str=None, transmission_rate_to_update_flag=None):
+    def __init__(self, observations, errors, *, 
+                         transition_rates_to_update_str = None,
+                       transmission_rate_to_update_flag = None):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
@@ -142,8 +144,8 @@ class DataAssimilator:
                 for member in range(ensemble_size):
 
                     # This returns an [ensemble size x transition rates (to be updated)] np.array
-                    rates_tmp = np.hstack([full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type) \
-                                                           for rate_type in self.transition_rates_to_update_str])
+                    rates_tmp = np.hstack([getattr(full_ensemble_transition_rates[member], rate_type)
+                                           for rate_type in self.transition_rates_to_update_str])
 
                     # Have to create here as rates_tmp unknown in advance
                     if member == 0: ensemble_transition_rates = np.empty((0, rates_tmp.size), dtype=float)
@@ -196,13 +198,12 @@ class DataAssimilator:
                             # We obtain the size, then update the corresponding transition rate
                             # Then delete this an move onto the next rate
                             
-                            rate_size = full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type).size
+                            rate_size = getattr(full_ensemble_transition_rates[member], rate_type).size
 
-                            full_ensemble_transition_rates[member].set_transition_rates_from_str(rate_type,new_member_rates[:rate_size])
+                            full_ensemble_transition_rates[member].set_clinical_statistic(rate_type, new_member_rates[:rate_size])
 
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
 
-                                                                                                           
                 # Update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
                     full_ensemble_transmission_rate=new_ensemble_transmission_rate

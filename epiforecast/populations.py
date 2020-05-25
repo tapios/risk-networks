@@ -1,5 +1,7 @@
 import numpy as np
 
+from .samplers import AgeAwareBetaSampler, GammaSampler
+
 class ClinicalStatistics:
     """
     A container for clinical statistics.
@@ -44,19 +46,22 @@ class TransitionRates:
     """
     A container for transition rates.
 
-    Args:
+    Args
+    ----
 
-    latent_period of infection (1/σ)
+    All arguments are ClinicalStatistics.
 
-    community_infection_period over which infection persists in the 'community' (1/γ),
+    * latent_period of infection (1/σ)
 
-    hospital_infection_period over which infection persists in a hospital setting (1/γ′),
+    * community_infection_period over which infection persists in the 'community' (1/γ),
 
-    hospitalization_fraction, the fraction of infected that become hospitalized (h),
+    * hospital_infection_period over which infection persists in a hospital setting (1/γ′),
 
-    community_mortality_fraction, the mortality rate in the community (d),
+    * hospitalization_fraction, the fraction of infected that become hospitalized (h),
 
-    hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
+    * community_mortality_fraction, the mortality rate in the community (d),
+
+    * hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
 
     The six transition rates are
 
@@ -83,7 +88,7 @@ class TransitionRates:
                        community_mortality_fraction,
                        hospital_mortality_fraction):
 
-        #For data assimilation we require return of initial variables
+        # For data assimilation we require return of initial variables
         self.latent_periods               = latent_periods.values
         self.community_infection_periods  = community_infection_periods.values
         self.hospital_infection_periods   = hospital_infection_periods.values
@@ -91,82 +96,88 @@ class TransitionRates:
         self.community_mortality_fraction = community_mortality_fraction.values
         self.hospital_mortality_fraction  = hospital_mortality_fraction.values
 
-
         self.population = len(latent_periods.values)
         self.nodes = nodes = range(self.population)
 
-        σ = 1 / latent_periods.values
-        γ = 1 / community_infection_periods.values
-        h = hospitalization_fraction.values
-        d = community_mortality_fraction.values
+        self._calculate_transition_rates()
 
-        γ_prime = 1 / hospital_infection_periods.values
-        d_prime = hospital_mortality_fraction.values
+    def _calculate_transition_rates(self):
 
-        self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
-        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
-        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
-        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
-
-        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
-        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
-
-    # Getter for single rate defined by string
-    def get_transition_rates_from_str(self,transition_rate_str):
-        if transition_rate_str == 'latent_periods':
-            return self.latent_periods 
-        elif transition_rate_str == 'community_infection_periods':
-            return self.community_infection_periods
-        elif transition_rate_str == 'hospital_infection_periods':
-            return self.hospital_infection_periods
-        elif transition_rate_str == 'hospitalization_fraction':
-            return self.hospitalization_fraction 
-        elif transition_rate_str ==  'community_mortality_fraction':
-            return self.community_mortality_fraction 
-        elif transition_rate_str == 'hospital_mortality_fraction':
-            return self.hospital_mortality_fraction
-        else:
-            print('transition rate not recognized')
-            exit()
-
-    # Setter for single rate defined by string.  
-    def set_transition_rates_from_str(self,transition_rate_str,transition_rate):
-
-        if transition_rate_str == 'latent_periods':
-            self.latent_periods = transition_rate
-        elif transition_rate_str == 'community_infection_periods':
-            self.community_infection_periods = transition_rate
-        elif transition_rate_str == 'hospital_infection_periods':
-            self.hospital_infection_periods = transition_rate
-        elif transition_rate_str == 'hospitalization_fraction':
-            self.hospitalization_fraction = transition_rate
-        elif transition_rate_str ==  'community_mortality_fraction':
-            self.community_mortality_fraction = transition_rate
-        elif transition_rate_str == 'hospital_mortality_fraction':
-            self.hospital_mortality_fraction = transition_rate
-        else:
-            print('transition rate not recognized')
-            exit()
-                
-        # For now, I ensure consistency here, clearly this actually only needs doing once after all updates 
-        
         σ = 1 / self.latent_periods
         γ = 1 / self.community_infection_periods
         h = self.hospitalization_fraction
         d = self.community_mortality_fraction
-        
+
         γ_prime = 1 / self.hospital_infection_periods
         d_prime = self.hospital_mortality_fraction
-        
+
         self.exposed_to_infected       = { node: σ[node]                             for node in self.nodes }
         self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in self.nodes }
         self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in self.nodes }
         self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in self.nodes }
-        
+
         self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in self.nodes }
         self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in self.nodes }
-            
-                
+
+    def set_clinical_statistic(self, statistic, values):
+        setattr(self, statistic, values)
+        self._calculate_transition_rates()
+
+
+
+
+def king_county_transition_rates(population):
+    """
+    Returns transition rates for a community of size `population`
+    whose statistics vaguely resemble the clinical statistics of 
+    King County, WA, USA.
+    """
+
+    # ... and the age category of each individual
+    age_distribution = [ 0.23,  # 0-19 years
+                         0.39,  # 20-44 years
+                         0.25,  # 45-64 years
+                         0.079  # 65-75 years
+                        ]
+
+    # 75 onwards
+    age_distribution.append(1 - sum(age_distribution))
+    
+    ages = populate_ages(population, distribution=age_distribution)
+    
+    # Next, we randomly generate clinical properties for our example population.
+    # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
+    latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
+                                                     sampler = GammaSampler(k=1.7, theta=2.0))
+    
+    community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
+                                                     sampler = GammaSampler(k=1.5, theta=2.0))
+    
+    hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
+                                                    sampler = GammaSampler(k=1.5, theta=3.0))
+    
+    hospitalization_fraction = ClinicalStatistics(ages = ages,
+        sampler = AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4))
+    
+    community_mortality_fraction = ClinicalStatistics(ages = ages,
+        sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
+    
+    hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
+        sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
+
+    transition_rates = TransitionRates(latent_periods,
+                                       community_infection_periods,
+                                       hospital_infection_periods,
+                                       hospitalization_fraction,
+                                       community_mortality_fraction,
+                                       hospital_mortality_fraction)
+    
+    return transition_rates
+
+
+
+
+
 def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):
     """
     Returns a numpy array of length `population`, with age categories from
