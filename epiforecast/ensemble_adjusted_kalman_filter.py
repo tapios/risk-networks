@@ -1,9 +1,12 @@
 import numpy as np
 import scipy.linalg as la
+import sys
 
 class EnsembleAdjustedKalmanFilter:
 
-    def __init__(self, params_cov_noise = 1e-2, states_cov_noise = 1e-2, params_noise_active = False, states_noise_active = True):
+    def __init__(self, full_svd = True, \
+                 params_cov_noise = 1e-2, states_cov_noise = 1e-2, \
+                 params_noise_active = False, states_noise_active = True):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 
@@ -13,9 +16,13 @@ class EnsembleAdjustedKalmanFilter:
             * eakf.compute_error
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
+
+        if full_svd != True and full_svd != False:
+            sys.exit("Incorrect flag detected for full_svd (needs to be True/False)!")
         
         # Error
         self.error = np.empty(0)
+        self.full_svd = full_svd
         self.params_cov_noise = params_cov_noise
         self.states_cov_noise = states_cov_noise
         self.params_noise_active = params_noise_active
@@ -96,37 +103,84 @@ class EnsembleAdjustedKalmanFilter:
 
         zp_bar = np.mean(zp, 0)
         Sigma = np.cov(zp.T)
-        
-        # Add noises to the diagonal of sample covariance 
-        # Current implementation involves a small constant 
-        # This numerical trick can be deactivated if Sigma is not ill-conditioned
-        if self.params_noise_active == True:
-            Sigma[:pqs,:pqs] = Sigma[:pqs,:pqs] + np.identity(pqs) * self.params_cov_noise 
-        if self.states_noise_active == True:
-            Sigma[pqs:,pqs:] = Sigma[pqs:,pqs:] + np.identity(xs) * self.states_cov_noise
 
-        # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
-        # Preparing matrices for EAKF 
-        H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
-        Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
-        F, Dp_vec, _ = la.svd(Sigma)
-        Dp = np.diag(Dp_vec)
-        G = np.diag(np.sqrt(Dp_vec))
-        U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
-        B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0)) 
-        A = np.linalg.multi_dot([np.linalg.inv(F.T), \
-                                 G.T, \
-                                 np.linalg.inv(U.T), \
-                                 B.T, \
-                                 np.linalg.inv(G.T), \
-                                 F.T])
-        Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-        
+        if self.full_svd == True:
+            # Add noises to the diagonal of sample covariance 
+            # Current implementation involves a small constant 
+            # This numerical trick can be deactivated if Sigma is not ill-conditioned
+            if self.params_noise_active == True:
+                Sigma[:pqs,:pqs] = Sigma[:pqs,:pqs] + np.identity(pqs) * self.params_cov_noise 
+            if self.states_noise_active == True:
+                Sigma[pqs:,pqs:] = Sigma[pqs:,pqs:] + np.identity(xs) * self.states_cov_noise
+
+            # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
+            # Preparing matrices for EAKF 
+            H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
+            Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
+            F, Dp_vec, _ = la.svd(Sigma)
+            Dp = np.diag(Dp_vec)
+            Sigma_inv = np.linalg.inv(Sigma)
+            G = np.diag(np.sqrt(Dp_vec))
+            G_inv = np.diag(1./np.sqrt(Dp_vec))
+            U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
+            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0)) 
+            A = np.linalg.multi_dot([F, \
+                                     G.T, \
+                                     U, \
+                                     B.T, \
+                                     G_inv), \
+                                     F.T])
+            Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
+
+        else:
+
+            from sklearn.decomposition import TruncatedSVD
+
+            # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
+            # Preparing matrices for EAKF 
+            H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
+            Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
+            svd1 = TruncatedSVD(n_components=J-1, random_state=42)
+            svd1.fit(Sigma)
+            F = svd1.components_.T
+            Dp_vec = svd1.singular_values_
+            Dp = np.diag(Dp_vec)
+            Sigma_inv = np.linalg.multi_dot([F, np.linalg.inv(Dp), F.T])
+            G = np.diag(np.sqrt(Dp_vec))
+            G_inv = np.diag(1./np.sqrt(Dp_vec))
+            U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, cov_inv, H, F, G]))
+            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+            A = np.linalg.multi_dot([F, \
+                                     G.T, \
+                                     U, \
+                                     B.T, \
+                                     G_inv, \
+                                     F.T])
+            Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
+
+            # Adding noises (model uncertainties) to the truncated dimensions 
+            # Need to further think about how to reduce the cost of full SVD here
+            #F_u, Dp_u_vec, _ = la.svd(Sigma_u)
+            #Dp_u_vec[J-1:] = np.min(Dp_u_vec[:J-1]) 
+            #Sigma_u = np.linalg.multi_dot([F_u, np.diag(Dp_u_vec), F_u.T])
+
+            # Adding noises approximately to the truncated dimensions (Option #1)
+            svd1.fit(Sigma_u)
+            noises = np.identity(Sigma_u.shape[0]) * svd1.singular_values_[-1]
+            Sigma_u = Sigma_u + noises
+
+            # Adding noises approximately to the truncated dimensions (Option #2)
+            #svd1.fit(Sigma_u)
+            #vec = np.diag(Sigma_u)
+            #vec = np.maximum(vec, svd1.singular_values_[-1])
+            ##vec = np.maximum(vec, np.sort(vec)[-J])
+            #np.fill_diagonal(Sigma_u, vec) 
+
         ## Adding noises into data for each ensemble member (Currently deactivated)
         # noise = np.array([np.random.multivariate_normal(np.zeros(xs), cov) for _ in range(J)])
         # x_t = x_t + noise
         zu_bar = np.dot(Sigma_u, \
-                           (np.dot(np.linalg.inv(Sigma), zp_bar) + np.dot(np.dot(H.T, cov_inv), x_t)))
+                           (np.dot(Sigma_inv, zp_bar) + np.dot(np.dot(H.T, cov_inv), x_t)))
     
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar 
