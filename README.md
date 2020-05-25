@@ -56,7 +56,7 @@ from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 from epiforecast.contacts import generate_time_averaged_contact_network
 
 # Kinetic model simulation tool
-from epiforecast.kinetic_simulation import KineticModel
+from epiforecast.kinetic_model_simulator import KineticModel
 
 # Simulation tool for ensembles of master equation models
 from epiforecast.risk_simulation import MasterEquationModelEnsemble
