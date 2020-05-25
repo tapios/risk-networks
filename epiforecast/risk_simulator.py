@@ -11,80 +11,76 @@ class NetworkCompartmentalModel(object):
     def __init__(self, contact_network, ix_reduced = True):
         self.G = self.contact_network = contact_network
         self.N = len(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G)
 
-    def set_parameters(self, transition_rates,
-                             transmission_rate,
+    def set_parameters(self, transition_rates  = None,
+                             transmission_rate = None,
                              ix_reduced        = True):
         """
             Setup the parameters from the transition_rates container into the
             model instance. The default behavior is the reduced model with 5
             equations per node.
         """
-        self.beta   = transmission_rate
-        self.betap  = 0.75 * self.beta
+        if transmission_rate is not None:
+            self.beta   = transmission_rate
+            self.betap  = 0.75 * self.beta
 
-        self.sigma  = np.array(transition_rates.exposed_to_infected.values())
-        self.delta  = np.array(transition_rates.infected_to_hospitalized.values())
-        self.theta  = np.array(transition_rates.infected_to_resistant.values())
-        self.thetap = np.array(transition_rates.hospitalized_to_resistant.values())
-        self.mu     = np.array(transition_rates.infected_to_deceased.values())
-        self.mup    = np.array(transition_rates.hospitalized_to_deceased.values())
-
-        self.gamma  = self.theta  + self.mu  + self.delta
-        self.gammap = self.thetap + self.mup
-
-        self.L      = nx.to_scipy_sparse_matrix(self.G)
-
-        if ix_reduced:
-            iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
-            self.coeffs = sps.csr_matrix(sps.bmat(
-                [
-                    [-sps.eye(self.N),       None,                               None,                    None,                   None],
-                    [sps.diags(-self.sigma), sps.diags(-self.sigma -self.gamma), sps.diags(-self.sigma),  sps.diags(-self.sigma), sps.diags(-self.sigma)],
-                    [None,                   sps.diags(self.delta),              sps.diags(-self.gammap), None,                   None],
-                    [None,                   sps.diags(self.theta),              sps.diags(self.thetap),  None,                   None],
-                    [None,                   sps.diags(self.mu),                 sps.diags(self.mup),     None,                   None]
-                ],
-                format = 'csr'), shape = [5 * self.N, 5 * self.N])
-            self.offset = np.zeros(5 * self.N,)
-            self.offset[iI] = self.sigma
-            self.y_dot = np.zeros_like(5 * self.N,)
-        else:
-            print('Warning! Full system not yet implemented')
-            pass
-
-    def update_transition_rates(self, transition_rates, parameter_names = 'All'):
-        """
-        Inputs:
-        -------
-        transition_rates object
-        """
-        if parameter_names == 'All':
-
+        if transition_rates is not None:
             self.sigma  = np.array(transition_rates.exposed_to_infected.values())
             self.delta  = np.array(transition_rates.infected_to_hospitalized.values())
             self.theta  = np.array(transition_rates.infected_to_resistant.values())
             self.thetap = np.array(transition_rates.hospitalized_to_resistant.values())
             self.mu     = np.array(transition_rates.infected_to_deceased.values())
-      
-            #self.sigma, self.delta, self.theta, self.thetap, self.mu, self.mup = parameters
+            self.mup    = np.array(transition_rates.hospitalized_to_deceased.values())
 
-            
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
-        else:
-            # Maybe we only want to to the filtering for a subset of params?
-            # TODO: Check with Jinlong and Ollie
-            pass
+
+            if ix_reduced:
+                iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
+                self.coeffs = sps.csr_matrix(sps.bmat(
+                    [
+                        [-sps.eye(self.N),       None,                               None,                    None,                   None],
+                        [sps.diags(-self.sigma), sps.diags(-self.sigma -self.gamma), sps.diags(-self.sigma),  sps.diags(-self.sigma), sps.diags(-self.sigma)],
+                        [None,                   sps.diags(self.delta),              sps.diags(-self.gammap), None,                   None],
+                        [None,                   sps.diags(self.theta),              sps.diags(self.thetap),  None,                   None],
+                        [None,                   sps.diags(self.mu),                 sps.diags(self.mup),     None,                   None]
+                    ],
+                    format = 'csr'), shape = [5 * self.N, 5 * self.N])
+                self.offset = np.zeros(5 * self.N,)
+                self.offset[iI] = self.sigma
+                self.y_dot = np.zeros_like(5 * self.N,)
+            else:
+                print('Warning! Full system not yet implemented')
+                pass
+
+    def update_transition_rates(self, new_transition_rates):
+        """
+        Inputs:
+        -------
+        transition_rates object
+        """
+        self.set_parameters(transition_rates = new_transition_rates,
+                            transmission_rate = None)
+
+    def update_transmission_rate(self, new_transmission_rate):
+        """
+        Inputs:
+        -------
+        transmission_rate float
+        """
+        self.set_parameters(transition_rates = None,
+                            transmission_rate = new_transmission_rate)
 
     def update_contact_network(self, contact_network):
         self.G = self.contact_network = contact_network
         self.N = len(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G)
 
 class MasterEquationModelEnsemble(object):
     def __init__(self,
                 contact_network,
-                state_transition_rates,
+                transition_rates,
                 transmission_rate,
                 ensemble_size = 1):
         """
@@ -92,8 +88,8 @@ class MasterEquationModelEnsemble(object):
         -------
             ensemble_size (int,)
             contact_network (networkx.graph)
-            state_transition_rates (list of) or (single instance of) TransitionRate container
-            transmission_rates (float)
+            transition_rates (list of) or (single instance of) TransitionRate container
+            transmission_rate (float)
         """
         self.M = ensemble_size
         self.G = self.contact_network = contact_network
@@ -102,13 +98,14 @@ class MasterEquationModelEnsemble(object):
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
             member = NetworkCompartmentalModel(contact_network = contact_network)
-            if isinstance(state_transition_rates, list):
-                member.set_parameters(state_transition_rates[mm],
+            if isinstance(transition_rates, list):
+                member.set_parameters(
+                        transition_rates  = transition_rates[mm],
                         transmission_rate = transmission_rate[mm])
             else:
-                member.set_parameters(state_transition_rates,
+                member.set_parameters(
+                        transition_rates  = transition_rates,
                         transmission_rate = transmission_rate)
-
             self.ensemble.append(member)
 
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
@@ -130,20 +127,19 @@ class MasterEquationModelEnsemble(object):
 
         [member.update_contact_network(self.G) for member in self.ensemble]
 
-    def update_transmission_rates(self, new_transmission_rate):
+    def update_transmission_rate(self, new_transmission_rate):
         """
         new_transmission_rate (array) of size M
         """
         for mm, member in enumerate(self.ensemble):
-            member.beta  = new_transmission_rate[mm]
-            member.betap = 0.75 * member.beta
+            member.update_transmission_rate(transmission_rate = new_transmission_rate[mm])
 
     def update_transition_rates(self, new_transition_rates):
         """
        list of (or single) transition_rates object
         """
         for mm, member in enumerate(self.ensemble):
-            member.update_transition_rates(new_transition_rates[mm])
+            member.update_transition_rates(transition_rates = new_transition_rates[mm])
 
     def update_ensemble(self,
                         new_contact_network,
@@ -154,7 +150,7 @@ class MasterEquationModelEnsemble(object):
         """
         self.update_contact_network(new_contact_network)
         self.update_transition_rates(new_transition_rates)
-        self.update_transmission_rates(new_transmission_rate)
+        self.update_transmission_rate(new_transmission_rate)
 
     # ODE solver methods -------------------------------------------------------
     def do_step(self, t, y, member, member_id, **kwargs):
