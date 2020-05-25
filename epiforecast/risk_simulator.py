@@ -26,12 +26,12 @@ class NetworkCompartmentalModel(object):
             self.betap  = 0.75 * self.beta
 
         if transition_rates is not None:
-            self.sigma  = np.array(transition_rates.exposed_to_infected.values())
-            self.delta  = np.array(transition_rates.infected_to_hospitalized.values())
-            self.theta  = np.array(transition_rates.infected_to_resistant.values())
-            self.thetap = np.array(transition_rates.hospitalized_to_resistant.values())
-            self.mu     = np.array(transition_rates.infected_to_deceased.values())
-            self.mup    = np.array(transition_rates.hospitalized_to_deceased.values())
+            self.sigma  = np.array(list(transition_rates.exposed_to_infected.values()))
+            self.delta  = np.array(list(transition_rates.infected_to_hospitalized.values()))
+            self.theta  = np.array(list(transition_rates.infected_to_resistant.values()))
+            self.thetap = np.array(list(transition_rates.hospitalized_to_resistant.values()))
+            self.mu     = np.array(list(transition_rates.infected_to_deceased.values()))
+            self.mup    = np.array(list(transition_rates.hospitalized_to_deceased.values()))
 
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
@@ -91,7 +91,7 @@ class MasterEquationModelEnsemble(object):
             transition_rates (list of) or (single instance of) TransitionRate container
             transmission_rate (float)
         """
-        self.M = ensemble_size
+        self.M = self.ensemble_size   = ensemble_size
         self.G = self.contact_network = contact_network
         self.N = len(self.G)
         self.ensemble = []
@@ -121,25 +121,26 @@ class MasterEquationModelEnsemble(object):
         """
         For update purposes
         """
-        self.G = self.contact_network = new_contact_network
-        self.N = len(self.G)
-        self.L = nx.to_scipy_sparse_matrix(self.G)
+        if new_contact_network is not None:
+            self.G = self.contact_network = new_contact_network
+            self.N = len(self.G)
+            self.L = nx.to_scipy_sparse_matrix(self.G)
 
-        [member.update_contact_network(self.G) for member in self.ensemble]
+            [member.update_contact_network(self.G) for member in self.ensemble]
 
     def update_transmission_rate(self, new_transmission_rate):
         """
         new_transmission_rate (array) of size M
         """
         for mm, member in enumerate(self.ensemble):
-            member.update_transmission_rate(transmission_rate = new_transmission_rate[mm])
+            member.update_transmission_rate(new_transmission_rate[mm])
 
     def update_transition_rates(self, new_transition_rates):
         """
        list of (or single) transition_rates object
         """
         for mm, member in enumerate(self.ensemble):
-            member.update_transition_rates(transition_rates = new_transition_rates[mm])
+            member.update_transition_rates(new_transition_rates[mm])
 
     def update_ensemble(self,
                         new_contact_network,
