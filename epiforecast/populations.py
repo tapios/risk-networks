@@ -46,19 +46,22 @@ class TransitionRates:
     """
     A container for transition rates.
 
-    Args:
+    Args
+    ----
 
-    latent_period of infection (1/σ)
+    All arguments are ClinicalStatistics.
 
-    community_infection_period over which infection persists in the 'community' (1/γ),
+    * latent_period of infection (1/σ)
 
-    hospital_infection_period over which infection persists in a hospital setting (1/γ′),
+    * community_infection_period over which infection persists in the 'community' (1/γ),
 
-    hospitalization_fraction, the fraction of infected that become hospitalized (h),
+    * hospital_infection_period over which infection persists in a hospital setting (1/γ′),
 
-    community_mortality_fraction, the mortality rate in the community (d),
+    * hospitalization_fraction, the fraction of infected that become hospitalized (h),
 
-    hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
+    * community_mortality_fraction, the mortality rate in the community (d),
+
+    * hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
 
     The six transition rates are
 
@@ -85,24 +88,42 @@ class TransitionRates:
                        community_mortality_fraction,
                        hospital_mortality_fraction):
 
+        # For data assimilation we require return of initial variables
+        self.latent_periods               = latent_periods.values
+        self.community_infection_periods  = community_infection_periods.values
+        self.hospital_infection_periods   = hospital_infection_periods.values
+        self.hospitalization_fraction     = hospitalization_fraction.values
+        self.community_mortality_fraction = community_mortality_fraction.values
+        self.hospital_mortality_fraction  = hospital_mortality_fraction.values
+
         self.population = len(latent_periods.values)
         self.nodes = nodes = range(self.population)
 
-        σ = 1 / latent_periods.values
-        γ = 1 / community_infection_periods.values
-        h = hospitalization_fraction.values
-        d = community_mortality_fraction.values
+        self._calculate_transition_rates()
 
-        γ_prime = 1 / hospital_infection_periods.values
-        d_prime = hospital_mortality_fraction.values
+    def _calculate_transition_rates(self):
 
-        self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
-        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
-        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
-        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
+        σ = 1 / self.latent_periods
+        γ = 1 / self.community_infection_periods
+        h = self.hospitalization_fraction
+        d = self.community_mortality_fraction
 
-        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
-        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
+        γ_prime = 1 / self.hospital_infection_periods
+        d_prime = self.hospital_mortality_fraction
+
+        self.exposed_to_infected       = { node: σ[node]                             for node in self.nodes }
+        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in self.nodes }
+        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in self.nodes }
+        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in self.nodes }
+
+        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in self.nodes }
+        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in self.nodes }
+
+    def set_clinical_statistic(self, statistic, values):
+        setattr(self, statistic, values)
+        self._calculate_transition_rates()
+
+
 
 
 def king_county_transition_rates(population):
