@@ -22,17 +22,23 @@ class TemporalAdjacency:
     self.beta  = None # 2D np.array; (edges) x (number of time intervals)
     self.betap = None # 2D np.array; -----------------"-----------------
 
-  def set_edge_list(self, edge_list):
+  def load_edge_list(self, filename):
+    # XXX this also needs to be disentangled
+    edge_list = np.loadtxt(filename, dtype=int, comments='#')
+
     # ensure edge_list only contains upper triangular edges (i.e. symmetric)
     upp_tr = edge_list[:,0] < edge_list[:,1]
     self.edge_list = edge_list[upp_tr]
 
   def set_initial_active(self, initial_active):
+    '''
+    Set a fraction (float) of active edges at the start of the interval
+    '''
     self.initial_active = initial_active
 
-  def get_interval(self, t):
+  def get_interval_index(self, t):
     '''
-    Get the number of the averaging time interval from t
+    Infer the index of the averaging time interval from t
     '''
     index = 0
     if t >= self.t1:
@@ -165,7 +171,21 @@ class TemporalAdjacency:
     self.beta  *= beta0
     self.betap *= beta0 * alpha_hosp
 
+  def get_betas(self, t):
+    '''
+    Get beta and beta^prime at time t using self.beta, self.betap
+    '''
+    # find which time interval we are currently in
+    j = self.get_interval_index(t)
 
+    # get the info from beta, betap into dictionaries (required by networkx)
+    beta_dict  = {}
+    betap_dict = {}
+    for k,e in enumerate(self.edge_list):
+      beta_dict [tuple(e)] = self.beta [k,j]
+      betap_dict[tuple(e)] = self.betap[k,j]
+
+    return beta_dict, betap_dict
 
 
 

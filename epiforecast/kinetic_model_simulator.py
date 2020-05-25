@@ -1,7 +1,6 @@
 import numpy as np
 import networkx as nx
 from collections import defaultdict
-from epiforecast.temporal_adjacency import TemporalAdjacency
 from epiforecast.kinetic_model_helper import *
 from EoN import Gillespie_simple_contagion
 
@@ -61,19 +60,14 @@ class KineticModel:
     self.ages = None
     self.working = None
 
-    # an object that handles everything time-dependency-related
-    self.TA = TemporalAdjacency()
-
     # what statuses to return from Gillespie simulation
     self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
 
   def get_IC(self):
     return (self.__P0, self.__HCW, self.__I0)
 
-  def load_edge_list(self, filename):
-    edge_list = np.loadtxt(filename, dtype=int, comments='#')
+  def set_edge_list(self, edge_list):
     self.static_graph.add_edges_from(edge_list)
-    self.TA.set_edge_list(edge_list)
 
   def set_return_statuses(self, which='all'):
     '''
@@ -99,7 +93,7 @@ class KineticModel:
     self.ages = np.array(ages)
     self.working = np.array(working)
 
-  def set_IC(self, P0=0.005, HCW=0.045, I0=0.01, active=0.034):
+  def set_IC(self, P0=0.005, HCW=0.045, I0=0.01):
     '''
     Set initial placeholder, infected and healthcare-worker nodes
 
@@ -109,11 +103,7 @@ class KineticModel:
               an array of nodes or a fraction of nodes that starts after P0
     I0:       (array_like of ints, or float)
               an array of nodes or a fraction of nodes to sample infected
-    active:   (float)
-              a fraction of active edges at the start of simulation;
     '''
-    self.TA.set_initial_active(active)
-
     N = self.static_graph.number_of_nodes()
     self.IC = np.empty(N, dtype='<U1') # numpy array of characters
     self.IC.fill('S') # initialize as susceptible
@@ -204,27 +194,10 @@ class KineticModel:
     nx.set_node_attributes(self.static_graph, values=HR_dict, name='H->R')
     nx.set_node_attributes(self.static_graph, values=HD_dict, name='H->D')
 
-  def generate_temporal_adjacency(self, **kwargs):
-    self.TA.generate(**kwargs)
-
-  def average_betas(self, **kwargs):
-    self.TA.average_betas(**kwargs)
-
-  def update_beta_rates(self, t):
+  def update_beta_rates(self, beta_dict, betap_dict):
     '''
-    Update beta and beta^prime at time t using self.TA
+    Update beta and beta^prime
     '''
-    # find which time interval we are currently in
-    j = self.TA.get_interval(t)
-
-    # get the info from self.TA into dictionaries (required by networkx)
-    beta_dict  = {}
-    betap_dict = {}
-    for k,e in enumerate(self.TA.edge_list):
-      beta_dict [tuple(e)] = self.TA.beta [k,j]
-      betap_dict[tuple(e)] = self.TA.betap[k,j]
-
-    # update the rates
     nx.set_edge_attributes(self.static_graph, values=beta_dict,  name='SI->E')
     nx.set_edge_attributes(self.static_graph, values=betap_dict, name='SH->E')
 
