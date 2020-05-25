@@ -27,7 +27,7 @@ n_samples = 2 # minimum number for an 'ensemble'
 #                                  'community_mortality_fraction',
 #                                  'hospital_mortality_fraction']            
                                   
-#transition_rates_to_update_str=[]                                  
+transition_rates_to_update_str=['community_infection_periods','community_mortality_fraction']                                  
 transmission_rate_to_update_flag = True
 
 assimilator = DataAssimilator(observations = FullObservation(population,noise_var,"Full state observation 1% noise"), 
