@@ -130,3 +130,7 @@ dmypy.json
 
 # Vim swp file
 *.swp
+
+#emacs backup files
+*#
+*~
