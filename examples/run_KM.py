@@ -1,9 +1,5 @@
 #!/usr/bin/python3 --
 
-import sys
-import getopt
-import configparser
-
 import os, sys; sys.path.append(os.path.join(".."))
 
 from epiforecast.KineticModel import KineticModel
@@ -11,48 +7,20 @@ from epiforecast.KM_helper import KM_print_states, KM_print_start
 
 
 ################################################################################
-# parser section ###############################################################
-################################################################################
-try:
-  opts, args = getopt.getopt(sys.argv[1:], "c:", ['config='])
-except getopt.GetoptError as e:
-  print('Something wrong with getopt')
-  raise
-
-confname = ''
-if not opts:
-  confname = input('Config filename: ')
-else:
-  for opt, arg in opts:
-    if opt in ('-c', '--config'):
-      confname = arg
-
-try:
-  config = configparser.RawConfigParser()
-  if not config.read(confname):
-    raise IOError('File "{0}" not found'.format(confname))
-except:
-  raise
-
-################################################################################
 # constants section ############################################################
 ################################################################################
-try:
-  # general
-  DEBUG = config.getboolean('GENERAL', 'DEBUG', fallback = False)
+# general
+DEBUG = False
 
-  # simulation
-  T0 = config.getfloat('SIMULATION', 'T0', fallback=0.0)  # start time
-  T1 = config.getfloat('SIMULATION', 'T1', fallback=50.0) # end time
-  dt_KM = config.getfloat('SIMULATION', 'dt_KM', fallback=0.125) # time step
+# simulation; all times in [day] units
+T0 = 0.0      # start time
+T1 = 5.0      # end time
+dt_KM = 0.125 # time step
+t = T0        # current time
 
-  # output
-  output_dt = config.getfloat('OUTPUT', 'output_dt', fallback=1.0) # how often to do outputs
-except (configparser.NoOptionError, configparser.NoSectionError):
-  raise
-
-t = T0 # current time
-output_t = T0 # current output time
+# output
+output_dt = 1.0 # how often to do outputs
+output_t = T0   # current output time
 
 ################################################################################
 # main section #################################################################
