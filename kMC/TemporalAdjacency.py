@@ -23,7 +23,9 @@ class TemporalAdjacency:
     self.betap = None # 2D np.array; -----------------"-----------------
 
   def set_edge_list(self, edge_list):
-    self.edge_list = edge_list
+    # ensure edge_list only contains upper triangular edges (i.e. symmetric)
+    upp_tr = edge_list[:,0] < edge_list[:,1]
+    self.edge_list = edge_list[upp_tr]
 
   def set_initial_active(self, initial_active):
     self.initial_active = initial_active
@@ -48,37 +50,34 @@ class TemporalAdjacency:
     Compute mean contact rate
 
     Units:
-      t: days
+      t:           [day]
+      lambda_min:  [1/day]
+      lambda_max:  [1/day]
     '''
     return max(
         lambda_min,
-        lambda_max * (1 - np.cos(np.pi * t)**2)
+        lambda_max * (1 - np.cos(np.pi * t)**4)**4
     )
 
-  def generate(self, dt_sync=0.004, muc=144, lambda_min=5/24, lambda_max=22/24):
+  def generate(self, dt_sync=0.004, muc=1920, lambda_min=3, lambda_max=22):
     '''
     Generate times of activation/deactivation and piecewise-constant weights
 
     Defaults:
       dt_sync: 0.004 [days] or 5.76 [minutes]
-      muc: 144 [1/day] or 6 [1/h]
-      labmda_min:  5/24 [???]
-      labmda_max: 22/24 [???]
+      muc: 1920 [1/day] or 1/45 [1/s]
+      labmda_min:  3 [1/day]
+      labmda_max: 22 [1/day]
     '''
     M = self.edge_list.shape[0] # total number of edges
 
     # sample indices of initially active edges uniformly at random
-    # XXX if edge_list is a list of all edges (which it is), then this snippet
-    # XXX generates non-symmetric adjacency matrix
     active = np.random.choice(
         [False, True],
         size=M,
         p=[1 - self.initial_active, self.initial_active]
     )
     #inactive = KM_complement_indices(M, active)
-
-    #active_edges = self.edge_list[active]
-    #inactive_edges = self.edge_list[inactive]
 
     t = 0.0
     t_next_sync = dt_sync
@@ -98,7 +97,7 @@ class TemporalAdjacency:
       # rate process 3: activation
       Q2 = self.mean_contact_rate(t,lambda_min,lambda_max) * (M - active_count)
 
-      # XXX maybe be sped up by generating random sequence outside loop
+      # XXX may be sped up by generating random sequence outside loop
       if np.random.random() < Q1/(Q1+Q2):
         # sample uniformly at random which edge to deactivate
         k = np.random.choice(active_count)
@@ -132,7 +131,7 @@ class TemporalAdjacency:
 
     # trim trailing zeros;
     # XXX also, shave off one last step because it's > 1.0
-    # XXX to leave it, change (steps) to (steps+1) below
+    # XXX to leave it, change (steps) to (steps+1) in two lines below
     self.times.resize(steps, refcheck=False)
     self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps])
 
@@ -141,17 +140,10 @@ class TemporalAdjacency:
     Average betas over generated times and weights
 
     Defaults:
-      dt_averaging:     0.125 [days]
-      beta0:      1.0  [???]
-      alpha_hosp: 0.25 [???] fraction of beta0 for hospital nodes
+      dt_averaging: 0.125 [day]
+      beta0:        1.0  [1/day]
+      alpha_hosp:   0.25 [1] fraction of beta0 for hospital nodes
     '''
-    # XXX there's something funky going on: why do we sort here but not in
-    # `generate`?
-    #sorted_edges = np.copy(
-    #    self.edge_list[ self.edge_list[:,0].argsort(kind='stable') ]
-    #)
-    #average_dt = np.mean(self.times[1:] - self.times[:-1])
-
     self.dt_averaging = dt_averaging
     KM_timespan = np.arange(self.t0, self.t1, step=dt_averaging)
     if KM_timespan[-1] < self.t1:

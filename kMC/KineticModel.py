@@ -22,7 +22,7 @@ class KineticModel:
   ]
 
   def __init__(self):
-    self.static_graph = nx.DiGraph() # a static graph with {0,1} edges
+    self.static_graph = nx.Graph() # a static graph with {0,1} edges
     self.fallback_edges_filename = os.path.join(
         '..', 'data', 'networks', 'edge_list_SBM_1e3.txt'
     )
