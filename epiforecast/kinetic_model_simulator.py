@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import networkx as nx
 from collections import defaultdict
@@ -23,9 +22,6 @@ class KineticModel:
 
   def __init__(self):
     self.static_graph = nx.Graph() # a static graph with {0,1} edges
-    self.fallback_edges_filename = os.path.join(
-        '..', 'data', 'networks', 'edge_list_SBM_1e3.txt'
-    )
 
     # independent rates diagram
     self.diagram_indep = nx.DiGraph()
@@ -74,10 +70,7 @@ class KineticModel:
   def get_IC(self):
     return (self.__P0, self.__HCW, self.__I0)
 
-  def load_edge_list(self, filename=None):
-    if filename is None:
-      filename = self.fallback_edges_filename
-
+  def load_edge_list(self, filename):
     edge_list = np.loadtxt(filename, dtype=int, comments='#')
     self.static_graph.add_edges_from(edge_list)
     self.TA.set_edge_list(edge_list)

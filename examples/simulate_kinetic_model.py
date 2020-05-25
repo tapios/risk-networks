@@ -25,8 +25,10 @@ output_t = T0   # current output time
 ################################################################################
 # main section #################################################################
 ################################################################################
+edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')
+
 km = KineticModel()
-km.load_edge_list()
+km.load_edge_list(edges_filename)
 km.set_IC(
     I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
 )
