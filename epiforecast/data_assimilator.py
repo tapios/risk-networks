@@ -75,6 +75,7 @@ class DataAssimilator:
         self.online_emodel= errors
 
         #which parameter to assimilate joint with the state
+        print(transition_rates_to_update_str)
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag= transmission_rate_to_update_flag
 
@@ -123,19 +124,30 @@ class DataAssimilator:
         if len(self.omodel)>0:
             
             #extract the transition_rates to update
-            if len(transition_rates_to_update_str)>0:
+            if len(self.transition_rates_to_update_str)>0:
+                ensemble_transition_rates=np.array([])
                 for member in range(len(full_ensemble_transition_rates)):
                     #this returns an [ensemble size x transition rates (to be updated)] np.array
-                    ensemble_transition_rates = np.hstack([full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type) \
-                                                           for rate_type in range(len(transition_rates_to_update_str))])
+                    rates_tmp = np.hstack([full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type) \
+                                                           for rate_type in self.transition_rates_to_update_str])
+
+                    #have to create here as rates_tmp unknown in advance
+                    if member == 0:
+                      ensemble_transition_rates=np.empty((0,rates_tmp.size), dtype=float)
+                      
+                    ensemble_transition_rates = np.append(ensemble_transition_rates,[rates_tmp],axis=0)
+
+                ensemble_transition_rates = np.vstack(ensemble_transition_rates)
             else:
                 ensemble_transition_rates = []    
-            
+                
                 
             #If we don't want to update transmission rate (o/w it's already in correct np array form)
-            if transmission_rate_to_update_flag is False:
+            if self.transmission_rate_to_update_flag is False:
                 ensemble_transmission_rate = [] 
-            
+            else:
+                ensemble_transmission_rate = full_ensemble_transmission_rate
+                
             om = self.omodel
             dam = self.damethod
 
@@ -157,10 +169,10 @@ class DataAssimilator:
                                                                                                                           truth,cov)
                 
                 #update the new transition rates if required
-                if len(transition_rates_to_update_str)>0:
+                if len(self.transition_rates_to_update_str)>0:
                     for member in range(len(full_ensemble_transition_rates)):
                         new_member_rates = new_ensemble_transition_rates[member,:]
-                        for rate_type in transition_rates_to_update_str:
+                        for rate_type in self.transition_rates_to_update_str:
                             #need to go back from numpy array to setting rates
                             #we obtain the size, then update the corresponding transition rate
                             #then delete this an move onto the next rate
@@ -170,8 +182,8 @@ class DataAssimilator:
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
                                                                                                            
                 #update the transmission_rate if required
-                if transmission_rate_to_update_flag is True:
-                    full_ensemble_transition_rates=new_ensemble_transition_rates
+                if self.transmission_rate_to_update_flag is True:
+                    full_ensemble_transmission_rate=new_ensemble_transmission_rates
                 
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)

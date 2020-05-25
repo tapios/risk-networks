@@ -111,61 +111,60 @@ class TransitionRates:
         self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
         self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
 
-        # Getter for single rate defined by string
-        def get_transition_rates_from_str(self,transition_rate_str):
+    # Getter for single rate defined by string
+    def get_transition_rates_from_str(self,transition_rate_str):
+        if transition_rate_str == 'latent_periods':
+            return self.latent_periods 
+        elif transition_rate_str == 'community_infection_periods':
+            return self.community_infection_periods
+        elif transition_rate_str == 'hospital_infection_periods':
+            return self.hospital_infection_periods
+        elif transition_rate_str == 'hospitalization_fraction':
+            return self.hospitalization_fraction 
+        elif transition_rate_str ==  'community_mortality_fraction':
+            return self.community_mortality_fraction 
+        elif transition_rate_str == 'hospital_mortality_fraction':
+            return self.hospital_mortality_fraction
+        else:
+            print('transition rate not recognized')
+            exit()
 
-            if transition_rate_str == 'latent_periods':
-                return self.latent_periods 
-            elif transition_rate_str == 'community_infection_periods':
-                return self.community_infection_periods
-            elif transition_rate_str == 'hospital_infection_periods':
-                return self.hospital_infection_periods
-            elif transition_rate_str == 'hospitalization_fraction':
-                return self.hospitalization_fraction 
-            elif transition_rate_str ==  'community_mortality_fraction':
-                return self.community_mortality_fraction 
-            elif transition_rate_str == 'hospital_mortality_fraction':
-                return self.hospital_mortality_fraction
-            else:
-                print('transition rate not recognized')
-                exit()
+    # Setter for single rate defined by string.  
+    def set_transition_rates_from_str(self,transition_rate_str,transition_rate):
 
-        # Setter for single rate defined by string.  
-        def set_transition_rates_from_str(self,transition_rate_str,transition_rate):
-
-            if transition_rate_str == 'latent_periods':
-                self.latent_periods = transition_rate
-            elif transition_rate_str == 'community_infection_periods':
-                self.community_infection_periods = transition_rate
-            elif transition_rate_str == 'hospital_infection_periods':
-                self.hospital_infection_periods = transition_rate
-            elif transition_rate_str == 'hospitalization_fraction':
-                self.hospitalization_fraction = transition_rate
-            elif transition_rate_str ==  'community_mortality_fraction':
-                self.community_mortality_fraction = transition_rate
-            elif transition_rate_str == 'hospital_mortality_fraction':
-                self.hospital_mortality_fraction = transition_rate
-            else:
-                print('transition rate not recognized')
-                exit()
+        if transition_rate_str == 'latent_periods':
+            self.latent_periods = transition_rate
+        elif transition_rate_str == 'community_infection_periods':
+            self.community_infection_periods = transition_rate
+        elif transition_rate_str == 'hospital_infection_periods':
+            self.hospital_infection_periods = transition_rate
+        elif transition_rate_str == 'hospitalization_fraction':
+            self.hospitalization_fraction = transition_rate
+        elif transition_rate_str ==  'community_mortality_fraction':
+            self.community_mortality_fraction = transition_rate
+        elif transition_rate_str == 'hospital_mortality_fraction':
+            self.hospital_mortality_fraction = transition_rate
+        else:
+            print('transition rate not recognized')
+            exit()
                 
-            # For now, I ensure consistency here, clearly this actually only needs doing once after all updates 
-
-            σ = 1 / self.latent_periods
-            γ = 1 / self.community_infection_periods
-            h = self.hospitalization_fraction
-            d = self.community_mortality_fraction
-            
-            γ_prime = 1 / self.hospital_infection_periods
-            d_prime = self.hospital_mortality_fraction
-            
-            self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
-            self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
-            self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
-            self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
-                
-            self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
-            self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
+        # For now, I ensure consistency here, clearly this actually only needs doing once after all updates 
+        
+        σ = 1 / self.latent_periods
+        γ = 1 / self.community_infection_periods
+        h = self.hospitalization_fraction
+        d = self.community_mortality_fraction
+        
+        γ_prime = 1 / self.hospital_infection_periods
+        d_prime = self.hospital_mortality_fraction
+        
+        self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
+        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
+        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
+        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
+        
+        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
+        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
             
                 
 def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):

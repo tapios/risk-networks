@@ -43,6 +43,9 @@ class EnsembleAdjustedKalmanFilter:
     # q: model parameters, with shape (num_ensembles, num_elements)
     def update(self, ensemble_state, transition_rates,transmission_rates, truth, cov, r=1.0):
 
+        print(ensemble_state.shape)
+        print(transition_rates.shape)
+        print(transmission_rates.shape)
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
         
@@ -128,7 +131,7 @@ class EnsembleAdjustedKalmanFilter:
                                      G.T, \
                                      U, \
                                      B.T, \
-                                     G_inv), \
+                                     G_inv, \
                                      F.T])
             Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
 
