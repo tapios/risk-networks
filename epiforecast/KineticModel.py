@@ -82,7 +82,7 @@ class KineticModel:
     self.static_graph.add_edges_from(edge_list)
     self.TA.set_edge_list(edge_list)
 
-  def set_statuses(self, which='all'):
+  def set_return_statuses(self, which='all'):
     '''
     Set which statuses to return from Gillespie simulation
 

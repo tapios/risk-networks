@@ -62,7 +62,7 @@ km.set_IC(
 )
 km.set_ages()
 km.set_independent_rates()
-km.set_statuses('all') # can be 'SIR' or 'HRD' etc.
+km.set_return_statuses('all') # can be 'SIR' or 'HRD' etc.
 
 # this is a dubious point... muc used to be 6 but in units [1/h]
 # we have now switched to days throughout the code everywhere, so should it be
