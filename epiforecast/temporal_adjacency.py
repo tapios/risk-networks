@@ -1,5 +1,5 @@
 import numpy as np
-from epiforecast.kinetic-model-helper import *
+from epiforecast.kinetic_model_helper import *
 
 class TemporalAdjacency:
   '''
