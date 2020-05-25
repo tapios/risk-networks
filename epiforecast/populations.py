@@ -1,7 +1,5 @@
 import numpy as np
 
-from .samplers import AgeAwareBetaSampler, GammaSampler
-
 class ClinicalStatistics:
     """
     A container for clinical statistics.
@@ -126,53 +124,8 @@ class TransitionRates:
 
 
 
-def king_county_transition_rates(population):
-    """
-    Returns transition rates for a community of size `population`
-    whose statistics vaguely resemble the clinical statistics of 
-    King County, WA, USA.
-    """
 
-    # ... and the age category of each individual
-    age_distribution = [ 0.23,  # 0-19 years
-                         0.39,  # 20-44 years
-                         0.25,  # 45-64 years
-                         0.079  # 65-75 years
-                        ]
 
-    # 75 onwards
-    age_distribution.append(1 - sum(age_distribution))
-    
-    ages = populate_ages(population, distribution=age_distribution)
-    
-    # Next, we randomly generate clinical properties for our example population.
-    # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-    latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
-                                                     sampler = GammaSampler(k=1.7, theta=2.0))
-    
-    community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                     sampler = GammaSampler(k=1.5, theta=2.0))
-    
-    hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                    sampler = GammaSampler(k=1.5, theta=3.0))
-    
-    hospitalization_fraction = ClinicalStatistics(ages = ages,
-        sampler = AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4))
-    
-    community_mortality_fraction = ClinicalStatistics(ages = ages,
-        sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
-    
-    hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
-        sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
-
-    transition_rates = TransitionRates(latent_periods,
-                                       community_infection_periods,
-                                       hospital_infection_periods,
-                                       hospitalization_fraction,
-                                       community_mortality_fraction,
-                                       hospital_mortality_fraction)
-    
-    return transition_rates
 
 
 
