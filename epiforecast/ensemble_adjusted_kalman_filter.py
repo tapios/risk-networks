@@ -43,9 +43,6 @@ class EnsembleAdjustedKalmanFilter:
     # q: model parameters, with shape (num_ensembles, num_elements)
     def update(self, ensemble_state, transition_rates,transmission_rates, truth, cov, r=1.0):
 
-        print(ensemble_state.shape)
-        print(transition_rates.shape)
-        print(transmission_rates.shape)
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
         
@@ -93,7 +90,7 @@ class EnsembleAdjustedKalmanFilter:
         q=transmission_rates
         
         zp = np.hstack([p, q, x])
-
+        print(zp.shape)
         x_t = x_t
         cov = cov
         
@@ -106,7 +103,7 @@ class EnsembleAdjustedKalmanFilter:
 
         zp_bar = np.mean(zp, 0)
         Sigma = np.cov(zp.T)
-
+        
         if self.full_svd == True:
             # Add noises to the diagonal of sample covariance 
             # Current implementation involves a small constant 
@@ -115,7 +112,7 @@ class EnsembleAdjustedKalmanFilter:
                 Sigma[:pqs,:pqs] = Sigma[:pqs,:pqs] + np.identity(pqs) * self.params_cov_noise 
             if self.states_noise_active == True:
                 Sigma[pqs:,pqs:] = Sigma[pqs:,pqs:] + np.identity(xs) * self.states_cov_noise
-
+            
             # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
             # Preparing matrices for EAKF 
             H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])

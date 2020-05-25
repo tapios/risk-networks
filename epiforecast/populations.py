@@ -158,13 +158,13 @@ class TransitionRates:
         γ_prime = 1 / self.hospital_infection_periods
         d_prime = self.hospital_mortality_fraction
         
-        self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
-        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
-        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in nodes }
-        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in nodes }
+        self.exposed_to_infected       = { node: σ[node]                             for node in self.nodes }
+        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in self.nodes }
+        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in self.nodes }
+        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in self.nodes }
         
-        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
-        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
+        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in self.nodes }
+        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in self.nodes }
             
                 
 def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):

@@ -75,7 +75,6 @@ class DataAssimilator:
         self.online_emodel= errors
 
         #which parameter to assimilate joint with the state
-        print(transition_rates_to_update_str)
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag= transmission_rate_to_update_flag
 
@@ -142,11 +141,10 @@ class DataAssimilator:
                 ensemble_transition_rates = []    
                 
                 
-            #If we don't want to update transmission rate (o/w it's already in correct np array form)
-            if self.transmission_rate_to_update_flag is False:
-                ensemble_transmission_rate = [] 
-            else:
+            if self.transmission_rate_to_update_flag is True:
                 ensemble_transmission_rate = full_ensemble_transmission_rate
+            else:
+                ensemble_transmission_rate = [] 
                 
             om = self.omodel
             dam = self.damethod
@@ -161,6 +159,7 @@ class DataAssimilator:
                 
                 #get the covariances for the observation(s), with the minimum returned if two overlap
                 cov = self.get_observation_cov()
+                print(cov)
                 
                 #perform da model update with ensemble_state: states,transition and transmission rates
                 ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rate = dam.update(ensemble_state[:,obs_states],
@@ -183,7 +182,7 @@ class DataAssimilator:
                                                                                                            
                 #update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
-                    full_ensemble_transmission_rate=new_ensemble_transmission_rates
+                    full_ensemble_transmission_rate=new_ensemble_transmission_rate
                 
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)

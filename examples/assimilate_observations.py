@@ -41,32 +41,36 @@ print(np.sum(current_state[:,1::population],axis=0))
 age_distribution = [ 1. ]
 ages = populate_ages(population, distribution=age_distribution)
 
-latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
-                                    sampler = GammaSampler(k=1.7, theta=2.0))
+transition_rates=[]
+for i in range(n_samples):
 
-community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                    sampler = GammaSampler(k=1.5, theta=2.0))
+    latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
+                                        sampler = GammaSampler(k=1.7, theta=2.0))
 
-hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                    sampler = GammaSampler(k=1.5, theta=3.0))
+    community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
+                                                     sampler = GammaSampler(k=1.5, theta=2.0))
 
-hospitalization_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[ 0.25 ], b=4))
+    hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
+                                                    sampler = GammaSampler(k=1.5, theta=3.0))
 
-community_mortality_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.02], b=4))
+    hospitalization_fraction = ClinicalStatistics(ages = ages,
+                                                  sampler = AgeAwareBetaSampler(mean=[ 0.25 ], b=4))
 
-hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.04], b=4))
+    community_mortality_fraction = ClinicalStatistics(ages = ages,
+                                                      sampler = AgeAwareBetaSampler(mean=[0.02], b=4))
 
-transition_rates = TransitionRates(latent_periods,
-                                   community_infection_periods,
-                                   hospital_infection_periods,
-                                   hospitalization_fraction,
-                                   community_mortality_fraction,
-                                   hospital_mortality_fraction)
+    hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
+                                                      sampler = AgeAwareBetaSampler(mean=[0.04], b=4))
 
-transition_rates = [transition_rates for i in range(n_samples)]
+    t_rates = TransitionRates(latent_periods,
+                              community_infection_periods,
+                              hospital_infection_periods,
+                              hospitalization_fraction,
+                              community_mortality_fraction,
+                              hospital_mortality_fraction)
+
+    transition_rates.append(t_rates) 
+    
 
 transmission_rates = np.random.uniform(0.03, 0.1, (n_samples,1))
  
