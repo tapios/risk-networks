@@ -2,8 +2,8 @@
 
 import os, sys; sys.path.append(os.path.join(".."))
 
-from epiforecast.KineticModel import KineticModel
-from epiforecast.KM_helper import KM_print_states, KM_print_start
+from epiforecast.kinetic-model-simulator import KineticModel
+from epiforecast.kinetic-model-helper import KM_print_states, KM_print_start
 
 
 ################################################################################
