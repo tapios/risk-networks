@@ -30,19 +30,14 @@ km.load_edge_list()
 km.set_IC(
     I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
 )
-km.set_ages()
-km.set_independent_rates()
+km.set_ages() # this should read ages in instead
+km.set_independent_rates() # this should read rates in instead
 km.set_return_statuses('all') # can be 'SIR' or 'HRD' etc.
 
-# this is a dubious point... muc used to be 6 but in units [1/h]
-# we have now switched to days throughout the code everywhere, so should it be
-# muc = 144 instead? with 144 you get waaaay fewer contacts
-# even worse, it's 1920 per day now? according to overleaf?
-km.generate_temporal_adjacency(muc=6)
-
+km.generate_temporal_adjacency(muc=1920)
 km.average_betas(dt_averaging=dt_KM)
 
-KM_print_start(t, km.IC, 'SEIRHD')
+KM_print_start(t, km.IC, 'SEIHRD')
 while t < T1:
   km.update_beta_rates(t)
   res = km.do_Gillespie_step(t=t, dt=dt_KM)
@@ -55,7 +50,7 @@ while t < T1:
   km.populate_placeholder()
 
   if t >= output_t:
-    KM_print_states(t, states, 'SEIRHD')
+    KM_print_states(t, states, 'SEIHRD')
     output_t += output_dt
 
   t += dt_KM
