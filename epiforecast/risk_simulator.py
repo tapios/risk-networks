@@ -8,10 +8,11 @@ class NetworkCompartmentalModel(object):
         Model class
     """
 
-    def __init__(self, contact_network, ix_reduced = True):
-        self.G = self.contact_network = contact_network
-        self.N = len(self.G)
-        self.L = nx.to_scipy_sparse_matrix(self.G)
+    def __init__(self, contact_network, ix_reduced = True, weight = None):
+        self.G      = self.contact_network = contact_network
+        self.N      = len(self.G)
+        self.weight = weight
+        self.L      = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
 
     def set_parameters(self, transition_rates  = None,
                              transmission_rate = None,
@@ -75,14 +76,15 @@ class NetworkCompartmentalModel(object):
     def update_contact_network(self, contact_network):
         self.G = self.contact_network = contact_network
         self.N = len(self.G)
-        self.L = nx.to_scipy_sparse_matrix(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
 
 class MasterEquationModelEnsemble(object):
     def __init__(self,
                 contact_network,
                 transition_rates,
                 transmission_rate,
-                ensemble_size = 1):
+                ensemble_size = 1,
+                weight = None):
         """
         Inputs:
         -------
@@ -93,11 +95,12 @@ class MasterEquationModelEnsemble(object):
         """
         self.M = self.ensemble_size   = ensemble_size
         self.G = self.contact_network = contact_network
+        self.weight = weight
         self.N = len(self.G)
         self.ensemble = []
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
-            member = NetworkCompartmentalModel(contact_network = contact_network)
+            member = NetworkCompartmentalModel(contact_network = contact_network, weight = weight)
             if isinstance(transition_rates, list):
                 member.set_parameters(
                         transition_rates  = transition_rates[mm],
@@ -109,7 +112,7 @@ class MasterEquationModelEnsemble(object):
             self.ensemble.append(member)
 
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
-        self.L  = nx.to_scipy_sparse_matrix(self.G)
+        self.L  = nx.to_scipy_sparse_matrix(self.G, weight = weight)
 
     #  Set methods -------------------------------------------------------------
     def update_contact_network(self, new_contact_network):
@@ -119,7 +122,7 @@ class MasterEquationModelEnsemble(object):
         if new_contact_network is not None:
             self.G = self.contact_network = new_contact_network
             self.N = len(self.G)
-            self.L = nx.to_scipy_sparse_matrix(self.G)
+            self.L = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
 
             [member.update_contact_network(self.G) for member in self.ensemble]
 
