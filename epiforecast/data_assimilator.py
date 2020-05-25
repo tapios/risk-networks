@@ -1,29 +1,38 @@
 import numpy as np
+
 from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
 
 class DataAssimilator:
 
-    def __init__(self, observations, errors):
+    def __init__(self, observations, errors, *, transition_rates_to_update_str=None, transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method. 
            
-           Args
-           ----
-           #observations (list, [], or Observation): A list of Observations, or a single Observation.
+           Positional Args
+           ---------------
+           observations (list, [], or Observation): A list of Observations, or a single Observation.
                                                      Generates the indices and covariances of observations
         
-           #errors (list, [],  or Observation): Observation for the purpose of error checking. Error 
+           errors (list, [],  or Observation): Observation for the purpose of error checking. Error 
                                                 observations are used to compute online differences at 
                                                 the observed (according to Errors) between Kinetic and 
                                                 Master Equation models
-                                 
+           Keyword Args
+           ------------ 
+           transition_rates_to_update_str (list): list of strings naming the transition_rates we would like
+                                                  update with data. must coincide with naming found in
+                                                  epiforecast/populations.py.
+                                                  If not provided, will set [] 
+                                                         
+           transmission_rate_to_update_flag (boolean): bool to update transmission rate with data
+                                                       If not provided will set False
            Methods
            -------
            
-           update(ensemble_state,data,contact_network=[],ensemble_transition_rates=[], ensemble_transmission_rates=[]):
+           update(ensemble_state,data,contact_network=[],full_ensemble_transition_rates, full_ensemble_transmission_rate):
                                                           Perform an update of the ensemble states `ensemble_state`, and if provided, ensemble
-                                                          parameters `ensemble_transition rates`, `ensemble_transmission_rates` and the network
+                                                          parameters `ensemble_transition rates`, `ensemble_transmission_rate` and the network
                                                           `contact network`. Returns the updated model parameters and updated states.
 
            make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by omodel.obs_states).
@@ -41,14 +50,21 @@ class DataAssimilator:
                                              #and actual states in an given interval e.g 0.5 <= I <= 1.0
         """
 
-
-        
         if not isinstance(observations,list):#if it's a scalar, not array
             observations=[observations]
 
         if not isinstance(errors,list):#if it's a scalar, not array
             observations=[errors]
-       
+
+        if transition_rates_to_update_str is None:
+            transition_rates_to_update_str=[]
+            
+        if transmission_rate_to_update_flag is None:
+            transmission_rate_to_update_flag = False 
+            
+        if not isinstance(transition_rates_to_update_str,list):#if it's a string, not array
+            transition_rates_to_update_str = [transition_rates_to_update_str]
+            
         #observation models(s)
         self.omodel = observations      
                 
@@ -58,6 +74,9 @@ class DataAssimilator:
         #online evaluations of errors, one needs an observation class to check differences in data
         self.online_emodel= errors
 
+        #which parameter to assimilate joint with the state
+        self.transition_rates_to_update_str = transition_rates_to_update_str
+        self.transmission_rate_to_update_flag= transmission_rate_to_update_flag
 
     def make_new_observation(self,ensemble_state,contact_network):
         for i in range(len(self.omodel)):
@@ -89,35 +108,71 @@ class DataAssimilator:
         distinct_cov=np.diag(distinct_cov)
         
         return distinct_cov
-    
+    # ensemble_state np.array([ensemble size, num status * num nodes]
+    # data np.array([ensemble size, num status * num nodes])
+    # contact network networkx.graph (if provided)
+    # full_ensemble_transition_rates list[ensemble size] of  TransitionRates objects from epiforecast.populations 
+    # full_ensemble_transmission_rate np.array([ensemble size])
     def update(self,
                ensemble_state,
                data,
-               contact_network=[],
-               ensemble_transition_rates=[],
-               ensemble_transmission_rates=[]):
+               full_ensemble_transition_rates,
+               full_ensemble_transmission_rate,
+               contact_network=None):
 
         if len(self.omodel)>0:
-            om=self.omodel
-            dam=self.damethod
+            
+            #extract the transition_rates to update
+            if len(transition_rates_to_update_str)>0:
+                for member in range(len(full_ensemble_transition_rates)):
+                    #this returns an [ensemble size x transition rates (to be updated)] np.array
+                    ensemble_transition_rates = np.hstack([full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type) \
+                                                           for rate_type in range(len(transition_rates_to_update_str))])
+            else:
+                ensemble_transition_rates = []    
+            
+                
+            #If we don't want to update transmission rate (o/w it's already in correct np array form)
+            if transmission_rate_to_update_flag is False:
+                ensemble_transmission_rate = [] 
+            
+            om = self.omodel
+            dam = self.damethod
 
-            obs_states=self.make_new_observation(ensemble_state,contact_network) #Generate states to observe
+            obs_states = self.make_new_observation(ensemble_state,contact_network) #Generate states to observe
       
             if (obs_states.size>0):
                 
                 print("partial states to be assimilated", obs_states.size)
                 #get the truth indices, for the observation(s)
-                truth=data[obs_states]
+                truth = data[obs_states]
                 
                 #get the covariances for the observation(s), with the minimum returned if two overlap
                 cov = self.get_observation_cov()
                 
-                #perform da model update with ensemble_state: states,q parameters.
-                ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rates = dam.update(ensemble_state[:,obs_states],
+                #perform da model update with ensemble_state: states,transition and transmission rates
+                ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rate = dam.update(ensemble_state[:,obs_states],
                                                                                                                           ensemble_transition_rates,
-                                                                                                                          ensemble_transmission_rates,
+                                                                                                                          ensemble_transmission_rate,
                                                                                                                           truth,cov)
-            
+                
+                #update the new transition rates if required
+                if len(transition_rates_to_update_str)>0:
+                    for member in range(len(full_ensemble_transition_rates)):
+                        new_member_rates = new_ensemble_transition_rates[member,:]
+                        for rate_type in transition_rates_to_update_str:
+                            #need to go back from numpy array to setting rates
+                            #we obtain the size, then update the corresponding transition rate
+                            #then delete this an move onto the next rate
+                            
+                            rate_size = full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type).size
+                            full_ensemble_transition_rates[member].set_transition_rates_from_str(rate_type,new_member_rates[:rate_size])
+                            new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
+                                                                                                           
+                #update the transmission_rate if required
+                if transmission_rate_to_update_flag is True:
+                    full_ensemble_transition_rates=new_ensemble_transition_rates
+                
                 #Force probabilities to sum to one
                 self.sum_to_one(ensemble_state)
             
@@ -130,10 +185,10 @@ class DataAssimilator:
                 self.error_to_truth_state(ensemble_state,data)
         
             #return ensemble_state and model params
-            return ensemble_state, ensemble_transition_rates, ensemble_transmission_rates
+            return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
         else: #if no observations performed
-            return ensemble_state, ensemble_transition_rates,ensemble_transmission_rates
+            return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
             
     #defines a method to take a difference to the data state

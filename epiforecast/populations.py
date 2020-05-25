@@ -84,12 +84,12 @@ class TransitionRates:
                        hospital_mortality_fraction):
 
         #For data assimilation we require return of initial variables
-        self.latent_periods               = latent_periods
-        self.community_infection_periods  = community_infection_periods
-        self.hospital_infection_periods   = hospital_infection_periods
-        self.hospitalization_fraction     = hospitalization_fraction
-        self.community_mortality_fraction = community_mortality_fraction
-        self.hospital_mortality_fraction  = hospital_mortality_fraction
+        self.latent_periods               = latent_periods.values
+        self.community_infection_periods  = community_infection_periods.values
+        self.hospital_infection_periods   = hospital_infection_periods.values
+        self.hospitalization_fraction     = hospitalization_fraction.values
+        self.community_mortality_fraction = community_mortality_fraction.values
+        self.hospital_mortality_fraction  = hospital_mortality_fraction.values
 
 
         self.population = len(latent_periods.values)
@@ -111,41 +111,53 @@ class TransitionRates:
         self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
         self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
 
-      
-        def update_transition_rates(self,
-                                    latent_periods=None,
-                                    community_infection_periods=None,
-                                    hospital_infection_periods=None,
-                                    hospitalization_fraction=None,
-                                    community_mortality_fraction=None,
-                                    hospital_mortality_fraction=None):
+        # Getter for single rate defined by string
+        def get_transition_rates_from_str(self,transition_rate_str):
 
-            #if inputs are None, we retain the stored values
-            if latent_periods is not None:
-                self.latent_periods = latent_periods
+            if transition_rate_str == 'latent_periods':
+                return self.latent_periods 
+            elif transition_rate_str == 'community_infection_periods':
+                return self.community_infection_periods
+            elif transition_rate_str == 'hospital_infection_periods':
+                return self.hospital_infection_periods
+            elif transition_rate_str == 'hospitalization_fraction':
+                return self.hospitalization_fraction 
+            elif transition_rate_str ==  'community_mortality_fraction':
+                return self.community_mortality_fraction 
+            elif transition_rate_str == 'hospital_mortality_fraction':
+                return self.hospital_mortality_fraction
+            else:
+                print('transition rate not recognized')
+                exit()
 
-            if  community_infection_periods is not None:
-                self.community_infection_periods  = community_infection_periods
+        # Setter for single rate defined by string.  
+        def set_transition_rates_from_str(self,transition_rate_str,transition_rate):
 
-            if hospital_infection_periods is not None:
-                self.hospital_infection_periods   = hospital_infection_periods
+            if transition_rate_str == 'latent_periods':
+                self.latent_periods = transition_rate
+            elif transition_rate_str == 'community_infection_periods':
+                self.community_infection_periods = transition_rate
+            elif transition_rate_str == 'hospital_infection_periods':
+                self.hospital_infection_periods = transition_rate
+            elif transition_rate_str == 'hospitalization_fraction':
+                self.hospitalization_fraction = transition_rate
+            elif transition_rate_str ==  'community_mortality_fraction':
+                self.community_mortality_fraction = transition_rate
+            elif transition_rate_str == 'hospital_mortality_fraction':
+                self.hospital_mortality_fraction = transition_rate
+            else:
+                print('transition rate not recognized')
+                exit()
+                
+            # For now, I ensure consistency here, clearly this actually only needs doing once after all updates 
 
-            if hospitalization_fraction is not None:
-                self.hospitalization_fraction     = hospitalization_fraction
-
-            if community_mortality_fraction is not None:
-                self.community_mortality_fraction = community_mortality_fraction
-
-            if hospital_mortality_fraction is not None:
-                self.hospital_mortality_fraction  = hospital_mortality_fraction
-
-            σ = 1 / latent_periods.values
-            γ = 1 / community_infection_periods.values
-            h = hospitalization_fraction.values
-            d = community_mortality_fraction.values
+            σ = 1 / self.latent_periods
+            γ = 1 / self.community_infection_periods
+            h = self.hospitalization_fraction
+            d = self.community_mortality_fraction
             
-            γ_prime = 1 / hospital_infection_periods.values
-            d_prime = hospital_mortality_fraction.values
+            γ_prime = 1 / self.hospital_infection_periods
+            d_prime = self.hospital_mortality_fraction
             
             self.exposed_to_infected       = { node: σ[node]                             for node in nodes }
             self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in nodes }
@@ -154,9 +166,8 @@ class TransitionRates:
                 
             self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in nodes }
             self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in nodes }
-
-
             
+                
 def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):
     """
     Returns a numpy array of length `population`, with age categories from
