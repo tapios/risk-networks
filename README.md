@@ -67,11 +67,10 @@ from epiforecast.data_assimilation import DataAssimilator
 from epiforecast.observation import SixHourlyTotalStateObservations
 
 # Tools for simulating specific scenarios
-from epiforecast.scenarios import random_infection
-from epiforecast.scenarios import midnight_on_Tuesday
-from epiforecast.scenarios import state_distribution_at_midnight_on_Tuesday
-from epiforecast.scenarios import transition_rates_distribution_at_midnight_on_Tuesday
-from epiforecast.scenarios import transmission_rates_distribution_at_midnight_on_Tuesday
+from epiforecast.scenarios import random_infection, randomly_infected_ensemble
+from epiforecast.scenarios import percent_infected_at_midnight_on_Tuesday
+from epiforecast.scenarios import ensemble_transition_rates_at_midnight_on_Tuesday
+from epiforecast.scenarios import ensemble_transmission_rates_at_midnight_on_Tuesday
 ```
 
 ## Example simulation of an epidemic
@@ -348,13 +347,13 @@ master_model = MasterEquationModelEnsemble(        contact_network = contact_net
                                            )
 
 # Generate a joint distribution of states and transition rates for this example.
-state_distribution              = state_distribution_at_midnight_on_Tuesday()
-transition_rates_distribution   = transition_rates_distribution_at_midnight_on_Tuesday()
-transmission_rates_distribution = transmission_rates_distribution_at_midnight_on_Tuesday()
+ensemble_states = randomly_infected_ensemble(percent_infected_at_midnight_on_Tuesday())
+ensemble_transition_rates = ensemble_transition_rates_at_midnight_on_Tuesday()
+ensemble_transmission_rates = ensemble_transmission_rates_at_midnight_on_Tuesday()
 
-master_model.populate_states(distribution=state_distribution)
-master_model.populate_transition_rates(distribution=transition_rates_distribution)
-master_model.populate_transmission_rates(distribution=transmission_rates_distribution)
+master_model.update_ensemble_states(ensemble_states)
+master_model.update_ensemble_transition_rates(ensemble_transition_rates)
+master_model.update_ensemble_transmission_rates(ensemble_transmission_rates)
 
 # Initialize the data assimilation method
 assimilator = DataAssimilator(observations = FullStateObservation(population), 
