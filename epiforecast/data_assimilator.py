@@ -137,14 +137,15 @@ class DataAssimilator:
                     ensemble_transition_rates = np.append(ensemble_transition_rates,[rates_tmp],axis=0)
 
                 ensemble_transition_rates = np.vstack(ensemble_transition_rates)
-            else:
-                ensemble_transition_rates = []    
+            else:#set to column of empties
+                ensemble_transition_rates =  np.empty((len(full_ensemble_transition_rates),0),dtype=float)
+                
                 
                 
             if self.transmission_rate_to_update_flag is True:
                 ensemble_transmission_rate = full_ensemble_transmission_rate
-            else:
-                ensemble_transmission_rate = [] 
+            else:#set to column of empties
+                ensemble_transmission_rate = np.empty((full_ensemble_transmission_rate.shape[0],0),dtype=float)
                 
             om = self.omodel
             dam = self.damethod
@@ -159,7 +160,6 @@ class DataAssimilator:
                 
                 #get the covariances for the observation(s), with the minimum returned if two overlap
                 cov = self.get_observation_cov()
-                print(cov)
                 
                 #perform da model update with ensemble_state: states,transition and transmission rates
                 ensemble_state[:,obs_states], new_ensemble_transition_rates, new_ensemble_transmission_rate = dam.update(ensemble_state[:,obs_states],
@@ -172,6 +172,7 @@ class DataAssimilator:
                     for member in range(len(full_ensemble_transition_rates)):
                         new_member_rates = new_ensemble_transition_rates[member,:]
                         for rate_type in self.transition_rates_to_update_str:
+                            print(new_member_rates.shape)
                             #need to go back from numpy array to setting rates
                             #we obtain the size, then update the corresponding transition rate
                             #then delete this an move onto the next rate
@@ -179,6 +180,7 @@ class DataAssimilator:
                             rate_size = full_ensemble_transition_rates[member].get_transition_rates_from_str(rate_type).size
                             full_ensemble_transition_rates[member].set_transition_rates_from_str(rate_type,new_member_rates[:rate_size])
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
+
                                                                                                            
                 #update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:

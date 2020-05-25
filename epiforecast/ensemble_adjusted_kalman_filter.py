@@ -90,7 +90,6 @@ class EnsembleAdjustedKalmanFilter:
         q=transmission_rates
         
         zp = np.hstack([p, q, x])
-        print(zp.shape)
         x_t = x_t
         cov = cov
         
@@ -201,5 +200,6 @@ class EnsembleAdjustedKalmanFilter:
 
         # Compute error
         self.compute_error(x_logit,x_t,cov)
-
+        print("new_transition_rates", new_transition_rates)
+        print("new_transmission_rates",new_transmission_rates)
         return new_ensemble_state, new_transition_rates, new_transmission_rates
