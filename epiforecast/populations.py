@@ -106,6 +106,11 @@ class TransitionRates:
 
 
 def king_county_transition_rates(population):
+    """
+    Returns transition rates for a community of size `population`
+    whose statistics vaguely resemble the clinical statistics of 
+    King County, WA, USA.
+    """
 
     # ... and the age category of each individual
     age_distribution = [ 0.23,  # 0-19 years
