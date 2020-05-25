@@ -32,10 +32,10 @@ class DataAssimilator:
            Methods
            -------
            
-           update(ensemble_state,data,contact_network=[],full_ensemble_transition_rates, full_ensemble_transmission_rate):
-                                                          Perform an update of the ensemble states `ensemble_state`, and if provided, ensemble
-                                                          parameters `ensemble_transition rates`, `ensemble_transmission_rate` and the network
-                                                          `contact network`. Returns the updated model parameters and updated states.
+           update(ensemble_state, data, contact_network=[], full_ensemble_transition_rates, full_ensemble_transmission_rate):
+               Perform an update of the ensemble states `ensemble_state`, and if provided, ensemble
+               parameters `full_ensemble_transition_rates`, `full_ensemble_transmission_rate` and the network
+               `contact network`. Returns the updated model parameters and updated states.
 
            make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by observations.obs_states).
                                         Returns a concatenated list of indices `observed_states` with duplicates removed.
@@ -45,7 +45,7 @@ class DataAssimilator:
                                   accurate test). Returns a diagonal covariance matrix for the distinct observed states, with the minimum variances on the diagonal.
            
            sum_to_one(state): Takes the state `state` and enforces that all statuses at a node sum to one. Does this by distributing the mass (1-(I+H+R+D)) into S and E, where 
-                          the mass is divided based on the previous state's relative mass in S and E. i.e Snew= S/(S+E)*(1-(I+H+R+D)), Enew = E/(S+E)*(1-(I+H+R+D)) 
+                              the mass is divided based on the previous state's relative mass in S and E. i.e Snew= S/(S+E)*(1-(I+H+R+D)), Enew = E/(S+E)*(1-(I+H+R+D)) 
            
            error_to_truth_state(state,data): updates emodel.obs_states and measures (user prescribed) differences between the data and state online.
                                              #Current implementation sums the difference in number of predicted states
@@ -186,7 +186,7 @@ class DataAssimilator:
                                                               truth,
                                                               cov)
                 
-                #update the new transition rates if required
+                # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
                     for member in range(ensemble_size):

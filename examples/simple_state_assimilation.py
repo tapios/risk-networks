@@ -6,7 +6,7 @@ import networkx as nx
 from epiforecast.observations import FullObservation
 from epiforecast.data_assimilator import DataAssimilator
 
-from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
+from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates, king_county_transition_rates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 np.random.seed(10)
@@ -18,49 +18,18 @@ n_samples = 2 # minimum number for an 'ensemble'
 observations = FullObservation(population, noise_var, "Full state observation 1% noise")
 assimilator = DataAssimilator(observations = observations, errors = [])
 
-# Current state, transition_rates (20 of them), transmission rate (1)
+# Generate random current state
 current_state = np.random.uniform(0.0, 1.0/6.0, (n_samples, population * n_status))
 
 print(np.sum(current_state[:, 1::population], axis=0))
-
-# For transition_rates see generate_clinical_statistics.py
-age_distribution = [ 1. ]
-ages = populate_ages(population, distribution=age_distribution)
 
 transmission_rate = np.random.uniform(0.03, 0.1, (n_samples, 1))
 transition_rates = []
 
 for i in range(n_samples):
-    #transition_rates.append(king_county_transition_rates(population))
-
-    latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
-                                        sampler = GammaSampler(k=1.7, theta=2.0))
-
-    community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                     sampler = GammaSampler(k=1.5, theta=2.0))
-
-    hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                    sampler = GammaSampler(k=1.5, theta=3.0))
-
-    hospitalization_fraction = ClinicalStatistics(ages = ages,
-                                                  sampler = AgeAwareBetaSampler(mean=[ 0.25 ], b=4))
-
-    community_mortality_fraction = ClinicalStatistics(ages = ages,
-                                                      sampler = AgeAwareBetaSampler(mean=[0.02], b=4))
-
-    hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
-                                                      sampler = AgeAwareBetaSampler(mean=[0.04], b=4))
-
-    t_rates = TransitionRates(latent_periods,
-                              community_infection_periods,
-                              hospital_infection_periods,
-                              hospitalization_fraction,
-                              community_mortality_fraction,
-                              hospital_mortality_fraction)
-
-    transition_rates.append(t_rates) 
-    
-# some data (corresponding to the size of the current state)
+    transition_rates.append(king_county_transition_rates(population))
+        
+# Some data (corresponding to the size of the current state)
 synthetic_data = 1.0/6.0 * np.ones(population * n_status)
 
 # currently no implemented Observation classes rely upon this.

@@ -41,12 +41,12 @@ class EnsembleAdjustedKalmanFilter:
    
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, ensemble_state, transition_rates,transmission_rates, truth, cov, r=1.0):
+    def update(self, ensemble_state, clinical_statistics, transmission_rates, truth, cov, r=1.0):
 
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
         
-        - transition_rates (np.array): transition rate model parameters for each of the J ensembles
+        - clinical_statistics (np.array): transition rate model parameters for each of the J ensembles
 
         - transmission_rates (np.array): transmission rate of model parameters for each of the J ensembles
         
@@ -86,8 +86,8 @@ class EnsembleAdjustedKalmanFilter:
 
         # Stacked parameters and states
         # the transition and transmission parameters act similarly in the algorithm
-        p=transition_rates
-        q=transmission_rates
+        p = clinical_statistics
+        q = transmission_rates
         
         zp = np.hstack([p, q, x])
         x_t = x_t
@@ -194,12 +194,12 @@ class EnsembleAdjustedKalmanFilter:
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
 
         pqout=np.dot(zu,Hpq.T)
-        new_transition_rates,new_transmission_rates=pqout[:,:transition_rates.shape[1]],pqout[:,transition_rates.shape[1]:]
+        new_clinical_statistics, new_transmission_rates = pqout[:, :clinical_statistics.shape[1]], pqout[:,clinical_statistics.shape[1]:]
         
         #self.x = np.append(self.x, [x_p], axis=0)
 
         # Compute error
         self.compute_error(x_logit,x_t,cov)
-        print("new_transition_rates", new_transition_rates)
-        print("new_transmission_rates",new_transmission_rates)
-        return new_ensemble_state, new_transition_rates, new_transmission_rates
+        print("new_clinical_statistics", new_clinical_statistics)
+        print("new_transmission_rates", new_transmission_rates)
+        return new_ensemble_state, new_clinical_statistics, new_transmission_rates
