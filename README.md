@@ -358,7 +358,9 @@ master_model.populate_transmission_rates(distribution=transmission_rates_distrib
 
 # Initialize the data assimilation method
 assimilator = DataAssimilator(observations = FullStateObservation(population), 
-                                    errors = [])
+                              errors = [],
+                              transition_rates_to_update_str = ['latent_periods'],
+                              transmission_rate_to_update_flag = False)
 
 for i in range(intervals_per_window):
     # Set the contact network for the ensemble of master equation models
@@ -367,11 +369,13 @@ for i in range(intervals_per_window):
     # Run the master model ensemble forward for six hours
     master_model.simulate(static_contacts_interval)  
 
-    new_transition_rates, new_transmission_rates, new_ensemble = assimilator.update(network_generator.get_contact_networks()
-                                                                                    master_model.ensemble,
-                                                                                    master_model.transition_rates,
-                                                                                    master_model.transmission_rates,
-                                                                                    synthetic_data)
+    (new_transition_rates,
+     new_transmission_rates,
+     new_ensemble) = assimilator.update(master_model.ensemble,
+                                        synthetic_data,
+                                        master_model.transition_rates,
+                                        master_model.transmission_rates,
+                                        contact_network = network_generator.get_contact_networks())
 
     # Update the master model ensemble and parameters
     master_model.set_ensemble(new_ensemble)
