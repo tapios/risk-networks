@@ -2,8 +2,8 @@ import os
 import numpy as np
 import networkx as nx
 from collections import defaultdict
-from TemporalAdjacency import TemporalAdjacency
-from KM_helper import *
+from epiforecast.TemporalAdjacency import TemporalAdjacency
+from epiforecast.KM_helper import *
 from EoN import Gillespie_simple_contagion
 
 class KineticModel:

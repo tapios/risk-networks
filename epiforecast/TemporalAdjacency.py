@@ -1,5 +1,5 @@
 import numpy as np
-from KM_helper import *
+from epiforecast.KM_helper import *
 
 class TemporalAdjacency:
   '''
