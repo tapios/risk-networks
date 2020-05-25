@@ -80,6 +80,10 @@ while t < T1:
   times, states = res.summary()
   node_status = res.get_statuses(time=times[-1])
 
+  km.update_IC(node_status)
+  km.vacate_placeholder()
+  km.populate_placeholder()
+
   if t >= output_t:
     KM_print_states(t, states, 'SEIRHD')
     output_t += output_dt

@@ -51,6 +51,7 @@ class KineticModel:
     self.__P0  = None # array of initial placeholder nodes
     self.__HCW = None # array of healthcare-worker nodes
     self.__I0  = None # array of initially infected nodes
+    self.P_taken_by = None # array that maps which P nodes were taken by which
 
     # numpy arrays (when initialized) of independent rates
     self.sigma  = None # sigma_i
@@ -125,6 +126,7 @@ class KineticModel:
     self.IC.fill('S') # initialize as susceptible
 
     self.__P0 = np.arange(int(P0 * N)) # essentially, immutable
+    self.P_taken_by = np.arange(int(P0 * N)) # mutable
 
     if type(HCW) == float:
       self.__HCW = np.arange(int(HCW * N)) + int(P0 * N)
@@ -246,6 +248,34 @@ class KineticModel:
     )
     return res
 
+  def update_IC(self, node_status):
+    # node_status is a dict, so have to convert to a numpy array
+    self.IC[ list(node_status.keys()) ] = list(node_status.values())
+
+  def vacate_placeholder(self):
+    '''
+    Vacate placeholder nodes if their status is not 'H'
+    '''
+    for i in self.__P0:
+      if self.IC[i] != 'P' and self.IC[i] != 'H':
+        self.IC[ self.P_taken_by[i] ] = self.IC[i]
+        self.IC[i] = 'P'
+        self.P_taken_by[i] = i
+
+  def populate_placeholder(self):
+    '''
+    Put 'H' nodes currently outside 'P' into 'P' slots
+    '''
+    P_all_nodes = np.nonzero(self.IC == 'P')[0]
+    P_nodes = P_all_nodes[ P_all_nodes <= self.__P0[-1] ]
+
+    if P_nodes.size != 0:
+      H_all_nodes = np.nonzero(self.IC == 'H')[0]
+      H_nodes = H_all_nodes[ H_all_nodes > self.__P0[-1] ]
+      for i in range(min(P_nodes.size, H_nodes.size)):
+        self.IC[ P_nodes[i] ] = 'H'
+        self.IC[ H_nodes[i] ] = 'P'
+        self.P_taken_by[ P_nodes[i] ] = H_nodes[i]
 
 # end of class KineticModel
 
