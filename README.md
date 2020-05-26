@@ -146,7 +146,8 @@ We process the clinical data to determine transition rates between each
 epidemiological state,
 
 ```python
-transition_rates = TransitionRates(latent_periods,
+transition_rates = TransitionRates(population,
+                                   latent_periods, 
                                    community_infection_periods,
                                    hospital_infection_periods,
                                    hospitalization_fraction,

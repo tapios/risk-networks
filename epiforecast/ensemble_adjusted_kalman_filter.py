@@ -6,7 +6,7 @@ class EnsembleAdjustedKalmanFilter:
 
     def __init__(self, full_svd = True, \
                  params_cov_noise = 1e-2, states_cov_noise = 1e-2, \
-                 params_noise_active = False, states_noise_active = True):
+                 params_noise_active = True, states_noise_active = True):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 

@@ -1,7 +1,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
+from epiforecast.populations import populate_ages, sample_pathological_distribution, TransitionRates
+from epiforecast.samplers import GammaSampler, BetaSampler
 
 import numpy as np
 import networkx as nx
@@ -26,29 +26,17 @@ print('Second test: passed')
 
 # ------------------------------------------------------------------------------
 # Third test: create transition rates and populate the ensemble
-# Simple setting: one age group all ensemble members are identical
-age_distribution = [ 1. ]
-ages = populate_ages(population, distribution=age_distribution)
 
-latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
-                                    sampler = GammaSampler(k=1.7, theta=2.0))
+latent_periods              = sample_pathological_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods = sample_pathological_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods  = sample_pathological_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                    sampler = GammaSampler(k=1.5, theta=2.0))
+hospitalization_fraction     = sample_pathological_distribution(BetaSampler(mean=0.25, b=4), population=population)
+community_mortality_fraction = sample_pathological_distribution(BetaSampler(mean=0.02, b=4), population=population)
+hospital_mortality_fraction  = sample_pathological_distribution(BetaSampler(mean=0.04, b=4), population=population)
 
-hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                    sampler = GammaSampler(k=1.5, theta=3.0))
-
-hospitalization_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[ 0.25 ], b=4))
-
-community_mortality_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.02], b=4))
-
-hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.04], b=4))
-
-transition_rates = TransitionRates(latent_periods,
+transition_rates = TransitionRates(population,
+                                   latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,
                                    hospitalization_fraction,
