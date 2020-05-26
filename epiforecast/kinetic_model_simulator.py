@@ -85,15 +85,6 @@ class KineticModel:
     self.static_graph.add_edges_from(edge_list)
     self.TA.set_edge_list(edge_list)
 
-  def load_node_identifiers(self, filename=None):
-    if filename is None:
-      filename = self.fallback_edges_filename
-
-    node_identifiers = np.loadtxt(filename, dtype = str)
-    nodes = data[:,0].astype(np.int)
-    identifiers = data[:,1]
-    # something has to be done with these identifiers later on in setIC
-
   def set_return_statuses(self, which='all'):
     '''
     Set which statuses to return from Gillespie simulation
