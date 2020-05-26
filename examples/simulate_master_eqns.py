@@ -67,6 +67,14 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network,
 print('Fourth test: passed')
 
 # ------------------------------------------------------------------------------
+# Fifth test: create object with adjacency matrix
+master_eqn_ensemble = MasterEquationModelEnsemble(nx.to_scipy_sparse_matrix(contact_network),
+            [transition_rates]*ensemble_size,
+            transmission_rate,
+            ensemble_size = ensemble_size)
+print('Fifth test: passed')
+
+# ------------------------------------------------------------------------------
 # Fifth test: simulate the epidemic through the master equations
 np.random.seed(1)
 
@@ -85,7 +93,7 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 res = master_eqn_ensemble.simulate(y0, 100, n_steps = 20)
 print('Simulation done!')
 
-fig, axes = plot_master_eqns(res['states'], res['times'])
+# fig, axes = plot_master_eqns(res['states'], res['times'])
 
 # current_state = np.random.uniform(0.01, 0.2, size=(ensemble_size,5*population))
 # static_network_interval=0.25
