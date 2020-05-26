@@ -5,18 +5,18 @@ import networkx as nx
 
 from epiforecast.observations import FullObservation
 from epiforecast.data_assimilator import DataAssimilator
+from epiforecast.scenarios import king_county_transition_rates
 
-from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates, king_county_transition_rates
-from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
+np.random.seed(123)
 
-np.random.seed(10)
 population = 100
 n_status = 5
 noise_var = 0.01 # independent variance on observations
 n_samples = 2 # minimum number for an 'ensemble'
 
+transition_rates_to_update_str=['hospitalization_fraction']
 observations = FullObservation(population, noise_var, "Full state observation 1% noise")
-assimilator = DataAssimilator(observations = observations, errors = [])
+assimilator = DataAssimilator(observations = observations, errors = [], transition_rates_to_update_str= transition_rates_to_update_str)
 
 # Generate random current state
 current_state = np.random.uniform(0.0, 1.0/6.0, (n_samples, population * n_status))

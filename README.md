@@ -48,7 +48,7 @@ We first import the package's functionality:
 
 ```python
 # Utilities for generating random populations
-from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
+from epiforecast.populations import populate_ages, generate_pathological_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 # Function that generates a time-averaged contact network from a rapidly-fluctuating
@@ -118,35 +118,26 @@ The six clinical statistics are
 We randomly generate clinical properties for our example population,
 
 ```python
-latent_periods              = ClinicalStatistic(ages = ages, const = 2, 
-                                                sampler = GammaSampler(k=1.7, theta=2.0))
+latent_periods              = sample_pathological_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods = sample_pathological_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods  = sample_pathological_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-community_infection_periods = ClinicalStatistic(ages = ages, const = 1,
-                                                sampler = GammaSampler(k=1.5, theta=2.0))
-
-hospital_infection_periods  = ClinicalStatistic(ages = ages, const = 1, 
-                                                sampler = GammaSampler(k=1.5, theta=3.0))
-
-hospitalization_fraction = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4))
-
-community_mortality_fraction = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
-
-hospital_mortality_fraction  = ClinicalStatistic(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
+hospitalization_fraction     = sample_pathological_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_pathological_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_pathological_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 ```
 
 `AgeAwareBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
 which generates clinical properties for each individual based on their `age` class (see `numpy.random.beta`
-for more information). `const` is a random number to which `gamma_sampler.draw()` or `beta_sampler.draw(age)`
+for more information). `minimum` is a random number to which `gamma_sampler.draw()` or `beta_sampler.draw(age)`
 is added.
 
 We process the clinical data to determine transition rates between each
 epidemiological state,
 
 ```python
-transition_rates = TransitionRates(latent_periods,
+transition_rates = TransitionRates(population,
+                                   latent_periods, 
                                    community_infection_periods,
                                    hospital_infection_periods,
                                    hospitalization_fraction,
