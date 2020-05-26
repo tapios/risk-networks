@@ -23,16 +23,21 @@ t = T0        # current time
 output_dt = 1.0 # how often to do outputs
 output_t = T0   # current output time
 
+# parameters
+beta = 1.0       # [1/day] the beta from overleaf; one global scalar
+alpha_hosp = 0.1 # [1] fraction of beta for healtcare workers
+
 ################################################################################
 # main section #################################################################
 ################################################################################
 edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')
 
 ta = TemporalAdjacency()
-ta.load_edge_list(edges_filename)
-ta.set_initial_active(0.034)
-ta.generate(muc=1920)
-ta.average_betas(dt_averaging=dt_KM)
+ta.load_edge_list(edges_filename) # read edge list from a file
+ta.set_initial_active(0.034)      # how many edges are active when day starts
+ta.generate(muc=1920)             # MC generation of active edges over the day
+ta.average_wjis(dt_averaging=dt_KM) # averaging those over dt_KM intervals
+ta.multiply_wjis(beta, beta * alpha_hosp) # wji *= beta, wjip *= beta*alpha_hosp
 
 km = KineticModel()
 km.set_edge_list(ta.edge_list)
@@ -45,7 +50,7 @@ km.set_return_statuses('all') # can be 'SIR' or 'HRD' etc.
 
 KM_print_start(t, km.IC, 'SEIHRD')
 while t < T1:
-  beta_dict, betap_dict = ta.get_betas(t)
+  beta_dict, betap_dict = ta.get_wjis(t)
   km.update_beta_rates(beta_dict, betap_dict)
 
   res = km.do_Gillespie_step(t=t, dt=dt_KM)

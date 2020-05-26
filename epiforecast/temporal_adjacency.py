@@ -19,8 +19,8 @@ class TemporalAdjacency:
     self.initial_active = 0.0
 
     self.dt_averaging = None # float; typically, larger than dt's in self.times
-    self.beta  = None # 2D np.array; (edges) x (number of time intervals)
-    self.betap = None # 2D np.array; -----------------"-----------------
+    self.wji  = None # 2D np.array; (edges) x (number of time intervals)
+    self.wjip = None # 2D np.array; -----------------"-----------------
 
   def load_edge_list(self, filename):
     # XXX this also needs to be disentangled
@@ -141,14 +141,12 @@ class TemporalAdjacency:
     self.times.resize(steps, refcheck=False)
     self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps])
 
-  def average_betas(self, dt_averaging=0.125, beta0=1.0, alpha_hosp=0.25):
+  def average_wjis(self, dt_averaging=0.125):
     '''
-    Average betas over generated times and weights
+    Average w_{ji}'s over generated times and weights
 
     Defaults:
       dt_averaging: 0.125 [day]
-      beta0:        1.0  [1/day]
-      alpha_hosp:   0.25 [1] fraction of beta0 for hospital nodes
     '''
     self.dt_averaging = dt_averaging
     KM_timespan = np.arange(self.t0, self.t1, step=dt_averaging)
@@ -159,33 +157,34 @@ class TemporalAdjacency:
     jump_indices = np.searchsorted(self.times, KM_timespan)
     jump_indices[-1] += 1 # make sure the last column is included
 
-    self.beta  = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
-    self.betap = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
+    self.wji  = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
+    self.wjip = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
     for j in range(jump_indices.size - 1):
       chunk = self.temporal_edge_list[ :, jump_indices[j] : jump_indices[j+1] ]
       average = np.mean(chunk, axis=1)
       #print(j, np.mean(average))
-      self.beta [:,j] = average
-      self.betap[:,j] = average
+      self.wji [:,j] = average
+      self.wjip[:,j] = average
 
-    self.beta  *= beta0
-    self.betap *= beta0 * alpha_hosp
+  def multiply_wjis(self, factor, factor_p):
+    self.wji  *= factor
+    self.wjip *= factor_p
 
-  def get_betas(self, t):
+  def get_wjis(self, t):
     '''
-    Get beta and beta^prime at time t using self.beta, self.betap
+    Get wji and wji^prime at time t using self.wji, self.wjip
     '''
     # find which time interval we are currently in
     j = self.get_interval_index(t)
 
-    # get the info from beta, betap into dictionaries (required by networkx)
-    beta_dict  = {}
-    betap_dict = {}
+    # get the info from wji, wjip into dictionaries (required by networkx)
+    wji_dict  = {}
+    wjip_dict = {}
     for k,e in enumerate(self.edge_list):
-      beta_dict [tuple(e)] = self.beta [k,j]
-      betap_dict[tuple(e)] = self.betap[k,j]
+      wji_dict [tuple(e)] = self.wji [k,j]
+      wjip_dict[tuple(e)] = self.wjip[k,j]
 
-    return beta_dict, betap_dict
+    return wji_dict, wjip_dict
 
 
 
