@@ -24,18 +24,19 @@ output_dt = 1.0 # how often to do outputs
 output_t = T0   # current output time
 
 # parameters
-beta = 1.0       # [1/day] the beta from overleaf; one global scalar
-alpha_hosp = 0.1 # [1] fraction of beta for healtcare workers
+beta = 1.0             # [1/day] the beta from overleaf; one global scalar
+alpha_hosp = 0.1       # [1] fraction of beta for healtcare workers
+initial_active = 0.034 # [1] fraction of initially active edges
+mu = 1920              # [1/day] (mean contact duration)**(-1)
 
 ################################################################################
 # main section #################################################################
 ################################################################################
 edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')
 
-ta = TemporalAdjacency()
-ta.load_edge_list(edges_filename) # read edge list from a file
-ta.set_initial_active(0.034)      # how many edges are active when day starts
-ta.generate(muc=1920)             # MC generation of active edges over the day
+ta = TemporalAdjacency(edges_filename, initial_active, mu)
+
+ta.generate() # MC generation of active edges over the day
 ta.average_wjis(dt_averaging=dt_KM) # averaging those over dt_KM intervals
 ta.multiply_wjis(beta, beta * alpha_hosp) # wji *= beta, wjip *= beta*alpha_hosp
 

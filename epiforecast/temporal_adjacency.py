@@ -7,35 +7,35 @@ class TemporalAdjacency:
   Piecewise-constant (in time) adjacency matrix with generation and averaging
   '''
 
-  def __init__(self, t0 = 0.0, t1 = 1.0):
-    self.t0 = t0 # in days
-    self.t1 = t1 # ---"---
+  def __init__(self, filename, initial_active, mu, t0 = 0.0, t1 = 1.0):
+    '''
+    Constructor
 
-    self.edge_list = None # 2D np.array; static, {0,1} edge weights
-    self.temporal_edge_list = None # 2D boolean np.array; masks edge_list
-    self.times = None # 1D np.array of times; dt isn't necessarily fixed
-    # Note: temporal_edge_list.shape[1] == times.size
+    Args:
+      initial_active [1]: a fraction [0,1] of active edges at t0
+      mu [1/day]: (mean contact duration)**(-1)
+      t0 [day]: start of the interval
+      t1 [day]: end   of the interval
+    '''
+    self.initial_active = initial_active
+    self.mu = mu
+    self.t0 = t0
+    self.t1 = t1
 
-    # a fraction of initially active edges
-    self.initial_active = 0.0
-
-    self.dt_averaging = None # float; typically, larger than dt's in self.times
-    self.wji  = None # 2D np.array; (edges) x (number of time intervals)
-    self.wjip = None # 2D np.array; -----------------"-----------------
-
-  def load_edge_list(self, filename):
-    # XXX this also needs to be disentangled
+    # XXX this also might be disentangled
     edge_list = np.loadtxt(filename, dtype=int, comments='#')
 
     # ensure edge_list only contains upper triangular edges (i.e. symmetric)
     upp_tr = edge_list[:,0] < edge_list[:,1]
-    self.edge_list = edge_list[upp_tr]
+    self.edge_list = edge_list[upp_tr] # 2D np.array; static, {0,1} edge weights
 
-  def set_initial_active(self, initial_active):
-    '''
-    Set a fraction (float) of active edges at the start of the interval
-    '''
-    self.initial_active = initial_active
+    self.temporal_edge_list = None # 2D boolean np.array; masks edge_list
+    self.times = None # 1D np.array of times; dt isn't necessarily fixed
+    # Note: temporal_edge_list.shape[1] == times.size
+
+    self.dt_averaging = None # float; typically, larger than dt's in self.times
+    self.wji  = None # 2D np.array; (edges) x (number of time intervals)
+    self.wjip = None # 2D np.array; -----------------"-----------------
 
   def get_interval_index(self, t):
     '''
@@ -66,13 +66,12 @@ class TemporalAdjacency:
         lambda_max * (1 - np.cos(np.pi * t)**4)**4
     )
 
-  def generate(self, dt_sync=0.004, muc=1920, lambda_min=3, lambda_max=22):
+  def generate(self, dt_sync=0.004, lambda_min=3, lambda_max=22):
     '''
     Generate times of activation/deactivation and piecewise-constant weights
 
     Defaults:
       dt_sync: 0.004 [days] or 5.76 [minutes]
-      muc: 1920 [1/day] or 1/45 [1/s]
       labmda_min:  3 [1/day]
       labmda_max: 22 [1/day]
     '''
@@ -99,7 +98,7 @@ class TemporalAdjacency:
     while t < self.t1 - self.t0:
       active_count = np.count_nonzero(active)
       # rate process 1: deactivation
-      Q1 = muc * active_count
+      Q1 = self.mu * active_count
 
       # rate process 3: activation
       Q2 = self.mean_contact_rate(t,lambda_min,lambda_max) * (M - active_count)
