@@ -34,6 +34,34 @@ class AgeAwareBetaSampler:
         return np.random.beta(self.b[age] * self.mean[age] / (1 - self.mean[age]), 
                               b=self.b[age])
 
+class BetaSampler:
+    """
+    Represents a parameterized 'age-aware' Beta distribution.
+    It's primary method is `sampler.draw(age)`, which returns `sample`
+    such that
+
+        `sample ~ Beta(b * mean / (1 - mean), b)`
+
+    Args
+    ----
+       b : The 'beta' parameter in the Beta distribution.
+    mean : The mean of the Beta distribution.
+
+    This class is used to model the distribution of infection
+    rates among a population.
+    """
+    def __init__(self, b, mean=0):
+
+        # Convert to numpy arrays of correct length
+        self.b =  b       # "beta" on Wikipedia
+        self.mean = mean # Mean value of the beta distribution
+
+    def draw(self, age):
+        """Return `sample`, where `sample ~ Beta(b * p / (1 - p), b)`"""
+        return np.random.beta(self.b * self.mean / (1 - self.mean), b=self.b)
+
+
+    
 class GammaSampler:
     """
     A class representing a parameterized Gamma distribution.
@@ -59,3 +87,38 @@ class GammaSampler:
     def draw(self, *args):
         """Return `sample`, where `sample ~ Gamma(k, theta)`"""
         return np.random.gamma(self.k, self.theta)
+
+class AgeAwareConstantSampler:
+    """
+    A class representing a constant distribution.
+    It's primary method is `sampler.draw(*args)`, which returns 
+    `sample`, where
+
+        `sample ~ constant[age]`
+
+    """
+    def __init__(self,const_in_age_category):
+        # input arg is a list of constants for each age category.
+        self.const_in_age_category = const_in_age_category
+      
+    def draw(self, age):
+        """Return `sample`, where `sample ~ const_in_age  category`"""
+        return self.const_in_age_category[age]
+
+
+class ConstantSampler:
+    """
+    A class representing a constant distribution.
+    It's primary method is `sampler.draw(*args)`, which returns 
+    `sample`, where
+
+        `sample ~ constant`
+
+    """
+    def __init__(self,const):
+        # input arg is a list of constants for each age category.
+        self.const = const
+      
+    def draw(self, *args):
+        """Return `sample`, where `sample ~ const_in_age  category`"""
+        return self.const

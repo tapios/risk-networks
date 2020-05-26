@@ -110,7 +110,8 @@ def king_county_transition_rates(population, random_seed=1234):
             sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
 
 
-    transition_rates = TransitionRates(latent_periods,
+    transition_rates = TransitionRates(population,
+                                       latent_periods,
                                        community_infection_periods,
                                        hospital_infection_periods,
                                        hospitalization_fraction,

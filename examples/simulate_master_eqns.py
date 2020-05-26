@@ -48,7 +48,8 @@ community_mortality_fraction = ClinicalStatistics(ages = ages,
 hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
     sampler = AgeAwareBetaSampler(mean=[0.04], b=4))
 
-transition_rates = TransitionRates(latent_periods,
+transition_rates = TransitionRates(population,
+                                   latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,
                                    hospitalization_fraction,
