@@ -8,7 +8,9 @@ class NetworkCompartmentalModel(object):
         Model class
     """
 
-    def __init__(self, contact_network, ix_reduced = True, weight = None):
+    def __init__(self, contact_network, ix_reduced = True, weight = None,
+                hospital_transmission_reduction = 0.25):
+        self.hospital_transmission_reduction = hospital_transmission_reduction
         if type(contact_network) == nx.classes.graph.Graph:
             self.G      = self.contact_network = contact_network
             self.N      = len(self.G)
@@ -28,7 +30,7 @@ class NetworkCompartmentalModel(object):
         """
         if transmission_rate is not None:
             self.beta   = transmission_rate
-            self.betap  = 0.25 * self.beta
+            self.betap  = self.hospital_transmission_reduction * self.beta
 
         if transition_rates is not None:
             self.sigma  = np.array(list(transition_rates.exposed_to_infected.values()))
@@ -90,6 +92,7 @@ class MasterEquationModelEnsemble(object):
                 transition_rates,
                 transmission_rate,
                 ensemble_size = 1,
+                hospital_transmission_reduction = 0.25,
                 weight = None):
         """
         Inputs:
@@ -112,7 +115,8 @@ class MasterEquationModelEnsemble(object):
         self.ensemble = []
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
-            member = NetworkCompartmentalModel(contact_network = contact_network, weight = weight)
+            member = NetworkCompartmentalModel(contact_network = contact_network, weight = weight,
+                                hospital_transmission_reduction = hospital_transmission_reduction)
             if isinstance(transition_rates, list):
                 member.set_parameters(
                         transition_rates  = transition_rates[mm],
