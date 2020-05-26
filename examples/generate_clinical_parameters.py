@@ -5,7 +5,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 # Import utilities for generating random populations
-from epiforecast.populations import populate_ages, ClinicalStatistics, TransitionRates
+from epiforecast.populations import populate_ages, sample_pathological_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 # First we define the population by the number of individuals
@@ -28,30 +28,21 @@ print("Ages categories of a random population:\n", ages, "\n")
 
 # Next, we randomly generate clinical properties for our example population.
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-latent_periods = ClinicalStatistics(ages = ages, minimum = 2,
-                                                 sampler = GammaSampler(k=1.7, theta=2.0))
+latent_periods              = sample_pathological_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods = sample_pathological_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods  = sample_pathological_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-community_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                 sampler = GammaSampler(k=1.5, theta=2.0))
-
-hospital_infection_periods = ClinicalStatistics(ages = ages, minimum = 1,
-                                                sampler = GammaSampler(k=1.5, theta=3.0))
-
-hospitalization_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4))
-
-community_mortality_fraction = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4))
-
-hospital_mortality_fraction  = ClinicalStatistics(ages = ages,
-    sampler = AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4))
+hospitalization_fraction     = sample_pathological_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_pathological_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_pathological_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 
 # Print the latent periods
-print("Randomly-generated latent periods:\n", latent_periods.values)
+print("Randomly-generated latent periods:\n", latent_periods)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 
-transition_rates = TransitionRates(latent_periods,
+transition_rates = TransitionRates(population,
+                                   latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,
                                    hospitalization_fraction,

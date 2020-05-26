@@ -208,7 +208,7 @@ class MasterEquationModelEnsemble(object):
             self.CM_SI = self.L.multiply(self.numSI/(self.denSI+1e-8)).dot(y[:,iI].T)
             self.CM_SH = self.L.multiply(self.numSH/(self.denSH+1e-8)).dot(y[:,iH].T)
 
-    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent'):
+    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
         """
         Inputs:
         -------
