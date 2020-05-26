@@ -39,13 +39,15 @@ ta.generate(muc=1920)             # MC generation of active edges over the day
 ta.average_wjis(dt_averaging=dt_KM) # averaging those over dt_KM intervals
 ta.multiply_wjis(beta, beta * alpha_hosp) # wji *= beta, wjip *= beta*alpha_hosp
 
-km = KineticModel()
-km.set_edge_list(ta.edge_list)
+km = KineticModel(ta.edge_list)
 km.set_IC(
     I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
 )
-km.set_ages() # this should read ages in instead
-km.set_independent_rates() # this should read rates in instead
+
+# XXX the following code will be fixed at the next iteration of PR's
+km.set_ages() # should go away completely
+km.set_independent_rates() # should be: km.set_independent_rates(clinical_rates)
+
 km.set_return_statuses('all') # can be 'SIR' or 'HRD' etc.
 
 KM_print_start(t, km.IC, 'SEIHRD')
@@ -66,6 +68,7 @@ while t < T1:
     KM_print_states(t, states, 'SEIHRD')
     output_t += output_dt
     if states['E'][-1] + states['I'][-1] + states['H'][-1] == 0:
+      # stop the simulation if infection has died out
       break
 
   t += dt_KM

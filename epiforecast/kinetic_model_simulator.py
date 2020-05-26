@@ -21,8 +21,10 @@ class KineticModel:
       'SH->E'  # beta^prime
   ]
 
-  def __init__(self):
+  def __init__(self, edge_list):
     self.static_graph = nx.Graph() # a static graph with {0,1} edges
+    self.static_graph.add_edges_from(edge_list)
+
 
     # independent rates diagram
     self.diagram_indep = nx.DiGraph()
@@ -67,9 +69,6 @@ class KineticModel:
 
   def get_IC(self):
     return (self.__P0, self.__HCW, self.__I0)
-
-  def set_edge_list(self, edge_list):
-    self.static_graph.add_edges_from(edge_list)
 
   def set_return_statuses(self, which='all'):
     '''
