@@ -26,6 +26,9 @@ class KineticModel:
     self.fallback_edges_filename = os.path.join(
         '..', 'data', 'networks', 'edge_list_SBM_1e3.txt'
     )
+    self.fallback_node_identifier_filename = os.path.join(
+        '..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'
+    )
 
     # independent rates diagram
     self.diagram_indep = nx.DiGraph()
@@ -81,6 +84,15 @@ class KineticModel:
     edge_list = np.loadtxt(filename, dtype=int, comments='#')
     self.static_graph.add_edges_from(edge_list)
     self.TA.set_edge_list(edge_list)
+
+  def load_node_identifiers(self, filename=None):
+    if filename is None:
+      filename = self.fallback_edges_filename
+
+    node_identifiers = np.loadtxt(filename, dtype = str)
+    nodes = data[:,0].astype(np.int)
+    identifiers = data[:,1]
+    # something has to be done with these identifiers later on in setIC
 
   def set_return_statuses(self, which='all'):
     '''
