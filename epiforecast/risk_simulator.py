@@ -5,7 +5,7 @@ from tqdm.autonotebook import tqdm
 
 class NetworkCompartmentalModel(object):
     """
-        Model class
+    ODE representation of the SEIHRD compartmental model.
     """
 
     def __init__(self, contact_network, ix_reduced = True, weight = None,
@@ -24,10 +24,12 @@ class NetworkCompartmentalModel(object):
                              transmission_rate = None,
                              ix_reduced        = True):
         """
-            Setup the parameters from the transition_rates container into the
-            model instance. The default behavior is the reduced model with 5
-            equations per node.
+        Setup the parameters from the transition_rates container into the model
+        instance.
+
+        The default behavior is the reduced model with 5 equations per node.
         """
+
         if transmission_rate is not None:
             self.beta   = transmission_rate
             self.betap  = self.hospital_transmission_reduction * self.beta
@@ -63,18 +65,18 @@ class NetworkCompartmentalModel(object):
 
     def update_transition_rates(self, new_transition_rates):
         """
-        Inputs:
+        Args:
         -------
-        transition_rates object
+        transition_rates dictionary.
         """
         self.set_parameters(transition_rates = new_transition_rates,
                            transmission_rate = None)
 
     def update_transmission_rate(self, new_transmission_rate):
         """
-        Inputs:
+        Args:
         -------
-        transmission_rate float
+        transmission_rate np.array.
         """
         self.set_parameters(transition_rates = None,
                            transmission_rate = new_transmission_rate)
@@ -95,14 +97,15 @@ class MasterEquationModelEnsemble(object):
                 hospital_transmission_reduction = 0.25,
                 weight = None):
         """
-        Inputs:
+        Args:
         -------
-        ensemble_size (int,)
-        contact_network: Graph object (networkx.graph) or Weighted adjacency matrix (sparse matrix)
-        transition_rates (list of) or (single instance of) TransitionRate container
-        transmission_rate (float)
+            ensemble_size : `int`
+          contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
+         transition_rates : `list` or single instance of `TransitionRate` container
+        transmission_rate : `float`
         """
-        self.M = self.ensemble_size   = ensemble_size
+        self.M = self.ensemble_size = ensemble_size
+
         if type(contact_network) == nx.classes.graph.Graph:
             self.G = self.contact_network = contact_network
             self.weight = weight
@@ -117,6 +120,7 @@ class MasterEquationModelEnsemble(object):
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
             member = NetworkCompartmentalModel(contact_network = contact_network, weight = weight,
                                 hospital_transmission_reduction = hospital_transmission_reduction)
+
             if isinstance(transition_rates, list):
                 member.set_parameters(
                         transition_rates  = transition_rates[mm],
@@ -125,6 +129,7 @@ class MasterEquationModelEnsemble(object):
                 member.set_parameters(
                         transition_rates  = transition_rates,
                         transmission_rate = transmission_rate)
+
             member.id = mm
             self.ensemble.append(member)
 
@@ -149,14 +154,14 @@ class MasterEquationModelEnsemble(object):
 
     def update_transmission_rate(self, new_transmission_rate):
         """
-        new_transmission_rate (array) of size M
+        new_transmission_rate : `np.array` of length `ensemble_size`
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transmission_rate(new_transmission_rate[mm])
 
     def update_transition_rates(self, new_transition_rates):
         """
-        list of (or single) transition_rates object
+        new_transition_rates : `list` of `TransitionRate`s
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transition_rates(new_transition_rates[mm])
@@ -175,12 +180,14 @@ class MasterEquationModelEnsemble(object):
     # ODE solver methods -------------------------------------------------------
     def do_step(self, t, y, member, closure = 'independent'):
         """
-            Inputs:
-            y (array): an array of dims (M times N_statuses times N_nodes)
-            t (array): times for ode solver
+        Args:
+        --------
+        y (array): an array of dims (M times N_statuses times N_nodes)
+        t (array): times for ode solver
 
-            Returns:
-            y_dot (array): lhs of master eqns
+        Returns:
+        --------
+        y_dot (array): lhs of master eqns
         """
         iS, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(3)]
         member.beta_closure_ind = sps.kron(np.array([member.beta, member.betap]), self.L).dot(y[iI[0]:(iH[-1]+1)])
@@ -214,13 +221,13 @@ class MasterEquationModelEnsemble(object):
 
     def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
         """
-        Inputs:
+        Args:
         -------
-        y0 (nd array): initial state for simulation of size (M, 5 times N)
-        T (float)    : final time of simulation
-        n_steps (int): number of Euler steps
-        t0 (float)   : initial time of simulation
-        closure      : by default consider that closure = 'independent'
+             y0 : `np.array` of initial states for simulation of size (M, 5 times N)
+             T  : final time of simulation
+        n_steps : number of Euler steps
+             t0 : initial time of simulation
+        closure : by default consider that closure = 'independent'
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
