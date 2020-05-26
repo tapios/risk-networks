@@ -1,8 +1,19 @@
 import numpy as np
 
-class ClinicalStatistics:
+def sample_pathological_distribution(sampler, ages=None, population=None, minimum=0):
     """
-    A container for clinical statistics.
+    Generate pathological parameters by sampling from a distribution.
+
+    Use cases
+    --------
+
+    1. `ages` is not `None`: assume `population = len(ages)`; return an array of size `len(ages)`
+       of pathological samples using `minimum + sampler.draw(age)`.
+
+    2. `ages` is None, `population` is not `None`: return an array of size `population` of
+       pathological samples using `mininum + sampler.draw()`.
+
+    3. Both `ages` and `population` are `None`: return a single `minimum + sampler.draw()`.
 
     Args
     ----
@@ -15,29 +26,14 @@ class ClinicalStatistics:
     sampler: a 'sampler' with a function `sampler.draw(age)` that draws a random
              sample from a distribution, depending on `age`. Samplers that are
              age-independent must still support the syntax `sampler.draw(age)`. 
-
-    The six clinical statistics are
-
-    1. latent_period of infection (1/σ)
-    2. community_infection_period over which infection persists in the 'community' (1/γ),
-    3. hospital_infection_period over which infection persists in a hospital setting (1/γ′),
-    4. hospitalization_fraction, the fraction of infected that become hospitalized (h),
-    5. community_mortality_fraction, the mortality rate in the community (d),
-    6. hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
     """
-    def __init__(self, ages, minimum=0, sampler=None):
 
-        if sampler is not None:
-            self.values = np.array([minimum + sampler.draw(age) for age in ages])
-        else:
-            self.values = np.array([minimum for age in ages])
-
-        self.population = len(ages)
-        self.ages = ages
-        self.minimum = minimum
-
-
-
+    if ages is not None:
+        return np.array([minimum + sampler.draw(age) for age in ages])
+    elif population is not None:
+        return np.array([minimum + sampler.draw() for i in range(population)])
+    else:
+        return minimum + sampler.draw()
 
 
 class TransitionRates:
@@ -47,7 +43,7 @@ class TransitionRates:
     Args
     ----
 
-    All arguments are ClinicalStatistics.
+    All arguments are arrays that reflect the pathological parameters of a population:
 
     * latent_period of infection (1/σ)
 
@@ -91,12 +87,12 @@ class TransitionRates:
                  hospital_mortality_fraction):
 
         # For data assimilation we require return of initial variables
-        self.latent_periods               = latent_periods.values
-        self.community_infection_periods  = community_infection_periods.values
-        self.hospital_infection_periods   = hospital_infection_periods.values
-        self.hospitalization_fraction     = hospitalization_fraction.values
-        self.community_mortality_fraction = community_mortality_fraction.values
-        self.hospital_mortality_fraction  = hospital_mortality_fraction.values
+        self.latent_periods               = latent_periods
+        self.community_infection_periods  = community_infection_periods
+        self.hospital_infection_periods   = hospital_infection_periods
+        self.hospitalization_fraction     = hospitalization_fraction
+        self.community_mortality_fraction = community_mortality_fraction
+        self.hospital_mortality_fraction  = hospital_mortality_fraction
 
         self.population = population 
         self.nodes = nodes = range(self.population)
@@ -108,32 +104,20 @@ class TransitionRates:
         Calculates the transition rates, given the current clinical statistics.
         If the clinical statistic is only a single value, we apply it to all nodes.
         """
-        all_clinical_statistics=[self.latent_periods,
-                                 self.community_infection_periods,
-                                 self.hospital_infection_periods,
-                                 self.hospitalization_fraction,
-                                 self.community_mortality_fraction,
-                                 self.hospital_mortality_fraction]
+        σ = 1 / self.latent_periods
+        γ = 1 / self.community_infection_periods
+        h = self.hospitalization_fraction
+        d = self.community_mortality_fraction
+        γ_prime = 1 / self.hospital_infection_periods
+        d_prime = self.hospital_mortality_fraction
 
-        clinical_statistics=np.zeros([6,len(self.nodes)])
-        for i,stat in enumerate(all_clinical_statistics):
-            # We perform elementwise (resp. scalar) multiplication
-            clinical_statistics[i,:]=stat*np.ones(len(self.nodes))    
-
-        # σ = 1 / self.latent_periods
-        # γ = 1 / self.community_infection_periods
-        # h = self.hospitalization_fraction
-        # d = self.community_mortality_fraction
-        # γ_prime = 1 / self.hospital_infection_periods
-        # d_prime = self.hospital_mortality_fraction
-
-        σ = 1.0 / clinical_statistics[0,:] # 1 / self.latent_periods
-        γ = 1.0 / clinical_statistics[1,:] # 1 / self.community_infection_periods
-        h = clinical_statistics[3,:] # self.hospitalization_fraction
-        d = clinical_statistics[4,:] # self.community_mortality_fraction
-
-        γ_prime = 1.0 / clinical_statistics[2,:] # 1./ self.hospital_infection_periods
-        d_prime = clinical_statistics[5,:] # self.hospital_mortality_fraction
+        # Broadcast to arrays of size `population`
+        σ *= np.ones(self.population)
+        γ *= np.ones(self.population)
+        h *= np.ones(self.population)
+        d *= np.ones(self.population)
+        γ_prime *= np.ones(self.population)
+        d_prime *= np.ones(self.population)
 
         self.exposed_to_infected       = { node: σ[node]                             for node in self.nodes }
         self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in self.nodes }

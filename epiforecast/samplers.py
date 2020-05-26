@@ -56,7 +56,7 @@ class BetaSampler:
         self.b =  b       # "beta" on Wikipedia
         self.mean = mean # Mean value of the beta distribution
 
-    def draw(self, age):
+    def draw(self):
         """Return `sample`, where `sample ~ Beta(b * p / (1 - p), b)`"""
         return np.random.beta(self.b * self.mean / (1 - self.mean), b=self.b)
 
@@ -84,9 +84,10 @@ class GammaSampler:
         self.k = k # shape parameter
         self.theta = theta # scale parameter
 
-    def draw(self, *args):
+    def draw(self):
         """Return `sample`, where `sample ~ Gamma(k, theta)`"""
         return np.random.gamma(self.k, self.theta)
+
 
 class AgeAwareConstantSampler:
     """
@@ -94,16 +95,16 @@ class AgeAwareConstantSampler:
     It's primary method is `sampler.draw(*args)`, which returns 
     `sample`, where
 
-        `sample ~ constant[age]`
+        `sample ~ constants[age]`
 
     """
-    def __init__(self,const_in_age_category):
+    def __init__(self, constants):
         # input arg is a list of constants for each age category.
-        self.const_in_age_category = const_in_age_category
+        self.constants = constants
       
     def draw(self, age):
-        """Return `sample`, where `sample ~ const_in_age  category`"""
-        return self.const_in_age_category[age]
+        """Return `sample`, where `sample ~ constants[age]`"""
+        return self.constants[age]
 
 
 class ConstantSampler:
@@ -115,10 +116,10 @@ class ConstantSampler:
         `sample ~ constant`
 
     """
-    def __init__(self,const):
+    def __init__(self, constant):
         # input arg is a list of constants for each age category.
-        self.const = const
+        self.constant = constant
       
-    def draw(self, *args):
-        """Return `sample`, where `sample ~ const_in_age  category`"""
-        return self.const
+    def draw(self):
+        """Return `sample`, where `sample ~ constant category`"""
+        return self.constant

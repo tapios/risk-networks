@@ -190,7 +190,7 @@ class MasterEquationModelEnsemble(object):
             self.beta_closure_indp = self.beta  * self.L.multiply((self.numSI/(self.denSI+1e-8))).dot(y[:,iI].T) + \
                                      self.betap * self.L.multiply((self.numSH/(self.denSH+1e-8))).dot(y[:,iH].T)
 
-    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent'):
+    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
         """
         Inputs:
         -------
@@ -202,7 +202,7 @@ class MasterEquationModelEnsemble(object):
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
-        t       = np.linspace(t0, T, nsteps + 1)
+        t       = np.linspace(t0, T, n_steps + 1)
         self.dt = np.diff(t).min()
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
