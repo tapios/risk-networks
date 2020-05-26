@@ -1,7 +1,9 @@
 import numpy as np
 import networkx as nx
 from collections import defaultdict
-from epiforecast.kinetic_model_helper import *
+from epiforecast.kinetic_model_helper import (
+    KM_sigma, KM_gamma, KM_gamma_prime, KM_h, KM_d, KM_dp, KM_complement_indices
+)
 from EoN import Gillespie_simple_contagion
 
 class KineticModel:
