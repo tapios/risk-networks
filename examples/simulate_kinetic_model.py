@@ -50,7 +50,7 @@ km.set_return_statuses('all') # can be 'SIR' or 'HRD' etc.
 
 KM_print_start(t, km.IC, 'SEIHRD')
 while t < T1:
-  beta_dict, betap_dict = ta.get_wjis(t)
+  beta_dict, betap_dict = ta.get_wjis(t, structure='dict')
   km.update_beta_rates(beta_dict, betap_dict)
 
   res = km.do_Gillespie_step(t=t, dt=dt_KM)
@@ -65,6 +65,8 @@ while t < T1:
   if t >= output_t:
     KM_print_states(t, states, 'SEIHRD')
     output_t += output_dt
+    if states['E'][-1] + states['I'][-1] + states['H'][-1] == 0:
+      break
 
   t += dt_KM
 

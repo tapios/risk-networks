@@ -1,9 +1,10 @@
 import numpy as np
+import scipy.sparse as scspa
 from epiforecast.kinetic_model_helper import *
 
 class TemporalAdjacency:
   '''
-  Piecewise-constant (in time) adjacency matrix with averaging functionality
+  Piecewise-constant (in time) adjacency matrix with generation and averaging
   '''
 
   def __init__(self, t0 = 0.0, t1 = 1.0):
@@ -170,21 +171,37 @@ class TemporalAdjacency:
     self.wji  *= factor
     self.wjip *= factor_p
 
-  def get_wjis(self, t):
+  def get_wjis(self, t, structure, shape=None):
     '''
     Get wji and wji^prime at time t using self.wji, self.wjip
+
+    Args:
+      t [day]: time at which to get wji, wjip
+      structure: which data structure to use for output
+      shape: only used for 'sparse' type of structure
     '''
     # find which time interval we are currently in
     j = self.get_interval_index(t)
 
-    # get the info from wji, wjip into dictionaries (required by networkx)
-    wji_dict  = {}
-    wjip_dict = {}
-    for k,e in enumerate(self.edge_list):
-      wji_dict [tuple(e)] = self.wji [k,j]
-      wjip_dict[tuple(e)] = self.wjip[k,j]
+    if structure == 'dict':
+      # get the info from wji, wjip into dictionaries (required by networkx)
+      wji_output  = {}
+      wjip_output = {}
+      for k,e in enumerate(self.edge_list):
+        wji_output [tuple(e)] = self.wji [k,j]
+        wjip_output[tuple(e)] = self.wjip[k,j]
+    elif structure == 'sparse':
+      wji_output = scspa.csr_matrix(
+          (self.wji[:,j], (self.edge_list[:,0], self.edge_list[:,1])), shape
+      )
+      wjip_output = scspa.csr_matrix(
+          (self.wjip[:,j], (self.edge_list[:,0], self.edge_list[:,1])), shape
+      )
+      # symmetrize (because edge_list is only upper triangular)
+      wji_output  += wji_output.T
+      wjip_output += wjip_output.T
 
-    return wji_dict, wjip_dict
+    return wji_output, wjip_output
 
 
 
