@@ -1,17 +1,17 @@
 import numpy as np
 
-def sample_pathological_distribution(sampler, ages=None, population=None, minimum=0):
+def sample_clinical_distribution(sampler, ages=None, population=None, minimum=0):
     """
-    Generate pathological parameters by sampling from a distribution.
+    Generate clinical parameters by sampling from a distribution.
 
     Use cases
     --------
 
     1. `ages` is not `None`: assume `population = len(ages)`; return an array of size `len(ages)`
-       of pathological samples using `minimum + sampler.draw(age)`.
+       of clinical parameter samples using `minimum + sampler.draw(age)`.
 
     2. `ages` is None, `population` is not `None`: return an array of size `population` of
-       pathological samples using `mininum + sampler.draw()`.
+       clinical parameter samples using `mininum + sampler.draw()`.
 
     3. Both `ages` and `population` are `None`: return a single `minimum + sampler.draw()`.
 
@@ -43,7 +43,7 @@ class TransitionRates:
     Args
     ----
 
-    All arguments are arrays that reflect the pathological parameters of a population:
+    All arguments are arrays that reflect the clinical parameters of a population:
 
     * latent_period of infection (1/σ)
 
@@ -57,7 +57,7 @@ class TransitionRates:
 
     * hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
 
-    *population, the size of population (not always inferrable from clinical properties)
+    * population, the size of population (not always inferrable from clinical parameters)
     
     The six transition rates are
 
@@ -101,8 +101,8 @@ class TransitionRates:
 
     def _calculate_transition_rates(self):
         """
-        Calculates the transition rates, given the current clinical statistics.
-        If the clinical statistic is only a single value, we apply it to all nodes.
+        Calculates the transition rates, given the current clinical parameters.
+        If the clinical parameter is only a single value, we apply it to all nodes.
         """
         σ = 1 / self.latent_periods
         γ = 1 / self.community_infection_periods
@@ -127,8 +127,8 @@ class TransitionRates:
         self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in self.nodes }
         self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in self.nodes }
 
-    def set_clinical_statistic(self, statistic, values):
-        setattr(self, statistic, values)
+    def set_clinical_parameter(self, parameter, values):
+        setattr(self, parameter, values)
         self._calculate_transition_rates()
 
 
