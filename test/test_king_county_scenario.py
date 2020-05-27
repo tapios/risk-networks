@@ -21,38 +21,20 @@ for name in (
 
     print(get_rates(name))
 
-#def test_latent_periods(): 
-#    assert (
-#            get_rates('latent_periods') 
-#                == np.array([6.59337662, 6.63560047, 4.03092229])
-#           ).all()
+def test_latent_periods(): 
+    assert get_rates('latent_periods')[1] == 6.635600468016812 
 
-#def test_community_infection_periods(): 
-#    assert (
-#            get_rates('community_infection_periods') 
-#                == np.array([5.7768707, 1.91422953, 7.96380771])
-#           ).all()
-#
-#def test_hospital_infection_periods(): 
-#    assert (
-#            get_rates('hospital_infection_periods') 
-#                == np.array([3.60376111, 8.10037068, 6.84607501])
-#           ).all()
-#
-#def test_hospitalization_fraction(): 
-#    assert (
-#            get_rates('hospitalization_fraction') 
-#                == np.array([3.67966623e-06, 3.78385250e-01, 4.27390020e-02])
-#           ).all()
-#
-#def test_community_mortality_fraction(): 
-#    assert (
-#            get_rates('community_mortality_fraction') 
-#                == np.array([5.79223912e-90, 5.03197685e-38, 0.00000000e+00])
-#           ).all()
-#
-#def test_hospital_mortality_fraction(): 
-#    assert (
-#            get_rates('hospital_mortality_fraction') 
-#                == np.array([[4.38776678e-76, 7.30522015e-07, 5.15894221e-02]])
-#           ).all()
+def test_community_infection_periods(): 
+    assert get_rates('community_infection_periods')[1] == 1.9142295330323456
+
+def test_hospital_infection_periods(): 
+    assert get_rates('hospital_infection_periods')[1] == 8.100370683584359 
+
+def test_hospitalization_fraction(): 
+    assert get_rates('hospitalization_fraction')[1] == 0.37838525036214415
+
+def test_community_mortality_fraction(): 
+    assert get_rates('community_mortality_fraction')[1] == 5.031976849805044e-38
+            
+def test_hospital_mortality_fraction(): 
+    assert get_rates('hospital_mortality_fraction')[1] == 7.305220148909824e-07
