@@ -141,16 +141,15 @@ class ContactGenerator:
       labmda_min:  3 [1/day]
       labmda_max: 22 [1/day]
     '''    
-
-    self._generate(dt_sync,lambda_min,lambda_max)
+    # XXX substitute dt_sync with number of intervals, and use dt_sync=1/N
+    # XXX this is because we need the number of intervals to be an integer
+    self._generate(dt_sync, lambda_min, lambda_max)
     self._average_wjis(dt_averaging)
-    static_network_list.add_networks(self.wji,self.wjip,self.edge_list)
-    
-  
+    static_network_list.add_networks(self.wji, self.wjip, self.edge_list)
+
   def _generate(self, dt_sync, lambda_min, lambda_max):
     '''
     Generate times of activation/deactivation and piecewise-constant weights
-
    '''
     M = self.edge_list.shape[0] # total number of edges
 
@@ -213,10 +212,10 @@ class ContactGenerator:
         self.temporal_edge_list[:,steps] = active
 
     # trim trailing zeros;
-    # XXX also, shave off one last step because it's > 1.0
-    # XXX to leave it, change (steps) to (steps+1) in two lines below
-    self.times.resize(steps, refcheck=False)
-    self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps])
+    self.times.resize(steps+1, refcheck=False)
+    self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps+1])
+    # times[-1] is likely > (t1-t0), so fix that
+    self.times[-1] = self.t1 - self.t0
 
   def _average_wjis(self, dt_averaging):
     '''
@@ -233,6 +232,9 @@ class ContactGenerator:
     # using dt_averaging as a timestep, determine averaging intervals
     jump_indices = np.searchsorted(self.times, KM_timespan)
     jump_indices[-1] += 1 # make sure the last column is included
+    if len(np.unique(jump_indices)) != len(jump_indices):
+      # this means some averaging intervals contain no data
+      raise ValueError('You requested a dt_averaging too small')
 
     self.wji  = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
     self.wjip = np.zeros( (self.edge_list.shape[0], jump_indices.size - 1) )
