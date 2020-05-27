@@ -2,6 +2,58 @@ import numpy as np
 import scipy.sparse as scspa
 from epiforecast.kinetic_model_helper import *
 
+class StaticNetworkTimeSeries:
+  """
+  Container for a list of static community and hospital contact networks. 
+  
+  Contains two types of list: dictionaries for the kinetic solver, and sparse arrays for
+                              the master equation solver and the data assimilation
+
+  community_networks_dict: adjacency's stored as a list of (networkx-compatible) dictionaries
+  hospital_networks_dict: adjacency's stored as a list of (networkx-compatible) dictionaries
+
+
+  community_networks_sparse: adjacencys stored as a list of np sparse arrays
+  hospital_networks_sparse: adjacencys stored as a list of np sparse arrays
+  """
+  def __init__(self):
+
+    self.community_networks_dict    = []
+    self.hospital_networks_dict     = []
+    
+    self.community_networks_sparse  = []
+    self.hospital_networks_sparse   = []
+    
+  def add_networks(self,community_networks,hospital_networks,edge_list):
+    num_networks=community_networks.shape[1]
+    for j in range(num_networks): 
+      
+      # get the info from community_networks, hospital_networks into dictionaries (required by networkx)
+      community_networks_dict  = {}
+      hospital_networks_dict = {}
+      for k,e in enumerate(edge_list):
+        community_networks_dict[tuple(e)] = community_networks [k,j]
+        hospital_networks_dict[tuple(e)] = hospital_networks[k,j]
+        
+      self.community_networks_dict.append(community_networks_dict)
+      self.hospital_networks_dict.append(hospital_networks_dict)
+
+      #then add the info as a sparse matrix (required for master equations and data assimilation)
+      
+      community_networks_sparse = scspa.csr_matrix(
+        (community_networks[:,j], (edge_list[:,0], edge_list[:,1])), shape=(np.max(edge_list)+1,np.max(edge_list)+1)
+      )
+      hospital_networks_sparse = scspa.csr_matrix(
+        (hospital_networks[:,j], (edge_list[:,0], edge_list[:,1])),  shape=(np.max(edge_list)+1,np.max(edge_list)+1)
+      )
+      # symmetrize (because edge_list is only upper triangular)
+      community_networks_sparse  += community_networks_sparse.T
+      hospital_networks_sparse += hospital_networks_sparse.T
+
+      self.community_networks_sparse.append(community_networks_sparse)
+      self.hospital_networks_sparse.append(hospital_networks_sparse)
+
+
 class TemporalAdjacency:
   '''
   Piecewise-constant (in time) adjacency matrix with generation and averaging
@@ -66,15 +118,40 @@ class TemporalAdjacency:
         lambda_max * (1 - np.cos(np.pi * t)**4)**4
     )
 
-  def generate(self, dt_sync=0.004, lambda_min=3, lambda_max=22):
+  def generate_static_networks(self,
+                               static_network_list,
+                               dt_averaging=0.125,
+                               dt_sync=0.004,
+                               lambda_min=3,
+                               lambda_max=22,
+                               ):
     '''
-    Generate times of activation/deactivation and piecewise-constant weights
+    Generate times of activation/deactivation and piecewise-constant weights, then 
+    average w_{ji}'s over generated times and weights
 
+    Args:
+    static_network_list (StaticNetworkTimeSeries): Container for the networks
+    dt_averaging        (float)            : length of the static network interval (i.e length of averages)
+    dt_sync             (float)            :
+    lambda_min          (float)            : minimum mean contact rate 
+    lambda_max          (float)            : maximum mean contact rate
     Defaults:
+      dt_averaging: 0.125 [day]
       dt_sync: 0.004 [days] or 5.76 [minutes]
       labmda_min:  3 [1/day]
       labmda_max: 22 [1/day]
+    '''    
+
+    self._generate(dt_sync,lambda_min,lambda_max)
+    self._average_wjis(dt_averaging)
+    static_network_list.add_networks(self.wji,self.wjip,self.edge_list)
+    
+  
+  def _generate(self, dt_sync, lambda_min, lambda_max):
     '''
+    Generate times of activation/deactivation and piecewise-constant weights
+
+   '''
     M = self.edge_list.shape[0] # total number of edges
 
     # sample indices of initially active edges uniformly at random
@@ -141,7 +218,7 @@ class TemporalAdjacency:
     self.times.resize(steps, refcheck=False)
     self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps])
 
-  def average_wjis(self, dt_averaging=0.125):
+  def _average_wjis(self, dt_averaging):
     '''
     Average w_{ji}'s over generated times and weights
 
@@ -170,7 +247,7 @@ class TemporalAdjacency:
     self.wji  *= factor
     self.wjip *= factor_p
 
-  def get_wjis(self, t, structure, shape=None):
+  def _get_wjis(self, t, structure, shape=None):
     '''
     Get wji and wji^prime at time t using self.wji, self.wjip
 
@@ -202,5 +279,8 @@ class TemporalAdjacency:
 
     return wji_output, wjip_output
 
+  
 
 
+
+  

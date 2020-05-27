@@ -36,10 +36,10 @@ edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')
 
 ta = TemporalAdjacency(edges_filename, initial_active, mu)
 
-ta.generate() # MC generation of active edges over the day
-ta.average_wjis(dt_averaging=dt_KM) # averaging those over dt_KM intervals
+ta.generate_static_networks(dt_KM) # does ta.generate() followed by average_wjis(dt_average)
+#ta._generate()
+#ta._average_wjis(dt_averaging=dt_KM) # averaging those over dt_KM intervals
 ta.multiply_wjis(beta, beta * alpha_hosp) # wji *= beta, wjip *= beta*alpha_hosp
-
 km = KineticModel(ta.edge_list)
 km.set_IC(
     I0 = range(len(km.static_graph) // 2, len(km.static_graph) // 2 + 10)
