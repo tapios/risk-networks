@@ -1,6 +1,6 @@
 import os, sys; sys.path.append(os.path.join(".."))
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.populations import populate_ages, sample_pathological_distribution, TransitionRates
+from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, BetaSampler
 from epiforecast.epiplots import plot_master_eqns
 
@@ -28,13 +28,13 @@ print('Second test: passed')
 # ------------------------------------------------------------------------------
 # Third test: create transition rates and populate the ensemble
 
-latent_periods              = sample_pathological_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
-community_infection_periods = sample_pathological_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
-hospital_infection_periods  = sample_pathological_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
+latent_periods              = sample_clinical_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods = sample_clinical_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods  = sample_clinical_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-hospitalization_fraction     = sample_pathological_distribution(BetaSampler(mean=0.25, b=4), population=population)
-community_mortality_fraction = sample_pathological_distribution(BetaSampler(mean=0.02, b=4), population=population)
-hospital_mortality_fraction  = sample_pathological_distribution(BetaSampler(mean=0.04, b=4), population=population)
+hospitalization_fraction     = sample_clinical_distribution(BetaSampler(mean=0.25, b=4), population=population)
+community_mortality_fraction = sample_clinical_distribution(BetaSampler(mean=0.02, b=4), population=population)
+hospital_mortality_fraction  = sample_clinical_distribution(BetaSampler(mean=0.04, b=4), population=population)
 
 transition_rates = TransitionRates(population,
                                    latent_periods,

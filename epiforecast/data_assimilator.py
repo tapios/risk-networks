@@ -200,7 +200,7 @@ class DataAssimilator:
                             
                             rate_size = getattr(full_ensemble_transition_rates[member], rate_type).size
 
-                            full_ensemble_transition_rates[member].set_clinical_statistic(rate_type, new_member_rates[:rate_size])
+                            full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_member_rates[:rate_size])
 
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
 
