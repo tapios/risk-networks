@@ -252,17 +252,12 @@ class ContactGenerator:
             averaging_times = np.append(averaging_times, self.t1)
   
         # Using averaging_interval as a timestep, determine averaging intervals
-        print(self.times)
         jump_indices = np.searchsorted(self.times, averaging_times)
         jump_indices[-1] += 1 # make sure the last column is included
   
+        self.wji = np.zeros((self.edges.shape[0], jump_indices.size - 1))
+
         for j in range(jump_indices.size - 1):
            chunk = self.temporal_edges[:, jump_indices[j] : jump_indices[j + 1]]
            average = np.mean(chunk, axis=1)
-
-           print(average)
-  
-           self.wji = np.zeros((self.edges.shape[0], jump_indices.size - 1))
            self.wji[:, j] = average
-
-        print(self.wji[1, :])

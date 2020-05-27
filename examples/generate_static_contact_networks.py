@@ -25,5 +25,9 @@ day_of_contact_networks.add_networks(
         contact_generator.generate_static_networks(averaging_interval = static_network_interval)
         )
 
-#print(len(day_of_contact_networks.contact_networks))
-#print(day_of_contact_networks.contact_networks[1])
+for i in range(len(day_of_contact_networks.time)):
+    print("Mean contact duration at t =", 
+          day_of_contact_networks.time[i],
+          "is",
+          np.mean(day_of_contact_networks.contact_networks[i]),
+          "days")
