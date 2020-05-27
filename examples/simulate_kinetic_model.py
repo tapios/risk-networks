@@ -2,7 +2,7 @@
 
 import os, sys; sys.path.append(os.path.join(".."))
 
-from epiforecast.temporal_adjacency import TemporalAdjacency
+from epiforecast.contacts import ContactGenerator
 from epiforecast.kinetic_model_simulator import KineticModel
 from epiforecast.kinetic_model_helper import KM_print_states, KM_print_start
 
@@ -34,7 +34,7 @@ mu = 1920              # [1/day] (mean contact duration)**(-1)
 ################################################################################
 edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')
 
-ta = TemporalAdjacency(edges_filename, initial_active, mu)
+ta = ContactGenerator(edges_filename, initial_active, mu)
 
 ta.generate_static_networks(dt_KM) # does ta.generate() followed by average_wjis(dt_average)
 #ta._generate()

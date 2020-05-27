@@ -54,7 +54,7 @@ class StaticNetworkTimeSeries:
       self.hospital_networks_sparse.append(hospital_networks_sparse)
 
 
-class TemporalAdjacency:
+class ContactGenerator:
   '''
   Piecewise-constant (in time) adjacency matrix with generation and averaging
   '''
@@ -277,10 +277,4 @@ class TemporalAdjacency:
       wji_output  += wji_output.T
       wjip_output += wjip_output.T
 
-    return wji_output, wjip_output
-
-  
-
-
-
-  
+    return wji_output, wjip_output  
