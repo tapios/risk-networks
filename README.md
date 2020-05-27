@@ -48,12 +48,12 @@ We first import the package's functionality:
 
 ```python
 # Utilities for generating random populations
-from epiforecast.populations import populate_ages, generate_clinical_parameters, TransitionRates
+from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 # Function that generates a time-averaged contact network from a rapidly-fluctuating
 # birth-death process.
-#from epiforecast.contacts import generate_time_averaged_contact_network
+# What to import here?
 
 # Kinetic model simulation tool
 from epiforecast.kinetic_model_simulator import KineticModel
