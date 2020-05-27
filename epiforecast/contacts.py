@@ -79,18 +79,18 @@ class ContactGenerator:
     Class for generating time-averaging contact networks.
     '''
 
-    def __init__(self, edges, initial_active, mu, t0 = 0.0, t1 = 1.0):
+    def __init__(self, edges, initial_active, mean_contact_duration, t0 = 0.0, t1 = 1.0):
         '''
         Constructor
 
         Args:
             initial_active [1]: a fraction [0, 1] of active edges at t0
-            mu [1/day]: (mean contact duration)**(-1)
+            mean_contact_duration [days]: (mean contact duration)**(-1)
             t0 [day]: start of the interval
             t1 [day]: end   of the interval
         '''
         self.initial_active = initial_active
-        self.mu = mu
+        self.mu = 1 / mean_contact_duration
         self.t0 = t0
         self.t1 = t1
 
