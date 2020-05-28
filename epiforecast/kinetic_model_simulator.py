@@ -6,6 +6,28 @@ from epiforecast.kinetic_model_helper import (
 )
 from EoN import Gillespie_simple_contagion
 
+
+#Functions we would like:
+
+# KineticModel(community_network,
+#                              hospital_network,
+#                              transition_rates,
+#                              transmission_rate,
+#                              hospital_transmission_reduction)
+#
+# Initial state
+# kinetic_model.update_contact_network(
+#                                         community_network,
+#                                         hospital_network
+#                                        )
+#
+# kinetic_model.simulate(static_contact_interval)
+#
+#
+#
+
+
+
 class KineticModel:
   # these are just for reference; not actually used in code
   indep_weight_labels = [
@@ -87,11 +109,11 @@ class KineticModel:
       self.return_statuses = tuple(which)
 
   def set_ages(
-      self,
-      ages=[0.2298112587,0.3876994201,0.2504385036,0.079450985,0.0525998326],
+  #    self,
+  #    ages=[0.2298112587,0.3876994201,0.2504385036,0.079450985,0.0525998326],
       working=[1,2]
-      ):
-    self.ages = np.array(ages)
+  #    ):
+  #  self.ages = np.array(ages)
     self.working = np.array(working)
 
   def set_IC(self, P0=0.005, HCW=0.045, I0=0.01):

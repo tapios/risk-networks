@@ -29,7 +29,17 @@ day_of_contact_networks.add_networks(
         contact_generator.generate_static_networks(averaging_interval = static_network_interval)
         )
 
-population = 1003 # contact_generator.get_population()
+# Ideally:
+# (
+#  community_population,
+#  healthcare_worker_population,
+#  hospital_beds
+# ) = load_node_classifiers(fname)
+#
+
+community_population = 998 # contact_generator.get_population()
+health_worker_popultaion = 3
+hospital_beds = 2
 
 #clinical parameters
 age_distribution = [ 0.23,  # 0-19 years
@@ -64,6 +74,9 @@ transmission_rate = 0.1
 
 hospital_transmission_reduction = 1/4
 hospital_transmission_rate = transmission_rate * hospital_transmission_reduction
+
+#Hospital workers require extra init.
+
 
 def conflated_networks(transmission_rate, hospital_transmission_rate, edges, network_time_series, i_time):
 
