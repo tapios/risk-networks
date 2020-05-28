@@ -9,6 +9,8 @@ from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 from epiforecast.contacts import ContactGenerator, StaticNetworkTimeSeries, load_edges
 from epiforecast.kinetic_model_simulator import KineticModel
 
+from epiforecast.node_identifier_helper import load_node_identifiers
+
 np.random.seed(12345)
 
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
@@ -29,33 +31,44 @@ day_of_contact_networks.add_networks(
         contact_generator.generate_static_networks(averaging_interval = static_network_interval)
         )
 
-# Ideally:
-# (
-#  community_population,
-#  healthcare_worker_population,
-#  hospital_beds
-# ) = load_node_classifiers(fname)
-#
 
-community_population = 998 # contact_generator.get_population()
-health_worker_popultaion = 3
-hospital_beds = 2
+# Now get the clinical parameters for the community and health worker populations.
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
 
-#clinical parameters
-age_distribution = [ 0.23,  # 0-19 years
-                     0.39,  # 20-44 years
-                     0.25,  # 45-64 years
-                     0.079  # 65-75 years
+hospital_bed_number = node_identifiers["hospital_beds"].size
+health_worker_population = node_identifiers["health_workers"].size
+community_population = node_identifiers["community"].size
+
+population = community_population + health_worker_population
+# The age category of each community individual,
+
+age_distribution = [ 0.2352936017,   # 0-19 years
+                     0.371604355,    # 20-44 years
+                     0.2448085119,   # 45-64 years
+                     0.0833381356,   # 65-75 years
                     ]
+
+## 75 onwards
 age_distribution.append(1 - sum(age_distribution))
-ages = populate_ages(population, distribution=age_distribution)
+
+community_ages = populate_ages(community_population, distribution=age_distribution)
+
+#and the ages of the healthcare individual (of working age)
+working_age_distribution= [0.0,                 # 0-19 years
+                           0.371604355 / (0.371604355 + 0.2448085119),    # 20-44 years
+                           0.2448085119 / (0.371604355 + 0.2448085119),  # 45-64 years
+                           0.0,                 # 65-75 years
+                           0.0]                 # 75+
+                            
+health_worker_ages = populate_ages(health_worker_population, distribution=working_age_distribution)
+
+ages = np.hstack([health_worker_ages,community_ages])
 
 # Next, we randomly generate clinical properties for our example population.
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
 latent_periods              = sample_clinical_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
 community_infection_periods = sample_clinical_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
 hospital_infection_periods  = sample_clinical_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
-
 hospitalization_fraction     = sample_clinical_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
 community_mortality_fraction = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
 hospital_mortality_fraction  = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
@@ -73,30 +86,31 @@ transition_rates = TransitionRates(population,
 transmission_rate = 0.1
 
 hospital_transmission_reduction = 1/4
-hospital_transmission_rate = transmission_rate * hospital_transmission_reduction
 
-#Hospital workers require extra init.
+#kinetic_model = KineticModel(edges = edges,
+#                             node_identifiers=node_identifiers,
+#                             mean_contact_duration_network = day_of_contact_networks.contact_networks[0],
+#                             transition_rates = transition_rates,
+#                             transmission_rate = transmission_rate,
+#                             hospital_transmission_reduction = hospital_transmission_reduction)
 
-
-def conflated_networks(transmission_rate, hospital_transmission_rate, edges, network_time_series, i_time):
-
-    network = network_time_series.contact_networks[i_time]
-
-    community_network = {tuple(edge): transmission_rate * network[edge[0], edge[1]] for edge in edges}
-    hospital_network  = {tuple(edge): hospital_transmission_rate * network[edge[0], edge[1]] for edge in edges}
-
-    return community_network, hospital_network
+def random_infection_statuses(node_identifiers, initial_infected):
+    population = node_identifiers["health_workers"].size + node_identifiers["community"].size
+    hospital_bed_number = node_identifiers["hospital_beds"].size 
+    number_nodes = hospital_bed_number + population
     
-# Initialize KineticModel
-community_network, hospital_network = conflated_networks(transmission_rate, hospital_transmission_rate, edges, day_of_contact_networks, 0)
+    initial_state=np.repeat('S',number_nodes)
+    initial_state[node_identifiers["hospital_beds"]] = 'P'
+    initial_infected_nodes=np.random.choice(population, size=initial_infected, replace=False)
+    #Beds can't be infected...
+    initial_state[hospital_bed_number + initial_infected_nodes] = 'I'
 
-kinetic_model = KineticModel(community_network,
-                             hospital_network,
-                             transition_rates,
-                             transmission_rate,
-                             hospital_transmission_reduction)
+    return initial_state
 
-kinetic_states = np.zeros([static_intervals_per_day, 6 * population])
+initial_state=random_infection_statuses(node_identifiers,100)
+
+print(initial_state)
+exit()
 
 for i in range(static_intervals_per_day):
     community_network, hospital_network = conflated_networks(transmission_rate, hospital_transmission_rate, edges, day_of_contact_networks, i)

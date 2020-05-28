@@ -39,32 +39,30 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 # ### Define the 'population' and its clinical characteristics
 # The total number of nodes are hospital beds, health workers and community types
 # First we load the population by the number of different individuals:
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
 
-hospital_beds,
-health_workers,
-community
-)= load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
-community_population = community.shape[0]
-health_worker_population = health_workers.shape[0]
+hospital_bed_number = node_identifiers["hospital_beds"].size
+health_worker_population = node_identifiers["health_workers"].size
+community_population = node_identifiers["community"].size
+
 population = community_population + health_worker_population
 
 # The age category of each community individual,
-
-age_distribution = [ 0.23,  # 0-19 years
-                     0.39,  # 20-44 years
-                     0.25,  # 45-64 years
-                     0.079  # 65-75 years
+age_distribution = [ 0.2352936017,   # 0-19 years
+                     0.371604355,    # 20-44 years
+                     0.2448085119,   # 45-64 years
+                     0.0833381356,   # 65-75 years
                     ]
 
 ## 75 onwards
 age_distribution.append(1 - sum(age_distribution))
 
-community_ages = populate_ages(population, distribution=age_distribution)
+community_ages = populate_ages(community_population, distribution=age_distribution)
 
 #and the ages of the healthcare individual (of working age)
 working_age_distribution= [0.0,                 # 0-19 years
-                           0.39/(0.25+0.39),    # 20-44 years
-                           0.25 / (0.25+0.39),  # 45-64 years
+                           0.371604355 / (0.371604355 + 0.2448085119),    # 20-44 years
+                           0.2448085119 / (0.371604355 + 0.2448085119),  # 45-64 years
                            0.0,                 # 65-75 years
                            0.0]                 # 75+
                             

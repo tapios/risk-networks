@@ -9,6 +9,10 @@ def load_node_identifiers(filename):
    hospital_beds  = nodes[identifiers == 'HOSP']
    health_workers = nodes[identifiers == 'HCW']
    community      = nodes[identifiers == 'CITY']
-  
-   return hospital_beds, health_workers, community
+
+   node_identifiers = {"hospital_beds"  : hospital_beds,
+                       "health_workers" : health_workers,
+                       "community"      : community}
+
+   return node_identifiers
 
