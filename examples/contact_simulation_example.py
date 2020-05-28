@@ -22,7 +22,9 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     
     # Generate a time-series of contact durations and average number of 
     # active contacts
-    for i in range(int(2 / time_step)):
+    days = 2
+
+    for i in range(int(days / time_step)):
         simulator.simulate_contact_duration(stop_time = (i + 1) * time_step)
     
         mean_interval_contact_duration = simulator.contact_duration.mean()
