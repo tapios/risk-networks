@@ -30,7 +30,7 @@ age_distribution = [ 0.23,  # 0-19 years
                     ]
 
 #health workers sampled only from 20-64
-working_age_distribution= [ 0.39/(0.25+0.39), 0.25 / (0.25+0.39)] 
+working_age_distribution= [0.0, 0.39/(0.25+0.39), 0.25 / (0.25+0.39),0.0,0.0] 
 
 # 75 onwards
 age_distribution.append(1 - sum(age_distribution))
