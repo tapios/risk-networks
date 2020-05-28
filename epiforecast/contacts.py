@@ -75,20 +75,19 @@ class StaticNetworkTimeSeries:
 
 
 class ContactGenerator:
-    '''
+    """
     Class for generating time-averaging contact networks.
-    '''
+    """
 
     def __init__(self, edges, initial_active, mean_contact_duration, t0 = 0.0, t1 = 1.0):
-        '''
-        Constructor
-
-        Args:
+        """
+        Args
+        ----
             initial_active [1]: a fraction [0, 1] of active edges at t0
             mean_contact_duration [days]: (mean contact duration)**(-1)
             t0 [day]: start of the interval
             t1 [day]: end   of the interval
-        '''
+        """
         self.initial_active = initial_active
         self.mu = 1 / mean_contact_duration
         self.t0 = t0
@@ -103,10 +102,12 @@ class ContactGenerator:
         self.wji  = None # 2D np.array; (edges) x (number of time intervals)
 
     def get_interval_index(self, t):
-        '''
+        """
         Infer the index of the averaging time interval from t
-        '''
+        """
+
         index = 0
+
         if t >= self.t1:
             index = int((self.t1 - self.t0) // self.averaging_interval) - 1
         elif t >= self.t0:
@@ -118,14 +119,15 @@ class ContactGenerator:
         return index
 
     def mean_contact_rate(self, t, lambda_min, lambda_max):
-        '''
+        """
         Compute mean contact rate
 
         Units:
           t:           [day]
           lambda_min:  [1/day]
           lambda_max:  [1/day]
-        '''
+        """
+
         return max(lambda_min,
                    lambda_max * (1 - np.cos(np.pi * t)**4)**4
                   )
@@ -134,7 +136,7 @@ class ContactGenerator:
                                                   dt_sync = 0.004,
                                                lambda_min = 3,
                                                lambda_max = 22):
-        '''
+        """
         Generate times of activation/deactivation and piecewise-constant weights, then 
         average w_{ji}'s over generated times and weights
 
@@ -160,7 +162,7 @@ class ContactGenerator:
         lambda_min:  3 [1/day]
 
         lambda_max: 22 [1/day]
-        '''    
+        """
 
         self.simulate_temporal_contacts(dt_sync, lambda_min, lambda_max)
         self._average_wjis(averaging_interval)
@@ -198,8 +200,6 @@ class ContactGenerator:
   
             deactivation_probability = deactivation_rate / (deactivation_rate + activation_rate)
   
-            # NOTE: may be sped up by generating random sequence outside loop
-            #
             # Draw from uniform random distribution on [0, 1) to decide
             # whether to activate or deactivate edges
             if np.random.random() < deactivation_probability: # deactivate edges
@@ -213,9 +213,11 @@ class ContactGenerator:
                 k = np.random.choice(total_edges - active_count)
                 ind_to_move = np.where(~active)[0][k]
                 active[ind_to_move] = True
-      
-            # NOTE: possible speed-ups (?)
-            t += -np.log(np.random.random()) / (deactivation_rate + activation_rate)
+
+            # Generate exponentially-distributed random time step:
+            time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
+
+            t += time_step
       
             if t >= t_next_sync:
                 t_next_sync += dt_sync
@@ -234,11 +236,12 @@ class ContactGenerator:
                 self.times[steps] = t
                 self.temporal_edges[:, steps] = active
       
-        # Trim trailing zeros;
-        # NOTE also, shave off one last step because it's > 1.0
-        # NOTE to leave it, change (steps) to (steps+1) in two lines below
-        self.times.resize(steps, refcheck=False)
-        self.temporal_edges = np.copy(self.temporal_edges[:, :steps])
+        # Trim trailing zeros from the temporal edge list
+        self.temporal_edges = np.copy(self.temporal_edges[:,:steps+1])
+
+        # Pin times to the specified time interval
+        self.times.resize(steps+1, refcheck=False)
+        self.times[-1] = self.t1 - self.t0
 
     def _average_wjis(self, averaging_interval):
         """
@@ -254,6 +257,9 @@ class ContactGenerator:
         # Using averaging_interval as a timestep, determine averaging intervals
         jump_indices = np.searchsorted(self.times, averaging_times)
         jump_indices[-1] += 1 # make sure the last column is included
+
+        if len(np.unique(jump_indices)) != len(jump_indices): # some averaging intervals contain no data
+            raise ValueError("The averaging duration is too small compared to the mean contact duration")
   
         self.wji = np.zeros((self.edges.shape[0], jump_indices.size - 1))
 
