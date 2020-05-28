@@ -5,7 +5,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 # Import utilities for generating random populations
-from epiforecast.populations import king_county_transition_rates
+from epiforecast.scenarios import king_county_transition_rates
 
 # First we define the population by the number of individuals
 population = 100
