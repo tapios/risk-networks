@@ -29,15 +29,17 @@ age_distribution = [ 0.23,  # 0-19 years
                      0.079  # 65-75 years
                     ]
 
-#health workers sampled only from 20-64
-working_age_distribution= [0.0, 0.39/(0.25+0.39), 0.25 / (0.25+0.39),0.0,0.0] 
-
 # 75 onwards
 age_distribution.append(1 - sum(age_distribution))
 
 community_ages = populate_ages(community_population, distribution=age_distribution)
+
+#health workers sampled only from 20-64
+working_age_distribution= [0.0, 0.39/(0.25+0.39), 0.25 / (0.25+0.39), 0.0, 0.0, 0.0] 
 health_worker_ages = populate_ages(health_worker_population, distribution=working_age_distribution)
+
 ages = np.hstack([health_worker_ages,community_ages])
+
 # Print the ages we randomly generated:
 print("Ages categories of a random population:\n", ages, "\n")
 

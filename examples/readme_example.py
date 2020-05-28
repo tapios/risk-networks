@@ -29,6 +29,7 @@ from epiforecast.scenarios import percent_infected_at_midnight_on_Tuesday
 from epiforecast.scenarios import ensemble_transition_rates_at_midnight_on_Tuesday
 from epiforecast.scenarios import ensemble_transmission_rates_at_midnight_on_Tuesday
 
+from epiforecast.node_identifier_helper import load_node_identifiers
 
 # ## Example simulation of an epidemic
 # 
@@ -36,12 +37,18 @@ from epiforecast.scenarios import ensemble_transmission_rates_at_midnight_on_Tue
 # with a distribution of clinical and transmission properties.
 # 
 # ### Define the 'population' and its clinical characteristics
-# 
-# First we define the population by the number of individuals:
+# The total number of nodes are hospital beds, health workers and community types
+# First we load the population by the number of different individuals:
 
-population = 1000
+hospital_beds,
+health_workers,
+community
+)= load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
+community_population = community.shape[0]
+health_worker_population = health_workers.shape[0]
+population = community_population + health_worker_population
 
-# and the age category of each individual,
+# The age category of each community individual,
 
 age_distribution = [ 0.23,  # 0-19 years
                      0.39,  # 20-44 years
@@ -52,8 +59,18 @@ age_distribution = [ 0.23,  # 0-19 years
 ## 75 onwards
 age_distribution.append(1 - sum(age_distribution))
 
-ages = populate_ages(population, distribution=age_distribution)
+community_ages = populate_ages(population, distribution=age_distribution)
 
+#and the ages of the healthcare individual (of working age)
+working_age_distribution= [0.0,                 # 0-19 years
+                           0.39/(0.25+0.39),    # 20-44 years
+                           0.25 / (0.25+0.39),  # 45-64 years
+                           0.0,                 # 65-75 years
+                           0.0]                 # 75+
+                            
+health_worker_ages = populate_ages(health_worker_population, distribution=working_age_distribution)
+
+ages = np.hstack([health_worker_ages,community_ages])
 # In the above we define the 6 age categories 0-19, 20-44, 45-64, 65-74, 75->.
 
 # Next we define six 'clinical statistics'.
