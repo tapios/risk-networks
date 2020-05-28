@@ -200,8 +200,6 @@ class ContactGenerator:
   
             deactivation_probability = deactivation_rate / (deactivation_rate + activation_rate)
   
-            # NOTE: may be sped up by generating random sequence outside loop
-            #
             # Draw from uniform random distribution on [0, 1) to decide
             # whether to activate or deactivate edges
             if np.random.random() < deactivation_probability: # deactivate edges
@@ -215,9 +213,11 @@ class ContactGenerator:
                 k = np.random.choice(total_edges - active_count)
                 ind_to_move = np.where(~active)[0][k]
                 active[ind_to_move] = True
-      
-            # NOTE: possible speed-ups (?)
-            t += -np.log(np.random.random()) / (deactivation_rate + activation_rate)
+
+            # Generate exponentially-distributed random time step:
+            time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
+
+            t += time_step
       
             if t >= t_next_sync:
                 t_next_sync += dt_sync
