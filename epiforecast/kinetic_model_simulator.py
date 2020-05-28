@@ -45,8 +45,15 @@ class KineticModel:
 
   def __init__(self, edge_list):
     self.static_graph = nx.Graph() # a static graph with {0,1} edges
-    self.static_graph.add_edges_from(edge_list)
 
+    self.static_graph.add_edges_from(edge_list)
+    
+    self.fallback_edges_filename = os.path.join(
+        '..', 'data', 'networks', 'edge_list_SBM_1e3.txt'
+    )
+    self.fallback_node_identifier_filename = os.path.join(
+        '..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'
+    )
 
     # independent rates diagram
     self.diagram_indep = nx.DiGraph()
