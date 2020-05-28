@@ -3,7 +3,7 @@ import os, sys; sys.path.append(os.path.join(".."))
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.contact_simulation import ContactSimulator
+from epiforecast.contact_simulator import ContactSimulator
 
 np.random.seed(1234)
 

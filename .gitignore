@@ -131,7 +131,9 @@ dmypy.json
 # Vim swp file
 *.swp
 
-#emacs backup files
+# emacs backup files
 *#
 *~
 
+# Images
+*.png
