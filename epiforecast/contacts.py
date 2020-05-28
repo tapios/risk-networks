@@ -237,7 +237,7 @@ class ContactGenerator:
                 self.temporal_edges[:, steps] = active
       
         # Trim trailing zeros from the temporal edge list
-        self.temporal_edge_list = np.copy(self.temporal_edge_list[:,:steps+1])
+        self.temporal_edges = np.copy(self.temporal_edges[:,:steps+1])
 
         # Pin times to the specified time interval
         self.times.resize(steps+1, refcheck=False)
