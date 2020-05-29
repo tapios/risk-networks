@@ -38,7 +38,7 @@ node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 
 hospital_bed_number = node_identifiers["hospital_beds"].size
 health_worker_population = node_identifiers["health_workers"].size
 community_population = node_identifiers["community"].size
-
+print("hospital_bed_total " , hospital_bed_number)
 population = community_population + health_worker_population
 
 # The age category of each community individual,
@@ -90,9 +90,9 @@ hospital_transmission_reduction = 1/4
 
 kinetic_model = KineticModel(edges = edges,
                              node_identifiers=node_identifiers,
-                             mean_contact_duration_network = day_of_contact_networks.contact_networks[0],
+                             mean_contact_duration = day_of_contact_networks.contact_networks[0],
                              transition_rates = transition_rates,
-                             transmission_rate = transmission_rate,
+                             community_transmission_rate = transmission_rate,
                              hospital_transmission_reduction = hospital_transmission_reduction)
 
 def random_infection_statuses(node_identifiers, initial_infected):
@@ -105,17 +105,15 @@ def random_infection_statuses(node_identifiers, initial_infected):
     initial_infected_nodes=np.random.choice(population, size=initial_infected, replace=False)
     #Beds can't be infected...
     initial_state[hospital_bed_number + initial_infected_nodes] = 'I'
-
     return initial_state
 
 statuses=random_infection_statuses(node_identifiers,100)
 
-print(statuses.shape)
-
 for i in range(static_intervals_per_day):
     
-    kinetic_model.update_contacts(day_of_contact_networks.contact_networks[i])
+    kinetic_model.set_contact_network(day_of_contact_networks.contact_networks[i])
    
     statuses = kinetic_model.simulate(statuses,static_network_interval)
 
-    print(statuses.values())
+   # print(statuses.values())
+    
