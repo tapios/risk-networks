@@ -1,10 +1,6 @@
 import numpy as np
 import networkx as nx
-from collections import defaultdict
-from epiforecast.kinetic_model_helper import (
-    KM_sigma, KM_gamma, KM_gamma_prime, KM_h, KM_d, KM_dp, KM_complement_indices
-)
-from EoN import Gillespie_simple_contagion
+from .simulation import Gillespie_simple_contagion
 
 
 class KineticModel:
@@ -50,8 +46,8 @@ class KineticModel:
     self.diagram_indep.add_edge('E', 'I', rate=1, weight_label='exposed_to_infected')
     self.diagram_indep.add_edge('I', 'H', rate=1, weight_label='infected_to_hospitalized')
     self.diagram_indep.add_edge('I', 'R', rate=1, weight_label='infected_to_resistant')
-    self.diagram_indep.add_edge('H', 'R', rate=1, weight_label='hospitalized_to_resistant')
     self.diagram_indep.add_edge('I', 'D', rate=1, weight_label='infected_to_deceased')
+    self.diagram_indep.add_edge('H', 'R', rate=1, weight_label='hospitalized_to_resistant')
     self.diagram_indep.add_edge('H', 'D', rate=1, weight_label='hospitalized_to_deceased')
 
     # neighbor-induced rates diagram
@@ -65,12 +61,12 @@ class KineticModel:
 
     
     #set the transition rates:    
-    nx.set_node_attributes(self.static_graph, values=transition_rates.exposed_to_infected, name='exposed_to_infected')
-    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_hospitalized, name='infected_to_hospitalized')
-    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_resistant, name='infected_to_resistant')
-    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_deceased, name='infected_to_deceased')
+    nx.set_node_attributes(self.static_graph, values=transition_rates.exposed_to_infected,       name='exposed_to_infected')
+    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_hospitalized,  name='infected_to_hospitalized')
+    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_resistant,     name='infected_to_resistant')
+    nx.set_node_attributes(self.static_graph, values=transition_rates.infected_to_deceased,      name='infected_to_deceased')
     nx.set_node_attributes(self.static_graph, values=transition_rates.hospitalized_to_resistant, name='hospitalized_to_resistant')
-    nx.set_node_attributes(self.static_graph, values=transition_rates.hospitalized_to_deceased, name='hospitalized_to_deceased')
+    nx.set_node_attributes(self.static_graph, values=transition_rates.hospitalized_to_deceased,  name='hospitalized_to_deceased')
 
     #set the transmission rates
     self.edges=edges
@@ -109,12 +105,12 @@ class KineticModel:
                node_statuses,
                static_contact_interval):
     """
-    Performs the Gillespie solver with our given graph with current contact network
+    Runs the Gillespie solver with our given graph with current contact network
 
     Args
     ----
 
-    node_statuses (dict) : a dict of {node number : node status} ; the initial condition for the solve step
+    node_statuses (dict) : a {node number : node status} dictionary ; the initial condition for the solve step
 
     static_contact_interval (float) : the integration time (over a static contact network)
     
@@ -134,7 +130,7 @@ class KineticModel:
     self.vacate_hospital_bed() # remove from hospital whoever recovered/died
     self.populate_hospital_bed() # move into hospital those who need it
     
-    return self.node_statuses #synthetic data
+    return self.node_statuses, self.address_of_patient #synthetic data
   
   def vacate_hospital_bed(self):
     '''
@@ -148,7 +144,7 @@ class KineticModel:
         #then move them back to their original nodal position
         self.node_statuses[self.address_of_patient[hospital_bed]] = self.node_statuses[hospital_bed]
         #and set the state of the bed back to unoccupied: 'P'
-        print("sending home patient ",hospital_bed," to ",self.address_of_patient[hospital_bed], " in state ", self.node_status[hospital_bed])
+        print("sending home patient ", hospital_bed, " to ", self.address_of_patient[hospital_bed], " in state ", self.node_statuses[hospital_bed])
         self.node_statuses[hospital_bed] = 'P'
         self.address_of_patient[hospital_bed] = -1 #an unattainable value may be useful for debugging
               

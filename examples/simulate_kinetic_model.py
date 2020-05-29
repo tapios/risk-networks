@@ -2,6 +2,7 @@ import os, sys; sys.path.append(os.path.join(".."))
 
 import numpy as np
 
+
 # Utilities for generating random populations
 from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
@@ -100,20 +101,33 @@ def random_infection_statuses(node_identifiers, initial_infected):
     hospital_bed_number = node_identifiers["hospital_beds"].size 
     number_nodes = hospital_bed_number + population
    
-    initial_state=np.repeat('S',number_nodes)
-    initial_state[node_identifiers["hospital_beds"]] = 'P'
+    statuses=np.repeat('S',number_nodes)
+    statuses[node_identifiers["hospital_beds"]] = 'P'
     initial_infected_nodes=np.random.choice(population, size=initial_infected, replace=False)
     #Beds can't be infected...
-    initial_state[hospital_bed_number + initial_infected_nodes] = 'I'
-    return initial_state
+    statuses[hospital_bed_number + initial_infected_nodes] = 'I'
 
+    statuses = { i : statuses[i] for i in np.arange(statuses.size)}
+    return statuses
+
+
+def print_statuses(statuses):
+    nodes = len(statuses)
+    for i in range(nodes-1):
+        print(statuses[i], end=" ")
+    print(statuses[nodes-1])
+
+
+    
 statuses=random_infection_statuses(node_identifiers,100)
+print_statuses(statuses)
+
 
 for i in range(static_intervals_per_day):
     
     kinetic_model.set_contact_network(day_of_contact_networks.contact_networks[i])
    
-    statuses = kinetic_model.simulate(statuses,static_network_interval)
+    statuses, address_of_patient = kinetic_model.simulate(statuses,static_network_interval)
 
-   # print(statuses.values())
+   # print_statuses(statuses)
     
