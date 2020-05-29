@@ -40,6 +40,7 @@ health_worker_population = node_identifiers["health_workers"].size
 community_population = node_identifiers["community"].size
 
 population = community_population + health_worker_population
+
 # The age category of each community individual,
 
 age_distribution = [ 0.2352936017,   # 0-19 years
@@ -87,18 +88,18 @@ transmission_rate = 0.1
 
 hospital_transmission_reduction = 1/4
 
-#kinetic_model = KineticModel(edges = edges,
-#                             node_identifiers=node_identifiers,
-#                             mean_contact_duration_network = day_of_contact_networks.contact_networks[0],
-#                             transition_rates = transition_rates,
-#                             transmission_rate = transmission_rate,
-#                             hospital_transmission_reduction = hospital_transmission_reduction)
+kinetic_model = KineticModel(edges = edges,
+                             node_identifiers=node_identifiers,
+                             mean_contact_duration_network = day_of_contact_networks.contact_networks[0],
+                             transition_rates = transition_rates,
+                             transmission_rate = transmission_rate,
+                             hospital_transmission_reduction = hospital_transmission_reduction)
 
 def random_infection_statuses(node_identifiers, initial_infected):
     population = node_identifiers["health_workers"].size + node_identifiers["community"].size
     hospital_bed_number = node_identifiers["hospital_beds"].size 
     number_nodes = hospital_bed_number + population
-    
+   
     initial_state=np.repeat('S',number_nodes)
     initial_state[node_identifiers["hospital_beds"]] = 'P'
     initial_infected_nodes=np.random.choice(population, size=initial_infected, replace=False)
@@ -107,17 +108,14 @@ def random_infection_statuses(node_identifiers, initial_infected):
 
     return initial_state
 
-initial_state=random_infection_statuses(node_identifiers,100)
+statuses=random_infection_statuses(node_identifiers,100)
 
-print(initial_state)
-exit()
+print(statuses.shape)
 
 for i in range(static_intervals_per_day):
-    community_network, hospital_network = conflated_networks(transmission_rate, hospital_transmission_rate, edges, day_of_contact_networks, i)
-
-    kinetic_model.update_contact_network(
-                                         community_network,
-                                         hospital_network
-                                        )
+    
+    kinetic_model.update_contacts(day_of_contact_networks.contact_networks[i])
    
-    kinetic_model.simulate(static_contact_interval) # simulate from 0 until interval
+    statuses = kinetic_model.simulate(statuses,static_network_interval)
+    
+    print(i)
