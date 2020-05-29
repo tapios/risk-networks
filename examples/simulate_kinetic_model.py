@@ -1,7 +1,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 import numpy as np
-
+import random 
 
 # Utilities for generating random populations
 from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
@@ -13,7 +13,7 @@ from epiforecast.kinetic_model_simulator import KineticModel
 from epiforecast.node_identifier_helper import load_node_identifiers
 
 np.random.seed(12345)
-
+random.seed(1237)
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
 active_edge_list_frac = 0.034
 mean_contact_duration = 1.0 / 1920.0  # unit: days
@@ -129,5 +129,5 @@ for i in range(static_intervals_per_day):
    
     statuses, address_of_patient = kinetic_model.simulate(statuses,static_network_interval)
 
-   # print_statuses(statuses)
+    print_statuses(statuses)
     
