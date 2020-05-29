@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse as scspa
-from epiforecast.kinetic_model_helper import *
+
 
 def load_edges(filename):
     """
