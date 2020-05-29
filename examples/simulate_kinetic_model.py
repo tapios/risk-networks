@@ -8,13 +8,15 @@ from epiforecast.populations import populate_ages, sample_clinical_distribution,
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 from epiforecast.contacts import ContactGenerator, StaticNetworkTimeSeries, load_edges
-from epiforecast.kinetic_model_simulator import KineticModel
+from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 
 from epiforecast.node_identifier_helper import load_node_identifiers
 
 np.random.seed(12345)
 random.seed(1237)
+
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
+
 active_edge_list_frac = 0.034
 mean_contact_duration = 1.0 / 1920.0  # unit: days
 
@@ -110,24 +112,16 @@ def random_infection_statuses(node_identifiers, initial_infected):
     statuses = { i : statuses[i] for i in np.arange(statuses.size)}
     return statuses
 
-
-def print_statuses(statuses):
-    nodes = len(statuses)
-    for i in range(nodes-1):
-        print(statuses[i], end=" ")
-    print(statuses[nodes-1])
-
-
-    
 statuses=random_infection_statuses(node_identifiers,100)
 print_statuses(statuses)
 
-
 for i in range(static_intervals_per_day):
     
-    kinetic_model.set_contact_network(day_of_contact_networks.contact_networks[i])
+    # Note that day_of_contact_networks.contact_networks is a list of sparse matrices
+    # whose values
+    kinetic_model.set_mean_contact_duration(day_of_contact_networks.contact_networks[i])
    
-    statuses, address_of_patient = kinetic_model.simulate(statuses,static_network_interval)
+    statuses, address_of_patient = kinetic_model.simulate(statuses, static_network_interval)
 
     print_statuses(statuses)
     
