@@ -117,5 +117,5 @@ for i in range(static_intervals_per_day):
     kinetic_model.update_contacts(day_of_contact_networks.contact_networks[i])
    
     statuses = kinetic_model.simulate(statuses,static_network_interval)
-    
-    print(i)
+
+    print(statuses.values())
