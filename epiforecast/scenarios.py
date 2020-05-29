@@ -212,3 +212,22 @@ def randomly_infected_ensemble(ensemble_size, population, percent_infected, rand
             states[m, s_randomly_infected] = 0
 
     return states
+
+
+
+
+
+def load_edges(filename):
+    """
+    Return a list of unique edges
+    Args
+    ----
+    filename (str): path to text file with a list of edges
+    """
+    edges = np.loadtxt(filename, dtype=int, comments='#')
+
+    # Remove non-unique edges, when they are included in `filename`
+    unique_edges = edges[:, 0] < edges[:, 1]
+
+    return edges[unique_edges]
+

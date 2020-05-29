@@ -24,7 +24,7 @@ class ContactSimulator:
     """
 
     def __init__(self, initial_fraction_active_contacts = 0.0,
-                                             start_time = 0.0
+                                             start_time = 0.0,
                                              n_contacts = None, 
                                         active_contacts = None,
                                       mean_contact_rate = None,
@@ -158,7 +158,7 @@ class ContactSimulator:
         self.interval_start_time = self.interval_stop_time
         self.interval_stop_time = stop_time
 
-    def generate_average_contact_duration(self, time_interval, **kwargs):
-        self.simulate_contact_duration(time_interval, **kwargs)
-
+    def interval_averaged_contact_duration(self, stop_time, **kwargs):
+        self.simulate_contact_duration(stop_time, **kwargs)
+        time_interval = self.interval_stop_time - self.interval_start_time
         return self.contact_duration / time_interval

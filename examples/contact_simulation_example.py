@@ -20,8 +20,7 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     
     initial_active_contacts = np.count_nonzero(simulator.active_contacts)
     
-    # Generate a time-series of contact durations and average number of 
-    # active contacts
+    # Generate a time-series of contact durations and average number of active contacts
     days = 2
 
     for i in range(int(days / time_step)):

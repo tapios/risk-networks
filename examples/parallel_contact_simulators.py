@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalContactModulation
+from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
 
 np.random.seed(1234)
 
@@ -29,11 +29,11 @@ bulk_mean_contacts = max_mean_contacts.mean()
 bulk_simulator = ContactSimulator(n_contacts=total_contacts, initial_fraction_active_contacts=0.01,
                                   start_time=start_time)
 
-bulk_modulation = DiurnalContactModulation(peak=bulk_mean_contacts, minimum=3)
+bulk_contact_rate = DiurnalMeanContactRate(maximum=bulk_mean_contacts, minimum=3)
 
 # Simulate
 start = timer()
-bulk_simulator.simulate_contact_duration(stop_time=stop_time, modulation=bulk_modulation)
+bulk_simulator.simulate_contact_duration(stop_time=stop_time, mean_contact_rate=bulk_contact_rate)
 end = timer()
 print("\n The bulk simulation took", end - start, "seconds of wall time.\n")
 print(   "The bulk simulation took", bulk_simulator.interval_steps, "Gillespie steps.")
@@ -45,18 +45,18 @@ print(   "The bulk simulation took", bulk_simulator.interval_steps, "Gillespie s
 simulators = [ContactSimulator(n_contacts=block_size, initial_fraction_active_contacts=0.01,
                                start_time=start_time) for lam in max_mean_contacts]
                                         
-modulations = [DiurnalContactModulation(peak=lam, minimum=3) for lam in max_mean_contacts]
+block_contact_rates = [DiurnalMeanContactRate(maximum=lam, minimum=3) for lam in max_mean_contacts]
                                  
 # Run forward all the blocks for 1/8 of a day starting at noon
 start = timer()
 
 for i, sim in enumerate(simulators):
-    block_modulation = modulations[i]
+    block_rate = block_contact_rates[i]
 
-    sim.simulate_contact_duration(stop_time=stop_time, modulation=block_modulation) 
+    sim.simulate_contact_duration(stop_time=stop_time, mean_contact_rate=block_rate) 
 
     print("Block", i,
-          "with max(λ) = {:.1f}".format(block_modulation.peak_mean_contacts),
+          "with max(λ) = {:.1f}".format(block_rate.maximum_mean_contacts),
           "took", sim.interval_steps, "Gillespie steps.")
 
 end = timer()
