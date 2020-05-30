@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse as scspa
-from numba import jit, njit
+from numba import njit
 
 @njit
 def accumulate_contact_duration(contact_duration, time_step, active_contacts):
@@ -31,16 +31,11 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
     # Generate exponentially-distributed random time step:
     time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
 
-    if time + time_step > stop_time: # the next event occurs after the end of the simulation
-        # Add the part of the contact duration occuring within the current interval
+    if time + time_step > stop_time: # event occurs after the end of the simulation
+        # Add only the part of the contact duration that occurs within the current interval
         accumulate_contact_duration(contact_duration, stop_time - time, active_contacts)
 
-        # Store the "overshoot time" and contact duration during overshoot 
-        # for use during a subsequent simulation.
-        overshoot_time = (time + time_step - stop_time)
-        overshoot_contact_duration = overshoot_time * active_contacts
-
-    else: # the next event occurs within the simulation interval
+    else: # event occurs within the simulation interval
         accumulate_contact_duration(contact_duration, time_step, active_contacts)
                                     
     # Because a random, exponentially-distributed amount of time has elapsed, 
@@ -57,7 +52,10 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
         i = random_index_to_activate(active_contacts, n_active)
         active_contacts[i] = True
 
-    return time_step
+    # Becomes positive when time + time_step exceeds the stop_time
+    overshoot_time = time + time_step - stop_time
+
+    return time_step, overshoot_time
 
 
 
@@ -141,41 +139,47 @@ class ContactSimulator:
         Simulate time-dependent contacts with a birth/death process.
         """
 
+        if stop_time <= self.time:
+            raise ValueError("Stop time is not greater than current time!")
+
         if mean_event_duration is not None:
             self.mean_event_duration = mean_event_duration
-
-        if self.mean_event_duration is None:
-            raise ValueError("Mean event duration is not set!")
 
         if mean_contact_rate is not None:
             self.mean_contact_rate = mean_contact_rate
 
-        # Capture the contact duration associated with the 'overshoot',
-        # or the difference between the current time of the contact state, and the
-        # stop time of the previous interval
+        if self.mean_event_duration is None:
+            raise ValueError("Mean event duration is not set!")
+
+        if self.mean_contact_rate is None:
+            raise ValueError("Mean contact rate is not set!")
+
+        # Capture the contact duration associated with 'overshoot' during a previous simulation:
         self.interval_contact_duration = self.overshoot_contact_duration
 
-        # Initialize the number of steps
-        self.interval_steps = 0
+        self.interval_steps = 0 # bookkeeping
 
         # Run:
         while self.time < stop_time:
             
             current_mean_contact_rate = self.mean_contact_rate(self.time)
 
-            time_step = gillespie_step(self.interval_contact_duration,
-                                       self.active_contacts,
-                                       self.mean_event_duration,
-                                       current_mean_contact_rate,
-                                       self.time,
-                                       stop_time,
-                                       self.overshoot_contact_duration,
-                                       self.overshoot_time)
+            time_step, overshoot_time = gillespie_step(self.interval_contact_duration,
+                                                       self.active_contacts,
+                                                       self.mean_event_duration,
+                                                       current_mean_contact_rate,
+                                                       self.time,
+                                                       stop_time,
+                                                       self.overshoot_contact_duration,
+                                                       self.overshoot_time)
 
             # Move into the future
             self.time += time_step
             self.interval_steps += 1
 
+        # Store the "overshoot contact duration" for use during a subsequent simulation.
+        self.overshoot_time = overshoot_time
+        self.overshoot_contact_duration = overshoot_time * self.active_contacts
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time

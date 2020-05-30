@@ -1,17 +1,20 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
+from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.contact_simulator import ContactSimulator
+from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
 
 np.random.seed(1234)
 
 fig, axs = plt.subplots(nrows=2, sharex=True, figsize=(9, 6))
 
-def plot_contact_simulation(n_contacts, time_step=1/24):
+def plot_contact_simulation(n_contacts, time_step = 0.01 * 1/24):
 
     simulator = ContactSimulator(n_contacts = n_contacts, 
+                                 mean_event_duration = 1 / 60 / 24,
+                                 mean_contact_rate = DiurnalMeanContactRate(),
                                  initial_fraction_active_contacts = 0.1)
 
     mean_contact_duration = []
@@ -26,10 +29,10 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     for i in range(int(days / time_step)):
         simulator.run(stop_time = (i + 1) * time_step)
     
-        mean_contact_duration = simulator.interval_contact_duration.mean()
-    
-        mean_contact_duration.append(mean_interval_contact_duration)
+        mean_contact_duration.append(simulator.interval_contact_duration.mean())
+
         times.append(i * time_step)
+
         active_contacts.append(np.count_nonzero(simulator.active_contacts))
     
     # Store results
@@ -45,13 +48,18 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     plt.plot(times, active_contacts, "-", label=label)
 
     plt.sca(axs[1])
-    plt.plot(times, mean_contact_duration / minute, "-", label=label)
+    plt.plot(times, mean_contact_duration / minute, "-", alpha=0.5, label=label)
 
     return times, mean_contact_duration, active_contacts
 
 # Loop over a bunch of network sizes
-for n_contacts in (1000, 2000, 5000, 10000):
+for n_contacts in (5000, 10000, 20000):
+    start = timer()
     plot_contact_simulation(n_contacts)
+    end = timer()
+
+    print("Simulated", n_contacts,
+          "contacts in {:.3f} seconds".format(end - start))
 
 # Format a plot prettily
 plt.sca(axs[0])
