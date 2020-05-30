@@ -123,26 +123,26 @@ statuses = random_epidemic(population, initial_infected=20, initial_exposed=100)
 kinetic_model.set_statuses(statuses)
 
 # 
-# Simulate the uncontrolled growth of an epidemic for 7 days
+# Simulate the growth and equilibration of an epidemic
 #
 
 static_contact_interval = 3/24 # days
-growth_interval = 14 # days
+interval = 21                  # days
 
-growth_steps = int(growth_interval / static_contact_interval)
-growth_start_times = static_contact_interval * np.arange(growth_steps)
+steps = int(interval / static_contact_interval)
+start_times = static_contact_interval * np.arange(steps)
 
 # Run the simulation
-for i in range(growth_steps):
+for i in range(steps):
 
 
     start = timer() 
-    contacts = contact_simulator.mean_contact_duration(stop_time = growth_start_times[i])
+    contacts = contact_simulator.mean_contact_duration(stop_time = start_times[i])
     end = timer() 
 
     print("Simulating an epidemic",
-          "from day {:.3f}".format(growth_start_times[i]),
-          "until day {:.3f}.".format(growth_start_times[i] + static_contact_interval), 
+          "from day {:.3f}".format(start_times[i]),
+          "until day {:.3f}.".format(start_times[i] + static_contact_interval), 
           "Contact simulation took {:.3f} seconds".format(end - start))
 
     kinetic_model.set_mean_contact_duration(contacts)
