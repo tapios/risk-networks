@@ -2,6 +2,25 @@
 
 Code for risk networks: a blend of compartmental models, graphs, data assimilation and semi-supervised learning.
 
+## Quick start
+
+First download [anaconda](https://www.anaconda.com/products/individual).
+Then
+
+```
+git clone https://github.com/dburov190/risk-networks.git
+cd risk-networks
+conda env create -f risknet.yml
+```
+
+to activate the conda environment.
+
+Then try
+
+```
+python3 examples/simulate_simple_epidemic.py
+```
+
 - Dependencies:
   - cycler==0.10.0
   - eon==1.1
@@ -18,10 +37,7 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
   work. To replicate the environment make sure you have anaconda preinstalled
   and use the following command from within the repo directory (or specify the
   full path to the yml file):
-  <!--  -->
-  ```{bash}
-  conda env create -f risknet.yml
-  ```
+
 
 # Overview
 
