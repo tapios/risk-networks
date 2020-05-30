@@ -2,6 +2,8 @@ import os, sys; sys.path.append(os.path.join(".."))
 
 import numpy as np
 import random 
+import copy
+from collections import defaultdict
 
 # Utilities for generating random populations
 from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
@@ -25,15 +27,20 @@ def random_infection_statuses(node_identifiers, initial_infected):
 
     nodes = hospital_bed_number + population
    
-    statuses = np.repeat('S', nodes)
-    statuses[node_identifiers["hospital_beds"]] = 'P'
+    statuses = defaultdict(lambda: 'S') # statuses = np.repeat('S', nodes)
+
+    # statuses[node_identifiers["hospital_beds"]] = 'P'
+    for i in node_identifiers["hospital_beds"]:
+        statuses[i] = 'P'
 
     initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
 
     # Beds (the first few status) can't be infected...
-    statuses[hospital_bed_number + initial_infected_nodes] = 'I'
+    #statuses[hospital_bed_number + initial_infected_nodes] = 'I'
+    for i in initial_infected_nodes:
+        statuses[hospital_bed_number + i] = 'I'
 
-    statuses = { i : statuses[i] for i in np.arange(statuses.size)}
+    #statuses = { i : statuses[i] for i in np.arange(statuses.size)}
 
     return statuses
 
@@ -42,7 +49,8 @@ def random_infection_statuses(node_identifiers, initial_infected):
 #
 
 # Both numpy.random and random are used by the KineticModel.
-np.random.seed(1233)
+#np.random.seed(1233) # no error
+np.random.seed(123)
 random.seed(123)
 
 #
@@ -197,7 +205,12 @@ for i in range(growth_steps):
     # Based on the current 'node statuses'
     health_service.discharge_and_obtain_patients(statuses)
     
-    statuses = kinetic_model.simulate(statuses, static_contact_interval)
+    initial_statuses = copy.deepcopy(statuses)
+    statuses = None
+
+    print(type(initial_statuses))
+    print("Node 995 status:", initial_statuses[995])
+    statuses = kinetic_model.simulate(initial_statuses, static_contact_interval)
 
 # 
 # Simulate the hopeful death of an epidemic after social distancing

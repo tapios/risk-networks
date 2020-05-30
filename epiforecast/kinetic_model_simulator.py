@@ -26,13 +26,14 @@ class KineticModel:
         edges (np.array): a [num edges x 2] np.arrayof edges (corresponds to the
                           upper triangular of the adjacency matrix)
       
-        mean_contact_duration (np.array): The mean contact duration of each node in the static
-                                        network over which we simulate
-        transition_rates (TransitionRates): an object containing all the transition rates as dictionaries of size
+        mean_contact_duration (np.array): Mean contact duration of each node in the static
+                                          network over which we simulate
+
+        transition_rates (TransitionRates): Contains all transition rates as dictionaries of size
                                             of health worker + community population
                                             for example: transition_rates.susceptible_to_exposed
       
-        community_transmission_rate (float):  Global constant transmission rate for the community(often referred within as beta)
+        community_transmission_rate (float): Global constant transmission rate for the community(often referred within as beta)
       
         hospital_transmission_reduction (float): reduction factor for the transmission rate for those in hospital
                                                  hospital_transmission_rate = community transmission_rate *
