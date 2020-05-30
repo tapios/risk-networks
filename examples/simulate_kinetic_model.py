@@ -148,7 +148,11 @@ kinetic_model = KineticModel(                          edges = edges,
 #
 
 statuses = random_infection_statuses(node_identifiers, 100)
-print("Number of nodes:", len(statuses))
+print("Number of nodes in the initial condition:", len(statuses))
+print("Number of nodes in the contact_network:", len(kinetic_model.contact_network))
+
+for node, status in statuses.items():
+    print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
 
 print("Structure of the initial infection:")
 print_statuses(statuses)
