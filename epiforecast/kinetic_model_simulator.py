@@ -14,7 +14,7 @@ def print_statuses(statuses):
 class KineticModel:
   def __init__(self,
                edges,
-               node_identifiers,
+#               node_identifiers,
                mean_contact_duration,
                transition_rates,
                community_transmission_rate,
@@ -54,10 +54,10 @@ class KineticModel:
     self.set_mean_contact_duration(mean_contact_duration)
 
     # Keep node identifiers 
-    self.node_identifiers = node_identifiers
+    #self.node_identifiers = node_identifiers
 
     # Will store the address of a patient in a hospital bed, by calling address_of_patient[hospital_bed]
-    self.address_of_patient = np.repeat(-1, node_identifiers["hospital_beds"].size)
+    #self.address_of_patient = np.repeat(-1, node_identifiers["hospital_beds"].size)
 
     # What statuses to return from Gillespie simulation
     self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
@@ -113,7 +113,8 @@ class KineticModel:
     Args
     ----
 
-    node_statuses (dict) : a {node number : node status} dictionary ; the initial condition for the solve step
+    node_statuses (dict) : a {node number : node status} e.g. {..., 245:'S', ...} dictionary ;
+                           the initial condition for the solve step
 
     static_contact_interval (float) : the integration time (over a static contact network)
     
@@ -130,47 +131,8 @@ class KineticModel:
     times, states = res.summary()
     self.node_statuses = res.get_statuses(time=times[-1])
     
-    self.vacate_hospital_bed() # remove from hospital whoever recovered/died
-    self.populate_hospital_bed() # move into hospital those who need it
+    #self.vacate_hospital_bed() # remove from hospital whoever recovered/died
+    #self.populate_hospital_bed() # move into hospital those who need it
     
-    return self.node_statuses, self.address_of_patient #synthetic data
-  
-  def vacate_hospital_bed(self):
-    '''
-    Vacate hospital_bed nodes if their status is not 'H'
-    '''
-    #check each hospital bed 
-    for hospital_bed in self.node_identifiers["hospital_beds"]:
-      #If there is a node occupying  the bed  then the value != 'P'
-      #If the node is longer in hospitalized state then the value != 'H'
-      if self.node_statuses[hospital_bed] != 'P' and self.node_statuses[hospital_bed] != 'H':
-        #then move them back to their original nodal position
-        self.node_statuses[self.address_of_patient[hospital_bed]] = self.node_statuses[hospital_bed]
-        #and set the state of the bed back to unoccupied: 'P'
-        print("sending home patient ", hospital_bed, " to ", self.address_of_patient[hospital_bed], " in state ", self.node_statuses[hospital_bed])
-        self.node_statuses[hospital_bed] = 'P'
-        self.address_of_patient[hospital_bed] = -1 #an unattainable value may be useful for debugging
-              
-  def populate_hospital_bed(self):
-    '''
-    Put 'H' nodes currently outside hospital beds (`hospital_seeking`), into an unoccupied hospital bed (`new_patient`).
-    Record where the patient came from (in `self.patient_home`) place a 'P' in it's network position.
-    '''
-    #check each hospital bed
-    for hospital_bed in self.node_identifiers["hospital_beds"]:
-      #if any bed is unoccupied, then value == 'P'
-      if self.node_statuses[hospital_bed] == 'P':
-        
-        #obtain the nodes seeking to be hospitalized (state == 'H') 
-        populace = np.hstack([self.node_identifiers["health_workers"] , self.node_identifiers["community"]])
-  
-        hospital_seeking=[i for i in populace if self.node_statuses[i]== 'H']
-        if (len(hospital_seeking)>0):
-          new_patient_address = hospital_seeking[0]      
-          #move a patient into the hospital bed, keeping track of its address
-          self.node_statuses[hospital_bed] = 'H'
-          self.node_statuses[new_patient_address] = 'P'
-          self.address_of_patient[hospital_bed]= new_patient_address
-          print("receiving new patient from",new_patient_address," into bed ",hospital_bed)
-       
+    return self.node_statuses 
   

@@ -11,6 +11,7 @@ from epiforecast.contacts import ContactGenerator, StaticNetworkTimeSeries, load
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 
 from epiforecast.node_identifier_helper import load_node_identifiers
+from epiforecast.health_service import HealthService
 
 np.random.seed(12345)
 random.seed(1237)
@@ -92,11 +93,15 @@ transmission_rate = 0.1
 hospital_transmission_reduction = 1/4
 
 kinetic_model = KineticModel(edges = edges,
-                             node_identifiers=node_identifiers,
+#                             node_identifiers=node_identifiers,
                              mean_contact_duration = day_of_contact_networks.contact_networks[0],
                              transition_rates = transition_rates,
                              community_transmission_rate = transmission_rate,
                              hospital_transmission_reduction = hospital_transmission_reduction)
+
+#set up the health service
+health_service = HealthService(node_identifiers)
+
 
 def random_infection_statuses(node_identifiers, initial_infected):
     population = node_identifiers["health_workers"].size + node_identifiers["community"].size
@@ -116,12 +121,13 @@ statuses=random_infection_statuses(node_identifiers,100)
 print_statuses(statuses)
 
 for i in range(static_intervals_per_day):
-    
-    # Note that day_of_contact_networks.contact_networks is a list of sparse matrices
-    # whose values
+
+    #Based on the current 'truth state'
+    health_service.discharge_and_obtain_patients(statuses)
+
     kinetic_model.set_mean_contact_duration(day_of_contact_networks.contact_networks[i])
    
-    statuses, address_of_patient = kinetic_model.simulate(statuses, static_network_interval)
+    statuses = kinetic_model.simulate(statuses, static_network_interval)
 
     print_statuses(statuses)
     
