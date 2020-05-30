@@ -32,7 +32,10 @@ from epiforecast.scenarios import ensemble_transmission_rates_at_midnight_on_Tue
 from epiforecast.node_identifier_helper import load_node_identifiers
 
 # ## Example simulation of an epidemic
-# 
+
+
+np.random.seed(12345)
+random.seed(1237)
 # An epidemic unfolds on a time-evolving contact network, in a population
 # with a distribution of clinical and transmission properties.
 # 

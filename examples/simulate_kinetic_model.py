@@ -12,6 +12,7 @@ from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges
 
 from epiforecast.node_identifier_helper import load_node_identifiers
+from epiforecast.health_service import HealthService
 
 def random_infection_statuses(node_identifiers, initial_infected):
     """
@@ -136,12 +137,16 @@ interval_averaged_contact_duration = contact_simulator.contact_duration / (3 / 2
 #
 
 kinetic_model = KineticModel(                          edges = edges,
-                                            node_identifiers = node_identifiers,
                                             transition_rates = transition_rates,
                                  community_transmission_rate = transmission_rate,
                              hospital_transmission_reduction = hospital_transmission_reduction,
                                        mean_contact_duration = interval_averaged_contact_duration
                             )
+#
+# Set up the health service
+#
+
+health_service = HealthService(node_identifiers)
 
 # 
 # Seed an infection
@@ -188,7 +193,11 @@ for i in range(growth_steps):
           "until day {:.3f}".format(growth_start_times[i] + static_contact_interval)) 
 
     kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
-    statuses, address_of_patient = kinetic_model.simulate(statuses, static_contact_interval)
+    
+    # Based on the current 'node statuses'
+    health_service.discharge_and_obtain_patients(statuses)
+    
+    statuses = kinetic_model.simulate(statuses, static_contact_interval)
 
 # 
 # Simulate the hopeful death of an epidemic after social distancing
@@ -209,11 +218,15 @@ for i in range(distancing_steps):
 
     print("Simulating the social distancing phase of an epidemic",
           "from day {:.3f}".format(distancing_start_times[i]),
-          "until day {:.3f}".format(distancing_start_times[i] + static_contact_interval)) 
+          "until day {:.3f}".format(distancing_start_times[i] + static_contact_interval))
 
     contact_simulator.simulate_contact_duration(stop_time = distancing_start_times[i])
     interval_averaged_contact_duration = contact_simulator.contact_duration / static_contact_interval
     contacts_time_series.append(interval_averaged_contact_duration)
     
     kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
-    statuses, address_of_patient = kinetic_model.simulate(statuses, static_contact_interval)
+    
+    # Based on the current 'node statuses'
+    health_service.discharge_and_obtain_patients(statuses)
+    
+    statuses = kinetic_model.simulate(statuses, static_contact_interval)
