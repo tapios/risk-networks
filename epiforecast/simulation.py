@@ -4032,7 +4032,7 @@ def Gillespie_simple_contagion(G, spontaneous_transition_graph,
     #weight_sum = defaultdict(lambda: 0)
     #weights = defaultdict(lambda: None)
     #max_weight = defaultdict(lambda: 0)
-    get_weight = defaultdict(lambda: defaultdict(lambda:None))
+    get_weight = defaultdict(lambda: defaultdict(lambda: None))
 
 
     #SET UP THE POSSIBLE EVENTS, STARTING WITH SPONTANEOUS

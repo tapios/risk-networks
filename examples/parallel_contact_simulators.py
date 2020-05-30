@@ -33,7 +33,7 @@ bulk_contact_rate = DiurnalMeanContactRate(maximum=bulk_mean_contacts, minimum=3
 
 # Simulate
 start = timer()
-bulk_simulator.simulate_contact_duration(stop_time=stop_time, mean_contact_rate=bulk_contact_rate)
+bulk_simulator.run(stop_time=stop_time, mean_contact_rate=bulk_contact_rate)
 end = timer()
 print("\n The bulk simulation took", end - start, "seconds of wall time.\n")
 print(   "The bulk simulation took", bulk_simulator.interval_steps, "Gillespie steps.")
@@ -53,7 +53,7 @@ start = timer()
 for i, sim in enumerate(simulators):
     block_rate = block_contact_rates[i]
 
-    sim.simulate_contact_duration(stop_time=stop_time, mean_contact_rate=block_rate) 
+    sim.run(stop_time=stop_time, mean_contact_rate=block_rate) 
 
     print("Block", i,
           "with max(λ) = {:.1f}".format(block_rate.maximum_mean_contacts),
@@ -70,15 +70,15 @@ print("\n A loop over", n_blocks, "blocks took", end - start, "seconds of wall t
 minute = 1 / 60 / 24 # in units of days
 
 print("The network-averaged mean contact duration in the bulk simulation",
-      "is {:.3f} minutes.".format(bulk_simulator.contact_duration.mean() / minute))
+      "is {:.3f} minutes.".format(bulk_simulator.interval_contact_duration.mean() / minute))
 
 super_average = 0.0
 
 for i, sim in enumerate(simulators):
     print("The network-averaged mean contact duration for block", i,
-          "is {:.3f} minutes".format(sim.contact_duration.mean() / minute))
+          "is {:.3f} minutes".format(sim.interval_contact_duration.mean() / minute))
 
-    super_average += sim.contact_duration.mean() / n_blocks
+    super_average += sim.interval_contact_duration.mean() / n_blocks
 
 print("\n The super-average contact duration over all contacts in all blocks",
       "is {:3f} minutes.".format(super_average / minute))

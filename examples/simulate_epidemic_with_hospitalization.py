@@ -1,5 +1,6 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
+import networkx as nx
 import numpy as np
 import random 
 import copy
@@ -14,33 +15,19 @@ from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges
 
 from epiforecast.node_identifier_helper import load_node_identifiers
-from epiforecast.health_service import HealthService
 
-def random_infection_statuses(node_identifiers, initial_infected):
+def random_infection(population, initial_infected):
     """
     Returns a status dictionary associated with a random infection
     within a population associated with node_identifiers.
     """
-    
-    population = node_identifiers["health_workers"].size + node_identifiers["community"].size
-    hospital_bed_number = node_identifiers["hospital_beds"].size 
-
-    nodes = hospital_bed_number + population
-   
     statuses = defaultdict(lambda: 'S') # statuses = np.repeat('S', nodes)
-
-    # statuses[node_identifiers["hospital_beds"]] = 'P'
-    for i in node_identifiers["hospital_beds"]:
-        statuses[i] = 'P'
 
     initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
 
     # Beds (the first few status) can't be infected...
-    #statuses[hospital_bed_number + initial_infected_nodes] = 'I'
     for i in initial_infected_nodes:
-        statuses[hospital_bed_number + i] = 'I'
-
-    #statuses = { i : statuses[i] for i in np.arange(statuses.size)}
+        statuses[i] = 'I'
 
     return statuses
 
@@ -54,10 +41,14 @@ np.random.seed(123)
 random.seed(123)
 
 #
-# Load edges from an example network
+# Load an example network
 #
 
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
+
+contact_network = nx.Graph()
+contact_network.add_edges_from(edges)
+population = len(contact_network)
 
 #
 # Clinical parameters of an age-distributed population

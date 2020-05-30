@@ -11,9 +11,11 @@ def print_statuses(statuses):
     print(statuses[nodes-1])
 
 
+
+
 class KineticModel:
     def __init__(self,
-                 edges,
+                 contact_network,
                  transition_rates,
                  community_transmission_rate,
                  hospital_transmission_reduction,
@@ -23,8 +25,7 @@ class KineticModel:
       
         Args
         -----
-        edges (np.array): a [num edges x 2] np.arrayof edges (corresponds to the
-                          upper triangular of the adjacency matrix)
+        contact_network (networkx.Graph): The contact network
       
         mean_contact_duration (np.array): Mean contact duration of each node in the static
                                           network over which we simulate
@@ -41,25 +42,20 @@ class KineticModel:
 
         """
     
-        # Build networkx graph representing the contact network
-        self.edges = edges
-        self.contact_network = nx.Graph() # a graph with {0, 1} edges
-        self.contact_network.add_edges_from(edges)
-
+        self.contact_network = contact_network
         self.community_transmission_rate = community_transmission_rate
         self.hospital_transmission_rate = community_transmission_rate * hospital_transmission_reduction
 
         if mean_contact_duration is None:
-            mean_contact_duration = np.zeros(len(edges))
+            mean_contact_duration = np.zeros(nx.number_of_edges(contact_network))
 
         self.set_mean_contact_duration(mean_contact_duration)
 
         # What statuses to return from Gillespie simulation
-        self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
+        self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
         
         # Independent rates diagram
         self.diagram_indep = nx.DiGraph()
-        self.diagram_indep.add_node('P') # placeholder compartment (hosp. beds)
         self.diagram_indep.add_node('S')
         self.diagram_indep.add_edge('E', 'I', rate=1, weight_label='exposed_to_infected')
         self.diagram_indep.add_edge('I', 'H', rate=1, weight_label='infected_to_hospitalized')
@@ -80,6 +76,12 @@ class KineticModel:
         nx.set_node_attributes(self.contact_network, values=transition_rates.infected_to_deceased,      name='infected_to_deceased')
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_resistant, name='hospitalized_to_resistant')
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_deceased,  name='hospitalized_to_deceased')
+
+        self.time = 0.0
+        self.times = []
+        self.statuses = {s: [] for s in self.return_statuses}
+
+        self.current_statuses = None # must be set by set_statuses
     
     def set_mean_contact_duration(self, mean_contact_duration):
         """
@@ -92,34 +94,48 @@ class KineticModel:
         mean_contact_duration (np.array) : np.array of the contact duration for each edge
                                            in the contact network.
         """
-        weights = {tuple(edge): mean_contact_duration[i] for i, edge in enumerate(self.edges)}
+        weights = {tuple(edge): mean_contact_duration[i] 
+                   for i, edge in enumerate(nx.edges(self.contact_network))}
                              
         nx.set_edge_attributes(self.contact_network, values=weights, name='SI->E')
         nx.set_edge_attributes(self.contact_network, values=weights, name='SH->E')
-      
+
+    def set_statuses(self, statuses):
+        self.current_statuses = statuses
   
-    def simulate(self, node_statuses, time_interval):
+    def simulate(self, time_interval, initial_statuses=None):
         """
-        Runs the Gillespie solver with our given graph with current contact network
+        Runs the Gillespie solver with our given graph with current contact network.
   
         Args
         ----
   
-        node_statuses (dict) : a {node number : node status} dictionary ; the initial condition for the solve step
-  
         time_interval (float) : the integration time (over a static contact network)
-        
+
+        initial_statuses (dict) : a {node number : node status} dictionary ; the initial condition for the solve step
         """
+
+        if initial_statuses is None:
+            initial_statuses = self.current_statuses
+
         res = Gillespie_simple_contagion(self.contact_network,
                                          self.diagram_indep,
                                          self.diagram_neigh,
-                                         node_statuses,
+                                         initial_statuses,
                                          self.return_statuses,
                                          return_full_data = True,
-                                         tmin = 0.0,
-                                         tmax = time_interval)
+                                         tmin = self.time,
+                                         tmax = self.time + time_interval)
         
-        times, states = res.summary()
-        self.node_statuses = res.get_statuses(time=times[-1])
+        self.time += time_interval
+
+        times, statuses = res.summary()
+
+        self.times.extend(times)
+
+        for s in self.return_statuses:
+            self.statuses[s].extend(statuses[s])
+
+        self.current_statuses = res.get_statuses(time=times[-1])
         
-        return self.node_statuses
+        return self.current_statuses

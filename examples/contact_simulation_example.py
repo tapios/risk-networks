@@ -14,7 +14,7 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     simulator = ContactSimulator(n_contacts = n_contacts, 
                                  initial_fraction_active_contacts = 0.1)
 
-    network_averaged_contact_duration = []
+    mean_contact_duration = []
     active_contacts = []
     times = []
     
@@ -24,16 +24,16 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     days = 2
 
     for i in range(int(days / time_step)):
-        simulator.simulate_contact_duration(stop_time = (i + 1) * time_step)
+        simulator.run(stop_time = (i + 1) * time_step)
     
-        mean_interval_contact_duration = simulator.contact_duration.mean()
+        mean_contact_duration = simulator.interval_contact_duration.mean()
     
-        network_averaged_contact_duration.append(mean_interval_contact_duration)
+        mean_contact_duration.append(mean_interval_contact_duration)
         times.append(i * time_step)
         active_contacts.append(np.count_nonzero(simulator.active_contacts))
     
     # Store results
-    network_averaged_contact_duration = np.array(network_averaged_contact_duration)
+    mean_contact_duration = np.array(mean_contact_duration)
     times = np.array(times)
     active_contacts = np.array(active_contacts)
 
@@ -45,9 +45,9 @@ def plot_contact_simulation(n_contacts, time_step=1/24):
     plt.plot(times, active_contacts, "-", label=label)
 
     plt.sca(axs[1])
-    plt.plot(times, network_averaged_contact_duration / minute, "-", label=label)
+    plt.plot(times, mean_contact_duration / minute, "-", label=label)
 
-    return times, network_averaged_contact_duration, active_contacts
+    return times, mean_contact_duration, active_contacts
 
 # Loop over a bunch of network sizes
 for n_contacts in (1000, 2000, 5000, 10000):
