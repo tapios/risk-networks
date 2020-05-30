@@ -8,7 +8,7 @@ import random
 import matplotlib.pyplot as plt
 
 # Utilities for generating random populations
-from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
+from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
@@ -87,12 +87,12 @@ ages = populate_ages(population, distribution=age_distribution)
 
 # Next, we randomly generate clinical properties for our example population.
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-latent_periods               = sample_clinical_distribution(GammaSampler(k=1.7, theta=2.0), minimum=2, population=population)
-community_infection_periods  = sample_clinical_distribution(GammaSampler(k=1.5, theta=2.0), minimum=1, population=population)
-hospital_infection_periods   = sample_clinical_distribution(GammaSampler(k=1.5, theta=3.0), minimum=1, population=population)
-hospitalization_fraction     = sample_clinical_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-community_mortality_fraction = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-hospital_mortality_fraction  = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+latent_periods               = sample_distribution(GammaSampler(k=1.7, theta=2.0), minimum=2, population=population)
+community_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=2.0), minimum=1, population=population)
+hospital_infection_periods   = sample_distribution(GammaSampler(k=1.5, theta=3.0), minimum=1, population=population)
+hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(population,

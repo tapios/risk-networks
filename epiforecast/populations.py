@@ -1,6 +1,6 @@
 import numpy as np
 
-def sample_clinical_distribution(sampler, ages=None, population=None, minimum=0):
+def sample_distribution(sampler, ages=None, population=None, minimum=0):
     """
     Generate clinical parameters by sampling from a distribution.
 
