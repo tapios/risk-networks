@@ -103,7 +103,7 @@ transition_rates = TransitionRates(population,
                                    community_mortality_fraction,
                                    hospital_mortality_fraction)
 
-transmission_rate = 0.1
+transmission_rate = 1.0
 hospital_transmission_reduction = 1/4
 
 #
@@ -127,7 +127,7 @@ kinetic_model.set_statuses(statuses)
 #
 
 static_contact_interval = 3/24 # days
-growth_interval = 7 # days
+growth_interval = 14 # days
 
 growth_steps = int(growth_interval / static_contact_interval)
 growth_start_times = static_contact_interval * np.arange(growth_steps)

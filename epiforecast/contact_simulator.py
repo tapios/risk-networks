@@ -18,6 +18,51 @@ def random_index_to_activate(active_contacts, n_active_contacts):
     i = np.where(~active_contacts)[0][k]
     return i
 
+@njit
+def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_contact_rate, 
+                   time, stop_time, overshoot_contact_duration, overshoot_time):
+
+    n_total = len(active_contacts)
+    n_active = np.count_nonzero(active_contacts)
+
+    activation_rate = mean_contact_rate * (n_total - n_active)
+    deactivation_rate = n_active / mean_event_duration
+     
+    # Generate exponentially-distributed random time step:
+    time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
+
+    if time + time_step > stop_time: # the next event occurs after the end of the simulation
+        # Add the part of the contact duration occuring within the current interval
+        accumulate_contact_duration(contact_duration, stop_time - time, active_contacts)
+
+        # Store the "overshoot time" and contact duration during overshoot 
+        # for use during a subsequent simulation.
+        overshoot_time = (time + time_step - stop_time)
+        overshoot_contact_duration = overshoot_time * active_contacts
+
+    else: # the next event occurs within the simulation interval
+        accumulate_contact_duration(contact_duration, time_step, active_contacts)
+                                    
+    # Because a random, exponentially-distributed amount of time has elapsed, 
+    # an "event" occurs (of course)! The event is the activation or deactivation
+    # of a contact.
+    deactivation_probability = deactivation_rate / (deactivation_rate + activation_rate)
+
+    # Draw from uniform random distribution on [0, 1) to decide
+    # whether to activate or deactivate contacts
+    if np.random.random() < deactivation_probability:
+        i = random_index_to_deactivate(active_contacts, n_active)
+        active_contacts[i] = False
+    else: 
+        i = random_index_to_activate(active_contacts, n_active)
+        active_contacts[i] = True
+
+    return time_step
+
+
+
+
+
 
 class ContactSimulator:
     """
@@ -110,54 +155,24 @@ class ContactSimulator:
         # Initialize the number of steps
         self.interval_steps = 0
 
-        # Run it
-        self._gillespie_simulation(stop_time)
-    
-    def _gillespie_simulation(self, stop_time):
-        """
-        Perform a Gillespie simulation until self.time > stop_time.
-        """
-
+        # Run:
         while self.time < stop_time:
             
-            n_active_contacts = np.count_nonzero(self.active_contacts)
+            mean_contact_rate = self.mean_contact_rate(self.time)
 
-            activation_rate   = self.mean_contact_rate(self.time) * (self.n_contacts - n_active_contacts)
-            deactivation_rate = n_active_contacts / self.mean_event_duration
+            time_step = gillespie_step(self.interval_contact_duration,
+                                       self.active_contacts,
+                                       self.mean_event_duration,
+                                       mean_contact_rate,
+                                       self.time,
+                                       stop_time,
+                                       self.overshoot_contact_duration,
+                                       self.overshoot_time)
 
-            # Generate exponentially-distributed random time step:
-            time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
-
-            if self.time + time_step > stop_time: # the next event occurs after the end of the simulation
-                # Add the part of the contact duration occuring within the current interval
-                accumulate_contact_duration(self.interval_contact_duration,
-                                            stop_time - time_step,
-                                            self.active_contacts)
-
-                # Store the "overshoot time" and contact duration during overshoot 
-                # for use during a subsequent simulation.
-                self.overshoot_time = (self.time + time_step - stop_time)
-                self.overshoot_contact_duration = self.overshoot_time * self.active_contacts
-
-            else: # the next event occurs within the simulation interval
-                accumulate_contact_duration(self.interval_contact_duration, time_step, self.active_contacts)
-
+            # Move into the future
             self.time += time_step
             self.interval_steps += 1
 
-            # Because a random, exponentially-distributed amount of time has elapsed, 
-            # an "event" occurs (of course)! The event is the activation or deactivation
-            # of a contact.
-            deactivation_probability = deactivation_rate / (deactivation_rate + activation_rate)
-  
-            # Draw from uniform random distribution on [0, 1) to decide
-            # whether to activate or deactivate contacts
-            if np.random.random() < deactivation_probability:
-                i = random_index_to_deactivate(self.active_contacts, n_active_contacts)
-                self.active_contacts[i] = False
-            else: 
-                i = random_index_to_activate(self.active_contacts, n_active_contacts)
-                self.active_contacts[i] = True
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time
@@ -174,11 +189,11 @@ class ContactSimulator:
 
 
 
-@jit
+@njit
 def cos4_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
 
-@jit
+@njit
 def cos2_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**2)**2)
 
