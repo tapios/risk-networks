@@ -3,19 +3,19 @@ import os, sys; sys.path.append(os.path.join(".."))
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalContactModulation
+from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
 
 np.random.seed(1234)
 
 time_step = 1/24
 
-def simulate_one_day(simulator, peak_mean_contacts, minimum_mean_contacts=5):
+def simulate_one_day(simulator, maximum_mean_contacts, minimum_mean_contacts=5):
     """
     Return the mean contact duration and active contacts at every hour
     over a day of contact simulation by `simulator`.
     """
 
-    diurnal_modulation = DiurnalContactModulation(peak = peak_mean_contacts,
+    diurnal_contact_rate = DiurnalMeanContactRate(maximum = maximum_mean_contacts,
                                                   minimum = minimum_mean_contacts)
 
     start_time = simulator.interval_stop_time # stop time for the previous interval
@@ -25,7 +25,7 @@ def simulate_one_day(simulator, peak_mean_contacts, minimum_mean_contacts=5):
 
     for i in range(int(1/time_step)):
         simulator.simulate_contact_duration(stop_time = start_time + (i + 1) * time_step,
-                                            modulation = diurnal_modulation) 
+                                            mean_contact_rate = diurnal_contact_rate) 
 
         mean_interval_contact_duration = simulator.contact_duration.mean()
         mean_contact_duration.append(mean_interval_contact_duration)
@@ -58,23 +58,23 @@ for day in range(days):
     distancing_mean_contacts = 30 - 7 * day
 
     durations, contacts = simulate_one_day(as_usual_simulator, 
-                                           peak_mean_contacts = as_usual_mean_contacts)
+                                           maximum_mean_contacts = as_usual_mean_contacts)
 
     as_usual_contacts = as_usual_contacts + contacts
     as_usual_durations = as_usual_durations + durations
 
     durations, contacts = simulate_one_day(distancing_simulator,
-                                           peak_mean_contacts = distancing_mean_contacts)
+                                           maximum_mean_contacts = distancing_mean_contacts)
 
     distancing_contacts = distancing_contacts + contacts
     distancing_durations = distancing_durations + durations
 
 
 # Convert data to arrays and plot
-#as_usual_contacts = np.array(as_usual_contacts)
-#as_usual_durations = np.array(as_usual_durations)
-#distancing_contacts = np.array(distancing_contacts)
-#distancing_durations = np.array(distancing_durations)
+as_usual_contacts = np.array(as_usual_contacts)
+as_usual_durations = np.array(as_usual_durations)
+distancing_contacts = np.array(distancing_contacts)
+distancing_durations = np.array(distancing_durations)
 
 fig, axs = plt.subplots(nrows=2, figsize=(9, 6))
 minute = 1 / 60 / 24
