@@ -26,8 +26,10 @@ stop_time  = 1/2 + 1/8 # 1/8 of a day after noon
 
 bulk_mean_contacts = max_mean_contacts.mean()
 
-bulk_simulator = ContactSimulator(n_contacts=total_contacts, initial_fraction_active_contacts=0.01,
-                                  start_time=start_time)
+bulk_simulator = ContactSimulator(n_contacts = total_contacts,
+                                  initial_fraction_active_contacts = 0.01,
+                                  mean_event_duration = 1 / 60 / 24,
+                                  start_time = start_time)
 
 bulk_contact_rate = DiurnalMeanContactRate(maximum=bulk_mean_contacts, minimum=3)
 
@@ -42,8 +44,13 @@ print(   "The bulk simulation took", bulk_simulator.interval_steps, "Gillespie s
 # Break up the population into "blocks" and simulate independently
 #
 
-simulators = [ContactSimulator(n_contacts=block_size, initial_fraction_active_contacts=0.01,
-                               start_time=start_time) for lam in max_mean_contacts]
+simulators = [
+              ContactSimulator(n_contacts=block_size, initial_fraction_active_contacts=0.01,
+                               mean_event_duration=1 / 60 / 24, start_time=start_time) 
+
+              for lam in max_mean_contacts
+             ]
+                               
                                         
 block_contact_rates = [DiurnalMeanContactRate(maximum=lam, minimum=3) for lam in max_mean_contacts]
                                  

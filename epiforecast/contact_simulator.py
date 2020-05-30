@@ -144,6 +144,9 @@ class ContactSimulator:
         if mean_event_duration is not None:
             self.mean_event_duration = mean_event_duration
 
+        if self.mean_event_duration is None:
+            raise ValueError("Mean event duration is not set!")
+
         if mean_contact_rate is not None:
             self.mean_contact_rate = mean_contact_rate
 
@@ -158,12 +161,12 @@ class ContactSimulator:
         # Run:
         while self.time < stop_time:
             
-            mean_contact_rate = self.mean_contact_rate(self.time)
+            current_mean_contact_rate = self.mean_contact_rate(self.time)
 
             time_step = gillespie_step(self.interval_contact_duration,
                                        self.active_contacts,
                                        self.mean_event_duration,
-                                       mean_contact_rate,
+                                       current_mean_contact_rate,
                                        self.time,
                                        stop_time,
                                        self.overshoot_contact_duration,
