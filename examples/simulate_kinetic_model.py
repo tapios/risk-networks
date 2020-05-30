@@ -154,6 +154,9 @@ print("Number of nodes in the contact_network:", len(kinetic_model.contact_netwo
 for node, status in statuses.items():
     print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
 
+for node in kinetic_model.contact_network.nodes():
+    print("Node", node, "in the contact network has status", statuses[node])
+
 print("Structure of the initial infection:")
 print_statuses(statuses)
 
