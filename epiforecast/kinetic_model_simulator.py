@@ -14,7 +14,6 @@ def print_statuses(statuses):
 class KineticModel:
   def __init__(self,
                edges,
-#               node_identifiers,
                mean_contact_duration,
                transition_rates,
                community_transmission_rate,
@@ -26,9 +25,6 @@ class KineticModel:
     -----
     edges (np.array): a [num edges x 2] np.arrayof edges (corresponds to the
                     upper triangular of the adjacency matrix)
-    node_identifiers (dict[np.array]): a dict of size 3, ["hospital_beds"] contains the node indices of the hospital beds
-                                                         ["health_workers"] contains the node indices of the health workers
-                                                         ["community"] contains the node indices of the community
     
     mean_contact_duration (np.array): The mean contact duration of each node in the static
                                       network over which we simulate
@@ -52,12 +48,6 @@ class KineticModel:
     self.hospital_transmission_rate = community_transmission_rate * hospital_transmission_reduction
 
     self.set_mean_contact_duration(mean_contact_duration)
-
-    # Keep node identifiers 
-    #self.node_identifiers = node_identifiers
-
-    # Will store the address of a patient in a hospital bed, by calling address_of_patient[hospital_bed]
-    #self.address_of_patient = np.repeat(-1, node_identifiers["hospital_beds"].size)
 
     # What statuses to return from Gillespie simulation
     self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D', 'P')
@@ -130,9 +120,6 @@ class KineticModel:
     
     times, states = res.summary()
     self.node_statuses = res.get_statuses(time=times[-1])
-    
-    #self.vacate_hospital_bed() # remove from hospital whoever recovered/died
-    #self.populate_hospital_bed() # move into hospital those who need it
-    
+        
     return self.node_statuses 
   

@@ -93,7 +93,6 @@ transmission_rate = 0.1
 hospital_transmission_reduction = 1/4
 
 kinetic_model = KineticModel(edges = edges,
-#                             node_identifiers=node_identifiers,
                              mean_contact_duration = day_of_contact_networks.contact_networks[0],
                              transition_rates = transition_rates,
                              community_transmission_rate = transmission_rate,
@@ -122,7 +121,7 @@ print_statuses(statuses)
 
 for i in range(static_intervals_per_day):
 
-    #Based on the current 'truth state'
+    #Based on the current 'node statuses'
     health_service.discharge_and_obtain_patients(statuses)
 
     kinetic_model.set_mean_contact_duration(day_of_contact_networks.contact_networks[i])

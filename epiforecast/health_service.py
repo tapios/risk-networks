@@ -10,7 +10,7 @@ class HealthService:
     inert 'P' is replaced in the community (or health workers) as acts as space in the graph
     """
     
-    def __init__(self,node_identifiers):
+    def __init__(self, node_identifiers):
         """
         Args
         ---
@@ -24,7 +24,7 @@ class HealthService:
         #Stores the addresses of the current patients in a hospital bed [i]
         self.address_of_patient = np.repeat(-1, node_identifiers["hospital_beds"].size)
     
-    def discharge_and_obtain_patients(self,node_statuses):
+    def discharge_and_obtain_patients(self, node_statuses):
         """
         (public method)
         This runs the following:
@@ -37,7 +37,7 @@ class HealthService:
         self.__vacate_hospital_beds(node_statuses)
         self.__populate_hospital_beds(node_statuses)
 
-    def __vacate_hospital_beds(self,node_statuses):
+    def __vacate_hospital_beds(self, node_statuses):
         '''
         (private method)
         Vacate hospital_bed nodes if their status is not 'H'
@@ -55,7 +55,7 @@ class HealthService:
                 self.address_of_patient[hospital_bed] = -1 #an unattainable value may be useful for debugging
 
         
-    def __populate_hospital_beds(self,node_statuses):
+    def __populate_hospital_beds(self, node_statuses):
         '''
         (private method)
         Put 'H' nodes currently outside hospital beds (`hospital_seeking`), into an unoccupied hospital bed (`new_patient`).
@@ -63,20 +63,20 @@ class HealthService:
         '''
         #check each hospital bed
         for hospital_bed in self.node_identifiers["hospital_beds"]:
-            #if any bed is unoccupied, then value == 'P'
+            #if any bed is unoccupied, then value = 'P'
             if node_statuses[hospital_bed] == 'P':
                 
-                #obtain the nodes seeking to be hospitalized (state == 'H') 
+                #obtain the nodes seeking to be hospitalized (state = 'H') 
                 populace = np.hstack([self.node_identifiers["health_workers"] , self.node_identifiers["community"]])
   
-                hospital_seeking=[i for i in populace if node_statuses[i]== 'H']
-                if (len(hospital_seeking)>0):
+                hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
+                if (len(hospital_seeking) > 0):
                     new_patient_address = hospital_seeking[0]      
                     #move a patient into the hospital bed, keeping track of its address
                     node_statuses[hospital_bed] = 'H'
                     node_statuses[new_patient_address] = 'P'
-                    self.address_of_patient[hospital_bed]= new_patient_address
-                    print("receiving new patient from",new_patient_address," into bed ",hospital_bed)
+                    self.address_of_patient[hospital_bed] = new_patient_address
+                    print("receiving new patient from", new_patient_address, " into bed ", hospital_bed)
        
 
 
