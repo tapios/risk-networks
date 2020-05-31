@@ -22,7 +22,7 @@ conda activate risknet
 
 to activate your existing conda environment.
 
-Then try
+Then write (from the same directory, the root directory of this repository)
 
 ```
 cd examples
