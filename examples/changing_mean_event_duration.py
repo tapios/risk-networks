@@ -60,8 +60,8 @@ minute = 1 / 60 / 24
 
 for mean_event_duration in (
                              1 * minute,
-                             10 * minute,
-                             60 * minute,
+                             120 * minute,
+                             240 * minute,
                             ):
 
     n_contacts = 5000
