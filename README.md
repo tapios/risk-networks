@@ -11,13 +11,21 @@ Then
 git clone https://github.com/dburov190/risk-networks.git
 cd risk-networks
 conda env create -f risknet.yml
+conda activate risknet
 ```
 
-to activate the conda environment.
+If that throws an error (something like `CondaValueError: prefix already exists`), then type
+
+```
+conda activate risknet
+```
+
+to activate your existing conda environment.
 
 Then try
 
 ```
+cd examples
 python3 examples/simulate_simple_epidemic.py
 ```
 
@@ -25,7 +33,8 @@ If you're lucky, this might produce something like:
 
 ![epidemic](figs/simple_epidemic_maxlambda34.png)
 
-- Dependencies:
+# Dependencies
+
   - cycler==0.10.0
   - eon==1.1
   - kiwisolver==1.2.0
@@ -36,12 +45,13 @@ If you're lucky, this might produce something like:
   - pytz==2019.3
   - scipy==1.4.1
 
+To add this project's environment to your conda installation and install all dependencies, type
 
-- Added conda environment `yml` to have the bare minimum of `python` modules to
-  work. To replicate the environment make sure you have anaconda preinstalled
-  and use the following command from within the repo directory (or specify the
-  full path to the yml file):
+```
+conda env create -f risknet.yml
+```
 
+from the root of this repository.
 
 # Overview
 
