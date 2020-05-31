@@ -21,6 +21,10 @@ Then try
 python3 examples/simulate_simple_epidemic.py
 ```
 
+If you're lucky, this might produce something like:
+
+![epidemic](figs/simple_epidemic_maxlambda34.png)
+
 - Dependencies:
   - cycler==0.10.0
   - eon==1.1
