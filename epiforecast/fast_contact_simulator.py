@@ -1,18 +1,23 @@
 import numpy as np
+from numba import njit
 
+@njit
 def accumulate_contact_duration(contact_duration, time_step, active_contacts):
     contact_duration += time_step * active_contacts
 
+@njit
 def random_index_to_deactivate(active_contacts, n_active_contacts):
     k = np.random.choice(n_active_contacts) # select an active contact
     i = np.where(active_contacts)[0][k]
     return i 
 
+@njit
 def random_index_to_activate(active_contacts, n_active_contacts):
     k = np.random.choice(len(active_contacts) - n_active_contacts) # select an inactive contact
     i = np.where(~active_contacts)[0][k]
     return i
 
+@njit
 def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_contact_rate, 
                    time, stop_time, overshoot_contact_duration, overshoot_time):
 
@@ -189,9 +194,12 @@ class ContactSimulator:
 
 
 
+
+@njit
 def cos4_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
 
+@njit
 def cos2_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**2)**2)
 

@@ -1,10 +1,13 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
+import networkx as nx
 import numpy as np
 import random 
+import copy
+from collections import defaultdict
 
 # Utilities for generating random populations
-from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
+from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
@@ -12,28 +15,19 @@ from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges
 
 from epiforecast.node_identifier_helper import load_node_identifiers
-from epiforecast.health_service import HealthService
 
-def random_infection_statuses(node_identifiers, initial_infected):
+def random_infection(population, initial_infected):
     """
     Returns a status dictionary associated with a random infection
     within a population associated with node_identifiers.
     """
-    
-    population = node_identifiers["health_workers"].size + node_identifiers["community"].size
-    hospital_bed_number = node_identifiers["hospital_beds"].size 
-
-    nodes = hospital_bed_number + population
-   
-    statuses = np.repeat('S', nodes)
-    statuses[node_identifiers["hospital_beds"]] = 'P'
+    statuses = defaultdict(lambda: 'S') # statuses = np.repeat('S', nodes)
 
     initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
 
     # Beds (the first few status) can't be infected...
-    statuses[hospital_bed_number + initial_infected_nodes] = 'I'
-
-    statuses = { i : statuses[i] for i in np.arange(statuses.size)}
+    for i in initial_infected_nodes:
+        statuses[i] = 'I'
 
     return statuses
 
@@ -42,14 +36,19 @@ def random_infection_statuses(node_identifiers, initial_infected):
 #
 
 # Both numpy.random and random are used by the KineticModel.
-np.random.seed(1233)
+#np.random.seed(1233) # no error
+np.random.seed(123)
 random.seed(123)
 
 #
-# Load edges from an example network
+# Load an example network
 #
 
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
+
+contact_network = nx.Graph()
+contact_network.add_edges_from(edges)
+population = len(contact_network)
 
 #
 # Clinical parameters of an age-distributed population
@@ -96,12 +95,12 @@ ages = np.hstack([health_worker_ages, community_ages])
 
 # Next, we randomly generate clinical properties for our example population.
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-latent_periods               = sample_clinical_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
-community_infection_periods  = sample_clinical_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
-hospital_infection_periods   = sample_clinical_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
-hospitalization_fraction     = sample_clinical_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-community_mortality_fraction = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-hospital_mortality_fraction  = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+latent_periods               = sample_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods   = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
+hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(population,
@@ -197,7 +196,12 @@ for i in range(growth_steps):
     # Based on the current 'node statuses'
     health_service.discharge_and_obtain_patients(statuses)
     
-    statuses = kinetic_model.simulate(statuses, static_contact_interval)
+    initial_statuses = copy.deepcopy(statuses)
+    statuses = None
+
+    print(type(initial_statuses))
+    print("Node 995 status:", initial_statuses[995])
+    statuses = kinetic_model.simulate(initial_statuses, static_contact_interval)
 
 # 
 # Simulate the hopeful death of an epidemic after social distancing

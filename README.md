@@ -2,6 +2,25 @@
 
 Code for risk networks: a blend of compartmental models, graphs, data assimilation and semi-supervised learning.
 
+## Quick start
+
+First download [anaconda](https://www.anaconda.com/products/individual).
+Then
+
+```
+git clone https://github.com/dburov190/risk-networks.git
+cd risk-networks
+conda env create -f risknet.yml
+```
+
+to activate the conda environment.
+
+Then try
+
+```
+python3 examples/simulate_simple_epidemic.py
+```
+
 - Dependencies:
   - cycler==0.10.0
   - eon==1.1
@@ -18,10 +37,7 @@ Code for risk networks: a blend of compartmental models, graphs, data assimilati
   work. To replicate the environment make sure you have anaconda preinstalled
   and use the following command from within the repo directory (or specify the
   full path to the yml file):
-  <!--  -->
-  ```{bash}
-  conda env create -f risknet.yml
-  ```
+
 
 # Overview
 
@@ -48,7 +64,7 @@ We first import the package's functionality:
 
 ```python
 # Utilities for generating random populations
-from epiforecast.populations import populate_ages, sample_clinical_distribution, TransitionRates
+from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 # Function that generates a time-averaged contact network from a rapidly-fluctuating
@@ -118,13 +134,13 @@ The six clinical statistics are
 We randomly generate clinical properties for our example population,
 
 ```python
-latent_periods              = sample_clinical_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
-community_infection_periods = sample_clinical_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
-hospital_infection_periods  = sample_clinical_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
+latent_periods              = sample_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
+community_infection_periods = sample_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
+hospital_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-hospitalization_fraction     = sample_clinical_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-community_mortality_fraction = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-hospital_mortality_fraction  = sample_clinical_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 ```
 
 `AgeAwareBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
@@ -169,6 +185,16 @@ constant_transmission_rate = 0.1 # per average number of contacts per day
 The `transition_rates` and `constant_transmission_rate` define the epidemiological 
 characteristics of the population.
 
+### Define the contact network
+
+```python
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt'))
+
+contact_network = nx.Graph()
+contact_network.add_edges_from(edges)
+population = len(contact_network)
+```
+
 ### Generation of a time-evolving contact network
 
 Physical contact between people in realistic communities is rapidly evolving.
@@ -186,27 +212,16 @@ between them. We create a contact network averaged over `static_contacts_interva
 for a population of 1000 with diurnally-varying mean contact rate,
 
 ```python
-diurnal_contacts_modulation = lambda t, λᵐⁱⁿ, λᵐᵃˣ: np.max([λᵐⁱⁿ, λᵐᵃˣ * (1 - np.cos(np.pi * t)**2)])
+mean_contact_rate = DiurnalMeanContactRate(maximum=40, minimum=2)
 
-network_generator = EvolvingContactNetworkGenerator(
-                                         population = population,  
-                                  start_time_of_day = 0.5, # half-way through the day, aka 'high noon'
-                                 averaging_interval = static_contacts_interval,
-                                   transition_rates = transition_rates,
-                                         lambda_min = 5,
-                                         lambda_max = 22,
-                   initial_fraction_of_active_edges = 0.034,
-                               measurement_interval = 0.1,
-                              mean_contact_duration = 10 / 60 / 24, # 10 minutes
-                        diurnal_contacts_modulation = diurnal_contacts_modulation,
-                        # **other_contact_network_generation_parameters? 
+contact_simulator = ContactSimulator(
+             n_contacts = nx.number_of_edges(contact_network),
+    mean_event_duration = 1 / 60 / 24,        # 1 minute in units of days
+      mean_contact_rate = mean_contact_rate,  # Diurnally-varying function of time  
+             start_time = -3 / 24,            # negative start time allows short 'spinup' of contacts
+
 )
-
-contact_network = network_generator.generate_time_averaged_contact_network( **network_generation_parameters   )
 ```
-
-We have included the abstract `network_generation_parameters` as a placeholder for
-a dictionary of parameters that can characterize the contact network.
 
 ### Simulation of an epidemic
 
@@ -216,7 +231,7 @@ we can now simulate an epidemic over the `static_contacts_interval`.
 We seed the epidemic by randomly infecting a small number of individuals,
 
 ```python
-initial_state = random_infection(population, infected=20)
+initial_statuses = random_infection(population, infected=20)
 ```
 
 #### Kinetic simulation
@@ -224,16 +239,21 @@ initial_state = random_infection(population, infected=20)
 A kinetic simulation is direct simulation of the stochastic evolution of an epidemic.
 
 ```python
-kinetic_model = KineticModel(       contact_network = contact_network,
-                                 transmission_rates = constant_transmission_rate,
-                             state_transition_rates = transition_rates
-                            )
+kinetic_model = KineticModel(contact_network = contact_network,
+                             transition_rates = transition_rates,
+                             community_transmission_rate = transmission_rate,
+                             hospital_transmission_reduction = hospital_transmission_reduction)
 
 # Set the current state of the kinetic model
-kinetic_model.set_state(initial_state)
+kinetic_model.set_statuses(initial_statuses)
+
+# Generate contacts at t=0.
+contacts = contact_simulator.mean_contact_duration(stop_time=0.0)
 
 # Simulate an epidemic over the static_contacts_interval
-output = kinetic_model.simulate(static_contacts_interval)
+kinetic_model.set_mean_contact_duration(contacts)
+
+statuses = kinetic_model.simulate(static_contacts_interval)
 ```
 
 #### Simulation using the mean-field master equations
