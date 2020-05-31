@@ -81,9 +81,7 @@ We first import the package's functionality:
 from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
-# Function that generates a time-averaged contact network from a rapidly-fluctuating
-# birth-death process.
-# What to import here?
+from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
 
 # Kinetic model simulation tool
 from epiforecast.kinetic_model_simulator import KineticModel
