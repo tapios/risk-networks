@@ -128,13 +128,13 @@ class ContactSimulator:
         self.overshoot_contact_duration = np.zeros(self.n_contacts)
         self.overshoot_time = 0.0
         
-    def run(self, stop_time, mean_event_duration=None, mean_contact_rate=None):
+    def _initialize_run(self, stop_time, mean_event_duration, mean_contact_rate):
         """
-        Simulate time-dependent contacts with a birth/death process.
+        Initialize a forward run of the ContactSimulator
         """
 
-        if stop_time <= self.time:
-            raise ValueError("Stop time is not greater than current time!")
+        if stop_time <= self.interval_stop_time:
+            raise ValueError("Stop time is not greater than previous interval stop time!")
 
         if mean_event_duration is not None:
             self.mean_event_duration = mean_event_duration
@@ -149,10 +149,34 @@ class ContactSimulator:
             raise ValueError("Mean contact rate is not set!")
 
         # Capture the contact duration associated with 'overshoot' during a previous simulation:
-        self.interval_contact_duration = self.overshoot_contact_duration
+        if stop_time > self.time:
+            self.interval_contact_duration = self.overshoot_contact_duration
+            overshoot_time = 0.0
+
+        else: # stop_time is within the current event interval; no events will occur.
+            self.interval_contact_duration = (stop_time - self.interval_stop_time) * self.active_contacts
+            overshoot_time = self.time - stop_time
 
         self.interval_steps = 0 # bookkeeping
 
+        return overshoot_time
+
+    def run(self, stop_time, mean_event_duration=None, mean_contact_rate=None):
+        """
+        Simulate time-dependent contacts with a birth/death process.
+
+        Args
+        ----
+
+        stop_time (float): Time to stop running the Gillespie simulation of contacts.
+
+        mean_event_duration (float): The mean duration of a "contact event"
+
+        mean_contact_rate (callable): A function that returns mean_contact_rate(epidemic_day).
+        """
+
+        overshoot_time = self._initialize_run(stop_time, mean_event_duration, mean_contact_rate)
+    
         # Run:
         while self.time < stop_time:
             
@@ -197,11 +221,11 @@ def cos2_diurnal_modulation(t, cmin, cmax):
 
 class DiurnalMeanContactRate:
     def __init__(self, maximum=22, minimum=3, diurnal_modulation=cos4_diurnal_modulation):
-        self.maximum_mean_contacts = maximum
-        self.minimum_mean_contacts = minimum
+        self.maximum = maximum
+        self.minimum = minimum
         self.modulation = diurnal_modulation
 
     def __call__(self, t):
-        return self.modulation(t, self.minimum_mean_contacts, self.maximum_mean_contacts)
+        return self.modulation(t, self.minimum, self.maximum)
 
 

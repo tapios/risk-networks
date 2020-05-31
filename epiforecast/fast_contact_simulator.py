@@ -2,24 +2,24 @@ import numpy as np
 from numba import njit
 
 @njit
-def accumulate_contact_duration(contact_duration, time_step, active_contacts):
+def fast_accumulate_contact_duration(contact_duration, time_step, active_contacts):
     contact_duration += time_step * active_contacts
 
 @njit
-def random_index_to_deactivate(active_contacts, n_active_contacts):
+def fast_random_index_to_deactivate(active_contacts, n_active_contacts):
     k = np.random.choice(n_active_contacts) # select an active contact
     i = np.where(active_contacts)[0][k]
     return i 
 
 @njit
-def random_index_to_activate(active_contacts, n_active_contacts):
+def fast_random_index_to_activate(active_contacts, n_active_contacts):
     k = np.random.choice(len(active_contacts) - n_active_contacts) # select an inactive contact
     i = np.where(~active_contacts)[0][k]
     return i
 
 @njit
-def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_contact_rate, 
-                   time, stop_time, overshoot_contact_duration, overshoot_time):
+def fast_gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_contact_rate, 
+                        time, stop_time, overshoot_contact_duration, overshoot_time):
 
     n_total = len(active_contacts)
     n_active = np.count_nonzero(active_contacts)
@@ -32,10 +32,10 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
 
     if time + time_step > stop_time: # event occurs after the end of the simulation
         # Add only the part of the contact duration that occurs within the current interval
-        accumulate_contact_duration(contact_duration, stop_time - time, active_contacts)
+        fast_accumulate_contact_duration(contact_duration, stop_time - time, active_contacts)
 
     else: # event occurs within the simulation interval
-        accumulate_contact_duration(contact_duration, time_step, active_contacts)
+        fast_accumulate_contact_duration(contact_duration, time_step, active_contacts)
                                     
     # Because a random, exponentially-distributed amount of time has elapsed, 
     # an "event" occurs (of course)! The event is the activation or deactivation
@@ -45,10 +45,10 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
     # Draw from uniform random distribution on [0, 1) to decide
     # whether to activate or deactivate contacts
     if np.random.random() < deactivation_probability:
-        i = random_index_to_deactivate(active_contacts, n_active)
+        i = fast_random_index_to_deactivate(active_contacts, n_active)
         active_contacts[i] = False
     else: 
-        i = random_index_to_activate(active_contacts, n_active)
+        i = fast_random_index_to_activate(active_contacts, n_active)
         active_contacts[i] = True
 
     # Becomes positive when time + time_step exceeds the stop_time
@@ -61,7 +61,7 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
 
 
 
-class ContactSimulator:
+class FastContactSimulator:
     """
     Simulates the total contact time between people within a time interval
     using a birth/death process given a mean contact rate, and a mean contact duration.
@@ -154,12 +154,12 @@ class ContactSimulator:
             raise ValueError("Mean contact rate is not set!")
 
         # Capture the contact duration associated with 'overshoot' during a previous simulation:
-        if self.time < stop_time:
+        if stop_time > self.time:
             self.interval_contact_duration = self.overshoot_contact_duration
 
         else: # stop_time is within the current event interval; no events will occur.
-            overshoot_time = self.time - stop_time
             self.interval_contact_duration = (stop_time - self.interval_stop_time) * self.active_contacts
+            overshoot_time = self.time - stop_time
 
         self.interval_steps = 0 # bookkeeping
 
@@ -168,14 +168,14 @@ class ContactSimulator:
             
             current_mean_contact_rate = self.mean_contact_rate(self.time)
 
-            time_step, overshoot_time = gillespie_step(self.interval_contact_duration,
-                                                       self.active_contacts,
-                                                       self.mean_event_duration,
-                                                       current_mean_contact_rate,
-                                                       self.time,
-                                                       stop_time,
-                                                       self.overshoot_contact_duration,
-                                                       self.overshoot_time)
+            time_step, overshoot_time = fast_gillespie_step(self.interval_contact_duration,
+                                                            self.active_contacts,
+                                                            self.mean_event_duration,
+                                                            current_mean_contact_rate,
+                                                            self.time,
+                                                            stop_time,
+                                                            self.overshoot_contact_duration,
+                                                            self.overshoot_time)
 
             # Move into the future
             self.time += time_step

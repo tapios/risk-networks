@@ -63,7 +63,7 @@ contact_simulator = ContactSimulator(
 
              n_contacts = nx.number_of_edges(contact_network),
     mean_event_duration = 1 / 60 / 24, # 1 minute in units of days
-      mean_contact_rate = DiurnalMeanContactRate(maximum=40, minimum=2),
+      mean_contact_rate = DiurnalMeanContactRate(maximum=34, minimum=2),
              start_time = -3 / 24, # negative start time allows short 'spinup' of contacts
 
 )
@@ -89,11 +89,12 @@ ages = populate_ages(population, distribution=age_distribution)
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
 latent_periods              = sample_distribution(ConstantSampler(3.7), population=population, minimum=0)
 community_infection_periods = sample_distribution(ConstantSampler(3.2), population=population, minimum=0)
-hospital_infection_periods  = sample_distribution(ConstantSampler(5), population=population, minimum=0)
+hospital_infection_periods  = sample_distribution(ConstantSampler(5),   population=population, minimum=0)
 
-hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.002,  0.01,  0.04, 0.075, 0.16], b=4), ages=ages)
-community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[1e-4, 1e-3, 0.003, 0.01, 0.02], b=4), ages=ages)
-hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.019, 0.075,  0.195, 0.328,  0.514], b=4), ages=ages)
+#                                                                      ages:  0-17  18-44   45-64  65-75    75+
+hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4), ages=ages)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(population,
@@ -127,8 +128,11 @@ kinetic_model.set_statuses(statuses)
 # Simulate the growth and equilibration of an epidemic
 #
 
-static_contact_interval = 3/24 # days
-interval = 21                  # days
+minute = 1 / 60 / 24
+hour = 60 * minute
+
+static_contact_interval = 3 * hour
+interval = 21 # days
 
 steps = int(interval / static_contact_interval)
 start_times = static_contact_interval * np.arange(steps)
@@ -148,6 +152,7 @@ for i in range(steps):
     kinetic_model.simulate(static_contact_interval)
 
     print("Epidemic day: {: 7.3f}, wall_time: {: 6.3f} s,".format(kinetic_model.times[-1], end - start), 
+          "mean(w_ji): {: 3.0f} min,".format(mean_contact_duration[-1] / minute),
           "statuses: ",
           "S {: 4d} |".format(kinetic_model.statuses['S'][-1]), 
           "E {: 4d} |".format(kinetic_model.statuses['E'][-1]), 
@@ -160,17 +165,15 @@ for i in range(steps):
 # Plot the results.
 #
 
-second = 1 / 60 / 60 / 24
-
 fig, axs = plt.subplots(nrows=3, sharex=True)
 
 plt.sca(axs[0])
-plt.plot(start_times, np.array(mean_contact_duration) / second)
-plt.ylabel("Network-averaged contact duration (seconds)")
+plt.plot(start_times, np.array(mean_contact_duration) / minute)
+plt.ylabel("Mean $ w_{ji} $")
 
 plt.sca(axs[1])
 plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
-plt.ylabel("Number of Susceptible, S")
+plt.ylabel("Total susceptible, $S$")
 
 plt.sca(axs[2])
 plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
@@ -180,9 +183,11 @@ plt.plot(kinetic_model.times, kinetic_model.statuses['R'], label='Resistant')
 plt.plot(kinetic_model.times, kinetic_model.statuses['D'], label='Deceased')
 
 plt.xlabel("Time (days)")
-plt.ylabel("Number of E, I, H, R, D")
+plt.ylabel("Total $E, I, H, R, D$")
 plt.legend()
 
-image_path = "simple_epidemic.png"
+image_path = ("simple_epidemic_with_slow_contact_simulator_" + 
+              "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum))
+
 print("Saving a visualization of results at", image_path)
 plt.savefig(image_path, dpi=480)
