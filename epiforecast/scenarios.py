@@ -68,18 +68,18 @@ def random_infection(population, infected=10):
 
     return state
 
-def king_county_transition_rates(population, random_seed=1234):
+def NYC_transition_rates(population, random_seed=1234):
     """
     Returns transition rates for a community of size `population`
     whose statistics vaguely resemble the clinical statistics of 
-    King County, WA, USA.
+    New York City, NY, USA.
     """
 
     # ... and the age category of each individual
-    age_distribution = [ 0.23,  # 0-19 years
-                         0.39,  # 20-44 years
+    age_distribution = [ 0.21,  # 0-17 years
+                         0.40,  # 18-44 years
                          0.25,  # 45-64 years
-                         0.079  # 65-75 years
+                         0.08   # 65-75 years
                         ]
 
     # 75 onwards
@@ -90,13 +90,13 @@ def king_county_transition_rates(population, random_seed=1234):
 
         # Next, we randomly generate clinical properties for our example population.
         # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-        latent_periods              = sample_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
-        community_infection_periods = sample_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
-        hospital_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
+        latent_periods              = sample_distribution(ConstantSampler(3.7), population=population, minimum=2)
+        community_infection_periods = sample_distribution(ConstantSampler(3.2), population=population, minimum=1)
+        hospital_infection_periods  = sample_distribution(ConstantSampler(5), population=population, minimum=1)
         
-        hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-        community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-        hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+        hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.002,  0.01,  0.04, 0.075, 0.16], b=4), ages=ages)
+        community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[1e-4, 1e-3, 0.003, 0.01, 0.02], b=4), ages=ages)
+        hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.019, 0.075,  0.195, 0.328,  0.514], b=4), ages=ages)
 
     transition_rates = TransitionRates(population,
                                        latent_periods,
@@ -158,7 +158,7 @@ def ensemble_transition_rates_at_midnight_on_Tuesday(ensemble_size, population, 
 
     for i in range(ensemble_size):
         random_seed += 1
-        transition_rates.append(king_county_transition_rates(population, random_seed=random_seed))
+        transition_rates.append(NYC_transition_rates(population, random_seed=random_seed))
 
     return transition_rates
 
