@@ -53,7 +53,7 @@ class HealthService:
                        
     """
 
-    def __init__(self, node_identifiers, world_network):
+    def __init__(self, node_identifiers, world_network, edges):
         """
         Args
         ----
@@ -67,7 +67,7 @@ class HealthService:
                                        
         """
         self.world_network=world_network
-        
+        self.edges=edges
         self.node_identifiers = node_identifiers
         self.patient_capacity = node_identifiers["hospital_beds"].size   
         # Stores { "hospital bed" , "address" , "population_contacts"} of patient nodes in a dict 
@@ -105,8 +105,11 @@ class HealthService:
                 #discharge_patient 
                 nx.remove_edges_from(patient["hospital_contacts"])
                 nx.add_edges_from(patient["community_contacts"])
+                print("Discharging patient ", patient["address"],
+                      " from bed ", patient["bed"], 
+                      " in state ", node_statuses[patient["address"]])
                 del self.patients[i]
-
+                
     def __admit_patients(self, population_network,node_statuses):
         '''
         (private method)
@@ -131,112 +134,59 @@ class HealthService:
                                            "community_contacts" : copy.deepcopy(self.world_network.edges(new_patient)),
                                            "hospital_bed"       : bed,
                                            "hospital_contacts"  : hospital_contacts}
-                    
                     self.patients.append(new_patient_details)
 
-                    # admit patients 
+                 
+                    # admit patient 
                     nx.remove_edges_from(new_patient_details["community_contacts"])
                     nx.add_edges_from(new_patient_details["hospital_contacts"])
+                    print("Admitting patient from", new_patient_details["address"],
+                          " into bed ", patient["bed"])
 
+                 
                     
     def __set_edge_weights(averaged_contact_duration, population, population_network)     :
 
-        #Get occupied beds,
-        #remove patient["community_contact"] weights
-        #swap occupied beds for patients (patient["bed"] , worker) = XXX -> (patient["address"], worker) = XXX
-        extend weights by the new edges to patients. 
-        #remove weights for hospital bed nodes
-        if len(self.patients) < self.patient_capacity:
-            #find unoccupied beds
-            occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
+        #currently have weights for world_network.
+        #need to reorder/remove so the fit population network
 
         
+        #remove patient["community_contact"] weights
+        #swap occupied beds for patients (patient["bed"] , worker) = XXX -> (patient["address"], worker) = XXX
+        #extend weights by the new edges to patients. 
+        #remove weights for hospital bed nodes
+
+        #find occupied beds
+        #occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
+        #unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
+
+        #find edges without the patients
+        nonpatient_contacts=np.zeros(len(self.patients),self.edges.shape[0])
+        patient_community_contacts=np.zeros(len(self.patients),self.edges.shape[0])
+        patient_hospital_contacts=np.zeros(len(self.patients),self.edges.shape[0])
+        for i,patient in self.patients:
+            #if the patient is part of an edge, remove the corresponding element of the contact duration
+                  nonpatient_contacts[i,:] = np.where((self.edges[:,0] != patient["address"]) &
+                                                      (self.edges[:,1] != patient["address"]))]
+
+                  patient_community_contacts[i,:] = np.where((self.edges[:,0] == patient["address"]) |
+                                                                (self.edges[:,1] == patient["address"]))]
+                
+                  patient_hospital_contacts[i,:] = np.where((self.edges[:,0] == patient["bed"]) |
+                                                            (self.edges[:,1] == patient["bed"]))]
+
+        #Booleans are currently for each patient, use any or all for statement about all the patients
+        nonpatient_contacts= np.all(nonpatient_contact,axis=0))
+        patient_community_contacts= np.any(nonpatient_contact,axis=0))
+        patient_hospital_contacts= np.any(nonpatient_contact,axis=0))
+        
+        #Work In Progress...
         
         #Then set weights on new network
-        weights = {tuple(edge): averaged_contact_duration[i] 
+        weights = {tuple(edge): new_averaged_contact_duration[i] 
                    for i, edge in enumerate(nx.edges(self.population_network))}
         
         #These are the only attributes that are modified when changing edges.
         nx.set_edge_attributes(population_network, values=weights, name='SI->E')
         nx.set_edge_attributes(population_network, values=weights, name='SH->E')
-   
-            
-class HealthService:
-    """
-    Class to represent the actions of a health service for the population,
-    Contains 1 core method, `discharge_and_obtain_patients(node_statuses) that swaps nodes
-    of status 'H' (hospitalized) with 'P' inert placeholders that represent hospital beds.
-    When 'H' is in hospital, it has a new contact network of only health workers, and the
-    inert 'P' is replaced in the community (or health workers) as acts as space in the graph
-    """
-    
-    def __init__(self, node_identifiers):
-        """
-        Args
-        ---
-        node_identifiers (dict[np.array]):
-        a dict of size 3, ["hospital_beds"] contains the node indices of the hospital beds
-                          ["health_workers"] contains the node indices of the health workers
-                          ["community"] contains the node indices of the community
-        """
         
-        self.node_identifiers = node_identifiers
-        #Stores the addresses of the current patients in a hospital bed [i]
-        self.address_of_patient = np.repeat(-1, node_identifiers["hospital_beds"].size)
-    
-    def discharge_and_obtain_patients(self, node_statuses):
-        """
-        (public method)
-        This runs the following:
-        1) We vacate any hospital_bed nodes of patients no longer of status 'H'
-           returning them to the original address
-        2) Then, populate any vacant hospital_bed nodes with patients of status 'H'
-           (if there are any), recording the address from where they came 
-        This method modifies the node_statuses object
-        """
-        self.__vacate_hospital_beds(node_statuses)
-        self.__populate_hospital_beds(node_statuses)
-
-    def __vacate_hospital_beds(self, node_statuses):
-        '''
-        (private method)
-        Vacate hospital_bed nodes if their status is not 'H'
-        '''
-        #check each hospital bed 
-        for hospital_bed in self.node_identifiers["hospital_beds"]:
-            #If there is a node occupying  the bed  then the value != 'P'
-            #If the node is longer in hospitalized state then the value != 'H'
-            if node_statuses[hospital_bed] != 'P' and node_statuses[hospital_bed] != 'H':
-                #then move them back to their original nodal position
-                node_statuses[self.address_of_patient[hospital_bed]] = node_statuses[hospital_bed]
-                #and set the state of the bed back to unoccupied: 'P'
-                print("sending home patient ", hospital_bed, " to ", self.address_of_patient[hospital_bed], " in state ", node_statuses[hospital_bed])
-                node_statuses[hospital_bed] = 'P'
-                self.address_of_patient[hospital_bed] = -1 #an unattainable value may be useful for debugging
-
-        
-    def __populate_hospital_beds(self, node_statuses):
-        '''
-        (private method)
-        Put 'H' nodes currently outside hospital beds (`hospital_seeking`), into an unoccupied hospital bed (`new_patient`).
-        Record where the patient came from (in `self.patient_home`) place a 'P' in it's network position.
-        '''
-        #check each hospital bed
-        for hospital_bed in self.node_identifiers["hospital_beds"]:
-            #if any bed is unoccupied, then value = 'P'
-            if node_statuses[hospital_bed] == 'P':
-                
-                #obtain the nodes seeking to be hospitalized (state = 'H') 
-                populace = np.hstack([self.node_identifiers["health_workers"] , self.node_identifiers["community"]])
-  
-                hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
-                if (len(hospital_seeking) > 0):
-                    new_patient_address = hospital_seeking[0]      
-                    #move a patient into the hospital bed, keeping track of its address
-                    node_statuses[hospital_bed] = 'H'
-                    node_statuses[new_patient_address] = 'P'
-                    self.address_of_patient[hospital_bed] = new_patient_address
-                    print("receiving new patient from", new_patient_address, " into bed ", hospital_bed)
-       
-
-
