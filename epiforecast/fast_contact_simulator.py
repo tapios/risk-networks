@@ -138,8 +138,8 @@ class ContactSimulator:
         Simulate time-dependent contacts with a birth/death process.
         """
 
-        if stop_time <= self.time:
-            raise ValueError("Stop time is not greater than current time!")
+        if stop_time <= self.interval_stop_time:
+            raise ValueError("Stop time is not greater than previous interval stop time!")
 
         if mean_event_duration is not None:
             self.mean_event_duration = mean_event_duration
@@ -154,7 +154,12 @@ class ContactSimulator:
             raise ValueError("Mean contact rate is not set!")
 
         # Capture the contact duration associated with 'overshoot' during a previous simulation:
-        self.interval_contact_duration = self.overshoot_contact_duration
+        if self.time < stop_time:
+            self.interval_contact_duration = self.overshoot_contact_duration
+
+        else: # stop_time is within the current event interval; no events will occur.
+            overshoot_time = self.time - stop_time
+            self.interval_contact_duration = (stop_time - self.interval_stop_time) * self.active_contacts
 
         self.interval_steps = 0 # bookkeeping
 
@@ -193,8 +198,6 @@ class ContactSimulator:
 
 
 
-
-
 @njit
 def cos4_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
@@ -205,11 +208,11 @@ def cos2_diurnal_modulation(t, cmin, cmax):
 
 class DiurnalMeanContactRate:
     def __init__(self, maximum=22, minimum=3, diurnal_modulation=cos4_diurnal_modulation):
-        self.maximum_mean_contacts = maximum
-        self.minimum_mean_contacts = minimum
+        self.maximum = maximum
+        self.minimum = minimum
         self.modulation = diurnal_modulation
 
     def __call__(self, t):
-        return self.modulation(t, self.minimum_mean_contacts, self.maximum_mean_contacts)
+        return self.modulation(t, self.minimum, self.maximum)
 
 
