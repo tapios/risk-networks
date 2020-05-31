@@ -83,26 +83,14 @@ class KineticModel:
 
         self.current_statuses = None # must be set by set_statuses
     
-    def set_mean_contact_duration(self, mean_contact_duration):
-        """
-        Set the weights of self.contact_network, which correspond to the mean contact
-        duration over a given time interval.
-  
-        Args
-        ----
-  
-        mean_contact_duration (np.array) : np.array of the contact duration for each edge
-                                           in the contact network.
-        """
-        weights = {tuple(edge): mean_contact_duration[i] 
-                   for i, edge in enumerate(nx.edges(self.contact_network))}
-                             
-        nx.set_edge_attributes(self.contact_network, values=weights, name='SI->E')
-        nx.set_edge_attributes(self.contact_network, values=weights, name='SH->E')
+    def set_contact_network(contact_network):
+        #Note: we only modify edges of the network, thus the transition rates do not need updating here.
+        self.contact_network=contact_network
 
     def set_statuses(self, statuses):
         self.current_statuses = statuses
-  
+        
+        
     def simulate(self, time_interval, initial_statuses=None):
         """
         Runs the Gillespie solver with our given graph with current contact network.

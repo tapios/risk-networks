@@ -132,20 +132,22 @@ contact_simulator.simulate_contact_duration(stop_time = 0.0)
 interval_averaged_contact_duration = contact_simulator.contact_duration / (3 / 24)
 
 #
+# Set up the health service
+#
+
+health_service = HealthService(node_identifiers,contact_network)
+population_network = health_service.create_population_network()
+
+#
 # Build the kinetic model
 #
 
-kinetic_model = KineticModel(                          edges = edges,
+kinetic_model = KineticModel(                contact_network = population_network,
                                             transition_rates = transition_rates,
                                  community_transmission_rate = transmission_rate,
                              hospital_transmission_reduction = hospital_transmission_reduction,
                                        mean_contact_duration = interval_averaged_contact_duration
                             )
-#
-# Set up the health service
-#
-
-health_service = HealthService(node_identifiers)
 
 # 
 # Seed an infection
@@ -191,11 +193,12 @@ for i in range(growth_steps):
           "from day {:.3f}".format(growth_start_times[i]),
           "until day {:.3f}".format(growth_start_times[i] + static_contact_interval)) 
 
-    kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
-    
-    # Based on the current 'node statuses'
-    health_service.discharge_and_obtain_patients(statuses)
-    
+
+    #adjust network to account for hospitalizations
+    health_service.discharge_and_admit_patients(statuses, interval_averaged_contact_duration, population_network)
+
+    kinetic_model.set_contact_network(population_network)
+
     initial_statuses = copy.deepcopy(statuses)
     statuses = None
 
@@ -228,7 +231,7 @@ for i in range(distancing_steps):
     interval_averaged_contact_duration = contact_simulator.contact_duration / static_contact_interval
     contacts_time_series.append(interval_averaged_contact_duration)
     
-    kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
+    kinetic_model.set_contact_network(population_network)
     
     # Based on the current 'node statuses'
     health_service.discharge_and_obtain_patients(statuses)
