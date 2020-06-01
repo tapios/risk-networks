@@ -2,15 +2,19 @@ import numpy as np
 import networkx as nx
 from .simulation import Gillespie_simple_contagion
 
-def print_statuses(statuses):
-    nodes = len(statuses)
-
-    for i in range(nodes-1):
+def print_initial_statuses(statuses,population):
+    #use default dict here
+    for i in range(population-1):
         print(statuses[i], end=" ")
 
-    print(statuses[nodes-1])
+    print("")
 
+def print_statuses(statuses):
 
+    for i in sorted(list(statuses.keys())):
+        print(statuses[i], end=" ")
+
+    print("")
 
 
 class KineticModel:
