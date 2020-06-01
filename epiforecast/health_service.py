@@ -93,7 +93,7 @@ class HealthService:
         self.__admit_patients(population_statuses, population_network)
 
         self.__set_edge_weights(averaged_contact_duration, population_network)     
-
+        print("current patients after hospitalizations", [patient["address"] for patient in self.patients])
     def __discharge_patients(self, node_statuses, population_network):
         '''
         (private method)
@@ -119,11 +119,12 @@ class HealthService:
             #find unoccupied beds
             occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
-            current_patients = [self.patients[i]["address"] for i in range(len(self.patients))]
+            current_patients = [patient["address"] for patient in self.patients]
             
-            populace = np.hstack([self.node_identifiers["health_workers"], self.node_identifiers["community"]])
+            populace = np.arange(len(self.world_network.nodes))
             populace = np.delete(populace,current_patients)
-
+            populace = np.delete(populace,np.arange(self.node_identifiers["hospital_beds"].size))
+            
             hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
             print("people seeking hospitalization", hospital_seeking)
             for bed in unoccupied_beds:
@@ -142,7 +143,6 @@ class HealthService:
                                            "hospital_contacts"  : hospital_contacts}
                     self.patients.append(new_patient_details)
 
-                 
                     # admit patient 
                     population_network.remove_edges_from(new_patient_details["community_contacts"])
                     population_network.add_edges_from(new_patient_details["hospital_contacts"])
@@ -151,11 +151,19 @@ class HealthService:
 
                     #remove hospital seeker
                     hospital_seeking.pop(0)
-
-            # Do we do something to to those unhospitalized!? For example
+                    
+            
+            #End cases - a) if we have empty beds remaining
+            #            b) if we reach capacity and have hospital seekers remaining
+            occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
+            unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
+            if unoccupied_beds.size > 0:
+                population_network.remove_nodes_from(unoccupied_beds)
+                                       
+            # set hospital seekers back to i
             if (len(hospital_seeking) > 0):
                 node_statuses[hospital_seeking] = 'I'
-                print("those unable to get a hospital bed ", hospital_seeking)
+                print("those unable to get a bed ", hospital_seeking)
 
     def __set_edge_weights(self, averaged_contact_duration, population_network):
 
@@ -186,8 +194,6 @@ class HealthService:
                 
             patient_community_contacts= np.unique(np.hstack(patient_community_contacts))
             # We must treat edges and durations consistently...
-            print(edges[patient_community_contacts,:])
-
             edges = np.delete(edges,patient_community_contacts, axis=0)
             durations = np.delete(durations,patient_community_contacts, axis=0)  
            
@@ -201,9 +207,7 @@ class HealthService:
                                           )
 
         unoccupied_bed_contacts= np.unique(np.hstack(unoccupied_bed_contacts))
-        # We must treat edges and durations consistently...
-        print(edges[unoccupied_bed_contacts,:])
-            
+        # We must treat edges and durations consistently...            
         edges = np.delete(edges, unoccupied_bed_contacts,axis=0)
         durations = np.delete(durations, unoccupied_bed_contacts,axis=0)
 
@@ -238,10 +242,9 @@ class HealthService:
             pop_unsort_idx=np.argsort(pop_sort_idx)
     
             edges=edges[pop_unsort_idx,:]
-            print(edges)
+            #print(edges)
             durations=durations[pop_unsort_idx] 
-            print(" ")
-            print(listpop)
+            #print(population_network.edges)
            
         #Then set weights on new network
         weights = {tuple(edge): durations[i] 
