@@ -184,6 +184,10 @@ growth_start_times = static_contact_interval * (np.arange(growth_steps-1)+1)
 # Run the simulation
 for i in range(growth_steps):
 
+    # adjust network to account for hospitalizations
+    health_service.discharge_and_admit_patients(statuses, population_network)
+
+    # run for weights on the adjusted network:
     interval_averaged_contact_duration = contact_simulator.mean_contact_duration(stop_time = growth_start_times[i])
     contacts_time_series.append(interval_averaged_contact_duration)
         
@@ -192,8 +196,6 @@ for i in range(growth_steps):
           "until day {:.3f}".format(growth_start_times[i] + static_contact_interval)) 
 
 
-    #adjust network to account for hospitalizations
-    health_service.discharge_and_admit_patients(statuses, interval_averaged_contact_duration, population_network)
     print_statuses(statuses)
     kinetic_model.set_contact_network(population_network)
     
@@ -206,6 +208,16 @@ for i in range(growth_steps):
 # Simulate the hopeful death of an epidemic after social distancing
 #
 exit()
+
+
+
+
+
+
+
+
+
+
 print("\n *** The social distancing phase *** \n")
 
 # Because the epidemic is out of control, we social distance.
