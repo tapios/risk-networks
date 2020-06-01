@@ -80,9 +80,24 @@ class HealthService:
 
     def assign_health_workers(self, patient_address, num_assigned=5):
 
-        hospital_contacts = np.random.choice(self.health_workers, size=num_assigned, replace=False)
+        hospital_contacts = np.random.shuffle(copy.deepcopy(self.health_workers))
+        
+        for patient in self.patients:
+            if patient.address in hospital_contacts:
+                np.delete(hospital_contacts,patient.address)
 
-        return [(i, patient_address) for i in hospital_contacts]
+        if hospital_contacts.size >= num_assigned:
+            hospital_contacts=hospital_contacts[:num_assigned]
+
+        #otherwise take all the remaining health workers. 
+        
+        for edge in assigned_health_workers:
+            if edge[0]>edge[1]:
+                tmp = edge[0]
+                edge[0] = edge[1]
+                edge[1] = tmp
+                
+        return 
         
     def discharge_and_admit_patients(self, statuses, population_network):
         """
@@ -164,6 +179,18 @@ class Patient:
     Container for current patients in hospital
     """
     def __init_(self, address, community_contacts, assigned_health_workers):
+        """
+        Args
+        ----
+        address (int): This gives location of the patient in the `static_population_network`
+                      (with respect to `static_population_network.node`)
+
+        community_contacts (list of tuples): list of edges to neighbours in `static_population_network`
+                                             these are stored here while the patient is in hospital
+
+        assigned_health_workers (list of tuples): a list of edges 
+        
+        """
         self.address = address
         self.community_contacts = community_contacts
         self.assigned_health_workers = assigned_health_workers
