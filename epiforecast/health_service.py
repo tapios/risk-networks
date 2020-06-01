@@ -102,7 +102,7 @@ class HealthService:
         self.discharge_patients(statuses, population_network)
         self.admit_patients(statuses, population_network)
 
-        print("current patients after hospitalizations", [patient.address for patient in self.patients])
+        print("Current patients", [patient.address for patient in self.patients])
         
     def discharge_patients(self, statuses, population_network):
         '''
@@ -110,6 +110,8 @@ class HealthService:
         removes a patient from self.patients and reconnect the patient with their neighbours
         if their status is no longer H
         '''
+
+        discharged_patients=[]
         for i, patient in enumerate(self.patients):
             if statuses[patient.address] != 'H' :
                 #discharge_patient 
@@ -117,8 +119,11 @@ class HealthService:
                 population_network.add_edges_from(patient.community_contacts)
                 print("Discharging patient", patient.address,
                       "with status", statuses[patient.address])
-                del self.patients[i]
-                
+                discharged_patients.append(patient)
+
+        self.patients= [p for p in filter(lambda p: p not in discharged_patients, self.patients)]
+        print("Remaining patients after discharge", [p.address for p in self.patients])
+        
     def admit_patients(self, statuses, population_network):
         '''
         (private method)
@@ -129,9 +134,8 @@ class HealthService:
             current_patients = [patient.address for patient in self.patients]
             
             populace =[w for w in filter(lambda w: w not in current_patients, self.populace)]
-
             hospital_seeking = [i for i in populace if statuses[i] == 'H']
-            print("people seeking hospitalization", hospital_seeking)
+            print("Those seeking hospitalization", hospital_seeking)
 
             hospital_beds=self.patient_capacity - len(self.patients)
 
@@ -144,11 +148,11 @@ class HealthService:
                 # if we reach capacity and have hospital seekers remaining
                 # set hospital seekers back to i
                 patient_waiting_list = hospital_seeking[hospital_beds:]
-                self.waiting_list.append(patient_waiting_list)
+                self.waiting_list.extend(patient_waiting_list)
 
                 statuses.update({node: 'I' for node in patient_waiting_list})
+                print("Those placed on a waiting list as unable to get a bed ", patient_waiting_list)
 
-                print("Those placed on a waiting list as unable to get a bed ", hospital_seeking)
             else:
                 patient_admissions = hospital_seeking
 
