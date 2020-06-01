@@ -71,10 +71,8 @@ class HealthService:
         self.edges=edges
         self.node_identifiers = node_identifiers
         self.patient_capacity = node_identifiers["hospital_beds"].size   
-        # Stores { "hospital bed" , "address" , "population_contacts"} of patient nodes in a dict 
+        # Stores a list of Patient classes
         self.patients = []
-
-        
         
     def create_population_network(self):
         """
@@ -94,7 +92,7 @@ class HealthService:
         self.discharge_patients(statuses, population_network)
         self.admit_patients(statuses, population_network)
 
-        print("current patients after hospitalizations", [patient["address"] for patient in self.patients])
+        print("current patients after hospitalizations", [patient.address for patient in self.patients])
         
     def discharge_patients(self, statuses, population_network):
         '''
@@ -103,25 +101,25 @@ class HealthService:
         if their status is no longer H
         '''
         for i,patient in enumerate(self.patients):
-            if statuses[patient["address"]] != 'H' :
+            if statuses[patient.address] != 'H' :
                 #discharge_patient 
-                population_network.remove_edges_from(patient["hospital_contacts"])
-                population_network.add_edges_from(patient["community_contacts"])
-                print("Discharging patient", patient["address"],
-                      "from bed", patient["hospital_bed"], 
-                      "with status", statuses[patient["address"]])
+                population_network.remove_edges_from(patient.hospital_contacts)
+                population_network.add_edges_from(patient.community_contacts)
+                print("Discharging patient", patient.address,
+                      "from bed", patient.hospital_bed, 
+                      "with status", statuses[patient.address])
                 del self.patients[i]
                 
-    def admit_patients(self, statuses, population_network,):
+    def admit_patients(self, statuses, population_network):
         '''
         (private method)
         Method to find unoccupied beds, and admit patients from the populace (storing their details)
         '''
         if len(self.patients) < self.patient_capacity:
             # find unoccupied beds
-            occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
+            occupied_beds = [patient.hospital_bed for patient in self.patients]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
-            current_patients = [patient["address"] for patient in self.patients]
+            current_patients = [patient.address for patient in self.patients]
             
             populace = np.arange(len(self.world_network.nodes))
             populace = np.delete(populace,current_patients)
@@ -134,22 +132,23 @@ class HealthService:
                 if not isinstance(hospital_seeking, list): # if it's a scalar, not array
                     hospital_seeking=[hospital_seeking]
                 if (len(hospital_seeking) > 0):                    
-                    new_patient = hospital_seeking[0]
+                    new_patient_address = hospital_seeking[0]
                     # create new edge between patient and corresponding health_workers
                     hospital_contacts=list(copy.deepcopy(self.world_network.neighbors(bed)))
-                    hospital_contacts=[(i,new_patient) for i in hospital_contacts]
+                    hospital_contacts=[(i,new_patient_address) for i in hospital_contacts]
                     # store patient details
-                    new_patient_details = {"address"            : new_patient,
-                                           "community_contacts" : copy.deepcopy(self.world_network.edges(new_patient)),
-                                           "hospital_bed"       : bed,
-                                           "hospital_contacts"  : hospital_contacts}
-                    self.patients.append(new_patient_details)
+                    new_patient = Patient(new_patient_address,
+                                          copy.deepcopy(self.world_network.edges(new_patient_address)),
+                                          bed,
+                                          hospital_contacts)
+                                                        
+                    self.patients.append(new_patient)
 
                     # admit patient 
-                    population_network.remove_edges_from(new_patient_details["community_contacts"])
-                    population_network.add_edges_from(new_patient_details["hospital_contacts"])
-                    print("Admitting patient from", new_patient_details["address"],
-                          "into bed", new_patient_details["hospital_bed"])
+                    population_network.remove_edges_from(new_patient.community_contacts)
+                    population_network.add_edges_from(new_patient.hospital_contacts)
+                    print("Admitting patient from", new_patient.address,
+                          "into bed", new_patient.hospital_bed)
 
                     # remove hospital seeker
                     hospital_seeking.pop(0)
@@ -158,7 +157,7 @@ class HealthService:
             # End cases - a) if we have empty beds remaining
             #            b) if we reach capacity and have hospital seekers remaining
             # a)
-            occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
+            occupied_beds = [patient.hospital_bed for patient in self.patients]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
             if unoccupied_beds.size > 0:
                 population_network.remove_nodes_from(unoccupied_beds)
@@ -169,3 +168,16 @@ class HealthService:
                 print("those unable to get a bed ", hospital_seeking)
 
         
+
+
+class Patient:
+    """
+    Container for current patients in hospital
+    """
+    def __init_(self, address, community_contacts, bed_number, hospital_contacts):
+        self.address = address
+        self.community_contacts = community_contacts
+        self.bed_number = bed_number
+        self.hospital_contacts = hospital_contacts
+    
+            
