@@ -46,10 +46,10 @@ class KineticModel:
         self.community_transmission_rate = community_transmission_rate
         self.hospital_transmission_rate = community_transmission_rate * hospital_transmission_reduction
 
-        if mean_contact_duration is None:
-            mean_contact_duration = np.zeros(nx.number_of_edges(contact_network))
+        #if mean_contact_duration is None:
+        #    mean_contact_duration = np.zeros(nx.number_of_edges(contact_network))
 
-        self.set_mean_contact_duration(mean_contact_duration)
+        #self.set_mean_contact_duration(mean_contact_duration)
 
         # What statuses to return from Gillespie simulation
         self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
@@ -83,7 +83,7 @@ class KineticModel:
 
         self.current_statuses = None # must be set by set_statuses
     
-    def set_contact_network(contact_network):
+    def set_contact_network(self, contact_network):
         #Note: we only modify edges of the network, thus the transition rates do not need updating here.
         self.contact_network=contact_network
 

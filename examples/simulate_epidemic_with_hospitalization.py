@@ -15,6 +15,7 @@ from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges
 
 from epiforecast.node_identifier_helper import load_node_identifiers
+from epiforecast.health_service import HealthService
 
 def random_infection(population, initial_infected):
     """
@@ -39,6 +40,8 @@ def random_infection(population, initial_infected):
 #np.random.seed(1233) # no error
 np.random.seed(123)
 random.seed(123)
+
+
 
 #
 # Load an example network
@@ -122,14 +125,13 @@ mean_contact_duration = 45 / 60 / 60 / 24 # 45 seconds in units of days
 mean_contact_rate = DiurnalMeanContactRate(maximum=22, minimum=3)
 
 contact_simulator = ContactSimulator(n_contacts = len(edges),
-                                     mean_contact_duration = mean_contact_duration,
+                                     mean_event_duration = mean_contact_duration,
                                      mean_contact_rate = mean_contact_rate,
                                      start_time = -3 / 24, # the simulation starts at midnight
                                     )
 
 # Generate initial contact network with 3 hour simulation
-contact_simulator.simulate_contact_duration(stop_time = 0.0)
-interval_averaged_contact_duration = contact_simulator.contact_duration / (3 / 24)
+contact_simulator.mean_contact_duration(stop_time = 0.0)
 
 #
 # Set up the health service
@@ -145,23 +147,22 @@ population_network = health_service.create_population_network()
 kinetic_model = KineticModel(                contact_network = population_network,
                                             transition_rates = transition_rates,
                                  community_transmission_rate = transmission_rate,
-                             hospital_transmission_reduction = hospital_transmission_reduction,
-                                       mean_contact_duration = interval_averaged_contact_duration
+                             hospital_transmission_reduction = hospital_transmission_reduction
                             )
 
 # 
 # Seed an infection
 #
 
-statuses = random_infection_statuses(node_identifiers, 100)
+statuses = random_infection(population_network.nodes, 100)
 print("Number of nodes in the initial condition:", len(statuses))
 print("Number of nodes in the contact_network:", len(kinetic_model.contact_network))
 
-for node, status in statuses.items():
-    print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
+# for node, status in statuses.items():
+#     print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
 
-for node in kinetic_model.contact_network.nodes():
-    print("Node", node, "in the contact network has status", statuses[node])
+# for node in kinetic_model.contact_network.nodes():
+#     print("Node", node, "in the contact network has status", statuses[node])
 
 print("Structure of the initial infection:")
 print_statuses(statuses)
@@ -180,13 +181,12 @@ static_contact_interval = 3/24 # days
 growth_interval = 7 # days
 
 growth_steps = int(growth_interval / static_contact_interval)
-growth_start_times = static_contact_interval * np.arange(growth_steps)
+growth_start_times = static_contact_interval * (np.arange(growth_steps-1)+1)
 
 # Run the simulation
 for i in range(growth_steps):
 
-    contact_simulator.simulate_contact_duration(stop_time = growth_start_times[i])
-    interval_averaged_contact_duration = contact_simulator.contact_duration / static_contact_interval
+    interval_averaged_contact_duration = contact_simulator.mean_contact_duration(stop_time = growth_start_times[i])
     contacts_time_series.append(interval_averaged_contact_duration)
         
     print("Simulating the uncontrolled growth phase of an epidemic",
@@ -209,7 +209,7 @@ for i in range(growth_steps):
 # 
 # Simulate the hopeful death of an epidemic after social distancing
 #
-
+exit()
 print("\n *** The social distancing phase *** \n")
 
 # Because the epidemic is out of control, we social distance.

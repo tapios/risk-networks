@@ -1,6 +1,6 @@
 import copy
 import numpy as np
-
+import networkx as nx
 class HealthService:
     """
     Class to represent the actions of a health service for the population,
@@ -79,7 +79,7 @@ class HealthService:
         Creates the network for KineticModel to simulate on, includes health_workers and
         community nodes, but without hospital beds
         """
-        population_network=copy.deepcopy(world_network)        
+        population_network=copy.deepcopy(self.world_network)        
         population_network.remove_nodes_from(self.node_identifiers["hospital_beds"])
         return population_network
         
@@ -92,7 +92,7 @@ class HealthService:
         self.__discharge_patients(population_statuses, population_network)
         self.__admit_patients(population_statuses, population_network)
 
-        self.__set_edge_weights(averaged_contact_duration, population, population_network)     
+        self.__set_edge_weights(averaged_contact_duration, population_network)     
         
     def __discharge_patients(self, node_statuses, population_network):
         '''
@@ -120,15 +120,16 @@ class HealthService:
             occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
 
-            for bed in unoccipied_beds:
+            populace = np.hstack([self.node_identifiers["health_workers"] , self.node_identifiers["community"]])
+            hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
+            
+            for bed in unoccupied_beds:
                 #obtain the patients seeking to be hospitalized (state = 'H') 
-                populace = np.hstack([self.node_identifiers["health_workers"] , self.node_identifiers["community"]])
-                hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
                 if (len(hospital_seeking) > 0):
                     new_patient = hospital_seeking[0]
-                    #create new edge for patient to corresponding hospital_workers
+                    #create new edge between patient and corresponding health_workers
                     hospital_contacts=list(copy.deepcopy(self.world_network.neighbors(bed)))
-                    hospital_contacts=[tuple(new_patient,i) for i in bed_contacts]
+                    hospital_contacts=[tuple(i,new_patient) for i in bed_contacts]
                     #store patient details
                     new_patient_details = {"address"            : new_patient,
                                            "community_contacts" : copy.deepcopy(self.world_network.edges(new_patient)),
@@ -143,9 +144,12 @@ class HealthService:
                     print("Admitting patient from", new_patient_details["address"],
                           " into bed ", patient["bed"])
 
-                 
+                    hospital_seeking=hospital_seeking.pop(0)
+
+            # Do we do something to to those unhospitalized
+            
                     
-    def __set_edge_weights(averaged_contact_duration, population, population_network)     :
+    def __set_edge_weights(self, averaged_contact_duration, population_network):
 
         # There are 3 steps to convert the averaged_contact_duration on the world_network
         # into the `durations` array on the population network 
@@ -162,19 +166,21 @@ class HealthService:
         unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
 
         edges = copy.deepcopy(self.edges)
-        durations = copy.deepcopy(new_averaged_contact_duration)
+        durations = copy.deepcopy(averaged_contact_duration)
         # We now remove patient contacts:
-        patient_community_contacts=[]
-        for i,patient in enumerate(self.patients):
-            # First we find the edges involving the patient
-            patient_community_contacts.append(np.where((edges[:,0] == patient["address"]) |
+        if len(self.patients)>0:
+            patient_community_contacts=[]
+            
+            for i,patient in enumerate(self.patients):
+                # First we find the edges involving the patient
+                patient_community_contacts.append(np.where((edges[:,0] == patient["address"]) |
                                                        (edges[:,1] == patient["address"]))
                                               )
           
-        patient_community_contacts= np.unique(np.hstack(patient_community_contacts))
-        # We must treat edges and durations consistently...
-        edges = np.delete(edges,patient_community_contacts)
-        durations = np.delte(durations,patient_community_contacts)  
+            patient_community_contacts= np.unique(np.hstack(patient_community_contacts))
+            # We must treat edges and durations consistently...
+            edges = np.delete(edges,patient_community_contacts)
+            durations = np.delte(durations,patient_community_contacts)  
 
         # 1b)
         # We now remove all empty hospital beds:
@@ -184,46 +190,47 @@ class HealthService:
                                                     (edges[:,1] == bed))
                                            )
 
-        unoccupied_bed_contacts= np.unique(np.hstack(patient_community_contact))
+        unoccupied_bed_contacts= np.unique(np.hstack(unoccupied_bed_contacts))
         # We must treat edges and durations consistently...
         edges = np.delete(edges, unoccupied_bed_contacts)
         durations = np.delete(durations, unoccupied_bed_contacts)
 
         # 2)
         # We now adjust the edges for each occupied bed
-        
-        for i,patient in enumerate(self.patients):
+        if len(self.patients)>0:
+            for i,patient in enumerate(self.patients):
             
-            # We find the edges involving the hospital bed
-            # Note: the edgelist is sorted in upp triangular fashion,
-            # if edges[:,1] = bed, then it must belong to another patient with edges[:,0] = bed 
-            # therefore this can be ignored
-            patient_hospital_contacts = np.where(edges[:,0] == patient["bed"]) 
+                # We find the edges involving the hospital bed
+                # Note: the edgelist is sorted in upp triangular fashion,
+                # if edges[:,1] = bed, then it must belong to another patient with edges[:,0] = bed 
+                # therefore this can be ignored
+                patient_hospital_contacts = np.where(edges[:,0] == patient["bed"]) 
              
-            # swap bed for patient in edgelist
-            # Note: we uniformly change a sorted list index by a larger constant and swap
-            # arguments so that it remains sorted wrt first argument
-            # in the second index. E.g for patient 6, in bed zero we do:
-            # (0,1),(0,2),(0,3) -> (1,0),(2,0),(3,0) -> (1,60),(2,60),(3,60)
-            edges[patient_hospital_contacts,0] = edges[patient_hospital_contacts,1] 
-            edges[patient_hospital_contacts,1] = patient["address"]
+                # swap bed for patient in edgelist
+                # Note: we uniformly change a sorted list index by a larger constant and swap
+                # arguments so that it remains sorted wrt first argument
+                # in the second index. E.g for patient 6, in bed zero we do:
+                # (0,1),(0,2),(0,3) -> (1,0),(2,0),(3,0) -> (1,60),(2,60),(3,60)
+                edges[patient_hospital_contacts,0] = edges[patient_hospital_contacts,1] 
+                edges[patient_hospital_contacts,1] = patient["address"]
             
-        # Current check, we should now have the correct list of edges matched to weights,
-        # however, the ordering will not match the ordered output of `nx.edges(population_network)`.
-        # We sort by first edge argument, as we have verified that the above does not change the ordering
+            # Current check, we should now have the correct list of edges matched to weights,
+            # however, the ordering will not match the ordered output of `nx.edges(population_network)`.
+            # We sort by first edge argument, as we have verified that the above does not change the ordering
 
-        sorting_idx= argsort(edges[:,0])
-        durations=durations[sorting_idx] 
+            sorting_idx= argsort(edges[:,0])
+            durations=durations[sorting_idx] 
         
         
         #Then set weights on new network
         weights = {tuple(edge): durations[i] 
-                   for i, edge in enumerate(nx.edges(self.population_network))}
+                   for i, edge in enumerate(nx.edges(population_network))}
 
         #Recall: edges(population_network) will be an ordered list of 2-tuples
         #ordered so that for any pair 'i': tuple[i][0] < tuple[i][1]
         
         #These are the only attributes that are modified when changing edges.
+        #names must match those of `KineticModel.diagram_neigh`
         nx.set_edge_attributes(population_network, values=weights, name='SI->E')
         nx.set_edge_attributes(population_network, values=weights, name='SH->E')
         
