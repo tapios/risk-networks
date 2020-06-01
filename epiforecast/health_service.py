@@ -152,8 +152,7 @@ class HealthService:
                     hospital_seeking.pop(0)
                     
             
-            # End cases - if we reach capacity and have hospital seekers remaining
-                  
+            # if we reach capacity and have hospital seekers remaining
             # set hospital seekers back to i
             if (len(hospital_seeking) > 0):
                 self.waiting_list.append(hospital_seeking)
