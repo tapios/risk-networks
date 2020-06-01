@@ -230,29 +230,26 @@ class HealthService:
                 edges[patient_hospital_contacts, 0] = edges[patient_hospital_contacts, 1] 
                 edges[patient_hospital_contacts, 1] = patient["address"]
 
-            # Current check, we should now have the correct list of edges matched to weights,
-            # however, the ordering will not match the ordered output of `nx.edges(population_network)`.
-            # We sort by first edge argument, as we have verified that the above does not change the ordering
+        # Current check, we should now have the correct list of edges matched to weights,
+        # however, the ordering will not match the ordered output of `nx.edges(population_network)`.
+        # We sort by first edge argument, as we have verified that the above does not change the ordering
 
-            edge_sort_idx= np.argsort(edges[:,0])
-            edges=edges[edge_sort_idx,:]
-            durations=durations[edge_sort_idx]
-            listpop=np.vstack(list(population_network.edges))
-            pop_sort_idx=np.argsort(listpop[:,0])
-            pop_unsort_idx=np.argsort(pop_sort_idx)
+        edge_sort_idx= np.argsort(edges[:,0])
+        edges=edges[edge_sort_idx,:]
+        durations=durations[edge_sort_idx]
+        listpop=np.vstack(list(population_network.edges))
+        pop_sort_idx=np.argsort(listpop[:,0])
+        pop_unsort_idx=np.argsort(pop_sort_idx)
     
-            edges=edges[pop_unsort_idx,:]
-            #print(edges)
-            durations=durations[pop_unsort_idx] 
-            #print(population_network.edges)
+        edges=edges[pop_unsort_idx,:]
+        #print(edges)
+        durations=durations[pop_unsort_idx] 
+        #print(population_network.edges)
            
         #Then set weights on new network
         weights = {tuple(edge): durations[i] 
                    for i, edge in enumerate(nx.edges(population_network))}
 
-        #Recall: edges(population_network) will be an ordered list of 2-tuples
-        #ordered so that for any pair 'i': tuple[i][0] < tuple[i][1]
-        
         #These are the only attributes that are modified when changing edges.
         #names must match those of `KineticModel.diagram_neigh`
         nx.set_edge_attributes(population_network, values=weights, name='SI->E')
