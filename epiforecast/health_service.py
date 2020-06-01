@@ -51,12 +51,10 @@ class HealthService:
                        [health_worker 2: 'S']    
 
     |------------------------------------------------------------|
-
-
                        
     """
 
-    def __init__(self, patient_capacity, health_worker_population, static_population_network, edges):
+    def __init__(self, patient_capacity, health_worker_population, static_population_network):
         """
         Args
         ----
@@ -66,38 +64,34 @@ class HealthService:
                                        
         """
         self.static_population_network=copy.deepcopy(static_population_network)
-        self.populace = copy.deepcopy(list(static_population_network.nodes))
+        self.populace = list(static_population_network.nodes)
         self.population = len(static_population_network)
         
         self.patient_capacity=patient_capacity
-        self.health_workers=list(static_population.nodes)[:health_worker_population]
+
+        self.recruit_health_workers(static_population_network, health_worker_population)
         
-        self.edges=edges
         # Stores a list of Patient classes
         self.patients = []
         # Stores a list of people unable to go into hospital due to maximum capacity 
         self.waiting_list = []
 
-    def assign_health_workers(self, patient_address, num_assigned=5):
-
-        hospital_contacts = np.random.shuffle(copy.deepcopy(self.health_workers))
+    # We currently `hire` the first `health_worker_population` nodes, in the future we
+    # will require a more intelligent hiring method
+    def recruit_health_workers(self,static_population_network, health_worker_population):
         
-        for patient in self.patients:
-            if patient.address in hospital_contacts:
-                np.delete(hospital_contacts,patient.address)
+        self.health_workers=list(static_population_network.nodes)[:health_worker_population]
 
-        if hospital_contacts.size >= num_assigned:
-            hospital_contacts=hospital_contacts[:num_assigned]
-
-        #otherwise take all the remaining health workers. 
         
-        for edge in assigned_health_workers:
-            if edge[0]>edge[1]:
-                tmp = edge[0]
-                edge[0] = edge[1]
-                edge[1] = tmp
-                
-        return 
+    def assign_health_workers(self, patient_address, viable_health_workers, num_assigned=5):
+
+        if num_assigned < len(viable_health_workers) : 
+            health_worker_contacts = np.random.choice(viable_health_workers, size=num_assigned, replace=False)
+        else:
+            health_worker_contacts = viable_health_workers
+
+        health_worker_contacts = [(patient_address, i) for i in health_worker_contacts]    
+        return health_worker_contacts
         
     def discharge_and_admit_patients(self, statuses, population_network):
         """
@@ -119,7 +113,7 @@ class HealthService:
         for i, patient in enumerate(self.patients):
             if statuses[patient.address] != 'H' :
                 #discharge_patient 
-                population_network.remove_edges_from(patient.assigned_health_workers)
+                population_network.remove_edges_from(patient.health_worker_contacts)
                 population_network.add_edges_from(patient.community_contacts)
                 print("Discharging patient", patient.address,
                       "with status", statuses[patient.address])
@@ -134,51 +128,63 @@ class HealthService:
             # find unoccupied beds
             current_patients = [patient.address for patient in self.patients]
             
-            populace = copy.deepcopy(self.populace)
-            populace = np.delete(populace,current_patients)
-            
-            hospital_seeking=[i for i in populace if statuses[i] == 'H']
+            populace =[w for w in filter(lambda w: w not in current_patients, self.populace)]
+
+            hospital_seeking = [i for i in populace if statuses[i] == 'H']
             print("people seeking hospitalization", hospital_seeking)
 
-            while len(self.patients) < self.patient_capacity :
-                # obtain the patients seeking to be hospitalized (state = 'H') 
-                if not isinstance(hospital_seeking, list): # if it's a scalar, not array
+            hospital_beds=self.patient_capacity - len(self.patients)
+
+            if not isinstance(hospital_seeking, list): # if it's a scalar, not array
                     hospital_seeking=[hospital_seeking]
-                    
-                if (len(hospital_seeking) > 0):                    
-                    new_patient_address = hospital_seeking[0]
-                    # create new edge between patient and corresponding health_workers
-                    # Assume patients cant transmit to each other as all have disease...
-                    assigned_health_workers = self.assign_health_workers(new_patient_address)
-                    # store patient details
-                    new_patient = Patient(new_patient_address,
-                                          copy.deepcopy(list(self.static_population_network.edges(new_patient_address))),
-                                          assigned_health_workers)
-                                                        
-                    self.patients.append(new_patient)
 
-                    # admit patient 
-                    population_network.remove_edges_from(new_patient.community_contacts)
-                    population_network.add_edges_from(new_patient.assigned_health_workers)
-                    print("Admitting patient from", new_patient.address,
-                          "with assigned health workers", assigned_health_workers)
-
-                    # remove hospital seeker
-                    hospital_seeking.pop(0)
                     
-            
-            # if we reach capacity and have hospital seekers remaining
-            # set hospital seekers back to i
-            if (len(hospital_seeking) > 0):
-                self.waiting_list.append(hospital_seeking)
-                statuses[hospital_seeking] = 'I'
+            if len(hospital_seeking) > hospital_beds:
+                patient_admissions = hospital_seeking[:hospital_beds]
+                # if we reach capacity and have hospital seekers remaining
+                # set hospital seekers back to i
+                patient_waiting_list = hospital_seeking[hospital_beds:]
+                self.waiting_list.append(patient_waiting_list)
+
+                for patient in patient_waiting_list:
+                    statuses[patient] = 'I'
                 print("Those placed on a waiting list as unable to get a bed ", hospital_seeking)
+            else:
+                patient_admissions = hospital_seeking
 
+            #find available health workers
+            sick_people = patient_admissions + [ patient.address for patient in self.patients] 
+            viable_health_workers = [w for w in filter(lambda w: w not in sick_people, self.health_workers)]
+
+            for patient in patient_admissions:
+                # obtain the patients seeking to be hospitalized (state = 'H') 
+
+                
+                # create new edge between patient and corresponding health_workers
+                health_worker_contacts = self.assign_health_workers(patient,viable_health_workers)
+
+                community_contacts =  list(self.static_population_network.edges(patient))
+                # store patient details
+                new_patient = Patient(patient,
+                                      community_contacts,
+                                      health_worker_contacts)
+                                                        
+                self.patients.append(new_patient)
+
+                # admit patient 
+                population_network.remove_edges_from(new_patient.community_contacts)
+                population_network.add_edges_from(new_patient.health_worker_contacts)
+                print("Admitting patient from", new_patient.address,
+                      "with assigned health workers", health_worker_contacts)
+
+                 
+            
+            
 class Patient:
     """
     Container for current patients in hospital
     """
-    def __init_(self, address, community_contacts, assigned_health_workers):
+    def __init__(self, address, community_contacts, health_worker_contacts):
         """
         Args
         ----
@@ -188,11 +194,10 @@ class Patient:
         community_contacts (list of tuples): list of edges to neighbours in `static_population_network`
                                              these are stored here while the patient is in hospital
 
-        assigned_health_workers (list of tuples): a list of edges 
-        
+        health_worker_contacts (list of tuples): a list of edges connecting patient to assigned health workers
         """
         self.address = address
         self.community_contacts = community_contacts
-        self.assigned_health_workers = assigned_health_workers
+        self.health_worker_contacts = health_worker_contacts
     
             
