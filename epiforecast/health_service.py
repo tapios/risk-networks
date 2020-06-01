@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import networkx as nx
+
 class HealthService:
     """
     Class to represent the actions of a health service for the population,
@@ -74,6 +75,7 @@ class HealthService:
         self.patients = []
 
         
+        
     def create_population_network(self):
         """
         Creates the network for KineticModel to simulate on, includes health_workers and
@@ -83,40 +85,41 @@ class HealthService:
         population_network.remove_nodes_from(self.node_identifiers["hospital_beds"])
         return population_network
         
-    def discharge_and_admit_patients(self, population_statuses, averaged_contact_duration, population_network):
+    def discharge_and_admit_patients(self, statuses, mean_contact_duration, population_network):
         """
         (public method)
-        Contact simulation is always performed on the world network, therefore 
+        Contact simulation is always performed on the world network,
         """
-        #First create the current contact network
-        self.__discharge_patients(population_statuses, population_network)
-        self.__admit_patients(population_statuses, population_network)
+        #First modify the current population network
+        self.discharge_patients(statuses, population_network)
+        self.admit_patients(statuses, population_network)
 
-        self.__set_edge_weights(averaged_contact_duration, population_network)     
+        self.set_edge_weights(mean_contact_duration, population_network)     
         print("current patients after hospitalizations", [patient["address"] for patient in self.patients])
-    def __discharge_patients(self, node_statuses, population_network):
+        
+    def discharge_patients(self, statuses, population_network):
         '''
         (private method)
         removes a patient from self.patients and reconnect the patient with their neighbours
         if their status is no longer H
         '''
         for i,patient in enumerate(self.patients):
-            if node_statuses[patient["address"]] != 'H' :
+            if statuses[patient["address"]] != 'H' :
                 #discharge_patient 
                 population_network.remove_edges_from(patient["hospital_contacts"])
                 population_network.add_edges_from(patient["community_contacts"])
                 print("Discharging patient", patient["address"],
                       "from bed", patient["hospital_bed"], 
-                      "with status", node_statuses[patient["address"]])
+                      "with status", statuses[patient["address"]])
                 del self.patients[i]
                 
-    def __admit_patients(self, node_statuses, population_network,):
+    def admit_patients(self, statuses, population_network,):
         '''
         (private method)
         Method to find unoccupied beds, and admit patients from the populace (storing their details)
         '''
         if len(self.patients) < self.patient_capacity:
-            #find unoccupied beds
+            # find unoccupied beds
             occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
             current_patients = [patient["address"] for patient in self.patients]
@@ -125,18 +128,18 @@ class HealthService:
             populace = np.delete(populace,current_patients)
             populace = np.delete(populace,np.arange(self.node_identifiers["hospital_beds"].size))
             
-            hospital_seeking=[i for i in populace if node_statuses[i] == 'H']
+            hospital_seeking=[i for i in populace if statuses[i] == 'H']
             print("people seeking hospitalization", hospital_seeking)
             for bed in unoccupied_beds:
-                #obtain the patients seeking to be hospitalized (state = 'H') 
+                # obtain the patients seeking to be hospitalized (state = 'H') 
                 if not isinstance(hospital_seeking, list): # if it's a scalar, not array
                     hospital_seeking=[hospital_seeking]
                 if (len(hospital_seeking) > 0):                    
                     new_patient = hospital_seeking[0]
-                    #create new edge between patient and corresponding health_workers
+                    # create new edge between patient and corresponding health_workers
                     hospital_contacts=list(copy.deepcopy(self.world_network.neighbors(bed)))
                     hospital_contacts=[(i,new_patient) for i in hospital_contacts]
-                    #store patient details
+                    # store patient details
                     new_patient_details = {"address"            : new_patient,
                                            "community_contacts" : copy.deepcopy(self.world_network.edges(new_patient)),
                                            "hospital_bed"       : bed,
@@ -149,25 +152,26 @@ class HealthService:
                     print("Admitting patient from", new_patient_details["address"],
                           "into bed", new_patient_details["hospital_bed"])
 
-                    #remove hospital seeker
+                    # remove hospital seeker
                     hospital_seeking.pop(0)
                     
             
-            #End cases - a) if we have empty beds remaining
+            # End cases - a) if we have empty beds remaining
             #            b) if we reach capacity and have hospital seekers remaining
+            # a)
             occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
             unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
             if unoccupied_beds.size > 0:
                 population_network.remove_nodes_from(unoccupied_beds)
-                                       
+            # b)                           
             # set hospital seekers back to i
             if (len(hospital_seeking) > 0):
-                node_statuses[hospital_seeking] = 'I'
+                statuses[hospital_seeking] = 'I'
                 print("those unable to get a bed ", hospital_seeking)
 
-    def __set_edge_weights(self, averaged_contact_duration, population_network):
+    def set_edge_weights(self, mean_contact_duration, population_network):
 
-        # There are 3 steps to convert the averaged_contact_duration on the world_network
+        # There are 3 steps to convert the mean_contact_duration on the world_network
         # into the `durations` array on the population network 
         # 1) We first remove values corresponding to edges on the edge list that relate to 
         #    a) Patient contacts in the community/health workers
@@ -181,7 +185,7 @@ class HealthService:
         occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
         unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
         edges = copy.deepcopy(self.edges)
-        durations = copy.deepcopy(averaged_contact_duration)
+        durations = copy.deepcopy(mean_contact_duration)
         # We now remove patient contacts:
         if len(self.patients)>0:
             patient_community_contacts=[]
@@ -244,7 +248,7 @@ class HealthService:
         edges=edges[pop_unsort_idx,:]
         #print(edges)
         durations=durations[pop_unsort_idx] 
-        #print(population_network.edges)
+        print(len(population_network.nodes))
            
         #Then set weights on new network
         weights = {tuple(edge): durations[i] 
