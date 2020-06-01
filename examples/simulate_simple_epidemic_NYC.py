@@ -4,7 +4,11 @@ from timeit import default_timer as timer
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 import random 
+import datetime as dt
+import matplotlib.dates as mdates
+import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 
 # Utilities for generating random populations
@@ -37,6 +41,33 @@ def random_epidemic(population, initial_infected, initial_exposed):
 
     return statuses
 
+def simulation_average(model_data):
+    """
+    Returns daily averages of simulation data.
+    """
+    
+    simulation_data_average = {}
+    daily_average = {}
+
+    for key in model_data.statuses.keys():
+        simulation_data_average[key] = []
+        daily_average[key] = []
+    
+    tav = 0
+
+    for i in range(len(model_data.times)):
+        for key in model_data.statuses.keys():
+            simulation_data_average[key].append(model_data.statuses[key][i])
+
+        if model_data.times[i] >= tav:
+            for key in model_data.statuses.keys():
+                daily_average[key].append(np.mean(simulation_data_average[key]))
+                simulation_data_average[key] = []
+
+            tav += 1
+
+    return daily_average
+        
 #
 # Set random seeds for reproducibility
 #
@@ -49,7 +80,7 @@ random.seed(123)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4.txt')) 
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -121,7 +152,7 @@ kinetic_model = KineticModel(contact_network = contact_network,
 # Seed an infection
 #
 
-statuses = random_epidemic(population, initial_infected=2, initial_exposed=0)
+statuses = random_epidemic(population, initial_infected=10, initial_exposed=0)
 kinetic_model.set_statuses(statuses)
 
 # 
@@ -138,6 +169,12 @@ steps = int(interval / static_contact_interval)
 start_times = static_contact_interval * np.arange(steps)
 
 mean_contact_duration = []
+
+# social distancing time
+time_SD = 10 # days
+λmax_SD = 2
+λmin_SD = 2
+SD_flag = 0
 
 # Run the simulation
 for i in range(steps):
@@ -161,10 +198,89 @@ for i in range(steps):
           "R {: 4d} |".format(kinetic_model.statuses['R'][-1]), 
           "D {: 4d} |".format(kinetic_model.statuses['D'][-1]))
 
+    # social distancing intervention
+    if kinetic_model.times[-1] > time_SD and SD_flag == 0: 
+        print("Social distancing intervention with λmax = %2.1f and λmin = %2.1f"%(λmax_SD, λmin_SD))
+        contact_simulator.mean_contact_rate = DiurnalMeanContactRate(maximum=λmax_SD, minimum=λmin_SD)
+        SD_flag = 1
+
 #
-# Plot the results.
+# Plot the results and compare with NYC data.
 #
 
+NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
+NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])
+NYC_deaths =  np.asarray([float(x) for x in NYC_data['Deaths'].tolist()])
+NYC_date_of_interest = np.asarray([dt.datetime.strptime(x, "%m/%d/%Y") for x in NYC_data['DATE_OF_INTEREST'].tolist()])
+
+# population of NYC
+NYC_population = 8.399e6
+
+# fraction reported cases
+fraction_reported = 0.15
+
+# cumulative cases NYC
+cumulative_reported_cases_NYC = 1/fraction_reported*np.cumsum(NYC_cases)/NYC_population
+cumulative_deaths_NYC = np.cumsum(NYC_deaths)/NYC_population*1e5
+
+# daily averages of simulation data
+daily_average = simulation_average(kinetic_model)
+cumulative_cases_simulation = 1-np.asarray(daily_average['S'])/population
+cumulative_deaths_simulation = np.asarray(daily_average['D'])/population*1e5
+
+fig, ax = plt.subplots()
+
+ax2 = ax.twinx()
+
+ax.plot(NYC_date_of_interest[::3], cumulative_reported_cases_NYC[::3], marker = 'o', markersize = 3, color = 'k', ls = 'None')
+ax.plot(NYC_date_of_interest[:len(cumulative_cases_simulation)]+dt.timedelta(days = 9), cumulative_cases_simulation, 'k')
+
+ax2.plot(NYC_date_of_interest[::3], cumulative_deaths_NYC[::3], marker = 's', markersize = 4, color = 'darkred', markeredgecolor = 'Grey', ls = 'None')
+ax2.plot(NYC_date_of_interest[:len(cumulative_cases_simulation)]+dt.timedelta(days = 9), cumulative_deaths_simulation, 'darkred')
+
+ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 5, 31)])
+ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
+ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+
+ax.set_ylim(0,1.0)
+ax.set_ylabel(r'proportion infected', labelpad = 3)
+
+ax2.set_ylim(0,800)
+ax2.set_ylabel(r'total deaths/100,000', color = 'darkred')
+ax2.tick_params(axis='y', labelcolor = 'darkred')   
+
+plt.legend(frameon = False, loc = 5, fontsize = 6)
+plt.tight_layout()
+plt.margins(0,0)
+plt.savefig('new_york_cases.png', dpi=300, bbox_inches = 'tight',
+    pad_inches = 0.05)
+
+# plot reproduction number estimate
+fig, ax = plt.subplots()
+
+ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 5, 31)])
+
+plt.plot(NYC_date_of_interest[:len(daily_average['E'])], np.asarray(daily_average['E'])/np.asarray(daily_average['I']), 'k')
+
+plt.plot([dt.date(2020, 3, 1), dt.date(2020, 5, 31)], [1,1], linestyle = '--', color = 'Grey')
+
+ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
+ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+
+ax.set_ylabel(r'$R(t)$')
+
+ax.set_ylim(0,10)
+
+plt.tight_layout()
+plt.margins(0,0)
+plt.savefig('reproduction_number.png', dpi=300, bbox_inches = 'tight',
+    pad_inches = 0.05)
+
+
+
+# plot all model compartments
 fig, axs = plt.subplots(nrows=3, sharex=True)
 
 plt.sca(axs[0])
