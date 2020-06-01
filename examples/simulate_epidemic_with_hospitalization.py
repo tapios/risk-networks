@@ -135,7 +135,7 @@ interval_averaged_contact_duration = contact_simulator.contact_duration / (3 / 2
 # Set up the health service
 #
 
-health_service = HealthService(node_identifiers,contact_network)
+health_service = HealthService(node_identifiers, contact_network, edges)
 population_network = health_service.create_population_network()
 
 #

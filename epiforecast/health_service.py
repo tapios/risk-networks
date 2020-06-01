@@ -12,9 +12,9 @@ class HealthService:
     |-----------------------World network------------------------|
 
     [hospital_bed 1]---[health_worker 1: 'S']---[community 1: 'S'] 
-                    \ /                      \ /    
-                     X                        X-[community 2: 'I'] 
-                    / \                      / \    
+          |         \ /                      \ /    
+          |          X                        X-[community 2: 'I'] 
+          |         / \                      / \    
     [hospital_bed 2]---[health_worker 2: 'S']---[community 3: 'H']
 
     |------------------------------------------------------------|
@@ -147,41 +147,50 @@ class HealthService:
                     
     def __set_edge_weights(averaged_contact_duration, population, population_network)     :
 
-        # use fact that hospital beds aren't connected.
-        
-        #find occupied beds
+        # There are 3 steps to convert the averaged_contact_duration on the world_network
+        # into the `durations` array on the population network 
+        # 1) We first remove values corresponding to edges on the edge list that relate to 
+        #    a) Patient contacts in the community/health workers
+        #    b) Unoccupied hospital beds
+        # 2) We change the values corresponding to edges of occupied hospital beds
+        #    and sort them so that into the correct `upper triangular` order so they correpond
+        # to the
+
+        # 1a)
+        # Find occupied beds
         occupied_beds = [self.patients[i]["hospital_bed"] for i in range(len(self.patients))]
         unoccupied_beds=np.delete(np.arange(self.patient_capacity), occupied_beds)
 
         edges = copy.deepcopy(self.edges)
         durations = copy.deepcopy(new_averaged_contact_duration)
-        #To remove patient contacts:
-        # 1) find the corresponding edges
+        # We now remove patient contacts:
         patient_community_contacts=[]
         for i,patient in enumerate(self.patients):
-            #First find the edges involving the patient
+            # First we find the edges involving the patient
             patient_community_contacts.append(np.where((edges[:,0] == patient["address"]) |
                                                        (edges[:,1] == patient["address"]))
                                               )
           
         patient_community_contacts= np.unique(np.hstack(patient_community_contacts))
-        #must treat edges and durations consistently...
+        # We must treat edges and durations consistently...
         edges = np.delete(edges,patient_community_contacts)
         durations = np.delte(durations,patient_community_contacts)  
 
-        #we now remove all empty hospital beds:
+        # 1b)
+        # We now remove all empty hospital beds:
         unoccupied_bed_contacts=[]
         for i,bed in enumerate(unoccupied_beds):
             unoccupied_bed_contacts.append(np.where((edges[:,0] == bed) |
                                                     (edges[:,1] == bed))
                                            )
+
         unoccupied_bed_contacts= np.unique(np.hstack(patient_community_contact))
-        #must treat edges and durations consistently...
+        # We must treat edges and durations consistently...
         edges = np.delete(edges, unoccupied_bed_contacts)
         durations = np.delete(durations, unoccupied_bed_contacts)
 
-        #we now adjust the edges for each occupied bed
-        #patient_hospital_contacts=[]
+        # 2)
+        # We now adjust the edges for each occupied bed
         
         for i,patient in enumerate(self.patients):
             
@@ -200,19 +209,19 @@ class HealthService:
             edges[patient_hospital_contacts,1] = patient["address"]
             
         # Current check, we should now have the correct list of edges matched to weights,
-        # however, the ordering will not match `population_network`.
+        # however, the ordering will not match the ordered output of `nx.edges(population_network)`.
         # We sort by first edge argument, as we have verified that the above does not change the ordering
 
         sorting_idx= argsort(edges[:,0])
         durations=durations[sorting_idx] 
         
-        #Work In Progress...
-        #edges(population_network) will be an ordered list of 2-tuples
-        #ordered so that for any pair 'i': tuple[i][0] < tuple[i][1]
         
         #Then set weights on new network
         weights = {tuple(edge): durations[i] 
                    for i, edge in enumerate(nx.edges(self.population_network))}
+
+        #Recall: edges(population_network) will be an ordered list of 2-tuples
+        #ordered so that for any pair 'i': tuple[i][0] < tuple[i][1]
         
         #These are the only attributes that are modified when changing edges.
         nx.set_edge_attributes(population_network, values=weights, name='SI->E')
