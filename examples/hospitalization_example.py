@@ -22,6 +22,8 @@ def random_infection(population, initial_hospitalized):
     return statuses
 
 
+np.random.seed(91210)
+
 population = 100
 attachment = 2
 network = nx.barabasi_albert_graph(population, attachment)

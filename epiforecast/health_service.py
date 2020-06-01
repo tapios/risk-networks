@@ -146,8 +146,8 @@ class HealthService:
                 patient_waiting_list = hospital_seeking[hospital_beds:]
                 self.waiting_list.append(patient_waiting_list)
 
-                for patient in patient_waiting_list:
-                    statuses[patient] = 'I'
+                statuses.update({node: 'I' for node in patient_waiting_list})
+
                 print("Those placed on a waiting list as unable to get a bed ", hospital_seeking)
             else:
                 patient_admissions = hospital_seeking
