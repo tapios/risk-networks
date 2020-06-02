@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
-from epiforecast.contact_simulator import DiurnalMeanContactRate
+from epiforecast.contact_simulator import DiurnalContactInceptionRate
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.scenarios import random_epidemic
 
@@ -62,7 +62,7 @@ epidemic_simulator = EpidemicSimulator(population_network,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                        hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = False)
+                                                        cycle_contacts = True)
 
 statuses = random_epidemic(population_network, fraction_infected=0.01)
 epidemic_simulator.set_statuses(statuses)
