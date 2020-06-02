@@ -11,21 +11,20 @@ from epiforecast.populations import populate_ages, sample_distribution, Transiti
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
 
 from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
-from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
+from epiforecast.kinetic_model_simulator import KineticModel, print_statuses, print_initial_statuses
 from epiforecast.scenarios import load_edges
 
 from epiforecast.node_identifier_helper import load_node_identifiers
+from epiforecast.health_service import HealthService
 
 def random_infection(population, initial_infected):
     """
     Returns a status dictionary associated with a random infection
-    within a population associated with node_identifiers.
     """
     statuses = defaultdict(lambda: 'S') # statuses = np.repeat('S', nodes)
 
     initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
 
-    # Beds (the first few status) can't be infected...
     for i in initial_infected_nodes:
         statuses[i] = 'I'
 
@@ -40,6 +39,8 @@ def random_infection(population, initial_infected):
 np.random.seed(123)
 random.seed(123)
 
+
+
 #
 # Load an example network
 #
@@ -48,7 +49,7 @@ edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
-population = len(contact_network)
+world_population = len(contact_network)
 
 #
 # Clinical parameters of an age-distributed population
@@ -63,7 +64,7 @@ community_population     = node_identifiers["community"].size
 
 population = community_population + health_worker_population
 
-print("Total population:", population)
+#print("Total population:", population)
 print("Community population:", community_population)
 print("Health worker population:", health_worker_population)
 print("Hospital beds:", hospital_bed_number)
@@ -122,47 +123,47 @@ mean_contact_duration = 45 / 60 / 60 / 24 # 45 seconds in units of days
 mean_contact_rate = DiurnalMeanContactRate(maximum=22, minimum=3)
 
 contact_simulator = ContactSimulator(n_contacts = len(edges),
-                                     mean_contact_duration = mean_contact_duration,
+                                     mean_event_duration = mean_contact_duration,
                                      mean_contact_rate = mean_contact_rate,
                                      start_time = -3 / 24, # the simulation starts at midnight
                                     )
 
 # Generate initial contact network with 3 hour simulation
-contact_simulator.simulate_contact_duration(stop_time = 0.0)
-interval_averaged_contact_duration = contact_simulator.contact_duration / (3 / 24)
+contact_simulator.mean_contact_duration(stop_time = 0.0)
+
+#
+# Set up the health service
+#
+
+health_service = HealthService(node_identifiers, contact_network, edges)
+population_network = health_service.create_population_network()
 
 #
 # Build the kinetic model
 #
 
-kinetic_model = KineticModel(                          edges = edges,
+kinetic_model = KineticModel(                contact_network = population_network,
                                             transition_rates = transition_rates,
                                  community_transmission_rate = transmission_rate,
-                             hospital_transmission_reduction = hospital_transmission_reduction,
-                                       mean_contact_duration = interval_averaged_contact_duration
+                             hospital_transmission_reduction = hospital_transmission_reduction
                             )
-#
-# Set up the health service
-#
-
-health_service = HealthService(node_identifiers)
 
 # 
 # Seed an infection
 #
 
-statuses = random_infection_statuses(node_identifiers, 100)
+statuses = random_infection(population, 100)
 print("Number of nodes in the initial condition:", len(statuses))
 print("Number of nodes in the contact_network:", len(kinetic_model.contact_network))
 
-for node, status in statuses.items():
-    print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
+# for node, status in statuses.items():
+#     print("Node:", node, "status:", status, "neighbors:", [n for n in iter(kinetic_model.contact_network[node])])
 
-for node in kinetic_model.contact_network.nodes():
-    print("Node", node, "in the contact network has status", statuses[node])
+# for node in kinetic_model.contact_network.nodes():
+#     print("Node", node, "in the contact network has status", statuses[node])
 
 print("Structure of the initial infection:")
-print_statuses(statuses)
+#print_initial_statuses(statuses,population)
 
 # 
 # Simulate the uncontrolled growth of an epidemic for 7 days
@@ -178,34 +179,44 @@ static_contact_interval = 3/24 # days
 growth_interval = 7 # days
 
 growth_steps = int(growth_interval / static_contact_interval)
-growth_start_times = static_contact_interval * np.arange(growth_steps)
+growth_start_times = static_contact_interval * (np.arange(growth_steps-1)+1)
 
 # Run the simulation
 for i in range(growth_steps):
 
-    contact_simulator.simulate_contact_duration(stop_time = growth_start_times[i])
-    interval_averaged_contact_duration = contact_simulator.contact_duration / static_contact_interval
+    # adjust network to account for hospitalizations
+    health_service.discharge_and_admit_patients(statuses, population_network)
+
+    # run for weights on the adjusted network:
+    interval_averaged_contact_duration = contact_simulator.mean_contact_duration(stop_time = growth_start_times[i])
     contacts_time_series.append(interval_averaged_contact_duration)
         
     print("Simulating the uncontrolled growth phase of an epidemic",
           "from day {:.3f}".format(growth_start_times[i]),
           "until day {:.3f}".format(growth_start_times[i] + static_contact_interval)) 
 
-    kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
-    
-    # Based on the current 'node statuses'
-    health_service.discharge_and_obtain_patients(statuses)
+
+    print_statuses(statuses)
+    kinetic_model.set_contact_network(population_network)
     
     initial_statuses = copy.deepcopy(statuses)
     statuses = None
 
-    print(type(initial_statuses))
-    print("Node 995 status:", initial_statuses[995])
-    statuses = kinetic_model.simulate(initial_statuses, static_contact_interval)
-
+    statuses = kinetic_model.simulate(static_contact_interval, initial_statuses=initial_statuses)
+ 
 # 
 # Simulate the hopeful death of an epidemic after social distancing
 #
+exit()
+
+
+
+
+
+
+
+
+
 
 print("\n *** The social distancing phase *** \n")
 
@@ -228,9 +239,9 @@ for i in range(distancing_steps):
     interval_averaged_contact_duration = contact_simulator.contact_duration / static_contact_interval
     contacts_time_series.append(interval_averaged_contact_duration)
     
-    kinetic_model.set_mean_contact_duration(interval_averaged_contact_duration)
+    kinetic_model.set_contact_network(population_network)
     
     # Based on the current 'node statuses'
     health_service.discharge_and_obtain_patients(statuses)
     
-    statuses = kinetic_model.simulate(statuses, static_contact_interval)
+    statuses = kinetic_model.simulate(static_contact_interval)
