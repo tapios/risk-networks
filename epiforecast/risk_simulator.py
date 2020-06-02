@@ -287,7 +287,7 @@ class MasterEquationModelEnsemble:
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
 
-        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate backward', total = n_steps):
+        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate forward', total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 if self.ix_reduced:
@@ -318,7 +318,7 @@ class MasterEquationModelEnsemble:
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
 
-        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate forward', total = n_steps):
+        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate backward', total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 if self.ix_reduced:
