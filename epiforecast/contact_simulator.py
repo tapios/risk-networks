@@ -215,15 +215,6 @@ class ContactSimulator:
 
 
 
-
-@njit
-def cos4_diurnal_modulation(t, cmin, cmax):
-    return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
-
-@njit
-def cos2_diurnal_modulation(t, cmin, cmax):
-    return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**2)**2)
-
 specification = [
                  ('maximum', float64), 
                  ('minimum', float64)
@@ -231,7 +222,7 @@ specification = [
 
 @jitclass(specification)
 class DiurnalContactInceptionRate:
-    def __init__(self, maximum=22, minimum=3, modulation=cos4_diurnal_modulation):
+    def __init__(self, maximum=22, minimum=3):
         self.maximum = maximum
         self.minimum = minimum
 
