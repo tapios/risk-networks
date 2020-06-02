@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 from tqdm.autonotebook import tqdm
 
-class NetworkCompartmentalModel(object):
+class NetworkCompartmentalModel:
     """
     ODE representation of the SEIHRD compartmental model.
     """
@@ -101,7 +101,7 @@ class NetworkCompartmentalModel(object):
         else:
             self.L = sps.csr_matrix(contact_network)
 
-class MasterEquationModelEnsemble(object):
+class MasterEquationModelEnsemble:
     def __init__(self,
                 contact_network,
                 transition_rates,
@@ -270,19 +270,19 @@ class MasterEquationModelEnsemble(object):
             self.CM_SI = self.L.multiply(self.numSI/(self.denSI+1e-8)).dot(y[:,iI].T)
             self.CM_SH = self.L.multiply(self.numSH/(self.denSH+1e-8)).dot(y[:,iH].T)
 
-    def simulate(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
+    def simulate(self, y0, tF, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
         """
         Args:
         -------
              y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-             T  : final time of simulation
+             tF : final time of simulation
         n_steps : number of Euler steps
              t0 : initial time of simulation
         closure : by default consider that closure = 'independent'
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
-        t       = np.linspace(t0, T, n_steps + 1)
+        t       = np.linspace(t0, tF, n_steps + 1)
         self.dt = np.diff(t).min()
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
@@ -301,19 +301,19 @@ class MasterEquationModelEnsemble(object):
         return {'times' : t,
                 'states': yt.reshape(self.M, -1, len(t))}
 
-    def simulate_backwards(self, y0, T, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
+    def simulate_backwards(self, y0, tF, n_steps = 100, t0 = 0.0, closure = 'independent', **kwargs):
         """
         Args:
         -------
              y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-             T  : final time of simulation
+             tF : final time of simulation
         n_steps : number of Euler steps
              t0 : initial time of simulation
         closure : by default consider that closure = 'independent'
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
-        t       = np.linspace(T, t0, n_steps + 1)
+        t       = np.linspace(tF, t0, n_steps + 1)
         self.dt = np.diff(t).min()
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
