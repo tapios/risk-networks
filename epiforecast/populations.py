@@ -1,4 +1,9 @@
+from functools import singledispatch
+
 import numpy as np
+import networkx as nx
+
+from .samplers import AgeDependentBetaSampler, AgeDependentConstant, BetaSampler, GammaSampler
 
 def sample_distribution(sampler, ages=None, population=None, minimum=0):
     """
@@ -36,14 +41,37 @@ def sample_distribution(sampler, ages=None, population=None, minimum=0):
         return minimum + sampler.draw()
 
 
+# For numpy arrays and constants
+@singledispatch
+def on_network(parameter, network):
+    return parameter
+
+@on_network.register(list)
+def list_on_network(parameter, network):
+    return np.array(parameter)
+
+@on_network.register(BetaSampler)
+@on_network.register(GammaSampler)
+def random_sample_on_network(sampler, network):
+    return np.array([sampler.minimum + sampler.draw() for node in network.nodes()])
+
+@on_network.register(AgeDependentBetaSampler)
+def age_dependent_random_sample_on_network(sampler, network):
+    return np.array([sampler.draw(data['age']) for node, data in network.nodes(data=True)])
+
+@on_network.register(AgeDependentConstant)
+def age_dependent_on_network(parameter, network):
+    return np.array([parameter.constants[data['age']] for node, data in network.nodes(data=True)])
+
 class TransitionRates:
     """
     A container for transition rates.
 
     Args
     ----
+    * population_network (OrderedGraph): Graph whose nodes are people and edges are potential contacts.
 
-    All arguments are arrays that reflect the clinical parameters of a population:
+    The remaining arguments are either constants, lists, np.array, or samplers from `epiforecast.samplers`:
 
     * latent_period of infection (1/σ)
 
@@ -56,8 +84,6 @@ class TransitionRates:
     * community_mortality_fraction, the mortality rate in the community (d),
 
     * hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
-
-    * population, the size of population (not always inferrable from clinical parameters)
     
     The six transition rates are
 
@@ -78,7 +104,7 @@ class TransitionRates:
     6. transition_rates.hospitalized_to_deceased
     """
     def __init__(self,
-                 population,
+                 population_network,
                  latent_periods,
                  community_infection_periods,
                  hospital_infection_periods,
@@ -86,16 +112,17 @@ class TransitionRates:
                  community_mortality_fraction,
                  hospital_mortality_fraction):
 
-        # For data assimilation we require return of initial variables
-        self.latent_periods               = latent_periods
-        self.community_infection_periods  = community_infection_periods
-        self.hospital_infection_periods   = hospital_infection_periods
-        self.hospitalization_fraction     = hospitalization_fraction
-        self.community_mortality_fraction = community_mortality_fraction
-        self.hospital_mortality_fraction  = hospital_mortality_fraction
+        self.population_network = population_network
+        self.population = len(population_network)
+        self.nodes = nx.convert_node_labels_to_integers(population_network, ordering="sorted")
 
-        self.population = population 
-        self.nodes = nodes = range(self.population)
+        # Translate user-input to numpy arrays on the network...
+        self.latent_periods               = on_network(latent_periods, population_network)
+        self.community_infection_periods  = on_network(community_infection_periods, population_network)
+        self.hospital_infection_periods   = on_network(hospital_infection_periods, population_network)
+        self.hospitalization_fraction     = on_network(hospitalization_fraction, population_network)
+        self.community_mortality_fraction = on_network(community_mortality_fraction, population_network)
+        self.hospital_mortality_fraction  = on_network(hospital_mortality_fraction, population_network)
 
         self._calculate_transition_rates()
 
@@ -119,13 +146,13 @@ class TransitionRates:
         γ_prime *= np.ones(self.population)
         d_prime *= np.ones(self.population)
 
-        self.exposed_to_infected       = { node: σ[node]                             for node in self.nodes }
-        self.infected_to_resistant     = { node: (1 - h[node] - d[node]) * γ[node]   for node in self.nodes }
-        self.infected_to_hospitalized  = { node: h[node] * γ[node]                   for node in self.nodes }
-        self.infected_to_deceased      = { node: d[node] * γ[node]                   for node in self.nodes }
+        self.exposed_to_infected       = { node: σ[i]                          for i, node in enumerate(self.nodes) }
+        self.infected_to_resistant     = { node: (1 - h[i] - d[i]) * γ[i]      for i, node in enumerate(self.nodes) }
+        self.infected_to_hospitalized  = { node: h[i] * γ[i]                   for i, node in enumerate(self.nodes) }
+        self.infected_to_deceased      = { node: d[i] * γ[i]                   for i, node in enumerate(self.nodes) }
 
-        self.hospitalized_to_resistant = { node: (1 - d_prime[node]) * γ_prime[node] for node in self.nodes }
-        self.hospitalized_to_deceased  = { node: d_prime[node] * γ_prime[node]       for node in self.nodes }
+        self.hospitalized_to_resistant = { node: (1 - d_prime[i]) * γ_prime[i] for i, node in enumerate(self.nodes) }
+        self.hospitalized_to_deceased  = { node: d_prime[i] * γ_prime[i]       for i, node in enumerate(self.nodes) }
 
     def set_clinical_parameter(self, parameter, values):
         setattr(self, parameter, values)
@@ -134,18 +161,17 @@ class TransitionRates:
 
 
 
-
-
-
-
-
-
-
-def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):
+def populate_ages(population, distribution):
     """
     Returns a numpy array of length `population`, with age categories from
     0 to len(`distribution`), where the elements of `distribution` specify
     the probability that an individual's age falls into the corresponding category.
+
+    Args
+    ----
+    population (int): Number of people in the network
+
+    population (int): Number of people in the network
     """
     classes = len(distribution)
 
@@ -153,3 +179,28 @@ def populate_ages(population=1000, distribution=[0.25, 0.5, 0.25]):
             for person in range(population)]
 
     return np.array(ages)
+
+
+
+
+def assign_ages(population_network, distribution):
+    """
+    Assigns ages to the nodes of `population_network` according to `distribution`.
+
+    Args
+    ----
+    population_network (networkx Graph): A graph representing a community and its contacts.
+
+    distribution (list-like): A list of quantiles. Must sum to 1.
+
+    Example
+    -------
+
+    distribution = [0.25, 0.5, 0.25] # a simple age distribution
+    population_network = nx.barabasi_albert_graph(100, 2)
+    assign_ages(population_network, distribution)
+    """    
+    ages = populate_ages(len(population_network), distribution=distribution)
+    nodal_ages = { node: ages[i] for i, node in enumerate(population_network.nodes()) }
+
+    nx.set_node_attributes(population_network, values=nodal_ages, name='age')

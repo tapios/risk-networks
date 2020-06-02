@@ -7,22 +7,20 @@ import numpy as np
 
 # Import utilities for generating random populations
 from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
+from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.node_identifier_helper import load_node_identifiers
 
 
 (
-hospital_beds,
-health_workers,
-community
-)= load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
+ hospital_beds,
+ health_workers,
+ community       ) = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3.txt'))
+
 community_population = community.shape[0]
 health_worker_population = health_workers.shape[0]
 population = community_population + health_worker_population
 
-#Calculate the transition_rates for the community population:
-
-# ... and the age category of each individual
+# Calculate the transition_rates for the community population:
 age_distribution = [ 0.23,  # 0-19 years
                      0.39,  # 20-44 years
                      0.25,  # 45-64 years
@@ -35,7 +33,7 @@ age_distribution.append(1 - sum(age_distribution))
 community_ages = populate_ages(community_population, distribution=age_distribution)
 
 #health workers sampled only from 20-64
-working_age_distribution= [0.0, 0.39/(0.25+0.39), 0.25 / (0.25+0.39), 0.0, 0.0, 0.0] 
+working_age_distribution= [0.0, 0.39 / (0.25 + 0.39), 0.25 / (0.25 + 0.39), 0.0, 0.0, 0.0] 
 health_worker_ages = populate_ages(health_worker_population, distribution=working_age_distribution)
 
 ages = np.hstack([health_worker_ages,community_ages])
@@ -52,9 +50,9 @@ community_infection_periods = sample_distribution(GammaSampler(k=1.5, theta=2.0)
 hospital_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
 # Community parameters
-hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+hospitalization_fraction     = sample_distribution(AgeDependentBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeDependentBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeDependentBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 
 
 # Print the latent periods

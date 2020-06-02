@@ -6,7 +6,7 @@ import os, sys; sys.path.append(os.path.join(".."))
 
 # Utilities for generating random populations
 from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler
+from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
 # Function that generates a time-averaged contact network from a rapidly-fluctuating
 # birth-death process.
@@ -92,11 +92,11 @@ latent_periods              = sample_distribution(GammaSampler(k=1.7, theta=2.0)
 community_infection_periods = sample_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
 hospital_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
 
-hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
-community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
-hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
+hospitalization_fraction     = sample_distribution(AgeDependentBetaSampler(mean=[ 0.02,  0.17,  0.25, 0.35, 0.45], b=4), ages=ages)
+community_mortality_fraction = sample_distribution(AgeDependentBetaSampler(mean=[0.001, 0.001, 0.005, 0.02, 0.05], b=4), ages=ages)
+hospital_mortality_fraction  = sample_distribution(AgeDependentBetaSampler(mean=[0.001, 0.001,  0.01, 0.04,  0.1], b=4), ages=ages)
 
-# `AgeAwareBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
+# `AgeDependentBetaSampler` is a generic sampler of statistical distribution with a function `beta_sampler.draw(age)`
 # which generates clinical properties for each individual based on their `age` class (see `numpy.random.beta`
 # for more information). `minimum` is a random number to which `gamma_sampler.draw()` or `beta_sampler.draw(age)`
 # is added.

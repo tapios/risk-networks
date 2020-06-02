@@ -1,6 +1,6 @@
 import numpy as np
 
-class AgeAwareBetaSampler:
+class AgeDependentBetaSampler:
     """
     Represents a parameterized 'age-aware' Beta distribution.
     It's primary method is `sampler.draw(age)`, which returns `sample`
@@ -66,7 +66,7 @@ class GammaSampler:
     """
     A class representing a parameterized Gamma distribution.
     It's primary method is `sampler.draw(*args)`, which returns 
-    `sample`, where
+    `sample + minimum`, where
 
         `sample ~ Gamma(k, theta)`
 
@@ -80,46 +80,21 @@ class GammaSampler:
     This class is used to model the distribution of clinical
     rates (latent period of infection, infectiousness duration) among a population.
     """
-    def __init__(self, k, theta):
+    def __init__(self, k, theta, minimum=0):
         self.k = k # shape parameter
         self.theta = theta # scale parameter
+        self.minimum = minimum
 
     def draw(self):
         """Return `sample`, where `sample ~ Gamma(k, theta)`"""
-        return np.random.gamma(self.k, self.theta)
+        return self.minimum + np.random.gamma(self.k, self.theta)
 
 
-class AgeAwareConstantSampler:
+class AgeDependentConstant:
     """
     A class representing a constant distribution.
-    It's primary method is `sampler.draw(*args)`, which returns 
-    `sample`, where
-
-        `sample ~ constants[age]`
-
+    It's primary method is `sampler.draw(age) = constants[age]`.
     """
     def __init__(self, constants):
         # input arg is a list of constants for each age category.
         self.constants = constants
-      
-    def draw(self, age):
-        """Return `sample`, where `sample ~ constants[age]`"""
-        return self.constants[age]
-
-
-class ConstantSampler:
-    """
-    A class representing a constant distribution.
-    It's primary method is `sampler.draw(*args)`, which returns 
-    `sample`, where
-
-        `sample ~ constant`
-
-    """
-    def __init__(self, constant):
-        # input arg is a list of constants for each age category.
-        self.constant = constant
-      
-    def draw(self):
-        """Return `sample`, where `sample ~ constant category`"""
-        return self.constant

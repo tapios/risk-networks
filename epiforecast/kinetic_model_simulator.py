@@ -19,7 +19,9 @@ class KineticModel:
                  transition_rates,
                  community_transmission_rate,
                  hospital_transmission_reduction,
-                 mean_contact_duration = None):
+                 mean_contact_duration = None,
+                 start_time = 0.0,
+                 ):
         """
         A class to implement a Kinetic Monte-Carlo solver on a provided network.
       
@@ -77,11 +79,11 @@ class KineticModel:
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_resistant, name='hospitalized_to_resistant')
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_deceased,  name='hospitalized_to_deceased')
 
-        self.time = 0.0
+        self.current_time = start_time
+        self.current_statuses = None # must be set by set_statuses
+
         self.times = []
         self.statuses = {s: [] for s in self.return_statuses}
-
-        self.current_statuses = None # must be set by set_statuses
     
     def set_mean_contact_duration(self, mean_contact_duration):
         """
@@ -124,18 +126,18 @@ class KineticModel:
                                          initial_statuses,
                                          self.return_statuses,
                                          return_full_data = True,
-                                         tmin = self.time,
-                                         tmax = self.time + time_interval)
+                                         tmin = self.current_time,
+                                         tmax = self.current_time + time_interval)
         
-        self.time += time_interval
+        new_times, new_statuses = res.summary()
 
-        times, statuses = res.summary()
+        self.current_time += time_interval
 
-        self.times.extend(times)
+        self.times.extend(new_times)
 
         for s in self.return_statuses:
-            self.statuses[s].extend(statuses[s])
+            self.statuses[s].extend(new_statuses[s])
 
-        self.current_statuses = res.get_statuses(time=times[-1])
+        self.current_statuses = res.get_statuses(time=self.current_time)
         
         return self.current_statuses

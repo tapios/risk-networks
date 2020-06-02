@@ -60,13 +60,13 @@ def gillespie_step(contact_duration, active_contacts, time, stop_time,
 
 @njit
 def gillespie_contact_simulation(contact_duration, active_contacts, time, stop_time,
-                                 mean_event_lifetime, inception_rate):
+                                 mean_event_lifetime, inception):
 
     interval_steps = 0 # bookkeeping
 
     while time < stop_time:
             
-        current_inception_rate = inception_rate.rate(time)
+        current_inception_rate = inception.rate(time)
 
         time_step, overshoot_time = gillespie_step(contact_duration,
                                                    active_contacts,
@@ -95,8 +95,7 @@ class ContactSimulator:
                                              n_contacts = None, 
                                         active_contacts = None,
                                          inception_rate = None,
-                                    mean_event_lifetime = None,
-                ):
+                                    mean_event_lifetime = None):
         """
         Args
         ----
@@ -107,8 +106,9 @@ class ContactSimulator:
         active_contacts (np.array): Array of booleans of length `n_contacts` indicating which
                                     contacts are active (default: None)
 
-        inception_rate (callable): The average number of people each individual encounters at a time.
-                                   Must be callable with `time` (with units of days) as an argument.
+        inception_rate (class): The average number of people each individual encounters at a time.
+                                Must have a function `.rate(time)` that returns the current inception
+                                rate at `time` in units of days.
 
         mean_event_lifetime (float): The mean duration of a contact event.
 
