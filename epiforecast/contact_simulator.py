@@ -156,6 +156,12 @@ class ContactSimulator:
         self.overshoot_contact_duration = np.zeros(self.n_contacts)
         self.overshoot_time = 0.0
         
+    def set_time(self, time):
+        self.time = time
+        self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
+        self.interval_stop_time = time
+        self.overshoot_contact_duration *= 0
+
     def run(self, stop_time, mean_event_lifetime=None, inception_rate=None):
         """
         Simulate time-dependent contacts with a birth/death process.
@@ -224,7 +230,7 @@ specification = [
                 ]
 
 @jitclass(specification)
-class DiurnalMeanContactRate:
+class DiurnalContactInceptionRate:
     def __init__(self, maximum=22, minimum=3, modulation=cos4_diurnal_modulation):
         self.maximum = maximum
         self.minimum = minimum

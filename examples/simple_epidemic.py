@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
+from epiforecast.contact_simulator import ContactSimulator, DiurnalContactInceptionRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import random_epidemic
 
@@ -60,7 +60,7 @@ hour = 60 * minute
 
 contact_simulator = ContactSimulator(n_contacts = nx.number_of_edges(population_network),
                                      mean_event_lifetime = 1 * minute,
-                                     inception_rate = DiurnalMeanContactRate(maximum=34, minimum=2))
+                                     inception_rate = DiurnalContactInceptionRate(maximum=34, minimum=2))
 
 #
 # Build the kinetic model

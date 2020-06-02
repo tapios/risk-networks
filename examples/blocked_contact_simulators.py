@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
+from epiforecast.contact_simulator import ContactSimulator, DiurnalContactInceptionRate
 
 np.random.seed(1234)
 
@@ -31,7 +31,7 @@ bulk_simulator = ContactSimulator(n_contacts = total_contacts,
                                   mean_event_duration = 1 / 60 / 24,
                                   start_time = start_time)
 
-bulk_contact_rate = DiurnalMeanContactRate(maximum=bulk_mean_contacts, minimum=3)
+bulk_contact_rate = DiurnalContactInceptionRate(maximum=bulk_mean_contacts, minimum=3)
 
 # Simulate
 start = timer()
@@ -52,7 +52,7 @@ simulators = [
              ]
                                
                                         
-block_contact_rates = [DiurnalMeanContactRate(maximum=lam, minimum=3) for lam in max_mean_contacts]
+block_contact_rates = [DiurnalContactInceptionRate(maximum=lam, minimum=3) for lam in max_mean_contacts]
                                  
 # Run forward all the blocks for 1/8 of a day starting at noon
 start = timer()
