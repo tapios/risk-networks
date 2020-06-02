@@ -22,8 +22,7 @@ def simulate_contact(stop_time,
     if stop_time > time:
         contact_duration = overshoot
     else:
-        contact_duration = 0.0 #(stop_time - previous_stop_time) * contact
-        overshoot = time - stop_time
+        contact_duration = (stop_time - previous_stop_time) * contact
 
     step = 0
 
