@@ -9,53 +9,6 @@ def diurnal_inception_rate(λmin, λmax, t):
     return np.maximum(λmin, λmax * (1 - np.cos(np.pi * t)**4)**4)
 
 @njit
-def accumulate_contact(
-                       stop_time,
-                       contact_duration, 
-                       min_inception_rate,
-                       max_inception_rate,
-                       mean_contact_lifetime
-                      ):
-
-    contact_duration = 0.0
-    contact_timeseries = []
-    time = []
-
-    inceptions = 0
-
-    while event_time < stop_time
-
-        if contact: # Compute contact deactivation time.
-
-            # Contact is deactivated after
-            time_step = - np.log(np.random.random()) * mean_contact_lifetime
-            contact_duration += time_step
-
-            # Deactivation
-            event_time += time_step
-            contact = False
-
-        else: # Compute next contact inception.
-
-            inception_rate = diurnal_inception_rate(min_inception_rate, 
-                                                    max_inception_rate,
-                                                    event_time)
-
-            # Next inception occurs after:
-            time_step = - np.log(np.random.random()) / inception_rate
-
-            # Contact inception
-            event_time += time_step
-            contact = True
-            inceptions += 1
-
-        contact_timeseries.append(contact)
-        time.append(event_time)
-
-    return time, contact_timeseries
-
-
-@njit
 def simulate_contact(
                      start_time,
                      stop_time,
@@ -90,7 +43,7 @@ def simulate_contact(
                                                     max_inception_rate,
                                                     event_time)
 
-            # Next inception occurs after:
+            ## Next inception occurs after:
             time_step = - np.log(np.random.random()) / inception_rate
 
             # Contact inception
@@ -153,12 +106,12 @@ def simulate_contacts(
                          
 
 if __name__ == "__main__":
-    n = 1
-    minute = 1 / 60 / 24
-    second = 1 / 60 / 24
 
-    λmin = 6
-    λmax = 0.0 #22 / 10
+    n = 1000000
+    minute = 1 / 60 / 24
+
+    λmin = 3
+    λmax = 22
     μ = 1 / minute
 
     εmin = λmin / (μ + λmin)
@@ -176,8 +129,8 @@ if __name__ == "__main__":
     overshoot_duration = np.zeros(n)
     contacts = np.random.choice([False, True], size = n, p = [1 - εmin, εmin])
 
-    dt = 3 / 24
-    steps = int(1 / dt)
+    dt = 1 / 24
+    steps = int(7 / dt)
 
     start = timer()
 
@@ -220,20 +173,35 @@ if __name__ == "__main__":
 
     plt.sca(axs[0])
 
-    plt.plot(measurement_times[1:], measured_inceptions, 's', alpha=0.4)
+    plt.plot(measurement_times[1:], np.array(measured_inceptions) / dt, '.', alpha=0.4,
+             label="in interval")
 
     plt.plot(measurement_times,
-             np.mean(measured_inceptions) * np.ones(len(measurement_times)),
-             linewidth=3.0, alpha=0.6, linestyle='-')
+             np.mean(measured_inceptions) * np.ones(len(measurement_times)) / dt,
+             linewidth=3.0, alpha=0.6, linestyle='-',
+             label="mean")
+
+    plt.plot(measurement_times, 11 * np.ones(len(measurement_times)),
+             linewidth=2.0, alpha=0.6, color='k', linestyle='-', label="11 $ \mathrm{day^{-1}} $")
 
     plt.xlabel("Time (days)")
-    plt.ylabel("Inceptions")
+    plt.ylabel("Measured single-contact inception rate $ \mathrm{(day^{-1})} $")
+    plt.legend()
 
     plt.sca(axs[1])
-    plt.plot(measurement_times[1:], mean_contact_durations[1:])
-    plt.plot(measurement_times, εmin * np.ones(len(measurement_times)), "--")
+    plt.plot(measurement_times[1:], mean_contact_durations[1:], label="Contact durations, averaged over contacts")
+
+    plt.plot(measurement_times, εmin * np.ones(len(measurement_times)), "--",
+             label="$ \lambda_\mathrm{min} / (\mu + \lambda_\mathrm{min}) $")
+
+    plt.plot(measurement_times, εmax * np.ones(len(measurement_times)), ":",
+             label="$ \lambda_\mathrm{max} / (\mu + \lambda_\mathrm{max}) $")
+
+    plt.plot(measurement_times, np.mean(mean_contact_durations[1:]) * np.ones(len(measurement_times)), "k-",
+             label="Contact durations, averaged over contacts and simulation interval")
 
     plt.xlabel("Time (days)")
     plt.ylabel("Mean contact durations")
+    plt.legend()
 
     plt.show()
