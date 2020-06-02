@@ -210,22 +210,21 @@ class ContactSimulator:
 
 
 
+def cos4_diurnal_modulation(t, cmin_i, cmax_i, cmin_j, cmax_j):
+    return np.maximum(np.minimum(cmin_i, cmin_j), np.minimum(cmax_i, cmax_j) * (1 - np.cos(np.pi * t)**4)**4)
 
-
-
-def cos4_diurnal_modulation(t, cmin, cmax):
-    return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
-
-def cos2_diurnal_modulation(t, cmin, cmax):
-    return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**2)**2)
+def cos2_diurnal_modulation(t, cmin_i, cmax_i, cmin_j, cmax_j):
+    return np.maximum(np.minimum(cmin_i, cmin_j), np.minimum(cmax_i, cmax_j) * (1 - np.cos(np.pi * t)**2)**2)
 
 class DiurnalMeanContactRate:
-    def __init__(self, maximum=22, minimum=3, diurnal_modulation=cos4_diurnal_modulation):
-        self.maximum = maximum
-        self.minimum = minimum
+    def __init__(self, minimum_i=3, maximum_i=22, minimum_j=3, maximum_j=22, diurnal_modulation=cos4_diurnal_modulation):
+        self.minimum_i = minimum_i
+        self.maximum_i = maximum_i
+        self.minimum_j = minimum_j
+        self.maximum_j = maximum_j
         self.modulation = diurnal_modulation
 
     def __call__(self, t):
-        return self.modulation(t, self.minimum, self.maximum)
+        return self.modulation(t, self.minimum_i, self.maximum_i, self.minimum_j, self.maximum_j)
 
 
