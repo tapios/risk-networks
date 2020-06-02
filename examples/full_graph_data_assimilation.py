@@ -119,26 +119,32 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
     states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 ####
 
-noise_var = 0.01 # independent variance on observations
-transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
+
+
 #full_state_observation = FullObservation(population, noise_var, "Full state observation 1% noise")
 #HighProbRandomStatusObservation( num_nodes,
 #                                frac_of_candidate_nodes_to_observe,
-#                                status id (S=1,I=2,H=3,...)
+#                                status id (S=0,I=1,H=2,...)
 #                                min probability of ensemble (mean) to perform observation, default=0.0
 #                                max probability of ensemble (mean) to perform observation, default=1.0
 #                                noise variance
 #                                name the observation
+noise_var = 0.01 # independent variance on observations
+
 threshold_infected_observation = HighProbRandomStatusObservation(N = population,
-                                                                 obs_frac = 1.0,
-                                                                 obs_status_idx = 2,
+                                                                 obs_frac = 0.05,
+                                                                 obs_status_idx = 1,
                                                                  noise_var = noise_var,
                                                                  obs_name = "0.25 < Infected(100%) < 0.75",
                                                                  min_threshold=0.25,
                                                                  max_threshold=0.75)
-                                                                   
+
+# give the data assimilator the methods for how to choose observed states
 observations=[threshold_infected_observation]
+# give the data assimilator which transition rates and transmission rate to assimilate
+transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
 transmission_rate_to_update_flag=True
+# create the assimilator
 assimilator = DataAssimilator(observations = observations,
                               errors = [],
                               transition_rates_to_update_str= transition_rates_to_update_str,
@@ -148,6 +154,12 @@ assimilator = DataAssimilator(observations = observations,
 
 for i in range(assimilation_length):
 
+    # health_service.discharge_and_admit_patients(..) #modifies the contact network
+    # contact_simulator.mean_contact_rates(...)#generates new contact network weights
+    # kinetic_model.set_contact_network(...)
+    # master_eqn_model.set_contact_network(...)
+    # synthetic_data[i] = kinetic model.simulate(..)
+
     res = master_eqn_ensemble.simulate(states_ensemble, assimilation_interval, n_steps = 10)
     states_ensemble = res["states"][:,:,-1]
     
@@ -155,8 +167,8 @@ for i in range(assimilation_length):
                                                                                                 synthetic_data[i],
                                                                                                 full_ensemble_transition_rates = transition_rates_ensemble,
                                                                                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                                                                contact_network = contact_network
-    )
+                                                                                                contact_network = contact_network)
+    
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
     master_eqn_ensemble.update_transmission_rate(transmission_rate_ensemble)
     
