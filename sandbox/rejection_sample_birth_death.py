@@ -6,6 +6,13 @@ from scipy.special import roots_legendre
 
 import matplotlib.pyplot as plt
 
+# See discussion in 
+#
+# Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation 
+# of Contagion Processes on Time-Varying Networks", PLOS Computational Biology (2015)
+#
+# https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004579
+
 @njit
 def diurnal_inception_rate(λmin, λmax, t):
     return np.maximum(λmin, λmax * (1 - np.cos(np.pi * t)**4)**4)
@@ -29,7 +36,7 @@ def simulate_contact(
 
     while step < n_steps:
 
-        # Advance to t = i * time_step
+        # Advance to the next time-step
         step += 1
         time += time_step
 
@@ -37,16 +44,16 @@ def simulate_contact(
         r = np.random.random()
 
         if contact: # deactivate?
-            contact_duration += time_step
+            contact_duration += time_step # accmulate contact duration
 
-            if r < time_step / mean_contact_lifetime:
+            if r < time_step / mean_contact_lifetime: # deactivation
                 contact = False
     
         else: # inception?
 
             inception_rate = diurnal_inception_rate(min_inception_rate, max_inception_rate, time)
 
-            if r < time_step * inception_rate:
+            if r < time_step * inception_rate: # inception
                 contact = True
                 inceptions += 1
 
@@ -67,6 +74,7 @@ def simulate_contacts(
 
     n_steps = int(np.round((stop_time - time) / time_step))
 
+    # Parallel loop over contacts
     for i in prange(len(contact_duration)):
 
          contact[i], contact_duration[i], inceptions[i] = simulate_contact(
