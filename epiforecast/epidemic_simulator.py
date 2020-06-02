@@ -27,6 +27,8 @@ class EpidemicSimulator:
         
         self.contact_network = contact_network
 
+        self.health_service = health_service
+
         self.contact_simulator = ContactSimulator(n_contacts = nx.number_of_edges(contact_network),
                                                   mean_event_lifetime = mean_contact_lifetime,
                                                   inception_rate = contact_inception_rate,
@@ -83,6 +85,10 @@ class EpidemicSimulator:
         for i in range(constant_steps):
 
             interval_stop_time = interval_stop_times[i]
+
+            if self.health_service is not None:
+                self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
+                                                                 self.contact_network)
 
             start = timer()
 

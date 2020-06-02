@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
+from epiforecast.health_service import HealthService
 from epiforecast.contact_simulator import DiurnalContactInceptionRate
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.scenarios import random_epidemic
@@ -55,12 +56,17 @@ transition_rates = TransitionRates(population_network,
 minute = 1 / 60 / 24
 hour = 60 * minute
 
+health_service = HealthService(patient_capacity = 10,
+                               health_worker_population = 10, # sets the first 10 nodes as health workers
+                               static_population_network = population_network)
+
 epidemic_simulator = EpidemicSimulator(population_network,            
                                                  mean_contact_lifetime = 1 * minute,
                                                 contact_inception_rate = DiurnalContactInceptionRate(maximum=34, minimum=2),
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
+                                                        health_service = None, #health_service,
                                        hospital_transmission_reduction = 0.1,
                                                         cycle_contacts = True)
 
