@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler, ConstantSampler
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalMeanContactRate
+from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMeanContactRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges
 
@@ -59,7 +59,7 @@ population = len(contact_network)
 # Build the contact simulator
 #
 
-contact_simulator = ContactSimulator(
+contact_simulator = FastContactSimulator(
 
              n_contacts = nx.number_of_edges(contact_network),
     mean_event_duration = 1 / 60 / 24, # 1 minute in units of days
