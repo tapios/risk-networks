@@ -46,26 +46,27 @@ def temporary_seed(seed):
         np.random.set_state(state)
 
 
-def random_epidemic(population, fraction_infected, fraction_exposed=0):
+def random_epidemic(population_network, fraction_infected, fraction_exposed=0):
     """
     Returns a status dictionary associated with a random infection
     within a population associated with node_identifiers.
     """
 
-    initial_infected = int(np.round(fraction_infected * population))
-    initial_exposed = int(np.round(fraction_exposed * population))
+    population = len(population_network)
 
-    statuses = {node: 'S' for node in range(population)}
+    n_initial_infected = int(np.round(fraction_infected * population))
+    n_initial_exposed = int(np.round(fraction_exposed * population))
 
-    initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
-    initial_exposed_nodes = np.random.choice(population, size=initial_exposed, replace=False)
+    statuses = {node: 'S' for node in population_network.nodes()}
+    nodes = list(population_network.nodes())
 
-    for i in initial_infected_nodes:
-        statuses[i] = 'I'
+    initial_infected = np.random.choice(nodes, size=n_initial_infected, replace=False)
 
-    for i in initial_exposed_nodes:
-        if statuses[i] is not 'I':
-            statuses[i] = 'E'
+    uninfected = [ node for node in filter(lambda n: n not in initial_infected, nodes) ]
+    initial_exposed = np.random.choice(uninfected, size=n_initial_exposed, replace=False)
+
+    statuses.update({node: 'I' for node in initial_infected})
+    statuses.update({node: 'E' for node in initial_exposed})
 
     return statuses
 

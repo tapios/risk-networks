@@ -75,7 +75,7 @@ kinetic_model = KineticModel(contact_network = population_network,
 # Seed an infection
 #
 
-statuses = random_epidemic(population, fraction_infected=0.01)
+statuses = random_epidemic(population_network, fraction_infected=0.01)
 kinetic_model.set_statuses(statuses)
 
 # 
