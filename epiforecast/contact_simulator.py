@@ -1,26 +1,32 @@
 import numpy as np
+from numba import njit, float64
+from numba.experimental import jitclass
 
+@njit
 def accumulate_contact_duration(contact_duration, time_step, active_contacts):
     contact_duration += time_step * active_contacts
 
+@njit
 def random_index_to_deactivate(active_contacts, n_active_contacts):
     k = np.random.choice(n_active_contacts) # select an active contact
     i = np.where(active_contacts)[0][k]
     return i 
 
+@njit
 def random_index_to_activate(active_contacts, n_active_contacts):
     k = np.random.choice(len(active_contacts) - n_active_contacts) # select an inactive contact
     i = np.where(~active_contacts)[0][k]
     return i
 
-def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_contact_rate, 
-                   time, stop_time, overshoot_contact_duration, overshoot_time):
+@njit
+def gillespie_step(contact_duration, active_contacts, time, stop_time,
+                   mean_event_lifetime, current_inception_rate):
 
     n_total = len(active_contacts)
     n_active = np.count_nonzero(active_contacts)
 
-    activation_rate = mean_contact_rate * (n_total - n_active)
-    deactivation_rate = n_active / mean_event_duration
+    activation_rate = current_inception_rate * (n_total - n_active)
+    deactivation_rate = n_active / mean_event_lifetime
      
     # Generate exponentially-distributed random time step:
     time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
@@ -52,6 +58,28 @@ def gillespie_step(contact_duration, active_contacts, mean_event_duration, mean_
     return time_step, overshoot_time
 
 
+@njit
+def gillespie_contact_simulation(contact_duration, active_contacts, time, stop_time,
+                                 mean_event_lifetime, inception_rate):
+
+    interval_steps = 0 # bookkeeping
+
+    while time < stop_time:
+            
+        current_inception_rate = inception_rate.rate(time)
+
+        time_step, overshoot_time = gillespie_step(contact_duration,
+                                                   active_contacts,
+                                                   time,
+                                                   stop_time,
+                                                   mean_event_lifetime,
+                                                   current_inception_rate)
+
+        # Move into the future
+        time += time_step
+        interval_steps += 1
+
+    return time, overshoot_time, interval_steps
 
 
 
@@ -66,8 +94,8 @@ class ContactSimulator:
                                              start_time = 0.0,
                                              n_contacts = None, 
                                         active_contacts = None,
-                                      mean_contact_rate = None,
-                                    mean_event_duration = None,
+                                         inception_rate = None,
+                                    mean_event_lifetime = None,
                 ):
         """
         Args
@@ -79,17 +107,17 @@ class ContactSimulator:
         active_contacts (np.array): Array of booleans of length `n_contacts` indicating which
                                     contacts are active (default: None)
 
-        mean_contact_rate (callable): The average number of people each individual encounters at a time.
-                                      Must be callable with `time` (with units of days) as an argument.
+        inception_rate (callable): The average number of people each individual encounters at a time.
+                                   Must be callable with `time` (with units of days) as an argument.
 
-        mean_event_duration (float): The mean duration of a contact event.
+        mean_event_lifetime (float): The mean duration of a contact event.
 
         start_time (float): the start time of the simulation in days
         """
 
         self.time = start_time
-        self.mean_contact_rate = mean_contact_rate
-        self.mean_event_duration = mean_event_duration
+        self.inception_rate = inception_rate
+        self.mean_event_lifetime = mean_event_lifetime
         
         # Initialize the active contacts
         if active_contacts is not None: # list of active contacts is provided
@@ -102,10 +130,10 @@ class ContactSimulator:
 
             # If contact information is supplied, use equilibrium solution to determine
             # the initial fraction of active contacts.
-            if mean_contact_rate is not None and mean_event_duration is not None:  
+            if inception_rate is not None and mean_event_lifetime is not None:  
 
-                λ = mean_contact_rate(start_time) # current mean contact rate
-                μ = 1 / mean_event_duration
+                λ = inception_rate.rate(start_time) # current mean contact rate
+                μ = 1 / mean_event_lifetime
                 initial_fraction_active_contacts = λ / (μ + λ)
 
             # Otherwise, initial_fraction_active_contacts is left unchanged
@@ -128,76 +156,46 @@ class ContactSimulator:
         self.overshoot_contact_duration = np.zeros(self.n_contacts)
         self.overshoot_time = 0.0
         
-    def _initialize_run(self, stop_time, mean_event_duration, mean_contact_rate):
+    def run(self, stop_time, mean_event_lifetime=None, inception_rate=None):
         """
-        Initialize a forward run of the ContactSimulator
+        Simulate time-dependent contacts with a birth/death process.
         """
 
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        if mean_event_duration is not None:
-            self.mean_event_duration = mean_event_duration
+        if mean_event_lifetime is not None:
+            self.mean_event_lifetime = mean_event_lifetime
 
-        if mean_contact_rate is not None:
-            self.mean_contact_rate = mean_contact_rate
+        if inception_rate is not None:
+            self.inception_rate = inception_rate
 
-        if self.mean_event_duration is None:
+        if self.mean_event_lifetime is None:
             raise ValueError("Mean event duration is not set!")
 
-        if self.mean_contact_rate is None:
+        if self.inception_rate is None:
             raise ValueError("Mean contact rate is not set!")
 
         # Capture the contact duration associated with 'overshoot' during a previous simulation:
         if stop_time > self.time:
             self.interval_contact_duration = self.overshoot_contact_duration
-            overshoot_time = 0.0
 
         else: # stop_time is within the current event interval; no events will occur.
             self.interval_contact_duration = (stop_time - self.interval_stop_time) * self.active_contacts
             overshoot_time = self.time - stop_time
 
-        self.interval_steps = 0 # bookkeeping
-
-        return overshoot_time
-
-    def run(self, stop_time, mean_event_duration=None, mean_contact_rate=None):
-        """
-        Simulate time-dependent contacts with a birth/death process.
-
-        Args
-        ----
-
-        stop_time (float): Time to stop running the Gillespie simulation of contacts.
-
-        mean_event_duration (float): The mean duration of a "contact event"
-
-        mean_contact_rate (callable): A function that returns mean_contact_rate(epidemic_day).
-        """
-
-        overshoot_time = self._initialize_run(stop_time, mean_event_duration, mean_contact_rate)
-    
-        # Run:
-        while self.time < stop_time:
-            
-            current_mean_contact_rate = self.mean_contact_rate(self.time)
-
-            time_step, overshoot_time = gillespie_step(self.interval_contact_duration,
-                                                       self.active_contacts,
-                                                       self.mean_event_duration,
-                                                       current_mean_contact_rate,
-                                                       self.time,
-                                                       stop_time,
-                                                       self.overshoot_contact_duration,
-                                                       self.overshoot_time)
-
-            # Move into the future
-            self.time += time_step
-            self.interval_steps += 1
+        # Run the simulation
+        (self.time,
+         self.overshoot_time,
+         self.interval_steps) = gillespie_contact_simulation(self.interval_contact_duration,
+                                                             self.active_contacts,
+                                                             self.time,
+                                                             stop_time, 
+                                                             self.mean_event_lifetime,
+                                                             self.inception_rate)
 
         # Store the "overshoot contact duration" for use during a subsequent simulation.
-        self.overshoot_time = overshoot_time
-        self.overshoot_contact_duration = overshoot_time * self.active_contacts
+        self.overshoot_contact_duration = self.overshoot_time * self.active_contacts
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time
@@ -212,20 +210,24 @@ class ContactSimulator:
 
 
 
-
+@njit
 def cos4_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**4)**4)
 
+@njit
 def cos2_diurnal_modulation(t, cmin, cmax):
     return np.maximum(cmin, cmax * (1 - np.cos(np.pi * t)**2)**2)
 
+specification = [
+                 ('maximum', float64), 
+                 ('minimum', float64)
+                ]
+
+@jitclass(specification)
 class DiurnalMeanContactRate:
-    def __init__(self, maximum=22, minimum=3, diurnal_modulation=cos4_diurnal_modulation):
+    def __init__(self, maximum=22, minimum=3, modulation=cos4_diurnal_modulation):
         self.maximum = maximum
         self.minimum = minimum
-        self.modulation = diurnal_modulation
 
-    def __call__(self, t):
-        return self.modulation(t, self.minimum, self.maximum)
-
-
+    def rate(self, t):
+        return np.maximum(self.minimum, self.maximum * (1 - np.cos(np.pi * t)**4)**4)
