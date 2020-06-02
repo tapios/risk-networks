@@ -8,13 +8,17 @@ class NetworkCompartmentalModel:
     ODE representation of the SEIHRD compartmental model.
     """
 
-    def __init__(self, contact_network, weight = None,
+    def __init__(self,
+                contact_network,
+                weight = None,
                 hospital_transmission_reduction = 0.25):
+
         self.hospital_transmission_reduction = hospital_transmission_reduction
+        self.weight = weight
+
         if type(contact_network) == nx.classes.graph.Graph:
             self.G      = self.contact_network = contact_network
             self.N      = len(self.G)
-            self.weight = weight
             self.L      = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
         else:
             self.L      = sps.csr_matrix(contact_network)
@@ -120,12 +124,12 @@ class MasterEquationModelEnsemble:
         """
         self.M = self.ensemble_size = ensemble_size
         self.ix_reduced = reduced_system
+        self.weight = weight
 
         if type(contact_network) == nx.classes.graph.Graph:
             self.G = self.contact_network = contact_network
-            self.weight = weight
             self.N = len(self.G)
-            self.L  = nx.to_scipy_sparse_matrix(self.G, weight = weight)
+            self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
         else:
             self.L = sps.csr_matrix(contact_network)
             self.N = self.L.shape[0]
@@ -161,9 +165,8 @@ class MasterEquationModelEnsemble:
         if new_contact_network is not None:
             if type(contact_network) == nx.classes.graph.Graph:
                 self.G = self.contact_network = new_contact_network
-                self.weight = weight
                 self.N = len(self.G)
-                self.L  = nx.to_scipy_sparse_matrix(self.G, weight = weight)
+                self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
             else:
                 self.L = sps.csr_matrix(new_contact_network)
                 self.N = self.L.shape[0]
