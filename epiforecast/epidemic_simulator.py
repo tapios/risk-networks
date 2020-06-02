@@ -29,7 +29,12 @@ class EpidemicSimulator:
 
         self.health_service = health_service
 
-        self.contact_simulator = ContactSimulator(n_contacts = nx.number_of_edges(contact_network),
+        if health_service is not None:
+            max_edges = nx.number_of_edges(contact_network) + 5 * health_service.patient_capacity
+        else:
+            max_edges = nx.number_of_edges(contact_network)
+
+        self.contact_simulator = ContactSimulator(n_contacts = max_edges,
                                                   mean_event_lifetime = mean_contact_lifetime,
                                                   inception_rate = contact_inception_rate,
                                                   start_time = start_time)

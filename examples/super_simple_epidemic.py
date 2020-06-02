@@ -56,7 +56,7 @@ transition_rates = TransitionRates(population_network,
 minute = 1 / 60 / 24
 hour = 60 * minute
 
-health_service = HealthService(patient_capacity = 10,
+health_service = HealthService(patient_capacity = 5,
                                health_worker_population = 10, # sets the first 10 nodes as health workers
                                static_population_network = population_network)
 
@@ -66,7 +66,7 @@ epidemic_simulator = EpidemicSimulator(population_network,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
-                                                        health_service = None, #health_service,
+                                                        health_service = health_service,
                                        hospital_transmission_reduction = 0.1,
                                                         cycle_contacts = True)
 
