@@ -118,7 +118,7 @@ class DataAssimilator:
         return distinct_cov
 
     # ensemble_state np.array([ensemble size, num status * num nodes]
-    # data np.array([ensemble size, num status * num nodes])
+    # data np.array([num status * num nodes])
     # contact network networkx.graph (if provided)
     # full_ensemble_transition_rates list[ensemble size] of  TransitionRates objects from epiforecast.populations 
     # full_ensemble_transmission_rate np.array([ensemble size])
@@ -178,6 +178,7 @@ class DataAssimilator:
                 cov = self.get_observation_cov()
                 
                 # Perform da model update with ensemble_state: states, transition and transmission rates
+               
                 (ensemble_state[:, obs_states], 
                  new_ensemble_transition_rates,
                  new_ensemble_transmission_rate) = dam.update(ensemble_state[:, obs_states],
@@ -197,20 +198,21 @@ class DataAssimilator:
                             # Need to go back from numpy array to setting rates
                             # We obtain the size, then update the corresponding transition rate
                             # Then delete this an move onto the next rate
-                            
-                            rate_size = getattr(full_ensemble_transition_rates[member], rate_type).size
-
-                            full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_member_rates[:rate_size])
+                            clinical_parameter = getattr(full_ensemble_transition_rates[member], rate_type)
+                            if not isinstance(clinical_parameter, np.ndarray):
+                                rate_size = np.array(clinical_parameter).size
+                                new_rates=new_member_rates[0]
+                            else:
+                                rate_size=clinical_parameter.size
+                                new_rates=new_member_rates[:rate_size]
+                            full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_rates)
 
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
 
                 # Update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
                     full_ensemble_transmission_rate=new_ensemble_transmission_rate
-                
-                # Force probabilities to sum to one
-                self.sum_to_one(ensemble_state)
-            
+                            
                 print("EAKF error:", dam.error[-1])
             else:
                 print("No assimilation required")
@@ -255,23 +257,3 @@ class DataAssimilator:
 
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
-    
-    def sum_to_one(self,ensemble_state):
-        N=self.observations[0].N
-        n_status=self.observations[0].n_status
-        if n_status == 6:
-            #First enforce probabilities == 1, by placing excess in susceptible and Exposed
-            #split based on their current proportionality.
-            #(Put all in S or E leads quickly to [0,1] bounding issues.
-            sumx=ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
-            sumx=np.sum(sumx[:,2:,:],axis=1) #sum over I H R D
-            x1mass=np.sum(ensemble_state[:,0:N],axis=1)#mass in S
-            x2mass=np.sum(ensemble_state[:,N:2*N],axis=1) #mass in E
-            fracS=x1mass/(x1mass+x2mass)#get the proportion of mass in frac1
-            fracE=1.0-fracS
-            ensemble_state[:,0:N]=((1.0-sumx).T*fracS).T #mult rows by fracS
-            ensemble_state[:,N:2*N]= ((1.0-sumx).T*(fracE)).T 
-        elif n_status==5:
-            #All mass automatically lumped into empty field: E
-            #If this requires smoothing - input here
-            pass

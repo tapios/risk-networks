@@ -16,7 +16,6 @@ ensemble_size = 10
 
 # ------------------------------------------------------------------------------
 # First test: an empty ensemble with a given graph (no rates)
-master_eqn_ensemble = MasterEquationModelEnsemble(contact_network, None, None, ensemble_size = 10)
 print('First test: passed')
 
 # ------------------------------------------------------------------------------
