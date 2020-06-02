@@ -11,35 +11,46 @@ import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 
-# Utilities for generating random populations
-from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeAwareBetaSampler, ConstantSampler
+from matplotlib import rcParams
 
+# customized settings
+params = {  # 'backend': 'ps',
+    'font.family': 'serif',
+    'font.serif': 'Latin Modern Roman',
+    'font.size': 10,
+    'axes.labelsize': 'medium',
+    'axes.titlesize': 'medium',
+    'legend.fontsize': 'medium',
+    'xtick.labelsize': 'small',
+    'ytick.labelsize': 'small',
+    'savefig.dpi': 150,
+    'text.usetex': True}
+# tell matplotlib about your params
+rcParams.update(params)
+
+# set nice figure sizes
+fig_width_pt = 368    # Get this from LaTeX using \showthe\columnwidth
+golden_mean = (np.sqrt(5.) - 1.) / 2.  # Aesthetic ratio
+ratio = golden_mean
+inches_per_pt = 1. / 72.27  # Convert pt to inches
+fig_width = fig_width_pt * inches_per_pt  # width in inches
+fig_height = 0.75*fig_width*ratio  # height in inches
+fig_size = [fig_width, fig_height]
+rcParams.update({'figure.figsize': fig_size})
+
+# Utilities for generating random populations
+from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
+from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
+
+from epiforecast.contact_simulator import DiurnalContactInceptionRate
 from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMeanContactRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
-from epiforecast.scenarios import load_edges
+from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.node_identifier_helper import load_node_identifiers
 
-def random_epidemic(population, initial_infected, initial_exposed):
-    """
-    Returns a status dictionary associated with a random infection
-    within a population associated with node_identifiers.
-    """
-
-    statuses = {node: 'S' for node in range(population)}
-
-    initial_infected_nodes = np.random.choice(population, size=initial_infected, replace=False)
-    initial_exposed_nodes = np.random.choice(population, size=initial_exposed, replace=False)
-
-    for i in initial_infected_nodes:
-        statuses[i] = 'I'
-
-    for i in initial_exposed_nodes:
-        if statuses[i] is not 'I':
-            statuses[i] = 'E'
-
-    return statuses
+from epiforecast.epidemic_simulator import EpidemicSimulator
+from epiforecast.health_service import HealthService
 
 def simulation_average(model_data, sampling_time = 1):
     """
@@ -67,30 +78,6 @@ def simulation_average(model_data, sampling_time = 1):
             tav += sampling_time
 
     return daily_average
-
-def repeated_contact_simulator(contact_simulator, steps_contact_simulator, start_times):
-    """
-    Returns a contact simulation for "steps_contact_simulator" steps.
-    """
-
-    mean_contact_duration = []
-    contact_duration = []
-
-    print("...contact simulation started...")
-
-    for i in range(steps_contact_simulator):
-    
-        start = timer() 
-        contacts = contact_simulator.mean_contact_duration(stop_time = start_times[i])
-        end = timer() 
-    
-        print("...step {:d}/{:d} completed in {: 6.3f} s".format(i, steps_contact_simulator, end - start))
-        contact_duration.append(contacts)
-        mean_contact_duration.append(np.mean(contacts))
-
-    print("...contact simulation completed...")
-
-    return mean_contact_duration, contact_duration
         
 #
 # Set random seeds for reproducibility
@@ -104,7 +91,8 @@ random.seed(123)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3.txt')) 
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -128,57 +116,22 @@ contact_simulator = FastContactSimulator(
 # Clinical parameters of an age-distributed population
 #
 
-# The age category of each community individual,
-
-age_distribution = [ 0.21,  # 0-17 years
-                     0.40,  # 18-44 years
-                     0.25,  # 45-64 years
-                     0.08   # 65-75 years
-                   ]
-
-## 75 onwards
-age_distribution.append(1 - sum(age_distribution))
+assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
                        
-ages = populate_ages(population, distribution=age_distribution)
-
-# Next, we randomly generate clinical properties for our example population.
-# Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-latent_periods              = sample_distribution(ConstantSampler(3.7), population=population, minimum=0)
-community_infection_periods = sample_distribution(ConstantSampler(3.2), population=population, minimum=0)
-hospital_infection_periods  = sample_distribution(ConstantSampler(5),   population=population, minimum=0)
-
-#                                                                      ages:  0-17  18-44   45-64  65-75    75+
-hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4), ages=ages)
-community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4), ages=ages)
-hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4), ages=ages)
-
 # We process the clinical data to determine transition rates between each epidemiological state,
-transition_rates = TransitionRates(population,
-                                   latent_periods,
-                                   community_infection_periods,
-                                   hospital_infection_periods,
-                                   hospitalization_fraction,
-                                   community_mortality_fraction,
-                                   hospital_mortality_fraction)
+transition_rates = TransitionRates(contact_network,
+
+                  latent_periods = 3.7,
+     community_infection_periods = 3.2,
+      hospital_infection_periods = 5.0,
+        hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.076,  0.16]),
+    community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015]),
+     hospital_mortality_fraction = AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512])
+
+)
 
 transmission_rate = 12.0
 hospital_transmission_reduction = 0.1
-
-#
-# Build the kinetic model
-#
-
-kinetic_model = KineticModel(contact_network = contact_network,
-                             transition_rates = transition_rates,
-                             community_transmission_rate = transmission_rate,
-                             hospital_transmission_reduction = hospital_transmission_reduction)
-
-# 
-# Seed an infection
-#
-
-statuses = random_epidemic(population, initial_infected=10, initial_exposed=0)
-kinetic_model.set_statuses(statuses)
 
 # 
 # Simulate the growth and equilibration of an epidemic
@@ -187,19 +140,6 @@ kinetic_model.set_statuses(statuses)
 minute = 1 / 60 / 24
 hour = 60 * minute
 
-static_contact_interval = 3 * hour
-interval = 100 # days
-
-steps = int(interval / static_contact_interval)
-steps_contact_simulator = int(1 / static_contact_interval)
-start_times = static_contact_interval * np.arange(steps_contact_simulator)
-
-#
-# Determine contacts for a one day period
-#
-
-mean_contact_duration, contact_duration = repeated_contact_simulator(contact_simulator, steps_contact_simulator, start_times)
-
 # Social distancing time
 time_SD = 13 # days
 λmax_SD = 3
@@ -207,39 +147,80 @@ time_SD = 13 # days
 SD_flag = 0
 
 # Run the simulation
-for i in range(steps):
 
-    kinetic_model.set_mean_contact_duration(contact_duration[i%steps_contact_simulator])
-    start = timer()
-    kinetic_model.simulate(static_contact_interval)
-    end = timer() 
+health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
+                               health_worker_population = len(node_identifiers['health_workers']),
+                               static_population_network = contact_network)
 
-    print("Epidemic day: {: 7.3f}, wall_time: {: 6.3f} s,".format(kinetic_model.times[-1], end - start), 
-          "mean(w_ji): {: 3.0f} min,".format(mean_contact_duration[i%steps_contact_simulator] / minute),
-          "statuses: ",
-          "S {: 4d} |".format(kinetic_model.statuses['S'][-1]), 
-          "E {: 4d} |".format(kinetic_model.statuses['E'][-1]), 
-          "I {: 4d} |".format(kinetic_model.statuses['I'][-1]), 
-          "H {: 4d} |".format(kinetic_model.statuses['H'][-1]), 
-          "R {: 4d} |".format(kinetic_model.statuses['R'][-1]), 
-          "D {: 4d} |".format(kinetic_model.statuses['D'][-1]))
+epidemic_simulator = EpidemicSimulator(contact_network,            
+                                                 mean_contact_lifetime = 0.6 * minute,
+                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
+                                                      transition_rates = transition_rates,
+                                               static_contact_interval = 3 * hour,
+                                           community_transmission_rate = 12.0,
+                                                        health_service = health_service,
+                                       hospital_transmission_reduction = 0.1,
+                                                       cycle_contacts = True)
 
-    # social distancing intervention
-    if kinetic_model.times[-1] > time_SD and SD_flag == 0: 
-        print("Social distancing intervention with λmax = %2.1f and λmin = %2.1f"%(λmax_SD, λmin_SD))
+statuses = random_epidemic(contact_network, fraction_infected=0.01)
 
-        contact_simulator = FastContactSimulator(
+epidemic_simulator.set_statuses(statuses)
 
-             n_contacts = nx.number_of_edges(contact_network),
-             mean_event_duration = 0.6 / 60 / 24, # 0.5 minutes in units of days
-             mean_contact_rate = DiurnalMeanContactRate(minimum_i=λmin_SD, maximum_i=λmax_SD, minimum_j=λmin_SD, maximum_j=λmax_SD),
-             start_time = -3 / 24, # negative start time allows short 'spinup' of contacts
+epidemic_simulator.run(stop_time = 10)
 
-        )
+kinetic_model = epidemic_simulator.kinetic_model
 
-        start_times = static_contact_interval * np.arange(steps_contact_simulator)
-        mean_contact_duration, contact_duration = repeated_contact_simulator(contact_simulator, steps_contact_simulator, start_times)
-        SD_flag = 1
+# SD intervention
+
+health_service = epidemic_simulator.health_service
+
+statuses = epidemic_simulator.kinetic_model.current_statuses
+
+epidemic_simulator = EpidemicSimulator(contact_network,            
+                                                 mean_contact_lifetime = 0.6 * minute,
+                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=3, minimum=3),
+                                                      transition_rates = transition_rates,
+                                               static_contact_interval = 3 * hour,
+                                           community_transmission_rate = 12.0,
+                                                        health_service = health_service,
+                                       hospital_transmission_reduction = 0.1,
+                                                        cycle_contacts = True)
+
+epidemic_simulator.set_statuses(statuses)
+
+epidemic_simulator.run(stop_time = 90) # days
+
+for key in kinetic_model.statuses.keys():
+   kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
+
+
+kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_model.times)
+
+# loosening SD intervention
+
+health_service = epidemic_simulator.health_service
+
+statuses = epidemic_simulator.kinetic_model.current_statuses
+
+epidemic_simulator = EpidemicSimulator(contact_network,            
+                                                 mean_contact_lifetime = 0.6 * minute,
+                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=6, minimum=3),
+                                                      transition_rates = transition_rates,
+                                               static_contact_interval = 3 * hour,
+                                           community_transmission_rate = 12.0,
+                                                        health_service = health_service,
+                                       hospital_transmission_reduction = 0.1,
+                                                        cycle_contacts = True)
+
+epidemic_simulator.set_statuses(statuses)
+
+epidemic_simulator.run(stop_time = 20) # days
+
+for key in kinetic_model.statuses.keys():
+   kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
+
+
+kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_model.times)
 
 #
 # Plot the results and compare with NYC data.
@@ -272,25 +253,27 @@ fig, ax = plt.subplots()
 
 ax2 = ax.twinx()
 
-ax.plot(NYC_date_of_interest[::3], cumulative_reported_cases_NYC[::3], marker = 'o', markersize = 3, color = 'k', ls = 'None')
-ax.plot(simulation_dates+dt.timedelta(days = 9), cumulative_cases_simulation, 'k')
+ax.plot(NYC_date_of_interest[::3], cumulative_reported_cases_NYC[::3], marker = 'o', markersize = 3, color = 'k', ls = 'None', label = r'total cases (NYC)')
+ax.plot(simulation_dates+dt.timedelta(days = 9), cumulative_cases_simulation, 'k', label = 'total cases (simulation)')
 
-ax2.plot(NYC_date_of_interest[::3], cumulative_deaths_NYC[::3], marker = 's', markersize = 4, color = 'darkred', markeredgecolor = 'Grey', ls = 'None')
-ax2.plot(simulation_dates+dt.timedelta(days = 9), cumulative_deaths_simulation, 'darkred')
+ax2.plot(NYC_date_of_interest[::3], cumulative_deaths_NYC[::3], marker = 's', markersize = 4, color = 'darkred', markeredgecolor = 'Grey', ls = 'None', label = r'death cases (NYC)')
+ax2.plot(simulation_dates+dt.timedelta(days = 9), cumulative_deaths_simulation, 'darkred', label = 'death cases (simulation)')
 
-ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 6, 7)])
+ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 6, 21)])
 ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
 ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 
 ax.set_ylim(0,0.4)
-ax.set_ylabel(r'proportion infected', labelpad = 3)
+ax.set_ylabel(r'proportion of total cases', labelpad = 3)
 
 ax2.set_ylim(0,800)
 ax2.set_ylabel(r'total deaths/100,000', color = 'darkred')
 ax2.tick_params(axis='y', labelcolor = 'darkred')   
 
-plt.legend(frameon = False, loc = 5, fontsize = 6)
+ax.legend(frameon = False, loc = 2, fontsize = 6)
+ax2.legend(frameon = False, loc = 1, fontsize = 6)
+
 plt.tight_layout()
 plt.margins(0,0)
 plt.savefig('new_york_cases.png', dpi=300, bbox_inches = 'tight',
@@ -299,11 +282,11 @@ plt.savefig('new_york_cases.png', dpi=300, bbox_inches = 'tight',
 # plot reproduction number estimate
 fig, ax = plt.subplots()
 
-ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 6, 7)])
+ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 6, 21)])
 
 plt.plot(simulation_dates+dt.timedelta(days = 9), np.asarray(daily_average['E'])/np.asarray(daily_average['I']), 'k')
 
-plt.plot([dt.date(2020, 3, 1), dt.date(2020, 6, 7)], [1,1], linestyle = '--', color = 'Grey')
+plt.plot([dt.date(2020, 3, 1), dt.date(2020, 6, 21)], [1,1], linestyle = '--', color = 'Grey')
 
 ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
 ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
@@ -319,17 +302,13 @@ plt.savefig('reproduction_number.png', dpi=300, bbox_inches = 'tight',
     pad_inches = 0.05)
 
 # plot all model compartments
-fig, axs = plt.subplots(nrows=3, sharex=True)
+fig, axs = plt.subplots(nrows=2, sharex=True)
 
 plt.sca(axs[0])
-plt.plot(start_times, np.array(mean_contact_duration) / minute)
-plt.ylabel("Mean $ w_{ji} $")
-
-plt.sca(axs[1])
 plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
 plt.ylabel("Total susceptible, $S$")
 
-plt.sca(axs[2])
+plt.sca(axs[1])
 plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
 plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
 plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')

@@ -81,6 +81,7 @@ class EpidemicSimulator:
                 step_time = self.time + step * self.static_contact_interval
                 interval_contact_duration = self.contact_simulator.mean_contact_duration(stop_time = step_time)
                 daily_contacts_cycle.append(interval_contact_duration)
+                print("%d/%d steps completed"%(step,len(daily_steps)))
 
             end = timer()
 

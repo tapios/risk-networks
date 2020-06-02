@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Utilities for generating random populations
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
+from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
 from epiforecast.health_service import HealthService
 from epiforecast.contact_simulator import DiurnalContactInceptionRate
@@ -43,9 +43,9 @@ transition_rates = TransitionRates(population_network,
                   latent_periods = 3.7,
      community_infection_periods = 3.2,
       hospital_infection_periods = 5.0,
-        hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
-    community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
-     hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
+        hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.075,  0.16]),
+    community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.003,  0.01,  0.02]),
+     hospital_mortality_fraction = AgeDependentConstant([0.019, 0.075,  0.195, 0.328, 0.514])
 
 )
 
