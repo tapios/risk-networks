@@ -178,7 +178,7 @@ class DataAssimilator:
                 cov = self.get_observation_cov()
                 
                 # Perform da model update with ensemble_state: states, transition and transmission rates
-                print(ensemble_state[:,obs_states].shape,ensemble_transition_rates.shape,ensemble_transmission_rate.shape) 
+               
                 (ensemble_state[:, obs_states], 
                  new_ensemble_transition_rates,
                  new_ensemble_transmission_rate) = dam.update(ensemble_state[:, obs_states],

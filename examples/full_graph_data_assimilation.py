@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.observations import FullObservation
+from epiforecast.observations import FullObservation, HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 
@@ -121,8 +121,23 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 
 noise_var = 0.01 # independent variance on observations
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
-observations = FullObservation(population, noise_var, "Full state observation 1% noise")
-
+#full_state_observation = FullObservation(population, noise_var, "Full state observation 1% noise")
+#HighProbRandomStatusObservation( num_nodes,
+#                                frac_of_candidate_nodes_to_observe,
+#                                status id (S=1,I=2,H=3,...)
+#                                min probability of ensemble (mean) to perform observation, default=0.0
+#                                max probability of ensemble (mean) to perform observation, default=1.0
+#                                noise variance
+#                                name the observation
+threshold_infected_observation = HighProbRandomStatusObservation(N = population,
+                                                                 obs_frac = 1.0,
+                                                                 obs_status_idx = 2,
+                                                                 noise_var = noise_var,
+                                                                 obs_name = "0.25 < Infected(100%) < 0.75",
+                                                                 min_threshold=0.25,
+                                                                 max_threshold=0.75)
+                                                                   
+observations=[threshold_infected_observation]
 transmission_rate_to_update_flag=True
 assimilator = DataAssimilator(observations = observations,
                               errors = [],

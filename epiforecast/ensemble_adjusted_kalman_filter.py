@@ -200,6 +200,6 @@ class EnsembleAdjustedKalmanFilter:
 
         # Compute error
         self.compute_error(x_logit,x_t,cov)
-        print("new_clinical_statistics", new_clinical_statistics)
-        print("new_transmission_rates", new_transmission_rates)
+        #print("new_clinical_statistics", new_clinical_statistics)
+        #print("new_transmission_rates", new_transmission_rates)
         return new_ensemble_state, new_clinical_statistics, new_transmission_rates

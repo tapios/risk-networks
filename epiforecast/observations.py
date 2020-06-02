@@ -254,7 +254,16 @@ class RandomStatusObservation(RandomStatusStateObservation,IndependentGaussian):
 
 class HighProbRandomStatusObservation(HighProbStatusStateObservation,IndependentGaussian):
 
-    def __init__(self,N,obs_frac,obs_status_idx,min_threshold,max_threshold,threshold_type,noise_var,obs_name,n_status=5):
+    def __init__(self,
+                 N,
+                 obs_frac,
+                 obs_status_idx,
+                 noise_var,
+                 obs_name,
+                 min_threshold=0.0,
+                 max_threshold=1.0,
+                 threshold_type="mean",
+                 n_status=5):
         if not isinstance(obs_status_idx,np.ndarray):#if it's a scalar, not array
             obs_status_idx=np.array(obs_status_idx)
 
