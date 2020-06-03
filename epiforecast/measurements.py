@@ -22,15 +22,17 @@ class TestMeasurements(Measurements):
             ensemble_states : `np.array` of shape (ensemble_size, num_status * population) at a given time
             status_idx      : status id of interest. Following the ordering of the reduced system SIRHD.
         """
-        if reduced_system = True
+        if reduced_system == True:
             status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         else :
             status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
 
-               n_status = len(status_catalog.keys())
-             population = ensemble_states.shape[1]/n_status
-          ensemble_size = ensemble_states.shape[0]
-        self.prevalence = ensemble_states.reshape(ensemble_size,n_status,-1)[:,status_catalog[status],:].sum(axis = 1)/population
+        self.status = status
+
+        n_status        = len(status_catalog.keys())
+        population      = ensemble_states.shape[1]/n_status
+        ensemble_size   = ensemble_states.shape[0]
+        self.prevalence = ensemble_states.reshape(ensemble_size,n_status,-1)[:,status_catalog[self.status],:].sum(axis = 1)/population
 
     def set_ppv(self, scale = 'log'):
         ppv = self.sensitivity * self.prevalence / \
@@ -53,7 +55,11 @@ class TestMeasurements(Measurements):
         -------
 
         """
-        measurements = np.zeros(len(nodes_state_dict.nodes))
+        if self.status != status:
+            print("Warning! Test is calibrated for %s, you requested %s."%(self.status, status))
+            return None, None
+
+        measurements = np.zeros(len(nodes_state_dict.keys()))
         uncertainty  = np.zeros_like(measurements)
 
         for node in nodes_state_dict.keys():
@@ -64,3 +70,5 @@ class TestMeasurements(Measurements):
                 else:
                     measurements[node] = self.ppv_mean
                     uncertainty[node]  = self.ppv_var
+
+        return measurements, uncertainty
