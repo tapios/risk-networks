@@ -54,15 +54,12 @@ for mm, member in enumerate(ensemble_model.ensemble):
     I[infected] = 1.
     S[infected] = 0.
 
-    y0[mm, : ]      = np.hstack((S, I, H, R, D))
+    y0[mm, : ]  = np.hstack((S, I, H, R, D))
 
 tF = 35
 res = ensemble_model.simulate(y0, tF, n_steps = 100)
 
-test = TestMeasurements()
 ode_states = res['states'][:,:,-1]
-
-test.update_prevalence(ode_states)
 
 def random_state(population):
     """
@@ -76,11 +73,21 @@ def random_state(population):
 
 statuses = random_state(population)
 
+test = TestMeasurements()
+test.update_prevalence(ode_states, scale = None)
+mean, var = test.take_measurements(statuses, scale = None)
+
+# print(statuses.values())
+
+print('\n1st Test: Probs in natural scale ----------------------------')
+print(np.vstack([np.array(list(statuses.values())), mean, var]).T[:5])
+
+test = TestMeasurements()
+test.update_prevalence(ode_states)
 mean, var = test.take_measurements(statuses)
 
-print('Logit PPV (mean):\n')
-print(mean[mean != 0 ])
-print('Logit PPV (var):\n')
-print(var[mean != 0 ])
+print('\n2nd Test: Probs in logit scale ------------------------------')
+print(np.vstack([np.array(list(statuses.values())), mean, var]).T[:5])
 
+print('\n3rd Test: Probing for wrong status --------------------------')
 mean, var = test.take_measurements(statuses, status = 'E')
