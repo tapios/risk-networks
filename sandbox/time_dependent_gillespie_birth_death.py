@@ -2,30 +2,14 @@ from numba import njit, prange, float64
 import numpy as np
 from timeit import default_timer as timer
 
-from scipy.special import roots_legendre
-
 import matplotlib.pyplot as plt
 
-# See discussion in 
+# See discussion in
 #
-# Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation 
+# Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation
 # of Contagion Processes on Time-Varying Networks", PLOS Computational Biology (2015)
 #
 # https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004579
-
-# Generate Gaussian quadrature weights and nodes as global variables
-N = 4
-x, w = roots_legendre(N)
-x = (x + 1) / 2
-w = w / 2
-
-@njit 
-def integrate_inception_rate(λmin, λmax, t, Δt):
-    integral = 0.0
-    for i in range(N):
-        integral += w[i] * diurnal_inception_rate(λmin, λmax, t + x[i] * Δt)
-
-    return integral
 
 @njit
 def diurnal_inception_rate(λmin, λmax, t):
@@ -36,7 +20,7 @@ def simulate_contact(
                      start_time,
                      stop_time,
                      event_time,
-                     contact_duration, 
+                     contact_duration,
                      overshoot_duration,
                      contact,
                      min_inception_rate,
@@ -65,25 +49,39 @@ def simulate_contact(
             # Normalized step with τ ~ Exp(1)
             τ = - np.log(np.random.random())
 
-            # Initial guess for waiting time
-            inception_rate = diurnal_inception_rate(min_inception_rate, 
-                                                    max_inception_rate,
-                                                    event_time)
-
-            time_step = τ / inception_rate
-
-            # Iteratively solve for waiting time. Integral over time-dependent
-            # rate is computed with Gaussian quadrature.
-            # 
-            # Note: 
-            #     - Iterative solve may not be stable.
-            #     - See citation at top of file for more information.
+            # Solve
             #
-            for i in range(2):
-                time_step = τ / integrate_inception_rate(min_inception_rate,
-                                                         max_inception_rate,
-                                                         event_time,
-                                                         time_step)
+            #       τ = ∫ λ(t) dt
+            #
+            # where the integral goes from the current time to the time of the
+            # next event, or from t to t + Δt, where Δt = time_step.
+            #
+            # For this we accumulate the integral Λ = ∫ λ dt using trapezoidal integraion
+            # over microintervals of length δ. When Λ > τ, we calculate Δt with an
+            # O(δ) approximation. An O(δ²) approximation is also possible, but we do not
+            # pursue this here.
+            #
+            # Definitions:
+            #   - δ: increment width
+            #   - n: increment counter
+            #   - λn: λ at t = event_time + n * δ
+            #   - λm: λ at t = event_time + m * δ, with m = n-1
+            #   - Λn: integral of λ(t) from event_time to n * δ
+
+            δ = 0.02 # day
+            n = 1
+            λᵐ = diurnal_inception_rate(min_inception_rate, max_inception_rate, event_time)
+            λⁿ = diurnal_inception_rate(min_inception_rate, max_inception_rate, event_time + δ)
+            Λⁿ = δ / 2 * (λᵐ + λⁿ)
+
+            while Λⁿ < τ:
+                n += 1
+                λᵐ = λⁿ
+                λⁿ = diurnal_inception_rate(min_inception_rate, max_inception_rate, event_time + n * δ)
+                Λⁿ += δ / 2 * (λᵐ + λⁿ)
+
+            # O(δ) approximation for time_step.
+            time_step = n * δ - (Λⁿ - τ) / λⁿ
 
             # Contact inception
             event_time += time_step
@@ -94,7 +92,7 @@ def simulate_contact(
     # overshoot, and the contribution of the 'overshoot' to the total contact duration.
     #
     #              < -------------------- >
-    #                     overshoot 
+    #                     overshoot
     #
     #             stop
     # ----- x ---- | -------------------- x
@@ -142,7 +140,7 @@ def simulate_contacts(
                                                     max_inception_rate[i],
                                                     mean_contact_lifetime[i]
                                                    )
-                         
+
 
 if __name__ == "__main__":
 
