@@ -91,3 +91,8 @@ print(np.vstack([np.array(list(statuses.values())), mean, var]).T[:5])
 
 print('\n3rd Test: Probing for wrong status --------------------------')
 mean, var = test.take_measurements(statuses, status = 'E')
+
+print('\n4th Test: Hospitalized --------------------------------------')
+test = TestMeasurements(specificity = 1., sensitivity = 1.)
+test.update_prevalence(ode_states, scale = None, status = 'H')
+mean, var = test.take_measurements(statuses, scale = None)
