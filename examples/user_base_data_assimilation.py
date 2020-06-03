@@ -157,8 +157,10 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
     states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 ####
 
+user_base_states=[]
+[user_base_states.extend(list(user_base.contact_network.nodes)+i*population) for i in np.arange(4)]
 
-
+    
 for i in range(assimilation_length):
 
     # health_service.discharge_and_admit_patients(..) #modifies the contact network
@@ -169,9 +171,8 @@ for i in range(assimilation_length):
 
     res = master_eqn_ensemble.simulate(states_ensemble, assimilation_interval, n_steps = 10)
     states_ensemble = res["states"][:,:,-1]
-    
     states_ensemble, transition_rates_ensemble, transmission_rate_ensemble = assimilator.update(states_ensemble,
-                                                                                                synthetic_data[i],
+                                                                                                synthetic_data[i][user_base_states],
                                                                                                 full_ensemble_transition_rates = transition_rates_ensemble,
                                                                                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                                                                                 contact_network = user_base.contact_network)
