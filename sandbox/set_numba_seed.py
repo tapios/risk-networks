@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from numba import njit, prange, set_num_threads
+from numba.np.ufunc.parallel import _get_thread_id
 from numba.core.config import NUMBA_DEFAULT_NUM_THREADS
 
 @njit
