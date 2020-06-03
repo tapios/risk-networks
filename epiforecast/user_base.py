@@ -62,5 +62,5 @@ class ContiguousUserBase:
             new_users = [user for user in filter(lambda u: u not in users, new_users)]
             users.extend(new_users)
             idx=idx+1
-        
+
         self.contact_network = full_contact_network.subgraph(users)
