@@ -91,7 +91,7 @@ def simulate_contacts(
 
 if __name__ == "__main__":
 
-    n = 1000000
+    n = 10000
     second = 1 / 60 / 60 / 24
     minute = 60 * second
 
@@ -120,14 +120,11 @@ if __name__ == "__main__":
 
     start = timer()
 
-    mean_contact_durations = []
-    active_contacts = []
-    measurement_times = []
-    measured_inceptions = []
+    contact_durations = np.zeros((steps, 4))
+    measured_inceptions = np.zeros((steps, 4))
 
-    active_contacts.append(np.count_nonzero(contacts))
-    mean_contact_durations.append(contact_duration.mean())
-    measurement_times.append(0.0)
+    mean_contact_durations = np.zeros(steps)
+    measurement_times = np.arange(start=0.0, stop=(steps+1)*dt, step=dt)
 
     for i in range(steps):
 
@@ -143,50 +140,58 @@ if __name__ == "__main__":
                           inceptions
                          )
 
-        fraction_active_contacts = np.count_nonzero(~contacts) / n
-        active_contacts.append(np.count_nonzero(~contacts))
-        mean_contact_durations.append(contact_duration.mean() / dt)
-        measurement_times.append((i + 1) * dt)
-        measured_inceptions.append(inceptions[0])
+        mean_contact_durations[i] = contact_duration.mean() / dt
+
+        for j in range(contact_durations.shape[1]):
+            contact_durations[i, j] = contact_duration[j] / dt
+            measured_inceptions[i, j] = inceptions[j]
+
 
     end = timer()
 
     print("Simulation time:", end - start)
     print("Mean contact duration:", contact_duration.mean())
 
-    fig, axs = plt.subplots(nrows=2)
+    fig, axs = plt.subplots(nrows=3, figsize=(14, 8), sharex=True)
 
     plt.sca(axs[0])
 
-    plt.plot(measurement_times[1:], np.array(measured_inceptions) / dt, '.', alpha=0.4,
-             label="in interval")
+    for j in range(measured_inceptions.shape[1]):
+        plt.plot(measurement_times[1:], measured_inceptions[:, j] / dt, '.', alpha=0.4,
+                 label="Contact {}".format(j))
 
-    plt.plot(measurement_times,
-             np.mean(measured_inceptions) * np.ones(len(measurement_times)) / dt,
-             linewidth=3.0, alpha=0.6, linestyle='-',
-             label="mean")
-
+    plt.plot(measurement_times, measured_inceptions.mean() * np.ones(steps+1) / dt,
+             linewidth=3.0, alpha=0.6, linestyle='-', label="mean")
+             
     plt.plot(measurement_times, 11 * np.ones(len(measurement_times)),
-             linewidth=2.0, alpha=0.6, color='k', linestyle='-', label="11 $ \mathrm{day^{-1}} $")
+             linewidth=1.0, alpha=0.8, color='k', linestyle='--', label="11 $ \mathrm{day^{-1}} $")
 
-    plt.xlabel("Time (days)")
-    plt.ylabel("Measured single-contact inception rate $ \mathrm{(day^{-1})} $")
-    plt.legend()
+    plt.ylabel("Inception rate $ \mathrm{(day^{-1})} $")
+    plt.legend(loc='upper right')
 
     plt.sca(axs[1])
-    plt.plot(measurement_times[1:], mean_contact_durations[1:], label="Contact durations, averaged over contacts")
+    for j in range(contact_durations.shape[1]):
+        plt.plot(measurement_times[1:], contact_durations[:, j], '.', alpha=0.6,
+                 label="Contact {}".format(j))
 
-    plt.plot(measurement_times, εmin * np.ones(len(measurement_times)), "--",
-             label="$ \lambda_\mathrm{min} / (\mu + \lambda_\mathrm{min}) $")
+    plt.ylabel("Mean contact durations, $T_i$")
+    plt.legend(loc='upper right')
 
-    plt.plot(measurement_times, εmax * np.ones(len(measurement_times)), ":",
-             label="$ \lambda_\mathrm{max} / (\mu + \lambda_\mathrm{max}) $")
+    plt.sca(axs[2])
 
-    plt.plot(measurement_times, np.mean(mean_contact_durations[1:]) * np.ones(len(measurement_times)), "k-",
-             label="Contact durations, averaged over contacts and simulation interval")
+    
+    t = measurement_times
+    λ = np.zeros(steps)
+    for i in range(steps):
+        λ[i] = diurnal_inception_rate(λmin, λmax, 1/2 * (t[i] + t[i+1]))
+
+    plt.plot(t[1:], λ / (λ + μ), linestyle="-", linewidth=3, alpha=0.4, label="$ \lambda(t) / [ \mu + \lambda(t) ] $")
+
+    plt.plot(measurement_times[1:], mean_contact_durations, linestyle="--", color="k", linewidth=1,
+             label="$ \\bar{T}_i(t) $")
 
     plt.xlabel("Time (days)")
-    plt.ylabel("Mean contact durations")
-    plt.legend()
+    plt.ylabel("Ensemble-averaged $T_i$")
+    plt.legend(loc='upper right')
 
     plt.show()
