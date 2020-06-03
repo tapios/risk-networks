@@ -95,4 +95,13 @@ mean, var = test.take_measurements(statuses, status = 'E')
 print('\n4th Test: Hospitalized --------------------------------------')
 test = TestMeasurements(specificity = 1., sensitivity = 1.)
 test.update_prevalence(ode_states, scale = None, status = 'H')
-mean, var = test.take_measurements(statuses, scale = None)
+mean, var = test.take_measurements(statuses, scale = None, status = 'H')
+
+print(np.vstack([np.array(list(statuses.values())), mean, var]).T[47:47+6])
+
+print('\n5th Test: Hospitalized --------------------------------------')
+test = TestMeasurements(specificity = 1., sensitivity = 1.)
+test.update_prevalence(ode_states, scale = 'log', status = 'H')
+mean, var = test.take_measurements(statuses, scale = 'log', status = 'H')
+
+print(np.vstack([np.array(list(statuses.values())), mean, var]).T[47:47+6])
