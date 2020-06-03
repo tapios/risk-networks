@@ -2,15 +2,19 @@ import numpy as np
 import networkx as nx
 from .simulation import Gillespie_simple_contagion
 
-def print_statuses(statuses):
-    nodes = len(statuses)
-
-    for i in range(nodes-1):
+def print_initial_statuses(statuses,population):
+    #use default dict here
+    for i in range(population-1):
         print(statuses[i], end=" ")
 
-    print(statuses[nodes-1])
+    print("")
 
+def print_statuses(statuses):
 
+    for i in sorted(list(statuses.keys())):
+        print(statuses[i], end=" ")
+
+    print("")
 
 
 class KineticModel:
@@ -19,7 +23,9 @@ class KineticModel:
                  transition_rates,
                  community_transmission_rate,
                  hospital_transmission_reduction,
-                 mean_contact_duration = None):
+                 mean_contact_duration = None,
+                 start_time = 0.0,
+                 ):
         """
         A class to implement a Kinetic Monte-Carlo solver on a provided network.
       
@@ -46,10 +52,10 @@ class KineticModel:
         self.community_transmission_rate = community_transmission_rate
         self.hospital_transmission_rate = community_transmission_rate * hospital_transmission_reduction
 
-        if mean_contact_duration is None:
-            mean_contact_duration = np.zeros(nx.number_of_edges(contact_network))
+        #if mean_contact_duration is None:
+        #    mean_contact_duration = np.zeros(nx.number_of_edges(contact_network))
 
-        self.set_mean_contact_duration(mean_contact_duration)
+        #self.set_mean_contact_duration(mean_contact_duration)
 
         # What statuses to return from Gillespie simulation
         self.return_statuses = ('S', 'E', 'I', 'H', 'R', 'D')
@@ -77,32 +83,36 @@ class KineticModel:
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_resistant, name='hospitalized_to_resistant')
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_deceased,  name='hospitalized_to_deceased')
 
-        self.time = 0.0
+        self.current_time = start_time
+        self.current_statuses = None # must be set by set_statuses
+
         self.times = []
         self.statuses = {s: [] for s in self.return_statuses}
-
-        self.current_statuses = None # must be set by set_statuses
     
+    def set_contact_network(self, contact_network):
+        # Note: we only modify edges of the network, thus the transition rates do not need updating here.
+        self.contact_network = contact_network
+
     def set_mean_contact_duration(self, mean_contact_duration):
         """
         Set the weights of self.contact_network, which correspond to the mean contact
         duration over a given time interval.
-  
+
         Args
         ----
-  
+
         mean_contact_duration (np.array) : np.array of the contact duration for each edge
                                            in the contact network.
         """
-        weights = {tuple(edge): mean_contact_duration[i] 
+        weights = {tuple(edge): mean_contact_duration[i]
                    for i, edge in enumerate(nx.edges(self.contact_network))}
-                             
+
         nx.set_edge_attributes(self.contact_network, values=weights, name='SI->E')
         nx.set_edge_attributes(self.contact_network, values=weights, name='SH->E')
 
     def set_statuses(self, statuses):
         self.current_statuses = statuses
-  
+        
     def simulate(self, time_interval, initial_statuses=None):
         """
         Runs the Gillespie solver with our given graph with current contact network.
@@ -124,18 +134,18 @@ class KineticModel:
                                          initial_statuses,
                                          self.return_statuses,
                                          return_full_data = True,
-                                         tmin = self.time,
-                                         tmax = self.time + time_interval)
+                                         tmin = self.current_time,
+                                         tmax = self.current_time + time_interval)
         
-        self.time += time_interval
+        new_times, new_statuses = res.summary()
 
-        times, statuses = res.summary()
+        self.current_time += time_interval
 
-        self.times.extend(times)
+        self.times.extend(new_times)
 
         for s in self.return_statuses:
-            self.statuses[s].extend(statuses[s])
+            self.statuses[s].extend(new_statuses[s])
 
-        self.current_statuses = res.get_statuses(time=times[-1])
+        self.current_statuses = res.get_statuses(time=self.current_time)
         
         return self.current_statuses

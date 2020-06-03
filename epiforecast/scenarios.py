@@ -1,8 +1,8 @@
 import numpy as np
 import contextlib
 
-from .samplers import AgeAwareBetaSampler, GammaSampler
-from .populations import populate_ages, sample_distribution, TransitionRates
+from .samplers import AgeDependentBetaSampler, GammaSampler
+from .populations import assign_ages, sample_distribution, TransitionRates
 
 n_states = 5
 
@@ -46,65 +46,62 @@ def temporary_seed(seed):
         np.random.set_state(state)
 
 
-def random_infection(population, infected=10):
+def random_epidemic(population_network, fraction_infected, fraction_exposed=0):
     """
-    Returns an `np.array` corresponding to the epidemiological state of a population.
-
-    Each person can be in 1 of 5 states, so `state.shape = (5 * population)`.
+    Returns a status dictionary associated with a random infection
+    within a population associated with node_identifiers.
     """
 
-    # The states are S, E, I, H, R (, D)
-    state = np.zeros((n_states * population,))
-    i = infected_indices(population)
-    s = susceptible_indices(population)
+    population = len(population_network)
 
-    # Some are infected...
-    infected_nodes = np.random.choice(population, infected)
-    i_infected = i[infected_nodes]
-    state[i_infected] = 1
+    n_initial_infected = int(np.round(fraction_infected * population))
+    n_initial_exposed = int(np.round(fraction_exposed * population))
 
-    # ... and everyone else is susceptible
-    state[s] = 1 - state[i]
+    statuses = {node: 'S' for node in population_network.nodes()}
+    nodes = list(population_network.nodes())
 
-    return state
+    initial_infected = np.random.choice(nodes, size=n_initial_infected, replace=False)
 
-def NYC_transition_rates(population, random_seed=1234):
+    uninfected = [ node for node in filter(lambda n: n not in initial_infected, nodes) ]
+    initial_exposed = np.random.choice(uninfected, size=n_initial_exposed, replace=False)
+
+    statuses.update({node: 'I' for node in initial_infected})
+    statuses.update({node: 'E' for node in initial_exposed})
+
+    return statuses
+
+
+
+def NYC_transition_rates(population_network, random_seed=1234):
     """
     Returns transition rates for a community of size `population`
     whose statistics vaguely resemble the clinical statistics of 
     New York City, NY, USA.
     """
 
-    # ... and the age category of each individual
-    age_distribution = [ 0.21,  # 0-17 years
+    age_distribution = [ 
+                         0.21,  # 0-17 years
                          0.40,  # 18-44 years
                          0.25,  # 45-64 years
                          0.08   # 65-75 years
                         ]
-
-    # 75 onwards
-    age_distribution.append(1 - sum(age_distribution))
     
+    age_distribution.append(1 - sum(age_distribution)) # 75+
+    
+    assign_ages(population_network, age_distribution)
+
     with temporary_seed(random_seed):
-        ages = populate_ages(population, distribution=age_distribution)
 
-        # Next, we randomly generate clinical properties for our example population.
-        # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.
-        latent_periods              = sample_distribution(ConstantSampler(3.7), population=population, minimum=2)
-        community_infection_periods = sample_distribution(ConstantSampler(3.2), population=population, minimum=1)
-        hospital_infection_periods  = sample_distribution(ConstantSampler(5), population=population, minimum=1)
-        
-        hospitalization_fraction     = sample_distribution(AgeAwareBetaSampler(mean=[ 0.002,  0.01,  0.04, 0.075, 0.16], b=4), ages=ages)
-        community_mortality_fraction = sample_distribution(AgeAwareBetaSampler(mean=[1e-4, 1e-3, 0.003, 0.01, 0.02], b=4), ages=ages)
-        hospital_mortality_fraction  = sample_distribution(AgeAwareBetaSampler(mean=[0.019, 0.075,  0.195, 0.328,  0.514], b=4), ages=ages)
+        transition_rates = TransitionRates(population_network,
 
-    transition_rates = TransitionRates(population,
-                                       latent_periods,
-                                       community_infection_periods,
-                                       hospital_infection_periods,
-                                       hospitalization_fraction,
-                                       community_mortality_fraction,
-                                       hospital_mortality_fraction)
+                          latent_periods = 3.7,
+             community_infection_periods = 3.2,
+              hospital_infection_periods = 5.0,
+                hospitalization_fraction = AgeDependentConstant([0.002, 0.01, 0.04, 0.075, 0.16]),
+            community_mortality_fraction = AgeDependentConstant([1e-4, 1e-3, 0.003, 0.01, 0.02]),
+             hospital_mortality_fraction = AgeDependentConstant([0.019, 0.075, 0.195, 0.328, 0.514]),
+
+        )
     
     return transition_rates
 

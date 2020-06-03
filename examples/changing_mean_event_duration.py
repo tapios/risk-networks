@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
 
-from epiforecast.fast_contact_simulator import ContactSimulator, DiurnalMeanContactRate
+from epiforecast.fast_contact_simulator import ContactSimulator, DiurnalContactInceptionRate
 
 np.random.seed(1234)
 
@@ -12,7 +12,7 @@ fig, axs = plt.subplots(nrows=2, sharex=True, figsize=(9, 6))
 
 def plot_contact_simulation(n_contacts,
                             mean_event_duration = 1 / 60 / 24, 
-                            mean_contact_rate = DiurnalMeanContactRate(),
+                            mean_contact_rate = DiurnalContactInceptionRate(),
                             time_step = 0.01 * 1/24
                             ):
 
@@ -65,7 +65,7 @@ for mean_event_duration in (
                             ):
 
     n_contacts = 5000
-    mean_contact_rate = DiurnalMeanContactRate()
+    mean_contact_rate = DiurnalContactInceptionRate()
     start = timer()
     plot_contact_simulation(n_contacts = n_contacts, 
                             mean_event_duration = mean_event_duration,
