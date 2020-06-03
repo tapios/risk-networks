@@ -127,7 +127,7 @@ class DataAssimilator:
                data,
                full_ensemble_transition_rates,
                full_ensemble_transmission_rate,
-               contact_network=None):
+               user_network=None):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -166,14 +166,12 @@ class DataAssimilator:
             om = self.observations
             dam = self.damethod
 
-            obs_states = self.make_new_observation(ensemble_state, contact_network) # Generate states to observe
-
+            obs_states = self.make_new_observation(ensemble_state, user_network) # Generate states to observe
             if (obs_states.size > 0):
                 
                 print("Partial states to be assimilated: ", obs_states.size)
                 # Get the truth indices, for the observation(s)
                 truth = data[obs_states]
-                
                 # Get the covariances for the observation(s), with the minimum returned if two overlap
                 cov = self.get_observation_cov()
                 

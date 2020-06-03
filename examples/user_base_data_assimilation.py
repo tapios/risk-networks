@@ -23,7 +23,7 @@ random.seed(123)
 # Create an example network
 #
 # define the contact network [networkx.graph] - haven't done this yet
-contact_network = nx.watts_strogatz_graph(1000, 12, 0.1, 1)
+contact_network = nx.watts_strogatz_graph(10000, 12, 0.1, 1)
 population = len(contact_network)
 
 
@@ -64,7 +64,7 @@ for mm, member in enumerate(master_eqn_truth.ensemble):
 
     states_truth[mm, : ] = np.hstack((S, I, H, R, D))
 
-assimilation_length = 5
+assimilation_length = 20
 assimilation_interval= 1
 
 synthetic_data=[]
@@ -76,9 +76,10 @@ for i in range(assimilation_length):
 
 
 # Consider only a user base
-user_fraction=0.2
+user_fraction=0.1
 user_base = ContiguousUserBase(contact_network,user_fraction)
 user_population=len(user_base.contact_network)
+print(user_base.contact_network.nodes)
 print("size of network", population,
       " and size of user base", user_population)
 
@@ -95,12 +96,12 @@ print("size of network", population,
 noise_var = 0.01 # independent variance on observations
 
 threshold_infected_observation = HighProbRandomStatusObservation(N = user_population,
-                                                                 obs_frac = 1.0,
+                                                                 obs_frac = 0.5,
                                                                  obs_status_idx = 1,
                                                                  noise_var = noise_var,
                                                                  obs_name = "0.25 < Infected(100%) < 0.75",
-                                                                 min_threshold=0.25,
-                                                                 max_threshold=0.75)
+                                                                 min_threshold=0.1,
+                                                                 max_threshold=0.4)
 
 # give the data assimilator the methods for how to choose observed states
 observations=[threshold_infected_observation]
@@ -117,7 +118,7 @@ assimilator = DataAssimilator(observations = observations,
 
 #### Generate the ensemble parameters
 
-ensemble_size = 10 # minimum number for an 'ensemble'
+ensemble_size = 100 # minimum number for an 'ensemble'
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates_ensemble = []
@@ -157,10 +158,10 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
     states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 ####
 
+#as here the network is static
 user_base_states=[]
-[user_base_states.extend(list(user_base.contact_network.nodes)+i*population) for i in np.arange(4)]
+[user_base_states.extend(list(user_base.contact_network.nodes)+i*population) for i in np.arange(5)]
 
-    
 for i in range(assimilation_length):
 
     # health_service.discharge_and_admit_patients(..) #modifies the contact network
@@ -169,13 +170,14 @@ for i in range(assimilation_length):
     # master_eqn_model.set_contact_network(...) #change to set contact durations
     # synthetic_data[i] = kinetic model.simulate(..)
 
+    data=synthetic_data[i][user_base_states]
     res = master_eqn_ensemble.simulate(states_ensemble, assimilation_interval, n_steps = 10)
     states_ensemble = res["states"][:,:,-1]
     states_ensemble, transition_rates_ensemble, transmission_rate_ensemble = assimilator.update(states_ensemble,
-                                                                                                synthetic_data[i][user_base_states],
+                                                                                                data,
                                                                                                 full_ensemble_transition_rates = transition_rates_ensemble,
                                                                                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                                                                contact_network = user_base.contact_network)
+                                                                                                user_network = user_base.contact_network)
     
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
     master_eqn_ensemble.update_transmission_rate(transmission_rate_ensemble)
