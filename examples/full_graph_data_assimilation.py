@@ -122,7 +122,7 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 
 
 #full_state_observation = FullObservation(population, noise_var, "Full state observation 1% noise")
-#HighProbRandomStatusObservation( num_nodes,
+#HighProbRandomStatusObservation( num_nodes ,
 #                                frac_of_candidate_nodes_to_observe,
 #                                status id (S=0,I=1,H=2,...)
 #                                min probability of ensemble (mean) to perform observation, default=0.0
