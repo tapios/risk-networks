@@ -98,7 +98,7 @@ class RandomStateObservation(StateObservation):
 
             tmp = np.array(sorted(onetoN[:self.obs_nodes]))
 
-            self.obs_states = np.hstack([np.arange(self.n_status) + i * self.n_status for i in tmp])
+            self.obs_states = np.hstack([self.N*np.arange(self.n_status) + i for i in tmp])
 
 # We observe a random subset of nodes at a particular status (S,E,I,H,R,D)
 class RandomStatusStateObservation(StateObservation):
@@ -122,10 +122,11 @@ class RandomStatusStateObservation(StateObservation):
             onetoN=np.arange(self.N)
             np.random.shuffle(onetoN)#(in-place shuffle)
             tmp=np.array(sorted(onetoN[:self.obs_nodes]))
-            self.obs_states=np.hstack([self.obs_status_idx+i*self.n_status for i in tmp])
+            self.obs_states=np.hstack([self.N*self.obs_status_idx+i for i in tmp])
         else:
             onetoN=np.arange(self.N)
-            self.obs_states=np.hstack([self.obs_status_idx+i*self.n_status for i in onetoN])
+            self.obs_states=np.hstack([self.N*self.obs_status_idx+i for i in onetoN])
+
 
 
 
@@ -153,7 +154,7 @@ class HighProbStatusStateObservation(StateObservation):
     def make_new_observation(self, state, contact_network):
         #Candidates for observations are those with a required state >= threshold
         onetoN=np.arange(self.N)
-        candidate_states= np.hstack([self.obs_status_idx+i*self.n_status for i in onetoN])
+        candidate_states= np.hstack([self.N*self.obs_status_idx+i for i in onetoN])
         if self.obs_threshold_type == 'any':
             #Case 1: candidate state if ANY ensemble member is > threshold
             candidate_states_ens=np.hstack([candidate_states[(state[i,candidate_states]>=self.obs_min_threshold) & \
