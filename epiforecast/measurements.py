@@ -1,16 +1,6 @@
 import numpy as np
 
-# Parent class -----------------------------------------------------------------
-class Measurements:
-    def __init__(self):
-        pass
-
-    def take_measurement(self, nodes_state_dict):
-        pass
-
-
-# Children classes -------------------------------------------------------------
-class TestMeasurements(Measurements):
+class TestMeasurements:
     def __init__(self, sensitivity = 0.80, specificity = 0.99):
         self.sensitivity = sensitivity
         self.specificity = specificity
@@ -62,12 +52,32 @@ class TestMeasurements(Measurements):
         self._set_prevalence(ensemble_states, status = status, reduced_system = reduced_system)
         self._set_ppv(scale = scale)
 
-    def take_measurements(self, nodes_state_dict, scale = 'log', status = 'I'):
+    def get_mean_and_variance(self, positive_test = True, scale = 'log'):
+        if scale == 'log':
+            if positive_test:
+                return self.logit_ppv_mean, self.logit_ppv_var
+            else:
+                return self.logit_for_mean, self.logit_for_var
+        else:
+            if positive_test:
+                return self.ppv_mean, self.ppv_var
+            else:
+                return self.for_mean, self.for_var
+
+    def take_measurements(self, nodes_state_dict, scale = 'log', status = None, noisy_measurement = False):
         """
+        Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
+        population with a certain prevelance (computed from an ensemble of master equations).
+
+        Noisy measurement can be enabled which will report back, for example, in a true infected a negative result with measurement `FOR`.
+
         Inputs:
         -------
 
         """
+        if status is None:
+            status = self.status
+
         if self.status != status:
             print("Warning! Test is calibrated for %s, you requested %s."%(self.status, status))
             return None, None
@@ -77,18 +87,10 @@ class TestMeasurements(Measurements):
 
         for node in nodes_state_dict.keys():
             if nodes_state_dict[node] == status:
-                if scale == 'log':
-                    measurements[node] = self.logit_ppv_mean
-                    uncertainty[node]  = self.logit_ppv_var
-                else:
-                    measurements[node] = self.ppv_mean
-                    uncertainty[node]  = self.ppv_var
+                measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
+                                   positive_test = not (noisy_measurement and (np.random.random() > self.sensitivity)))
             else:
-                if scale == 'log':
-                    measurements[node] = self.logit_for_mean
-                    uncertainty[node]  = self.logit_for_var
-                else:
-                    measurements[node] = self.for_mean
-                    uncertainty[node]  = self.for_var
+                measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
+                                   positive_test =     (noisy_measurement and (np.random.random() < 1 - self.specificity)))
 
         return measurements, uncertainty
