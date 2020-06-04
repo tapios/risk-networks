@@ -96,8 +96,7 @@ class MasterEquationModelEnsemble:
                 transmission_rate,
                 ensemble_size = 1,
                 hospital_transmission_reduction = 0.25,
-                reduced_system = True,
-                mean_contact_duration = None):
+                reduced_system = True):
         """
         Args:
         -------
@@ -111,17 +110,6 @@ class MasterEquationModelEnsemble:
         self.M = self.ensemble_size = ensemble_size
         self.N = len(self.G)
         self.ix_reduced = reduced_system
-
-        if mean_contact_duration is None:
-            self.weight = {tuple(edge): 1
-                           for i, edge in enumerate(nx.edges(self.contact_network))}
-        else:
-            self.weight = {tuple(edge): mean_contact_duration[i]
-                           for i, edge in enumerate(nx.edges(self.contact_network))}
-
-        nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
-
-        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
 
         self.ensemble = []
 

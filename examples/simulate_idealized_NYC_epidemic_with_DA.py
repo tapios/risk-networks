@@ -19,15 +19,16 @@ set_num_threads(1)
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
 from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMeanContactRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.node_identifier_helper import load_node_identifiers
-
+from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
+from epiforecast.measurements import Observation
+from epiforecast.data_assimilator import DataAssimilator
 
 from epiforecast.utilities import seed_numba_random_state
 
@@ -90,14 +91,18 @@ population = len(contact_network)
 #
 # Build the contact simulator
 #
+start_time = -3 / 24
+
+minute = 1 / 60 / 24
+hour = 60 * minute
+
 
 contact_simulator = FastContactSimulator(
 
              n_contacts = nx.number_of_edges(contact_network),
-    mean_event_duration = 0.6 / 60 / 24, # 1 minute in units of days
+    mean_event_duration = 0.5*minute, # 1 minute in units of days
       mean_contact_rate = DiurnalMeanContactRate(minimum_i = 2, maximum_i = 22, minimum_j = 2, maximum_j = 22),
-             start_time = -3 / 24, # negative start time allows short 'spinup' of contacts
-
+             start_time = start_time # negative start time allows short 'spinup' of contacts
 )
 
 #
@@ -118,78 +123,148 @@ transition_rates = TransitionRates(contact_network,
 
 )
 
-transmission_rate = 12.0
+community_transmission_rate = 12.0
 hospital_transmission_reduction = 0.1
 
 # 
 # Simulate the growth and equilibration of an epidemic
 #
 
-minute = 1 / 60 / 24
-hour = 60 * minute
-
-# Run the simulation
-
 static_contact_interval = 3 * hour
+
+
 
 health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
                                health_worker_population = len(node_identifiers['health_workers']),
                                static_population_network = contact_network)
 
-epidemic_simulator = EpidemicSimulator(contact_network,            
-                                                 mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
-                                                      transition_rates = transition_rates,
-                                               static_contact_interval = static_contact_interval,
-                                           community_transmission_rate = 12.0,
-                                                        health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                       cycle_contacts = True)
+          
+
+max_edges = nx.number_of_edges(contact_network) + 5 * health_service.patient_capacity
+
+kinetic_model = KineticModel(contact_network = contact_network,
+                             transition_rates = transition_rates,
+                             community_transmission_rate = community_transmission_rate,
+                             hospital_transmission_reduction = hospital_transmission_reduction)
+
+
+## construct master equations model
+
+
+ensemble_size = 10 # minimum number for an 'ensemble'
+
+
+# We process the clinical data to determine transition rates between each epidemiological state,
+transition_rates_ensemble = []
+for i in range(ensemble_size):
+    transition_rates_ensemble.append(
+        TransitionRates(contact_network,
+                        latent_periods = np.random.normal(3.7,0.37),
+                        community_infection_periods = np.random.normal(3.2,0.32),
+                        hospital_infection_periods = np.random.normal(5.0,0.5),
+                        hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
+                        community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
+                        hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
+                        )
+                                    )
+
+#set transmission_rates
+community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
+
+
+
+master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
+                                                  transition_rates = transition_rates_ensemble,
+                                                  transmission_rate = community_transmission_rate_ensemble,
+                                                  hospital_transmission_reduction = hospital_transmission_reduction,
+                                                  ensemble_size = ensemble_size)
+
+I_perc = 0.01
+states_ensemble = np.zeros([ensemble_size, 5 * population])
+for mm, member in enumerate(master_eqn_ensemble.ensemble):
+    infected = np.random.choice(population, replace = False, size = int(population * I_perc))
+    E, I, H, R, D = np.zeros([5, population])
+    S = np.ones(population,)
+    I[infected] = 1.
+    S[infected] = 0.
+
+    states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
+####
+
+
+
+
+
+medical_infection_test = Observation(N = population,
+                                     obs_frac = 1.0,
+                                     obs_status = 'I',
+                                     obs_name = "0.25 < Infected(100%) < 0.5",
+                                     min_threshold=0.1,
+                                     max_threshold=0.7)
+
+# give the data assimilator the methods for how to choose observed states
+observations=[medical_infection_test]
+# give the data assimilator which transition rates and transmission rate to assimilate
+transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
+transmission_rate_to_update_flag=True
+
+# create the assimilator
+assimilator = DataAssimilator(observations = observations,
+                              errors = [],
+                              transition_rates_to_update_str= transition_rates_to_update_str,
+                              transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+
+
+
+
+simulation_length = 50 #Number of days
+
+
+time = start_time
 
 statuses = random_epidemic(contact_network, fraction_infected=0.01)
-
-epidemic_simulator.set_statuses(statuses)
-
-synthetic_data = []
-synthetic_data.append(statuses)
-
-for i in range(int(1/static_contact_interval)):
-
-    epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval) # days
-
-    statuses = epidemic_simulator.kinetic_model.current_statuses
-
-    epidemic_simulator.set_statuses(statuses)
-
-    synthetic_data.append(statuses)
-
-print(synthetic_data)
-#sampling_time_step = 1 # days
-
-#Returns simulation data averages and corresponding sampling times
-
-#simulation_data_average, sampling_times = simulation_average(kinetic_model, sampling_time_step=sampling_time_step)
-
-#print(simulation_data_average, sampling_times)
-
-#Produces synthetic data
-
-# Create Data Assimilator,
-# transition and transmission 'priors' for the ensemble
-# create the master equations
-# 
+kinetic_model.set_statuses(statuses)
 
 
+for i in range(int(simulation_length/static_contact_interval)):
 
+    # health_service discharge and admit patients [changes the contact network]
+    health_service.discharge_and_admit_patients(kinetic_model.current_statuses,
+                                                contact_network)
+    # contact_simulator run [changes the mean contact duration on the given network]
+    contact_duration = contact_simulator.mean_contact_duration(stop_time=time+static_contact_interval)
 
+    # pass the averaged contact durations to the models 
+    kinetic_model.set_mean_contact_duration(contact_duration)
+    master_eqn_ensemble.set_mean_contact_duration(contact_duration)
 
+    # run the models [kinetic produces the current statuses used as data]
+    #                [master eqn produces the current states of the risk model]
+    statuses = kinetic_model.simulate(static_contact_interval)
+    states_ensemble_trace = master_eqn_ensemble.simulate(states_ensemble, static_contact_interval, n_steps = 10)
+    states_ensemble = states_ensemble_trace["states"][:,:,-1]
 
+    # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)] 
+    (states_ensemble,
+     transition_rates_ensemble,
+     transmission_rate_ensemble
+     ) = assimilator.update(states_ensemble,
+                            statuses,
+                            full_ensemble_transition_rates = transition_rates_ensemble,
+                            full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                            user_network = contact_network)
 
+    #update model parameters (transition and transmission rates) of the master eqn model
+    master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
+    master_eqn_ensemble.update_transmission_rate(transmission_rate_ensemble)
+    
+    #update states/statuses/times for next iteration
+    kinetic_model.set_statuses(statuses)
+    #master_eqn_model.set_states_ensemble(states_ensemble)
+    time += static_contact_interval
+    print("Current time",time)
 
-
-
-
-
+    print(states_ensemble[0,population:2*population])
 
 
 
