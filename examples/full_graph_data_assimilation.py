@@ -11,9 +11,8 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.observations import FullObservation, HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
-
+from epiforecast.measurements import Observation
 
 # Both numpy.random and random are used by the KineticModel.
 np.random.seed(123)
@@ -47,33 +46,9 @@ transition_rates_truth = TransitionRates(contact_network,
 community_transmission_rate_truth = 12.0
 hospital_transmission_reduction = 0.1
 
-master_eqn_truth = MasterEquationModelEnsemble(contact_network,
-                                               transition_rates_truth,
-                                               community_transmission_rate_truth,
-                                               hospital_transmission_reduction = hospital_transmission_reduction,
-                                               ensemble_size = 1)
+#### Generate synthetic data (with kinetic model)
 
-I_perc = 0.01
-states_truth = np.zeros([1, 5 * population])
-for mm, member in enumerate(master_eqn_truth.ensemble):
-    infected = np.random.choice(population, replace = False, size = int(population * I_perc))
-    E, I, H, R, D = np.zeros([5, population])
-    S = np.ones(population,)
-    I[infected] = 1.
-    S[infected] = 0.
-
-    states_truth[mm, : ] = np.hstack((S, I, H, R, D))
-
-assimilation_length = 5
-assimilation_interval= 1
-
-synthetic_data=[]
-for i in range(assimilation_length):
-
-    res = master_eqn_truth.simulate(states_truth, assimilation_interval, n_steps = 10, closure=None)
-    states_truth = res["states"][:,:,-1]
-    synthetic_data.append(states_truth[0,:])
-
+synthetic_data = {i : 'I'  for i in range(population)}
 
 #### Generate the ensemble parameters
 
@@ -121,37 +96,27 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 
 
 
-#full_state_observation = FullObservation(population, noise_var, "Full state observation 1% noise")
-#HighProbRandomStatusObservation( num_nodes ,
-#                                frac_of_candidate_nodes_to_observe,
-#                                status id (S=0,I=1,H=2,...)
-#                                min probability of ensemble (mean) to perform observation, default=0.0
-#                                max probability of ensemble (mean) to perform observation, default=1.0
-#                                noise variance
-#                                name the observation
-noise_var = 0.01 # independent variance on observations
 
-threshold_infected_observation = HighProbRandomStatusObservation(N = population,
-                                                                 obs_frac = 0.05,
-                                                                 obs_status_idx = 1,
-                                                                 noise_var = noise_var,
-                                                                 obs_name = "0.25 < Infected(100%) < 0.75",
-                                                                 min_threshold=0.25,
-                                                                 max_threshold=0.75)
+
+medical_infection_test = Observation(N = population,
+                                     obs_frac = 1.0,
+                                     obs_status = 'I',
+                                     obs_name = "0.25 < Infected(100%) < 0.75")
 
 # give the data assimilator the methods for how to choose observed states
-observations=[threshold_infected_observation]
+observations=[medical_infection_test]
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
 transmission_rate_to_update_flag=True
+
 # create the assimilator
 assimilator = DataAssimilator(observations = observations,
                               errors = [],
                               transition_rates_to_update_str= transition_rates_to_update_str,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
-
-
+assimilation_length=1
+assimilation_interval=1
 for i in range(assimilation_length):
 
     # health_service.discharge_and_admit_patients(..) #modifies the contact network
@@ -164,10 +129,10 @@ for i in range(assimilation_length):
     states_ensemble = res["states"][:,:,-1]
 
     states_ensemble, transition_rates_ensemble, transmission_rate_ensemble = assimilator.update(states_ensemble,
-                                                                                                synthetic_data[i],
+                                                                                                synthetic_data,
                                                                                                 full_ensemble_transition_rates = transition_rates_ensemble,
                                                                                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                                                                contact_network = contact_network)
+                                                                                                user_network = contact_network)
 
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
     master_eqn_ensemble.update_transmission_rate(transmission_rate_ensemble)

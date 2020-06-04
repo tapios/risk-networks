@@ -80,7 +80,7 @@ class DataAssimilator:
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
 
-    def make_new_observation(self, ensemble_state, contact_network):
+    def find_observation_states(self, ensemble_state):
         """
         Make all the observations in the list self.observations.
 
@@ -88,34 +88,32 @@ class DataAssimilator:
         """
 
         for observation in self.observations:
-            observation.make_new_observation(ensemble_state, contact_network)
+            observation.find_observation_states(ensemble_state)
         
         observed_states = np.hstack([observation.obs_states for observation in self.observations])
-        observed_states = np.unique(observed_states)
-
+      
         return observed_states
 
-    def get_observation_cov(self):
-        #for each observation we have a covariance
-        covs=[ self.observations[i].get_observational_cov() for i in range(len(self.observations))]
-        #we need to create a padded matrix of large numbers, then take min on the columns,
-        #and remove any of the large numbers
-        maxcov=np.max(np.hstack([self.observations[i].obs_states for i in range(len(self.observations))]))
-        bigval=10**5
-        pad_covs=(bigval)*np.ones([len(covs),maxcov+1],dtype=float)
-        for i in range(len(covs)):
-            idx=self.observations[i].obs_states
-            pad_covs[i,idx]=covs[i]
-            
-        #now we can take min down the columns to extract the smaller of non-distinct covariances
-        pad_covs=np.min(pad_covs, axis=0)
-        distinct_cov=pad_covs[pad_covs<bigval]
+    def observe(self,
+                contact_network,
+                state,
+                data,
+                scale = 'log',
+                noisy_measurement = False):
 
-      
-        #make into matrix
-        distinct_cov=np.diag(distinct_cov)
         
-        return distinct_cov
+        for observation in self.observations:
+            observation.observe(contact_network,
+                                state,
+                                data,
+                                scale,
+                                noisy_measurement)
+            
+        observed_means = np.hstack([observation.mean for observation in self.observations])
+        observed_variances= np.hstack([observation.variance for observation in self.observations])
+
+        return observed_means, observed_variances
+    
 
     # ensemble_state np.array([ensemble size, num status * num nodes]
     # data np.array([num status * num nodes])
@@ -127,7 +125,7 @@ class DataAssimilator:
                data,
                full_ensemble_transition_rates,
                full_ensemble_transmission_rate,
-               user_network=None):
+               user_network):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -166,14 +164,19 @@ class DataAssimilator:
             om = self.observations
             dam = self.damethod
 
-            obs_states = self.make_new_observation(ensemble_state, user_network) # Generate states to observe
+            obs_states = self.find_observation_states(ensemble_state) # Generate states to observe
             if (obs_states.size > 0):
                 
                 print("Partial states to be assimilated: ", obs_states.size)
                 # Get the truth indices, for the observation(s)
-                truth = data[obs_states]
+
+                truth,var = self.observe(user_network,
+                                         ensemble_state,
+                                         data)
+                                          
+                cov = np.diag(var)
                 # Get the covariances for the observation(s), with the minimum returned if two overlap
-                cov = self.get_observation_cov()
+                #cov = self.get_observation_cov()
                 
                 # Perform da model update with ensemble_state: states, transition and transmission rates
                
