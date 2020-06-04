@@ -9,7 +9,7 @@ from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.observations import FullObservation, HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.measurements import TestMeasurements
+from epiforecast.measurements import TestMeasurement
 
 import numpy as np
 import networkx as nx
@@ -73,59 +73,58 @@ def random_state(population):
 
 statuses = random_state(population)
 
-test = TestMeasurements()
+test = TestMeasurement('I')
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements(statuses, scale = None)
 
 # print(statuses.values())
 
 print('\n1st Test: Probs in natural scale ----------------------------')
-print(np.vstack([np.array(list(statuses.values())), mean, var]).T[:5])
 
-test = TestMeasurements()
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
+
+test = TestMeasurement('I')
 test.update_prevalence(ode_states)
 mean, var = test.take_measurements(statuses)
 
 print('\n2nd Test: Probs in logit scale ------------------------------')
-print(np.vstack([np.array(list(statuses.values())), mean, var]).T[:5])
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
 
-print('\n3rd Test: Probing for wrong status --------------------------')
-mean, var = test.take_measurements(statuses, status = 'E')
-
-print('\n4th Test: Hospitalized --------------------------------------')
-test = TestMeasurements(specificity = 1., sensitivity = 1.)
-test.update_prevalence(ode_states, scale = None, status = 'H')
+print('\n3th Test: Hospitalized --------------------------------------')
+test = TestMeasurement('H', specificity = 1., sensitivity = 1.)
+test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements(statuses, scale = None)
 
-print(np.vstack([np.array(list(statuses.values())), mean, var]).T[47:47+6])
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[47:47+6])
 
-print('\n5th Test: Noisy measurements for positive cases -------------')
+print('\n4th Test: Noisy measurements for positive cases -------------')
 
-test = TestMeasurements()
+test = TestMeasurement('I')
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements({node: 'I' for node in range(population)},
-                                    status = 'I',
                                     scale = None,
                                     noisy_measurement = True)
 
-positive_test, _ = test.take_measurements({0:'I'}, status = 'I', scale = None)
-negative_test, _ = test.take_measurements({0:'S'}, status = 'I', scale = None)
+positive_test, _ = test.take_measurements({0:'I'}, scale = None)
+negative_test, _ = test.take_measurements({0:'S'}, scale = None)
 
-print(np.vstack([['I']*population, mean, var]).T[:5])
-print('Fraction of correct testing: %2.2f'%(mean == positive_test).mean())
+positive_test = list(positive_test.values())[0]
+negative_test = list(negative_test.values())[0]
 
-print('\n6th Test: Noisy measurements for negative cases -------------')
+# print(np.vstack([['I']*population, mean, var]).T[:5])
+print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == positive_test).mean())
+
+print('\n5th Test: Noisy measurements for negative cases -------------')
 mean, var = test.take_measurements({node: 'S' for node in range(population)},
-                                    status = 'I',
                                     scale = None,
                                     noisy_measurement = True)
 
-print(np.vstack([['S']*population, mean, var]).T[:5])
-print('Fraction of correct testing: %2.2f'%(mean == negative_test).mean())
+# print(np.vstack([['S']*population, mean, var]).T[:5])
+print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == negative_test).mean())
 
 
 # print('\n5th Test: Hospitalized --------------------------------------')
-# test = TestMeasurements(specificity = 1., sensitivity = 1.)
+# test = TestMeasurement(specificity = 1., sensitivity = 1.)
 # test.update_prevalence(ode_states, scale = 'log', status = 'H')
 # mean, var = test.take_measurements(statuses, scale = 'log')
 #
