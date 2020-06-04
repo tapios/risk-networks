@@ -5,14 +5,30 @@ import numpy as np
 from matplotlib import pylab as pl
 
 from epiforecast.user_base import FullUserBase, FractionalUserBase, ContiguousUserBase, contiguous_indicators
+from epiforecast.scenarios import load_edges
 
 np.random.seed(123)
 
 #plot graphs? NB plotting is very slow for >1000 nodes
 plotfigs=True
 
-contact_network = nx.watts_strogatz_graph(1500, 20, 0.1, 1)
+
+# ---- Create network
+#1) from nx function:
+
+#contact_network = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
+#population = len(contact_network)
+
+#2) Or create from file:
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
+
+contact_network = nx.Graph()
+contact_network.add_edges_from(edges)
+contact_network = nx.convert_node_labels_to_integers(contact_network)
 population = len(contact_network)
+
+# ----
+
 
 # create a full user base
 full_user_base=FullUserBase(contact_network)
@@ -21,7 +37,7 @@ print("number of nodes:", len(full_user_base.contact_network.nodes))
 print("number of edges:", len(full_user_base.contact_network.edges))
 
 # create a user base from a random fraction of the population
-user_fraction = 0.3
+user_fraction = 0.2
 fractional_user_base = FractionalUserBase(contact_network,user_fraction)
 print("")
 print("User base: ", user_fraction, " fraction of nodes, randomly chosen")
