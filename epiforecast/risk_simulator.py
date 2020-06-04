@@ -157,7 +157,7 @@ class MasterEquationModelEnsemble:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
         nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
-        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration')
+        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'contact_duration')
 
     def update_transmission_rate(self, new_transmission_rate):
         """
