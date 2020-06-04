@@ -264,8 +264,6 @@ for i in range(int(simulation_length/static_contact_interval)):
     time += static_contact_interval
     print("Current time",time)
 
-    print(states_ensemble[0,population:2*population])
-
 
 
 
