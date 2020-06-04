@@ -130,6 +130,8 @@ hour = 60 * minute
 
 # Run the simulation
 
+static_contact_interval = 3 * hour
+
 health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
                                health_worker_population = len(node_identifiers['health_workers']),
                                static_population_network = contact_network)
@@ -138,7 +140,7 @@ epidemic_simulator = EpidemicSimulator(contact_network,
                                                  mean_contact_lifetime = 0.5 * minute,
                                                 contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
                                                       transition_rates = transition_rates,
-                                               static_contact_interval = 3 * hour,
+                                               static_contact_interval = static_contact_interval,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
                                        hospital_transmission_reduction = 0.1,
@@ -148,16 +150,27 @@ statuses = random_epidemic(contact_network, fraction_infected=0.01)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 10)
+synthetic_data = []
+synthetic_data.append(statuses)
 
-kinetic_model = epidemic_simulator.kinetic_model
+for i in range(int(1/static_contact_interval)):
 
-sampling_time_step = 1 # days
+    epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval) # days
+
+    statuses = epidemic_simulator.kinetic_model.current_statuses
+
+    epidemic_simulator.set_statuses(statuses)
+
+    synthetic_data.append(statuses)
+
+print(synthetic_data)
+#sampling_time_step = 1 # days
 
 #Returns simulation data averages and corresponding sampling times
-simulation_data_average, sampling_times = simulation_average(kinetic_model, sampling_time_step=sampling_time_step)
 
-print(simulation_data_average, sampling_times)
+#simulation_data_average, sampling_times = simulation_average(kinetic_model, sampling_time_step=sampling_time_step)
+
+#print(simulation_data_average, sampling_times)
 
 #Produces synthetic data
 
