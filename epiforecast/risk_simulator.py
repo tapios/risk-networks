@@ -9,21 +9,12 @@ class NetworkCompartmentalModel:
     """
 
     def __init__(self,
-                contact_network,
-                weight = None,
-                hospital_transmission_reduction = 0.25):
+                 N,
+                 hospital_transmission_reduction = 0.25):
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
-        self.weight = weight
-
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G      = self.contact_network = contact_network
-            self.N      = len(self.G)
-            self.L      = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-        else:
-            self.L      = sps.csr_matrix(contact_network)
-            self.N      = self.L.shape[0]
-
+        self.N = N 
+       
     def set_parameters(self, transition_rates  = None,
                              transmission_rate = None,
                              ix_reduced        = True):
@@ -98,13 +89,6 @@ class NetworkCompartmentalModel:
         self.set_parameters(transition_rates = None,
                            transmission_rate = new_transmission_rate)
 
-    def update_contact_network(self, contact_network):
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G = self.contact_network = contact_network
-            self.L = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-        else:
-            self.L = sps.csr_matrix(contact_network)
-
 class MasterEquationModelEnsemble:
     def __init__(self,
                 contact_network,
@@ -113,7 +97,7 @@ class MasterEquationModelEnsemble:
                 ensemble_size = 1,
                 hospital_transmission_reduction = 0.25,
                 reduced_system = True,
-                weight = None):
+                mean_contact_duration = None):
         """
         Args:
         -------
@@ -126,19 +110,23 @@ class MasterEquationModelEnsemble:
         self.ix_reduced = reduced_system
         self.weight = weight
 
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G = self.contact_network = contact_network
-            self.N = len(self.G)
-            self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
+        if mean_contact_duration is None:
+            self.weight = {tuple(edge): 1
+                           for i, edge in enumerate(nx.edges(self.contact_network))}
         else:
-            self.L = sps.csr_matrix(contact_network)
-            self.N = self.L.shape[0]
+            self.weight = {tuple(edge): mean_contact_duration[i]
+                           for i, edge in enumerate(nx.edges(self.contact_network))}
+            
+        nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
+
+        self.G = self.contact_network = contact_network
+        self.N = len(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
 
         self.ensemble = []
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
-            member = NetworkCompartmentalModel(contact_network = contact_network,
-                                                        weight = weight,
+            member = NetworkCompartmentalModel(N = self.N,
                                hospital_transmission_reduction = hospital_transmission_reduction)
 
             if isinstance(transition_rates, list):
@@ -158,21 +146,24 @@ class MasterEquationModelEnsemble:
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
     #  Set methods -------------------------------------------------------------
-    def update_contact_network(self, new_contact_network):
+    def update_contact_network(self, new_contact_network, new_mean_contact_duration=None):
         """
         For update purposes
         """
-        if new_contact_network is not None:
-            if type(contact_network) == nx.classes.graph.Graph:
-                self.G = self.contact_network = new_contact_network
-                self.N = len(self.G)
-                self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-            else:
-                self.L = sps.csr_matrix(new_contact_network)
-                self.N = self.L.shape[0]
+        self.contact_network = new_contact_network
+        if new_mean_contact_duration is None:
+            self.weight = {tuple(edge): 1
+                           for i, edge in enumerate(nx.edges(self.contact_network))}
+        else:
+            self.weight = {tuple(edge): new_mean_contact_duration[i]
+                           for i, edge in enumerate(nx.edges(self.contact_network))}
+            
+        nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
 
-            [member.update_contact_network(new_contact_network) for member in self.ensemble]
-
+        self.G = self.contact_network = new_contact_network
+        self.N = len(self.G)
+        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
+            
     def update_transmission_rate(self, new_transmission_rate):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`
