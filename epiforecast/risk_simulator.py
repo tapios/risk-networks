@@ -13,8 +13,8 @@ class NetworkCompartmentalModel:
                  hospital_transmission_reduction = 0.25):
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
-        self.N = N 
-       
+        self.N = N
+
     def set_parameters(self, transition_rates  = None,
                              transmission_rate = None,
                              ix_reduced        = True):
@@ -106,9 +106,11 @@ class MasterEquationModelEnsemble:
          transition_rates : `list` or single instance of `TransitionRate` container
         transmission_rate : `float`
         """
+
+        self.G = self.contact_network = contact_network
         self.M = self.ensemble_size = ensemble_size
+        self.N = len(self.G)
         self.ix_reduced = reduced_system
-        self.weight = weight
 
         if mean_contact_duration is None:
             self.weight = {tuple(edge): 1
@@ -116,11 +118,9 @@ class MasterEquationModelEnsemble:
         else:
             self.weight = {tuple(edge): mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
-            
+
         nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
 
-        self.G = self.contact_network = contact_network
-        self.N = len(self.G)
         self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
 
         self.ensemble = []
@@ -157,13 +157,13 @@ class MasterEquationModelEnsemble:
         else:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
-            
+
         nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
 
         self.G = self.contact_network = new_contact_network
         self.N = len(self.G)
         self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
-            
+
     def update_transmission_rate(self, new_transmission_rate):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`
