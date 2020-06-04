@@ -31,19 +31,21 @@ from epiforecast.health_service import HealthService
 
 from epiforecast.utilities import seed_numba_random_state
 
-def simulation_average(model_data, sampling_time = 1):
+def simulation_average(model_data, sampling_time_step = 1):
     """
-    Returns daily averages of simulation data.
+    Returns simulation data averages of simulation data and corresponding sampling times.
     """
     
     simulation_data_average = {}
-    daily_average = {}
+    simulation_average = {}
 
     for key in model_data.statuses.keys():
         simulation_data_average[key] = []
-        daily_average[key] = []
+        simulation_average[key] = []
     
     tav = 0
+
+    sampling_times = []
 
     for i in range(len(model_data.times)):
         for key in model_data.statuses.keys():
@@ -51,12 +53,13 @@ def simulation_average(model_data, sampling_time = 1):
 
         if model_data.times[i] >= tav:
             for key in model_data.statuses.keys():
-                daily_average[key].append(np.mean(simulation_data_average[key]))
+                simulation_average[key].append(np.mean(simulation_data_average[key]))
                 simulation_data_average[key] = []
+            
+            sampling_times.append(tav)
+            tav += sampling_time_step
 
-            tav += sampling_time
-
-    return daily_average
+    return simulation_average, sampling_times
         
 #
 # Set random seeds for reproducibility
@@ -131,13 +134,11 @@ health_service = HealthService(patient_capacity = int(0.05 * len(contact_network
                                health_worker_population = len(node_identifiers['health_workers']),
                                static_population_network = contact_network)
 
-assimilation_time = 10.0 
-static_contact_interval = 3 * hour
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
                                                 contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
                                                       transition_rates = transition_rates,
-                                               static_contact_interval = static_contact_interval,
+                                               static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
                                        hospital_transmission_reduction = 0.1,
@@ -147,28 +148,16 @@ statuses = random_epidemic(contact_network, fraction_infected=0.01)
 
 epidemic_simulator.set_statuses(statuses)
 
+epidemic_simulator.run(stop_time = 10)
 
-#define the kinetic model
-synthetic_data = epidemic_simulator.kinetic_model
+kinetic_model = epidemic_simulator.kinetic_model
 
-for i in range(assimilation_time/static_contact_interval):
-    
-    for key in kinetic_model.statuses.keys():
-        
-        synthetic_data.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
+sampling_time_step = 1 # days
 
+#Returns simulation data averages and corresponding sampling times
+simulation_data_average, sampling_times = simulation_average(kinetic_model, sampling_time_step=sampling_time_step)
 
-        synthetic_data.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_model.times) 
-        health_service = epidemic_simulator.health_service
-        
-        statuses = epidemic_simulator.kinetic_model.current_statuses 
-
-        
-    current_time = static_contact_interval*i
-
-    epidemic_simulator.run(stop_time = current_time)
-
-    synthetic_data = epidemic_simulator.kinetic_model
+print(simulation_data_average, sampling_times)
 
 #Produces synthetic data
 
@@ -198,81 +187,6 @@ for i in range(assimilation_time/static_contact_interval):
 #
 
 np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
-
-# NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
-# NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])
-# NYC_deaths =  np.asarray([float(x) for x in NYC_data['Deaths'].tolist()])
-# NYC_date_of_interest = np.asarray([dt.datetime.strptime(x, "%m/%d/%Y") for x in NYC_data['DATE_OF_INTEREST'].tolist()])
-
-# # population of NYC
-# NYC_population = 8.399e6
-
-# # fraction reported cases
-# fraction_reported = 0.15
-
-# # cumulative cases NYC
-# cumulative_reported_cases_NYC = 1/fraction_reported*np.cumsum(NYC_cases)/NYC_population
-# cumulative_deaths_NYC = np.cumsum(NYC_deaths)/NYC_population*1e5
-
-# # daily averages of simulation data
-# # sampling_time = 1 means that we average over 1-day intervals
-# daily_average = simulation_average(kinetic_model, sampling_time=1)
-# cumulative_cases_simulation = 1-np.asarray(daily_average['S'])/population
-# cumulative_deaths_simulation = np.asarray(daily_average['D'])/population*1e5
-
-# simulation_dates = np.asarray([NYC_date_of_interest[0] + i*dt.timedelta(days=1) for i in range(len(cumulative_cases_simulation))])
-
-# fig, ax = plt.subplots()
-
-# ax2 = ax.twinx()
-
-# ax.plot(NYC_date_of_interest[::3], cumulative_reported_cases_NYC[::3], marker = 'o', markersize = 3, color = 'k', ls = 'None', label = r'total cases (NYC)')
-# ax.plot(simulation_dates+dt.timedelta(days = 17), cumulative_cases_simulation, 'k', label = 'total cases (simulation)')
-
-# ax2.plot(NYC_date_of_interest[::3], cumulative_deaths_NYC[::3], marker = 's', markersize = 4, color = 'darkred', markeredgecolor = 'Grey', ls = 'None', label = r'death cases (NYC)')
-# ax2.plot(simulation_dates+dt.timedelta(days = 17), cumulative_deaths_simulation, 'darkred', label = 'death cases (simulation)')
-
-# ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 7, 19)])
-# ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
-# ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
-# ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-
-# ax.set_ylim(0,0.3)
-# ax.set_ylabel(r'proportion of total cases', labelpad = 3)
-
-# ax2.set_ylim(0,400)
-# ax2.set_ylabel(r'total deaths/100,000', color = 'darkred')
-# ax2.tick_params(axis='y', labelcolor = 'darkred')   
-
-# ax.legend(frameon = False, loc = 2, fontsize = 6)
-# ax2.legend(frameon = False, loc = 1, fontsize = 6)
-
-# plt.tight_layout()
-# plt.margins(0,0)
-# plt.savefig('../figs/new_york_cases_NYC_DA.png', dpi=300, bbox_inches = 'tight',
-#     pad_inches = 0.05)
-
-# # plot reproduction number estimate
-# fig, ax = plt.subplots()
-
-# ax.set_xlim([dt.date(2020, 3, 1), dt.date(2020, 7, 19)])
-
-# plt.plot(simulation_dates+dt.timedelta(days = 17), np.asarray(daily_average['E'])/np.asarray(daily_average['I']), 'k')
-
-# plt.plot([dt.date(2020, 3, 1), dt.date(2020, 6, 21)], [1,1], linestyle = '--', color = 'Grey')
-
-# ax.set_xticklabels(NYC_date_of_interest[::7], rotation = 45)
-# ax.xaxis.set_major_locator(ticker.MultipleLocator(7))
-# ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-
-# ax.set_ylabel(r'$R(t)$')
-
-# ax.set_ylim(0,4)
-
-# plt.tight_layout()
-# plt.margins(0,0)
-# plt.savefig('../figs/reproduction_number_NYC_DA.png', dpi=300, bbox_inches = 'tight',
-#     pad_inches = 0.05)
 
 # # plot all model compartments
 # fig, axs = plt.subplots(nrows=2, sharex=True)
