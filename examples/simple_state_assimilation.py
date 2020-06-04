@@ -14,9 +14,14 @@ n_status = 5
 noise_var = 0.01 # independent variance on observations
 n_samples = 2 # minimum number for an 'ensemble'
 
-transition_rates_to_update_str=['hospitalization_fraction']
-observations = FullObservation(population, noise_var, "Full state observation 1% noise")
-assimilator = DataAssimilator(observations = observations, errors = [], transition_rates_to_update_str= transition_rates_to_update_str)
+transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
+observations = FullObservation(population, noise_var, "Full state observation 1% noise")=
+
+transmission_rate_to_update_flag=True
+assimilator = DataAssimilator(observations = observations,
+                              errors = [],
+                              transition_rates_to_update_str= transition_rates_to_update_str,
+                              transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
 # Generate random current state
 current_state = np.random.uniform(0.0, 1.0/6.0, (n_samples, population * n_status))
