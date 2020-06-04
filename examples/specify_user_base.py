@@ -11,7 +11,7 @@ np.random.seed(123)
 #plot graphs? NB plotting is very slow for >1000 nodes
 plotfigs=True
 
-contact_network = nx.watts_strogatz_graph(500, 20, 0.1, 1)
+contact_network = nx.watts_strogatz_graph(1500, 20, 0.1, 1)
 population = len(contact_network)
 
 # create a full user base
@@ -60,20 +60,20 @@ print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
 
 #plot graph
 if plotfigs:
-    pl.figure(1,figsize=(10, 10), dpi=300)
+    pl.figure(1,figsize=(10, 10), dpi=100)
     nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.1)
     nx.draw_networkx(neighbor_user_base.contact_network,  node_color='r', with_labels=False, node_size=10)
     pl.title('neighborhood based contact network', fontsize=20)
     pl.savefig('neighbor_network.png')
 
-    pl.figure(2,figsize=(10, 10), dpi=300)
+    pl.figure(2,figsize=(10, 10), dpi=100)
     nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.1)
     nx.draw_networkx(clique_user_base.contact_network,    node_color='r', with_labels=False, node_size=10)
     pl.title('clique based contact network',fontsize=20)
     pl.savefig('clique_network.png')
 
     
-    pl.figure(3,figsize=(10, 10), dpi=300)
+    pl.figure(3,figsize=(10, 10), dpi=100)
     nx.draw_networkx(contact_network,                      node_color='k', with_labels=False, node_size=10, alpha=0.1)
     nx.draw_networkx(fractional_user_base.contact_network, node_color='r', with_labels=False, node_size=10)
     pl.title('random subset contact network',fontsize=20)
