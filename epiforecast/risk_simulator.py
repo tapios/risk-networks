@@ -146,23 +146,18 @@ class MasterEquationModelEnsemble:
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
     #  Set methods -------------------------------------------------------------
-    def update_contact_network(self, new_contact_network, new_mean_contact_duration=None):
+    def set_mean_contact_duration(self, new_mean_contact_duration):
         """
         For update purposes
         """
-        self.contact_network = new_contact_network
         if new_mean_contact_duration is None:
             self.weight = {tuple(edge): 1
                            for i, edge in enumerate(nx.edges(self.contact_network))}
         else:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
-
         nx.set_edge_attributes(self.contact_network, values=self.weight, name='contact_duration')
-
-        self.G = self.contact_network = new_contact_network
-        self.N = len(self.G)
-        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration' )
+        self.L = nx.to_scipy_sparse_matrix(self.G, weight = 'contact_duration')
 
     def update_transmission_rate(self, new_transmission_rate):
         """
