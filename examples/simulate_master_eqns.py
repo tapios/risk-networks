@@ -35,7 +35,7 @@ hospitalization_fraction     = sample_distribution(BetaSampler(mean=0.25, b=4), 
 community_mortality_fraction = sample_distribution(BetaSampler(mean=0.02, b=4), population=population)
 hospital_mortality_fraction  = sample_distribution(BetaSampler(mean=0.04, b=4), population=population)
 
-transition_rates = TransitionRates(population,
+transition_rates = TransitionRates(contact_network,
                                    latent_periods,
                                    community_infection_periods,
                                    hospital_infection_periods,

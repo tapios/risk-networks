@@ -1,7 +1,7 @@
 
 #An Observation has 3 sections:
-# - State observations - which portion of the state is observed when observation is carried out
-# - Observation noise - what sort of noise distribution is there on the observation
+# - State observations    - which portion of the state is observed when observation is carried out
+# - Observation noise     - what sort of noise distribution is there on the observation
 # - Combined observations - this just combines the two to form the observation type
 
 #parent containers at the top, the implemented children are below
@@ -23,11 +23,11 @@ class StateObservation:
         self.obs_states = np.array([])
         pass
 
-    
+
     #updates the observation model when taking observation
     def make_new_observation(self,state,contact_network):
         pass
-    
+
 #type of noise added to observation
 class ObservationNoise:
 
@@ -38,11 +38,10 @@ class ObservationNoise:
         cov=np.zeros(obs_states.size)
         return cov
 
-#combine them    
-class Observation(StateObservation,ObservationNoise):
-    
+#combine them
+class Observation(StateObservation, ObservationNoise):
+
     def __init__(self):
-    
         StateObservation.__init__(self)
         ObservationNoise.__init__(self)
         self.name=obs_name
@@ -55,12 +54,12 @@ class Observation(StateObservation,ObservationNoise):
         return cov
 
 
-    
+
 ### Implemented State Observations ###
-    
+
 class FullStateObservation(StateObservation):
     """We observe the entire system during observation."""
-    
+
     def __init__(self, N, n_status=5):
         # Number of nodes in the graph
         self.N = N
@@ -70,10 +69,10 @@ class FullStateObservation(StateObservation):
 
         # The states for observation
         self.obs_states = np.arange(n_status * N)
-    
+
 #We observe a random subset of nodes during observation
 class RandomStateObservation(StateObservation):
-    
+
     def __init__(self, N, obs_nodes, n_status=5):
         # Number of nodes in the graph
         self.N = N
@@ -100,7 +99,7 @@ class RandomStateObservation(StateObservation):
             tmp = np.array(sorted(onetoN[:self.obs_nodes]))
 
             self.obs_states = np.hstack([self.N*np.arange(self.n_status) + i for i in tmp])
-            
+
 # We observe a random subset of nodes at a particular status (S,E,I,H,R,D)
 class RandomStatusStateObservation(StateObservation):
     def __init__(self, N, obs_frac, obs_status_idx, n_status=5):
@@ -127,9 +126,10 @@ class RandomStatusStateObservation(StateObservation):
         else:
             onetoN=np.arange(self.N)
             self.obs_states=np.hstack([self.N*self.obs_status_idx+i for i in onetoN])
-        
 
-   
+
+
+
 #We observe a subset of nodes at a status, only if the state exceeds a given threshold value.
 #e.g we have a probability of observing I_i if (I_i > 0.8) when the observation takes place.
 class HighProbStatusStateObservation(StateObservation):
@@ -149,12 +149,12 @@ class HighProbStatusStateObservation(StateObservation):
         self.obs_threshold_type = threshold_type
         #default init observation
         self.obs_states = np.arange(int(self.obs_frac*self.N)*obs_status_idx.size)
-        
+
     #updates the observation model when taking observation
     def make_new_observation(self, state, contact_network):
         #Candidates for observations are those with a required state >= threshold
         onetoN=np.arange(self.N)
-        candidate_states= np.hstack([self.N*self.obs_status_idx+i for i in onetoN]) 
+        candidate_states= np.hstack([self.N*self.obs_status_idx+i for i in onetoN])
         if self.obs_threshold_type == 'any':
             #Case 1: candidate state if ANY ensemble member is > threshold
             candidate_states_ens=np.hstack([candidate_states[(state[i,candidate_states]>=self.obs_min_threshold) & \
@@ -169,7 +169,7 @@ class HighProbStatusStateObservation(StateObservation):
         else:
             print('threshold type not recognised for observation, choose mean or any')
             exit()
-        M=candidate_states_ens.size     
+        M=candidate_states_ens.size
         if (int(self.obs_frac*M)>=1)&(self.obs_frac < 1.0) :
             onetoM=np.arange(M)
             np.random.shuffle(onetoM)#(in-place shuffle)
@@ -180,8 +180,8 @@ class HighProbStatusStateObservation(StateObservation):
         else: #The value is too small
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
-        
-        
+
+
 
 ### Implemented Observation Noise ###
 
@@ -196,15 +196,15 @@ class IndependentGaussian(ObservationNoise):
         cov=self.variance*np.ones(obs_states.shape[0])
         return cov
 
-        
+
 ### Implemented Combined Observations ###
 
 
-#Random Observation 
+#Random Observation
 class FullObservation(FullStateObservation,IndependentGaussian):
 
     def __init__(self,N,noise_var,obs_name,n_status=5):
-    
+
         FullStateObservation.__init__(self,N,n_status)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
@@ -216,11 +216,11 @@ class FullObservation(FullStateObservation,IndependentGaussian):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
 
-#Random Observation 
+#Random Observation
 class RandomObservation(RandomStateObservation,IndependentGaussian):
 
     def __init__(self,N,obs_nodes,noise_var,obs_name,n_status=5):
-    
+
         RandomStateObservation.__init__(self,N,obs_nodes,n_status)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
@@ -231,7 +231,7 @@ class RandomObservation(RandomStateObservation,IndependentGaussian):
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
-    
+
 #Random Observation of a defined set of status's SEIHRD (by idx)
 class RandomStatusObservation(RandomStatusStateObservation,IndependentGaussian):
 
@@ -239,14 +239,14 @@ class RandomStatusObservation(RandomStatusStateObservation,IndependentGaussian):
 
         if not isinstance(obs_status_idx,np.ndarray):#if it's a scalar, not array
             obs_status_idx=np.array(obs_status_idx)
-            
+
         RandomStatusStateObservation.__init__(self,N,obs_frac,obs_status_idx,n_status)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
 
     def make_new_observation(self, state, contact_network):
         RandomStatusStateObservation.make_new_observation(self, state, contact_network)
-        
+
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
@@ -270,12 +270,10 @@ class HighProbRandomStatusObservation(HighProbStatusStateObservation,Independent
         HighProbStatusStateObservation.__init__(self,N,obs_frac,obs_status_idx,min_threshold,max_threshold,threshold_type,n_status)
         IndependentGaussian.__init__(self,noise_var)
         self.name=obs_name
-        
+
     def make_new_observation(self, state, contact_network):
         HighProbStatusStateObservation.make_new_observation(self, state, contact_network)
-              
+
     def get_observational_cov(self):
         cov=IndependentGaussian.get_observational_cov(self,self.obs_states)
         return cov
-
-    
