@@ -67,8 +67,7 @@ epidemic_simulator = EpidemicSimulator(population_network,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = None, # health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = False)
+                                       hospital_transmission_reduction = 0.1)
 
 statuses = random_epidemic(population_network, fraction_infected=0.01)
 epidemic_simulator.set_statuses(statuses)
