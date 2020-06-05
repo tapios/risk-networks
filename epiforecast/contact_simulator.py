@@ -1,5 +1,7 @@
+import copy
 import numpy as np
 from numba import njit, float64
+
 from numba.experimental import jitclass
 
 @njit
@@ -10,7 +12,7 @@ def accumulate_contact_duration(contact_duration, time_step, active_contacts):
 def random_index_to_deactivate(active_contacts, n_active_contacts):
     k = np.random.choice(n_active_contacts) # select an active contact
     i = np.where(active_contacts)[0][k]
-    return i 
+    return i
 
 @njit
 def random_index_to_activate(active_contacts, n_active_contacts):
@@ -27,7 +29,7 @@ def gillespie_step(contact_duration, active_contacts, time, stop_time,
 
     activation_rate = current_inception_rate * (n_total - n_active)
     deactivation_rate = n_active / mean_event_lifetime
-     
+
     # Generate exponentially-distributed random time step:
     time_step = -np.log(np.random.random()) / (deactivation_rate + activation_rate)
 
@@ -37,8 +39,8 @@ def gillespie_step(contact_duration, active_contacts, time, stop_time,
 
     else: # event occurs within the simulation interval
         accumulate_contact_duration(contact_duration, time_step, active_contacts)
-                                    
-    # Because a random, exponentially-distributed amount of time has elapsed, 
+
+    # Because a random, exponentially-distributed amount of time has elapsed,
     # an "event" occurs (of course)! The event is the activation or deactivation
     # of a contact.
     deactivation_probability = deactivation_rate / (deactivation_rate + activation_rate)
@@ -48,7 +50,7 @@ def gillespie_step(contact_duration, active_contacts, time, stop_time,
     if np.random.random() < deactivation_probability:
         i = random_index_to_deactivate(active_contacts, n_active)
         active_contacts[i] = False
-    else: 
+    else:
         i = random_index_to_activate(active_contacts, n_active)
         active_contacts[i] = True
 
@@ -65,7 +67,7 @@ def gillespie_contact_simulation(contact_duration, active_contacts, time, stop_t
     interval_steps = 0 # bookkeeping
 
     while time < stop_time:
-            
+
         current_inception_rate = inception.rate(time)
 
         time_step, overshoot_time = gillespie_step(contact_duration,
@@ -90,12 +92,11 @@ class ContactSimulator:
     using a birth/death process given a mean contact rate, and a mean contact duration.
     """
 
-    def __init__(self, initial_fraction_active_contacts = 0.0,
-                                             start_time = 0.0,
-                                             n_contacts = None, 
-                                        active_contacts = None,
-                                         inception_rate = None,
-                                    mean_event_lifetime = None):
+    def __init__(self, contact_network,
+                                start_time = 0.0,
+                       initialize_contacts = True,
+                            inception_rate = None,
+                       mean_event_lifetime = None):
         """
         Args
         ----
@@ -115,54 +116,65 @@ class ContactSimulator:
         start_time (float): the start time of the simulation in days
         """
 
+        n_contacts = nx.number_of_edges(contact_network) # must be recalculated always
+        self.contact_network = contact_network
         self.time = start_time
         self.inception_rate = inception_rate
         self.mean_event_lifetime = mean_event_lifetime
-        
+
+        if day_inception_rate is not None:
+            nx.set_node_attributes(contact_network, values=day_inception_rate, name="day_inception_rate")
+
+        if night_inception_rate is not None:
+            nx.set_node_attributes(contact_network, values=night_inception_rate, name="night_inception_rate")
+
         # Initialize the active contacts
-        if active_contacts is not None: # list of active contacts is provided
-            self.active_contacts = active_contacts
-        
-        else: # generate active contacts randomly
-
-            if n_contacts is None: 
-                raise ValueError("n_contacts must be specified if active_contacts is not supplied!")
-
-            # If contact information is supplied, use equilibrium solution to determine
-            # the initial fraction of active contacts.
-            if inception_rate is not None and mean_event_lifetime is not None:  
-
-                λ = inception_rate.rate(start_time) # current mean contact rate
-                μ = 1 / mean_event_lifetime
-                initial_fraction_active_contacts = λ / (μ + λ)
+        if initialize_contacts:
+            λ = night_inception_rate
+            μ = 1 / mean_event_lifetime
+            initial_fraction_active_contacts = λ / (μ + λ)
 
             # Otherwise, initial_fraction_active_contacts is left unchanged
             active_probability = initial_fraction_active_contacts
             inactive_probability = 1 - active_probability
 
             self.active_contacts = np.random.choice([False, True],
-                                                    size = n_contacts, 
+                                                    size = n_contacts,
                                                     p = [inactive_probability, active_probability])
 
-        # Initialize array of contact durations within a simulation interval
-        self.n_contacts = len(self.active_contacts)
-        self.interval_contact_duration = np.zeros(self.n_contacts)
+            self.edge_to_index = { edge: i for i, edge in enumerate(self.contact_network.edges()) }
+
+        else:
+            self.active_contacts = np.zeros(n_contacts)
+
+        try:
+            self.edge_weights = nx.get_edge_attributes(self.contact_network, 'weights')
+        except:
+            self.edge_weights = { edge: 0.0 for edge in self.contact_network.edges() }
+
+        self.contact_duration = np.zeros(n_contacts)
+        self.overshoot_contact_duration = np.zeros(n_contacts)
+        self.event_time = np.zeros(n_contacts)
+
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
         self.interval_steps = 0
 
         # We use a Gillespie algorithm based on random time steps, which means
         # we overshoot the end of an interval
-        self.overshoot_contact_duration = np.zeros(self.n_contacts)
         self.overshoot_time = 0.0
-        
+
     def set_time(self, time):
         self.time = time
         self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
         self.interval_stop_time = time
         self.overshoot_contact_duration *= 0
 
-    def run(self, stop_time, mean_event_lifetime=None, inception_rate=None):
+    def _set_edge_weights(self):
+        self.edge_weights = OrderedDict(
+            [ (edge, 0.0) for i, edge in enumerate(self.contact_network.edges()) ])
+
+    def run(self, stop_time):
         """
         Simulate time-dependent contacts with a birth/death process.
         """
@@ -170,25 +182,18 @@ class ContactSimulator:
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        if mean_event_lifetime is not None:
-            self.mean_event_lifetime = mean_event_lifetime
+        n_contacts = len(self.contact_network)
 
-        if inception_rate is not None:
-            self.inception_rate = inception_rate
+        self.old_contact_duration = copy.deepcopy(self.contact_duration)
+        self.old_overshoot_contact_duration = copy.deepcopy(self.overshoot_contact_duration)
+        self.old_event_time = copy.deepcopy(self.event_time)
 
-        if self.mean_event_lifetime is None:
-            raise ValueError("Mean event duration is not set!")
+        self.contact_duration = np.zeros(n_contacts)
+        self.overshoot_contact_duration = np.zeros(n_contacts)
+        self.event_time = np.zeros(n_contacts)
 
-        if self.inception_rate is None:
-            raise ValueError("Mean contact rate is not set!")
-
-        # Capture the contact duration associated with 'overshoot' during a previous simulation:
-        if stop_time > self.time:
-            self.interval_contact_duration = self.overshoot_contact_duration
-
-        else: # stop_time is within the current event interval; no events will occur.
-            self.interval_contact_duration = (stop_time - self.interval_stop_time) * self.active_contacts
-            overshoot_time = self.time - stop_time
+        for i, edge in enumerate(self.contact_duration.edges()):
+            pass
 
         # Run the simulation
         (self.time,
@@ -196,7 +201,7 @@ class ContactSimulator:
          self.interval_steps) = gillespie_contact_simulation(self.interval_contact_duration,
                                                              self.active_contacts,
                                                              self.time,
-                                                             stop_time, 
+                                                             stop_time,
                                                              self.mean_event_lifetime,
                                                              self.inception_rate)
 
@@ -216,7 +221,7 @@ class ContactSimulator:
 
 
 specification = [
-                 ('maximum', float64), 
+                 ('maximum', float64),
                  ('minimum', float64)
                 ]
 
