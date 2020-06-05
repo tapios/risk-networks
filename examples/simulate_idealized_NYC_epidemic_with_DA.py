@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 import networkx as nx
 import numpy as np
 import pandas as pd
-import random 
+import random
 import datetime as dt
 import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
@@ -23,6 +23,8 @@ from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMean
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges, random_epidemic
 
+from epiforecast.epiplots import plot_master_eqns
+
 from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
@@ -36,14 +38,14 @@ def simulation_average(model_data, sampling_time_step = 1):
     """
     Returns simulation data averages of simulation data and corresponding sampling times.
     """
-    
+
     simulation_data_average = {}
     simulation_average = {}
 
     for key in model_data.statuses.keys():
         simulation_data_average[key] = []
         simulation_average[key] = []
-    
+
     tav = 0
 
     sampling_times = []
@@ -56,12 +58,12 @@ def simulation_average(model_data, sampling_time_step = 1):
             for key in model_data.statuses.keys():
                 simulation_average[key].append(np.mean(simulation_data_average[key]))
                 simulation_data_average[key] = []
-            
+
             sampling_times.append(tav)
             tav += sampling_time_step
 
     return simulation_average, sampling_times
-        
+
 #
 # Set random seeds for reproducibility
 #
@@ -80,7 +82,7 @@ seed_numba_random_state(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')) 
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
 node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
 contact_network = nx.Graph()
@@ -110,7 +112,7 @@ contact_simulator = FastContactSimulator(
 #
 
 assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
-                       
+
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(contact_network,
 
@@ -126,19 +128,16 @@ transition_rates = TransitionRates(contact_network,
 community_transmission_rate = 12.0
 hospital_transmission_reduction = 0.1
 
-# 
+#
 # Simulate the growth and equilibration of an epidemic
 #
-
-static_contact_interval = 3 * hour
-
-
+static_contact_interval = 12 * hour
 
 health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
                                health_worker_population = len(node_identifiers['health_workers']),
                                static_population_network = contact_network)
 
-          
+
 
 max_edges = nx.number_of_edges(contact_network) + 5 * health_service.patient_capacity
 
@@ -147,12 +146,9 @@ kinetic_model = KineticModel(contact_network = contact_network,
                              community_transmission_rate = community_transmission_rate,
                              hospital_transmission_reduction = hospital_transmission_reduction)
 
-
 ## construct master equations model
 
-
-ensemble_size = 10 # minimum number for an 'ensemble'
-
+ensemble_size = 100 # minimum number for an 'ensemble'
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates_ensemble = []
@@ -166,12 +162,9 @@ for i in range(ensemble_size):
                         community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
                         hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
                         )
-                                    )
-
+        )
 #set transmission_rates
 community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
-
-
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
@@ -190,10 +183,6 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 
     states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 ####
-
-
-
-
 
 medical_infection_test = Observation(N = population,
                                      obs_frac = 1.0,
@@ -214,17 +203,19 @@ assimilator = DataAssimilator(observations = observations,
                               transition_rates_to_update_str= transition_rates_to_update_str,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
-
-
-
-simulation_length = 50 #Number of days
-
+simulation_length = 30 #Number of days
 
 time = start_time
 
 statuses = random_epidemic(contact_network, fraction_infected=0.01)
-kinetic_model.set_statuses(statuses)
 
+kinetic_model.set_statuses(statuses)
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+
+# print(static_contact_interval)
+# print(int(simulation_length/static_contact_interval))
+
+fig, axes = plt.subplots(1, 2, figsize = (15, 5))
 
 for i in range(int(simulation_length/static_contact_interval)):
 
@@ -234,20 +225,20 @@ for i in range(int(simulation_length/static_contact_interval)):
     # contact_simulator run [changes the mean contact duration on the given network]
     contact_duration = contact_simulator.mean_contact_duration(stop_time=time+static_contact_interval)
 
-    # pass the averaged contact durations to the models 
+    # pass the averaged contact durations to the models
     kinetic_model.set_mean_contact_duration(contact_duration)
     master_eqn_ensemble.set_mean_contact_duration(contact_duration)
+    # master_eqn_ensemble.set_mean_contact_duration(None)
 
     # run the models [kinetic produces the current statuses used as data]
     #                [master eqn produces the current states of the risk model]
     statuses = kinetic_model.simulate(static_contact_interval)
-    states_ensemble_trace = master_eqn_ensemble.simulate(states_ensemble, static_contact_interval, n_steps = 10)
-    states_ensemble = states_ensemble_trace["states"][:,:,-1]
+    states_ensemble = master_eqn_ensemble.simulate(static_contact_interval)
 
-    # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)] 
+    # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
     (states_ensemble,
      transition_rates_ensemble,
-     transmission_rate_ensemble
+     community_transmission_rate_ensemble
      ) = assimilator.update(states_ensemble,
                             statuses,
                             full_ensemble_transition_rates = transition_rates_ensemble,
@@ -256,19 +247,15 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     #update model parameters (transition and transmission rates) of the master eqn model
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
-    master_eqn_ensemble.update_transmission_rate(transmission_rate_ensemble)
-    
+    master_eqn_ensemble.update_transmission_rate(community_transmission_rate_ensemble)
+
     #update states/statuses/times for next iteration
     kinetic_model.set_statuses(statuses)
-    #master_eqn_model.set_states_ensemble(states_ensemble)
+    master_eqn_ensemble.set_states_ensemble(states_ensemble)
     time += static_contact_interval
+    # print("Current time",time)
     print("Current time",time)
-
     print(states_ensemble[0,population:2*population])
-
-
-
-
 
 #
 # Plot the results and compare with NYC data.
@@ -294,7 +281,7 @@ np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinet
 # plt.ylabel("Total $E, I, H, R, D$")
 # plt.legend()
 
-# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" + 
+# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" +
 #               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
 
 # print("Saving a visualization of results at", image_path)
