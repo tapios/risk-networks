@@ -39,8 +39,8 @@ class TestMeasurement:
              ((1 - self.sensitivity) * self.prevalence + self.specificity * (1 - self.prevalence))
 
         if scale == 'log':
-            logit_ppv  = np.log(PPV/(1 - PPV))
-            logit_for  = np.log(FOR/(1 - FOR))
+            logit_ppv  = np.log(PPV/(1 - PPV + 1e-8))
+            logit_for  = np.log(FOR/(1 - FOR + 1e-8))
 
             self.logit_ppv_mean = logit_ppv.mean()
             self.logit_ppv_var  = logit_ppv.var()
@@ -117,10 +117,10 @@ class StateInformedObservation:
         #number of nodes in the graph
         self.N = N
         #number of different states a node can be in
-      
+
         if reduced_system == True:
             self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
-  
+
         else:
             self.status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
         self.n_status = len(self.status_catalog.keys())
@@ -158,7 +158,7 @@ class StateInformedObservation:
         else: #The value is too small
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
-    
+
 
 #combine them together
 class Observation(StateInformedObservation, TestMeasurement):
@@ -173,9 +173,9 @@ class Observation(StateInformedObservation, TestMeasurement):
                  reduced_system=True,
                  sensitivity = 0.80,
                  specificity = 0.99):
-        
+
         self.name=obs_name
-        
+
         StateInformedObservation.__init__(self,
                                           N,
                                           obs_frac,
@@ -189,8 +189,8 @@ class Observation(StateInformedObservation, TestMeasurement):
                                  sensitivity,
                                  specificity,
                                  reduced_system)
-        
-    #State is a numpy array of size [self.N * n_status]    
+
+    #State is a numpy array of size [self.N * n_status]
     #def find_observation_states(self, state):
         # obtain where one should make an observation based on the
         # current state, and the contact network

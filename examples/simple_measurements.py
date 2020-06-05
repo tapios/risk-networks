@@ -57,9 +57,9 @@ for mm, member in enumerate(ensemble_model.ensemble):
     y0[mm, : ]  = np.hstack((S, I, H, R, D))
 
 tF = 35
-res = ensemble_model.simulate(y0, tF, n_steps = 100)
-
-ode_states = res['states'][:,:,-1]
+ensemble_model.set_states_ensemble(y0)
+ensemble_model.set_mean_contact_duration()
+ode_states = ensemble_model.simulate(tF, n_steps = 100)
 
 def random_state(population):
     """
@@ -91,11 +91,19 @@ print('\n2nd Test: Probs in logit scale ------------------------------')
 print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
 
 print('\n3th Test: Hospitalized --------------------------------------')
-test = TestMeasurement('H', specificity = 1., sensitivity = 1.)
+test = TestMeasurement('H', specificity = .999, sensitivity = 0.999)
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements(statuses, scale = None)
 
 print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[47:47+6])
+
+print('\n4th Test: Hospitalized --------------------------------------')
+test = TestMeasurement('H', specificity = .999, sensitivity = 0.999)
+test.update_prevalence(ode_states)
+mean, var = test.take_measurements(statuses)
+
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[47:47+6])
+
 
 print('\n4th Test: Noisy measurements for positive cases -------------')
 
