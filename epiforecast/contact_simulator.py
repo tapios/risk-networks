@@ -1,8 +1,8 @@
 import copy
 import numpy as np
-from numba import njit, float64
 from numba.core import types
 from numba.typed import Dict
+from numba import njit, prange, float64
 
 from numba.experimental import jitclass
 
@@ -32,7 +32,8 @@ class ContactSimulator:
     def __init__(self, contact_network,
                                 start_time = 0.0,
                        initialize_contacts = True,
-                            inception_rate = None,
+                        day_inception_rate = None,
+                      night_inception_rate = None,
                        mean_event_lifetime = None):
         """
         Args
@@ -55,8 +56,9 @@ class ContactSimulator:
 
         n_contacts = nx.number_of_edges(contact_network) # must be recalculated always
         self.contact_network = contact_network
+        self.generate_edge_state()
+
         self.time = start_time
-        self.inception_rate = inception_rate
         self.mean_event_lifetime = mean_event_lifetime
 
         if day_inception_rate is not None:
@@ -80,7 +82,7 @@ class ContactSimulator:
                                                     p = [inactive_probability, active_probability])
 
         else:
-            self.active_contacts = np.zeros(n_contacts)
+            self.active_contacts = np.zeros(n_contacts, dtype=bool)
 
         try:
             self.edge_weights = nx.get_edge_attributes(self.contact_network, 'weights')
@@ -93,19 +95,8 @@ class ContactSimulator:
 
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
-        self.interval_steps = 0
 
-        # We use a Gillespie algorithm based on random time steps, which means
-        # we overshoot the end of an interval
-        self.overshoot_time = 0.0
-
-    def set_time(self, time):
-        self.time = time
-        self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
-        self.interval_stop_time = time
-        self.overshoot_contact_duration *= 0
-
-    def regenerate_edge_state(self):
+    def generate_edge_state(self):
         """
         Generate an empty edge state (ordered) numba dictionary corresponding to the current
         contact network.
@@ -117,6 +108,11 @@ class ContactSimulator:
 
         self.edge_state.update({ edge: (False, 0.0, 0.0) for edge in self.contact_network.edges() })
 
+    def regenerate_edge_state(self):
+        previous_edge_state = copy.deepcopy(self.edge_state)
+        self.generate_edge_state()
+        update_common_keys(self.edge_state, previous_edge_state)
+
     def run(self, stop_time):
         """
         Simulate time-dependent contacts with a birth/death process.
@@ -125,56 +121,183 @@ class ContactSimulator:
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        # Synchronize contact state on current edges with previous state
-        self.previous_edge_state = copy.deepcopy(self.edge_state)
+        # Regenerate edge_state and synchronize with previous edge_state
         self.regenerate_edge_state()
-        update_common_keys(self.edge_state, self.previous_edge_state)
 
+        # Initialize state and synchronize with previous state
         n_contacts = nx.number_of_edges(self.contact_network)
 
-        self.overshoot = np.zeros(n_contacts)
-        self.active_contacts = np.zeros(n_contacts)
+        self.active_contacts = np.zeros(n_contacts, dtype=bool)
+        self.overshoot_duration = np.zeros(n_contacts)
         self.event_time = np.zeros(n_contacts)
 
         initialize_state(active_contacts, event_time, overshoot, self.edge_state)
 
         self.contact_duration = np.zeros(n_contacts)
 
-        # Run the simulation
-        (self.time,
-         self.overshoot_time,
-         self.interval_steps) = gillespie_contact_simulation(self.interval_contact_duration,
-                                                             self.active_contacts,
-                                                             self.time,
-                                                             stop_time,
-                                                             self.mean_event_lifetime,
-                                                             self.inception_rate)
-
-        # Store the "overshoot contact duration" for use during a subsequent simulation.
-        self.overshoot_contact_duration = self.overshoot_time * self.active_contacts
+        simulate_contacts(
+                          self.interval_stop_time,
+                          stop_time,
+                          event_time,
+                          self.contact_duration,
+                          self.overshoot_duration,
+                          self.active_contacts,
+                          night_inception_rate,
+                          day_inception_rate,
+                          self.mean_contact_lifetime,
+                         )
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time
         self.interval_stop_time = stop_time
 
-    def mean_contact_duration(self, stop_time, **kwargs):
-        self.run(stop_time, **kwargs)
+    def run_and_set_edge_weights(self, contact_network, stop_time):
+        self.run(stop_time)
         time_interval = self.interval_stop_time - self.interval_start_time
-        return self.interval_contact_duration / time_interval
+        edge_weights = { edge: self.contact_duration[i] / time_interval
+                         for i, edge in enumerate(self.edge_state) }
+
+        nx.set_edge_attributes(contact_network, values=edge_weights, name='SI->E')
+        nx.set_edge_attributes(contact_network, values=edge_weights, name='SH->E')
+
+    def set_time(self, time):
+        self.time = time
+        self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
+        self.interval_stop_time = time
+        self.overshoot_duration *= 0
 
 
+# See discussion in
+#
+# Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation
+# of Contagion Processes on Time-Varying Networks", PLOS Computational Biology (2015)
+#
+# https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004579
 
+@njit
+def diurnal_inception_rate(λnight, λday, t):
+    return np.dayimum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
 
-specification = [
-                 ('maximum', float64),
-                 ('minimum', float64)
-                ]
+@njit
+def simulate_contact(
+                     start_time,
+                     stop_time,
+                     event_time,
+                     contact_duration,
+                     overshoot_duration,
+                     contact,
+                     night_inception_rate,
+                     day_inception_rate,
+                     mean_contact_lifetime
+                    ):
 
-@jitclass(specification)
-class DiurnalContactInceptionRate:
-    def __init__(self, maximum=22, minimum=3):
-        self.maximum = maximum
-        self.minimum = minimum
+    contact_duration = overshoot_duration
 
-    def rate(self, t):
-        return np.maximum(self.minimum, self.maximum * (1 - np.cos(np.pi * t)**4)**4)
+    inceptions = 0
+
+    while event_time < stop_time:
+
+        if contact: # Compute contact deactivation time.
+
+            # Contact is deactivated after
+            time_step = - np.log(np.random.random()) * mean_contact_lifetime
+            contact_duration += time_step
+
+            # Deactivation
+            event_time += time_step
+            contact = False
+
+        else: # Compute next contact inception.
+
+            # Normalized step with τ ~ Exp(1)
+            τ = - np.log(np.random.random())
+
+            # Solve
+            #
+            #       τ = ∫ λ(t) dt
+            #
+            # where the integral goes from the current time to the time of the
+            # next event, or from t to t + Δt, where Δt = time_step.
+            #
+            # For this we accumulate the integral Λ = ∫ λ dt using trapezoidal integration
+            # over microintervals of length δ. When Λ > τ, we calculate Δt with an
+            # O(δ) approximation. An O(δ²) approximation is also possible, but we do not
+            # pursue this here.
+            #
+            # Definitions:
+            #   - δ: increment width
+            #   - n: increment counter
+            #   - λⁿ: λ at t = event_time + n * δ
+            #   - λᵐ: λ at t = event_time + m * δ, with m = n-1
+            #   - Λⁿ: integral of λ(t) from event_time to n * δ
+
+            δ = 0.05 # day
+            n = 1
+            λᵐ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time)
+            λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + δ)
+            Λⁿ = δ / 2 * (λᵐ + λⁿ)
+
+            while Λⁿ < τ:
+                n += 1
+                λᵐ = λⁿ
+                λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + n * δ)
+                Λⁿ += δ / 2 * (λᵐ + λⁿ)
+
+            # O(δ²) approximation for time_step.
+            time_step = n * δ - (Λⁿ - τ) * 2 / (λⁿ + λᵐ)
+
+            # Contact inception
+            event_time += time_step
+            contact = True
+            inceptions += 1
+
+    # We 'overshoot' the end of the interval. To account for this, we subtract the
+    # overshoot, and the contribution of the 'overshoot' to the total contact duration.
+    #
+    #              < -------------------- >
+    #                     overshoot
+    #
+    #             stop
+    # ----- x ---- | -------------------- x
+    #     prev                          next
+    #     step                          step
+    #
+    # A confusing part of this algorithm is that the *current* state is the inverse
+    # of the prior state. Therefore if we are *currently* in contact, we were *not*
+    # in contact during the overshoot interval --- and vice versa. This is why
+    # we write (1 - contact) below.
+
+    overshoot_duration = (event_time - stop_time) * (1 - contact)
+    contact_duration -= overshoot_duration
+
+    return event_time, contact, contact_duration, overshoot_duration, inceptions
+
+@njit(parallel=True)
+def simulate_contacts(
+                      start_time,
+                      stop_time,
+                      event_time,
+                      contact_duration,
+                      overshoot_duration,
+                      contact,
+                      night_inception_rate,
+                      day_inception_rate,
+                      mean_contact_lifetime
+                     ):
+
+    for i in prange(len(contact_duration)):
+
+        (event_time[i],
+         contact[i],
+         contact_duration[i],
+         overshoot_duration[i]) = simulate_contact(
+                                                   start_time,
+                                                   stop_time,
+                                                   event_time[i],
+                                                   contact_duration[i],
+                                                   overshoot_duration[i],
+                                                   contact[i],
+                                                   night_inception_rate[i],
+                                                   day_inception_rate[i],
+                                                   mean_contact_lifetime[i]
+                                                  )
