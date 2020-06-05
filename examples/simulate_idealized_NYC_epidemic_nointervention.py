@@ -113,19 +113,6 @@ contact_network = nx.convert_node_labels_to_integers(contact_network)
 population = len(contact_network)
 
 #
-# Build the contact simulator
-#
-
-contact_simulator = FastContactSimulator(
-
-             n_contacts = nx.number_of_edges(contact_network),
-    mean_event_duration = 0.6 / 60 / 24, # 1 minute in units of days
-      mean_contact_rate = DiurnalMeanContactRate(minimum_i = 2, maximum_i = 22, minimum_j = 2, maximum_j = 22),
-             start_time = -3 / 24, # negative start time allows short 'spinup' of contacts
-
-)
-
-#
 # Clinical parameters of an age-distributed population
 #
 
