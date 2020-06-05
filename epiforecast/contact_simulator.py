@@ -18,6 +18,17 @@ def initialize_state(active_contacts, event_time, overshoot, edge_state):
         event_time[i] = state[1]
         overshoot[i] = state[2]
 
+@njit
+def calculate_inception_rates(day_inception_rate, night_inception_rate,
+                              nodal_day_inception_rate, nodal_night_inception_rate,
+                              edge_state):
+    for i, edge in enumerate(edge_state):
+
+        day_inception_rate[i] = np.min(nodal_day_inception_rate[edge[0]],
+                                       nodal_day_inception_rate[edge[1]])
+
+        night_inception_rate[i] = np.min(nodal_night_inception_rate[edge[0]],
+                                         nodal_night_inception_rate[edge[1]])
 
 
 
@@ -134,6 +145,19 @@ class ContactSimulator:
         initialize_state(active_contacts, event_time, overshoot, self.edge_state)
 
         self.contact_duration = np.zeros(n_contacts)
+
+        nodal_day_inception_rate = np.array(
+            [ data['day_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
+
+        nodal_night_inception_rate = np.array(
+            [ data['night_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
+
+        day_inception_rate = np.zeros(n_contacts)
+        night_inception_rate = np.zeros(n_contacts)
+
+        calculate_inception_rates(day_inception_rate, night_inception_rate,
+                                  nodal_day_inception_rate, nodal_night_inception_rate,
+                                  self.edge_state)
 
         simulate_contacts(
                           self.interval_stop_time,
