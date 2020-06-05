@@ -9,20 +9,11 @@ class NetworkCompartmentalModel:
     """
 
     def __init__(self,
-                contact_network,
-                weight = None,
-                hospital_transmission_reduction = 0.25):
+                 N,
+                 hospital_transmission_reduction = 0.25):
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
-        self.weight = weight
-
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G      = self.contact_network = contact_network
-            self.N      = len(self.G)
-            self.L      = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-        else:
-            self.L      = sps.csr_matrix(contact_network)
-            self.N      = self.L.shape[0]
+        self.N = N
 
     def set_parameters(self, transition_rates  = None,
                              transmission_rate = None,
@@ -98,13 +89,6 @@ class NetworkCompartmentalModel:
         self.set_parameters(transition_rates = None,
                            transmission_rate = new_transmission_rate)
 
-    def update_contact_network(self, contact_network):
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G = self.contact_network = contact_network
-            self.L = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-        else:
-            self.L = sps.csr_matrix(contact_network)
-
 class MasterEquationModelEnsemble:
     def __init__(self,
                 contact_network,
@@ -112,8 +96,7 @@ class MasterEquationModelEnsemble:
                 transmission_rate,
                 ensemble_size = 1,
                 hospital_transmission_reduction = 0.25,
-                reduced_system = True,
-                weight = None):
+                reduced_system = True):
         """
         Args:
         -------
@@ -122,23 +105,17 @@ class MasterEquationModelEnsemble:
          transition_rates : `list` or single instance of `TransitionRate` container
         transmission_rate : `float`
         """
-        self.M = self.ensemble_size = ensemble_size
-        self.ix_reduced = reduced_system
-        self.weight = weight
 
-        if type(contact_network) == nx.classes.graph.Graph:
-            self.G = self.contact_network = contact_network
-            self.N = len(self.G)
-            self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-        else:
-            self.L = sps.csr_matrix(contact_network)
-            self.N = self.L.shape[0]
+        self.G = self.contact_network = contact_network
+        self.M = self.ensemble_size = ensemble_size
+        self.N = len(self.G)
+        self.ix_reduced = reduced_system
+        self.initial_time = 0.0
 
         self.ensemble = []
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
-            member = NetworkCompartmentalModel(contact_network = contact_network,
-                                                        weight = weight,
+            member = NetworkCompartmentalModel(N = self.N,
                                hospital_transmission_reduction = hospital_transmission_reduction)
 
             if isinstance(transition_rates, list):
@@ -158,20 +135,16 @@ class MasterEquationModelEnsemble:
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
     #  Set methods -------------------------------------------------------------
-    def update_contact_network(self, new_contact_network):
+    def set_mean_contact_duration(self, new_mean_contact_duration=None):
         """
         For update purposes
         """
-        if new_contact_network is not None:
-            if type(contact_network) == nx.classes.graph.Graph:
-                self.G = self.contact_network = new_contact_network
-                self.N = len(self.G)
-                self.L  = nx.to_scipy_sparse_matrix(self.G, weight = self.weight)
-            else:
-                self.L = sps.csr_matrix(new_contact_network)
-                self.N = self.L.shape[0]
-
-            [member.update_contact_network(new_contact_network) for member in self.ensemble]
+        if new_mean_contact_duration is not None:
+            self.weight = {tuple(edge): new_mean_contact_duration[i]
+                           for i, edge in enumerate(nx.edges(self.contact_network))}
+            nx.set_edge_attributes(self.contact_network, values=self.weight, name='SI->E')
+        
+        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'SI->E')
 
     def update_transmission_rate(self, new_transmission_rate):
         """
@@ -197,6 +170,9 @@ class MasterEquationModelEnsemble:
         self.update_contact_network(new_contact_network)
         self.update_transition_rates(new_transition_rates)
         self.update_transmission_rate(new_transmission_rate)
+
+    def set_states_ensemble(self, states_ensemble):
+        self.y0 = np.copy(states_ensemble)
 
     # ODE solver methods -------------------------------------------------------
     def do_step(self, t, y, member, closure = 'independent'):
@@ -273,7 +249,7 @@ class MasterEquationModelEnsemble:
             self.CM_SI = self.L.multiply(self.numSI/(self.denSI+1e-8)).dot(y[:,iI].T)
             self.CM_SH = self.L.multiply(self.numSH/(self.denSH+1e-8)).dot(y[:,iH].T)
 
-    def simulate(self, y0, stop_time, n_steps = 100, initial_time = 0.0, closure = 'independent', **kwargs):
+    def simulate(self, time_window, n_steps = 50, closure = 'independent', **kwargs):
         """
         Args:
         -------
@@ -283,14 +259,15 @@ class MasterEquationModelEnsemble:
            initial_time : initial time of simulation
                 closure : by default consider that closure = 'independent'
         """
-        self.tf = 0.
-        self.y0 = np.copy(y0)
-        t       = np.linspace(initial_time, stop_time, n_steps + 1)
+        self.stop_time = self.initial_time + time_window
+        t       = np.linspace(self.initial_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        yt      = np.empty((len(y0.flatten()), len(t)))
-        yt[:,0] = np.copy(y0.flatten())
+        yt      = np.empty((len(self.y0.flatten()), len(t)))
+        yt[:,0] = np.copy(self.y0.flatten())
 
-        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate forward', total = n_steps):
+        for jj, time in tqdm(enumerate(t[:-1]),
+                    desc = 'Simulate forward. Time window [%2.2f, %2.2f]'%(self.initial_time, self.stop_time),
+                    total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 if self.ix_reduced:
@@ -298,11 +275,13 @@ class MasterEquationModelEnsemble:
                 else:
                     self.y0[mm] += self.dt * self.do_step_full(t, self.y0[mm], member, closure = closure)
                 self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
-            self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
-        return {'times' : t,
-                'states': yt.reshape(self.M, -1, len(t))}
+        self.simulation_time = t
+        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.initial_time   += time_window
+
+        return self.y0
 
     def simulate_backwards(self, y0, stop_time, n_steps = 100, initial_time = 0.0, closure = 'independent', **kwargs):
         """

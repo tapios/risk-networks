@@ -166,7 +166,6 @@ class ContactSimulator:
         """
         Simulate time-dependent contacts with a birth/death process.
         """
-
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 

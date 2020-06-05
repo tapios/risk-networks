@@ -15,16 +15,6 @@ contact_network = nx.watts_strogatz_graph(population, 12, 0.1, 1)
 ensemble_size = 10
 
 # ------------------------------------------------------------------------------
-# First test: an empty ensemble with a given graph (no rates)
-print('First test: passed')
-
-# ------------------------------------------------------------------------------
-# Second test: create the transmission rate in the ensemble
-transmission_rate = 0.06*np.ones(ensemble_size)
-master_eqn_ensemble.update_transmission_rate(transmission_rate)
-print('Second test: passed')
-
-# ------------------------------------------------------------------------------
 # Third test: create transition rates and populate the ensemble
 
 latent_periods              = sample_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
@@ -43,23 +33,17 @@ transition_rates = TransitionRates(contact_network,
                                    community_mortality_fraction,
                                    hospital_mortality_fraction)
 
-master_eqn_ensemble.update_transition_rates([transition_rates]*master_eqn_ensemble.M)
-print('Third test: passed')
+transmission_rate = 0.06*np.ones(ensemble_size)
+
+print('First test: passed ------------------------------------------------------')
 # ------------------------------------------------------------------------------
 # Fourth test: create object with all parameters at once
-master_eqn_ensemble = MasterEquationModelEnsemble(contact_network,
-            [transition_rates]*ensemble_size,
-            transmission_rate,
-            ensemble_size = ensemble_size)
-print('Fourth test: passed')
-
-# ------------------------------------------------------------------------------
-# Fifth test: create object with adjacency matrix
-master_eqn_ensemble = MasterEquationModelEnsemble(nx.to_scipy_sparse_matrix(contact_network),
-            [transition_rates]*ensemble_size,
-            transmission_rate,
-            ensemble_size = ensemble_size)
-print('Fifth test: passed')
+master_eqn_ensemble = MasterEquationModelEnsemble(
+                        contact_network,
+                        [transition_rates]*ensemble_size,
+                        transmission_rate,
+                        ensemble_size = ensemble_size)
+print('Second test: passed -----------------------------------------------------')
 
 # ------------------------------------------------------------------------------
 # Fifth test: simulate the epidemic through the master equations

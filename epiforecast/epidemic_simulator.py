@@ -61,13 +61,13 @@ class EpidemicSimulator:
         constant_steps = int(np.floor(run_time / self.static_contact_interval))
 
         # Interval stop times
-        interval_stop_times = self.static_contact_interval * np.arange(start = 1, stop = 1 + constant_steps)
-
+        interval_stop_times = self.time + self.static_contact_interval * np.arange(start = 1, stop = 1 + constant_steps)
+      
         # Step forward
         for i in range(constant_steps):
 
             interval_stop_time = interval_stop_times[i]
-
+            
             if self.health_service is not None:
                 self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
                                                                  self.contact_network)
@@ -75,7 +75,7 @@ class EpidemicSimulator:
             start = timer()
 
             contact_duration = self.contact_simulator.mean_contact_duration(stop_time=interval_stop_time)
-
+            
             self.kinetic_model.set_mean_contact_duration(contact_duration)
             self.kinetic_model.simulate(self.static_contact_interval)
             self.time += self.static_contact_interval
@@ -92,11 +92,10 @@ class EpidemicSimulator:
                   "R {: 4d} |".format(self.kinetic_model.statuses['R'][-1]),
                   "D {: 4d} |".format(self.kinetic_model.statuses['D'][-1]))
 
-
+            self.contact_simulator.set_time(self.time)
+            
         if self.time != stop_time: # One final step...
-            if self.cycle_contacts:
-                self.contact_simulator.set_time(self.time)
-
+            
             contact_duration = self.contact_simulator.mean_contact_duration(stop_time=stop_time)
             self.kinetic_model.set_mean_contact_duration(contact_duration)
             self.kinetic_model.simulate(stop_time - self.time)

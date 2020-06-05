@@ -2,8 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
 
-def plot_master_eqns(states, t, xlims = None, reduced_system = True, leave = False, figsize = (15, 4), **kwargs):
-    fig, axes = plt.subplots(1, 2, figsize = figsize)
+def plot_master_eqns(states, t, axes = None, xlims = None, reduced_system = True, leave = False, figsize = (15, 4), **kwargs):
+    if axes is None:
+        fig, axes = plt.subplots(1, 2, figsize = figsize)
     if reduced_system:
         N_eqns = 5
         S, I, H, R, D = np.arange(N_eqns)
@@ -12,18 +13,18 @@ def plot_master_eqns(states, t, xlims = None, reduced_system = True, leave = Fal
         S, E, I, H, R, D = np.arange(N_eqns)
 
     for mm in tqdm(range(states.shape[0]), desc = 'Plotting ODE', leave = leave):
-        axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[S], color = 'white', linewidth = 4)
-        axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[R], color = 'white', linewidth = 4)
-        axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[I], color = 'white', linewidth = 4)
+        # axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[S], color = 'white', linewidth = 4)
+        # axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[R], color = 'white', linewidth = 4)
+        # axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[I], color = 'white', linewidth = 4)
 
-        if reduced_system:
-            axes[1].plot(t, (1 - states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 0)).sum(axis = 0), color = 'white', linewidth = 4)
-        else:
-            axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[E], color = 'white', linewidth = 4)
-        axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[I], color = 'white', linewidth = 4)
-        axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[H], color = 'white', linewidth = 4)
-        axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[D], color = 'white', linewidth = 4)
-
+        # if reduced_system:
+        #     axes[1].plot(t, (1 - states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 0)).sum(axis = 0), color = 'white', linewidth = 4)
+        # else:
+        #     axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[E], color = 'white', linewidth = 4)
+        # axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[I], color = 'white', linewidth = 4)
+        # axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[H], color = 'white', linewidth = 4)
+        # axes[1].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[D], color = 'white', linewidth = 4)
+        #
         axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[S], color = 'C0', linestyle = '--', linewidth = 2)
         axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[R], color = 'C4', linestyle = '--')
         axes[0].plot(t, states[mm].reshape(N_eqns, -1, len(t)).sum(axis = 1)[I], color = 'C1', linestyle = '--')
@@ -61,4 +62,4 @@ def plot_master_eqns(states, t, xlims = None, reduced_system = True, leave = Fal
 
     plt.tight_layout()
 
-    return fig, axes
+    return axes
