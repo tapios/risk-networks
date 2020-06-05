@@ -52,6 +52,8 @@ def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 
     return states_ensemble
+
+
 #
 # Set random seeds for reproducibility
 #
@@ -85,15 +87,6 @@ start_time = -3 / 24
 
 minute = 1 / 60 / 24
 hour = 60 * minute
-
-
-#contact_simulator = FastContactSimulator(
-#
-#             n_contacts = nx.number_of_edges(contact_network),
-#    mean_event_duration = 0.5*minute, # 1 minute in units of days
-#      mean_contact_rate = DiurnalMeanContactRate(minimum_i = 2, maximum_i = 22, minimum_j = 2, maximum_j = 22),
-#             start_time = start_time # negative start time allows short 'spinup' of contacts
-#)
 
 #
 # Clinical parameters of an age-distributed population
@@ -140,11 +133,6 @@ epidemic_simulator = EpidemicSimulator(
                       start_time = start_time
                                       )
 
-
-#kinetic_model = KineticModel(contact_network = contact_network,
-#                             transition_rates = transition_rates,
-#                             community_transmission_rate = community_transmission_rate,
-#                             hospital_transmission_reduction = hospital_transmission_reduction)
 
 ## construct master equations model
 
