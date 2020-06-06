@@ -31,7 +31,7 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation
 from epiforecast.data_assimilator import DataAssimilator
-from epiforecast.user_base import ContiguousUserBase
+from epiforecast.user_base import ContiguousUserBase, contiguous_indicators
 from epiforecast.utilities import seed_numba_random_state
 
 
@@ -72,8 +72,8 @@ seed_numba_random_state(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -135,13 +135,21 @@ epidemic_simulator = EpidemicSimulator(
 
 
 ### Create the user base.
+user_fraction=0.05
+user_base = ContiguousUserBase(contact_network,
+                               user_fraction,
+                               method="neighbor",
+                               seed_user=None)
 
-user_fraction=0.5
-user_base = ContiguousUserBase(contact_network,user_fraction)
 user_population=len(user_base.contact_network)
-#print(user_base.contact_network.nodes)
 print("size of network", population,
       " and size of user base", user_population)
+
+#some info about the user base:
+interior,boundary,mean_exterior_neighbors = contiguous_indicators(contact_network,user_base.contact_network)
+print("user base interior nodes:", interior)
+print("user base boundary nodes:", boundary)
+print("average exterior neighbors of boundary node:", mean_exterior_neighbors)
 
 
 ## construct master equations model
