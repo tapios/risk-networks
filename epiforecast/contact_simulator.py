@@ -61,6 +61,8 @@ def generate_edge_state(contact_network):
 
     return edge_state
 
+def buffer_size(nodes, health_service):
+    return 0
 
 class ContactSimulator:
     """
@@ -73,7 +75,9 @@ class ContactSimulator:
                         day_inception_rate = None,
                       night_inception_rate = None,
                        mean_event_lifetime = None,
-                                start_time = 0.0):
+                                start_time = 0.0,
+                            health_service = None,
+                   rate_integral_increment = 0.05):
         """
         Args
         ----
@@ -90,14 +94,22 @@ class ContactSimulator:
 
         mean_event_lifetime (float): The mean duration of a contact event.
 
-        start_time (float): the start time of the simulation in days
+        start_time (float): Start time of the simulation, in days.
+
+        rate_integral_increment (float): Increment used to integrate the time-varying inception rate
+                                         within the Gillespie simulation of contact activity.
+                                         Must be much shorter than one day when the inception rate varies
+                                         diurnally.
         """
 
-        n_contacts = nx.number_of_edges(contact_network) # must be recalculated always
+        # Number of possible edges during an epidemic simulation
+        n_contacts = nx.number_of_edges(contact_network) + buffer_size(len(contact_network), health_service)
+
         self.contact_network = contact_network
         self.edge_state = generate_edge_state(contact_network)
         self.time = start_time
         self.mean_event_lifetime = mean_event_lifetime
+        self.rate_integral_increment = rate_integral_increment
 
         if day_inception_rate is not None:
             nx.set_node_attributes(contact_network, values=day_inception_rate, name="day_inception_rate")
@@ -142,8 +154,6 @@ class ContactSimulator:
         Simulate time-dependent contacts with a birth/death process.
         """
 
-        #print(stop_time, self.event_time.min())
-
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
@@ -187,6 +197,7 @@ class ContactSimulator:
                           self.night_inception_rate,
                           self.day_inception_rate,
                           self.mean_event_lifetime,
+                          self.rate_integral_increment
                          )
 
         # Record the start and stop times of the current simulation interval
@@ -199,8 +210,8 @@ class ContactSimulator:
         edge_weights = { edge: self.contact_duration[i] / time_interval
                          for i, edge in enumerate(self.edge_state) }
 
-        nx.set_edge_attributes(contact_network, values=edge_weights, name='SI->E')
-        nx.set_edge_attributes(contact_network, values=edge_weights, name='SH->E')
+        nx.set_edge_attributes(contact_network, values=edge_weights, name='exposed_by_infected')
+        nx.set_edge_attributes(contact_network, values=edge_weights, name='exposed_by_hospitalized')
 
     def set_time(self, time):
         self.time = time
@@ -231,7 +242,8 @@ def simulate_contacts(
                       active_contacts,
                       night_inception_rate,
                       day_inception_rate,
-                      mean_event_lifetime
+                      mean_event_lifetime,
+                      rate_integral_increment
                      ):
 
     for i in prange(n_contacts):
@@ -247,7 +259,8 @@ def simulate_contacts(
                                                    active_contacts[i],
                                                    night_inception_rate[i],
                                                    day_inception_rate[i],
-                                                   mean_event_lifetime
+                                                   mean_event_lifetime,
+                                                   rate_integral_increment
                                                   )
 
 @njit
@@ -259,7 +272,8 @@ def simulate_contact(
                      active_contact,
                      night_inception_rate,
                      day_inception_rate,
-                     mean_event_lifetime
+                     mean_event_lifetime,
+                     rate_integral_increment
                     ):
 
     contact_duration = overshoot_duration
@@ -300,7 +314,7 @@ def simulate_contact(
             #   - λᵐ: λ at t = event_time + m * δ, with m = n-1
             #   - Λⁿ: integral of λ(t) from event_time to n * δ
 
-            δ = 0.05 # day
+            δ = rate_integral_increment  # 0.05 # day
             n = 1
             λᵐ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time)
             λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + δ)
