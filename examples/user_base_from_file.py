@@ -4,11 +4,24 @@ import networkx as nx
 import numpy as np
 
 from epiforecast.user_base import FullUserBase, FractionalUserBase, ContiguousUserBase
+from epiforecase.scenarios import load_edges
+
 
 np.random.seed(123)
 
+#Create network from nx function:
 contact_network = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
 population = len(contact_network)
+
+
+# Or create from file:
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
+
+contact_network = nx.Graph()
+contact_network.add_edges_from(edges)
+contact_network = nx.convert_node_labels_to_integers(contact_network)
+population = len(contact_network)
+
 
 # create a full user base
 full_user_base=FullUserBase(contact_network)
