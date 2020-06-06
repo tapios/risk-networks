@@ -88,18 +88,18 @@ if plot_figs:
     nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(neighbor_user_base.contact_network,  node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('neighborhood based contact network', fontsize=20)
-    pl.savefig('neighbor_network.png')
+    pl.savefig('neighbor_network.pdf')
 
     pl.figure(2,figsize=(10, 10), dpi=100)
     nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(clique_user_base.contact_network,    node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('clique based contact network',fontsize=20)
-    pl.savefig('clique_network.png')
+    pl.savefig('clique_network.pdf')
 
     
     pl.figure(3,figsize=(10, 10), dpi=100)
     nx.draw_networkx(contact_network,                      node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(fractional_user_base.contact_network, node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('random subset contact network',fontsize=20)
-    pl.savefig('random_network.png')
+    pl.savefig('random_network.pdf')
 
