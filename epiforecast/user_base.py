@@ -17,22 +17,22 @@ class FullUserBase:
 class FractionalUserBase:
     """
     A class to store which subset of the population are being modeled by the Master Equations
-    FractionalUserBase takes a random subset of the population and contructs a subgraph without
-    isolated nodes. Note, this procedure will lead to (slightly) less than the fraction specified
+    FractionalUserBase takes a random subset of the population and contructs a subgraph of the largest
+    component within this fraction. 
     """
     def __init__(self,
                  full_contact_network,
                  user_fraction):
-
-        users = np.random.choice(list(full_contact_network.nodes),int(user_fraction*len(full_contact_network.nodes)), replace=False) 
-
-        user_base_with_isolates=full_contact_network.subgraph(users)
-        isolates = nx.isolates(user_base_with_isolates)
         
-        #removes isolated nodes from user list, create new subgraph (as isolated nodes can't get sick)
-        users = [w for w in filter(lambda w: w not in isolates, users)]
-        user_base = full_contact_network.subgraph(users)
-
+        user_base=[]
+        scale_factor=1.0
+        while len(user_base)< 0.9*user_fraction*len(full_contact_network):
+            nodes_size= min(int(scale_factor*user_fraction*len(full_contact_network.nodes)),len(full_contact_network.nodes))
+            users = np.random.choice(list(full_contact_network.nodes),nodes_size, replace=False) 
+            user_base_fractured=full_contact_network.subgraph(users)
+            user_base=max(nx.connected_components(user_base_fractured),key=len)
+            scale_factor*=1.1
+            
         self.contact_network = full_contact_network.subgraph(user_base)
         
 
