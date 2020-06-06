@@ -249,4 +249,4 @@ for i in range(int(simulation_length/static_contact_interval)):
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[epidemic_simuator.kinetic_model.times, epidemic_simuator.kinetic_model.statuses['S'], epidemic_simuator.kinetic_model.statuses['E'], epidemic_simuator.kinetic_model.statuses['I'], epidemic_simuator.kinetic_model.statuses['H'], epidemic_simuator.kinetic_model.statuses['R'],epidemic_simuator.kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
