@@ -73,7 +73,7 @@ class HealthService:
 
         # List of Patient classes
         self.patients = []
-        
+
         # List of people unable to go into hospital due to maximum capacity
         self.waiting_list = []
 
@@ -111,22 +111,25 @@ class HealthService:
         '''
 
         discharged_patients = []
+
         for i, patient in enumerate(self.patients):
-            if statuses[patient.address] != 'H' :
-                # Discharge_patient
+            if statuses[patient.address] != 'H': # Discharge_patient
+
                 population_network.remove_edges_from(patient.health_worker_contacts)
                 population_network.add_edges_from(patient.community_contacts)
+
                 print("Discharging patient", patient.address,
                       "with status", statuses[patient.address])
 
                 discharged_patients.append(patient)
 
-        self.patients= [ p for p in filter(lambda p: p not in discharged_patients, self.patients) ]
+        self.patients = [ p for p in filter(lambda p: p not in discharged_patients, self.patients) ]
+
         print("Remaining patients after discharge", [p.address for p in self.patients])
 
     def admit_patients(self, statuses, population_network):
         '''
-        Method to find unoccupied beds, and admit patients from the populace (storing their details).
+        Method to find unoccupied beds, and admit patients from the community (storing their details).
         '''
         if len(self.patients) < self.patient_capacity:
 
@@ -137,10 +140,10 @@ class HealthService:
             hospital_seeking = [i for i in populace if statuses[i] == 'H']
             print("Those seeking hospitalization", hospital_seeking)
 
-            hospital_beds=self.patient_capacity - len(self.patients)
+            hospital_beds = self.patient_capacity - len(self.patients)
 
             if not isinstance(hospital_seeking, list): # if it's a scalar, not array
-                    hospital_seeking=[hospital_seeking]
+                    hospital_seeking = [hospital_seeking]
 
             if len(hospital_seeking) > hospital_beds:
                 patient_admissions = hospital_seeking[:hospital_beds]
@@ -193,12 +196,10 @@ class Patient:
         """
         Args
         ----
-        address (int): Location of the patient in the `static_population_network`
-                       (with respect to `static_population_network.node`)
+        address (int): Location of the patient in the `static_population_network`.
 
-        community_contacts (list of tuples): Li
-        t of edges to neighbours in `static_population_network`
-                                             these are stored here while the patient is in hospital
+        community_contacts (list of tuples): List of edges in the `static_population_network`.
+                                             These are stored here while the patient is in hospital
 
         health_worker_contacts (list of tuples): a list of edges connecting patient to assigned health workers
         """
