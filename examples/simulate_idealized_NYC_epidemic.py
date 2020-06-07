@@ -46,7 +46,6 @@ rcParams.update({'figure.figsize': fig_size})
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges, random_epidemic
 
@@ -55,7 +54,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 
-from epiforecast.utilities import seed_numba_random_state
+from epiforecast.utilities import seed_numba_random_state, seed_three_random_states
 
 def simulation_average(model_data, sampling_time = 1):
     """
@@ -88,15 +87,9 @@ def simulation_average(model_data, sampling_time = 1):
 # Set random seeds for reproducibility
 #
 
-# Both numpy.random and random are used by the KineticModel.
 seed = 2132
 
-np.random.seed(seed)
-random.seed(seed)
-
-# set numba seed
-
-seed_numba_random_state(seed)
+seed_three_random_states(seed)
 
 #
 # Load an example network
@@ -146,13 +139,13 @@ health_service = HealthService(patient_capacity = int(0.05 * len(contact_network
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
+                                                  day_inception_rate = 22,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                       cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
 statuses = random_epidemic(contact_network, fraction_infected=0.005)
 
@@ -170,13 +163,13 @@ statuses = epidemic_simulator.kinetic_model.current_statuses
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=8, minimum=2),
+                                                  day_inception_rate = 8,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
 epidemic_simulator.set_statuses(statuses)
 
@@ -204,13 +197,13 @@ for i in range(len(statuses)):
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
+                                                  day_inception_rate = 22,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
 epidemic_simulator.set_statuses(statuses)
 

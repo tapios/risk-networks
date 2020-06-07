@@ -113,7 +113,7 @@ health_service = HealthService(patient_capacity = int(0.05 * len(contact_network
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
                                                   day_inception_rate = 22,
-                                                  night_inception_rate = 3,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
