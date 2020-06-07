@@ -153,9 +153,6 @@ class HealthService:
 
             hospital_beds = self.patient_capacity - len(self.patients)
 
-            if not isinstance(hospital_seeking, list): # if it's a scalar, not array
-                hospital_seeking = [hospital_seeking]
-
             if len(hospital_seeking) > hospital_beds:
                 patient_admissions = hospital_seeking[:hospital_beds]
 
