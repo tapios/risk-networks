@@ -103,12 +103,12 @@ class HealthService:
         Discharge and admit patients.
         """
         # First modify the current population network
-        living_discharged_patients = self.discharge_patients(statuses, population_network)
+        discharged_patients = self.discharge_patients(statuses, population_network)
         admitted_patients = self.admit_patients(statuses, population_network)
 
         print("Current patients", [patient.address for patient in self.patients])
 
-        return admitted_patients, living_discharged_patients
+        return admitted_patients, discharged_patients
 
     def discharge_patients(self, statuses, population_network):
         """
@@ -117,7 +117,6 @@ class HealthService:
         """
 
         discharged_patients = []
-        living_discharged_patients = []
 
         for i, patient in enumerate(self.patients):
             if statuses[patient.address] != 'H': # Discharge_patient
@@ -130,14 +129,11 @@ class HealthService:
 
                 discharged_patients.append(patient)
 
-                if statuses[patient.address] != 'D':
-                    living_discharged_patients.append(patient)
-
         self.patients = [ p for p in filter(lambda p: p not in discharged_patients, self.patients) ]
 
         print("Remaining patients after discharge", [p.address for p in self.patients])
 
-        return living_discharged_patients
+        return discharged_patients
 
     def admit_patients(self, statuses, population_network):
         """
@@ -198,7 +194,8 @@ class HealthService:
                 population_network.add_edges_from(new_patient.health_worker_contacts)
 
                 print("Admitting patient from", new_patient.address,
-                      "with assigned health workers", health_worker_contacts)
+                      "with assigned health workers", health_worker_contacts,
+                      "and severing community contacts", new_patient.community_contacts)
 
         return admitted_patients
 

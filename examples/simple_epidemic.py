@@ -27,7 +27,7 @@ random.seed(123)
 # Create an example network
 #
 
-contact_network = nx.barabasi_albert_graph(10000, 2)
+contact_network = nx.barabasi_albert_graph(30000, 10)
 population = len(contact_network)
 
 #
@@ -55,8 +55,8 @@ transition_rates = TransitionRates(contact_network,
 minute = 1 / 60 / 24
 hour = 60 * minute
 
-health_service = HealthService(patient_capacity = 5,
-                               health_worker_population = 10, # sets the first 10 nodes as health workers
+health_service = HealthService(patient_capacity = 10,
+                               health_worker_population = 30, # sets the first 30 nodes as health workers
                                static_population_network = contact_network)
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
