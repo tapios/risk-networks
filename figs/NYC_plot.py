@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 sns.set_style("whitegrid", {'axes.grid': False})
+sns.set_style("ticks")
 
 from matplotlib import rcParams
 
@@ -81,8 +82,8 @@ population = len(contact_network)
 #%%
 
 #%% load simulation data (with and without interventions)
-simulation_data = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'simulation_data_NYC_1e4_3.txt'))
-simulation_data_nointervention = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'simulation_data_nointervention.txt'))
+simulation_data = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'simulation_data_NYC_1e4_6.txt'))
+simulation_data_nointervention = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'simulation_data_nointervention2.txt'))
 
 times = simulation_data[:,0]
 times_nointervention = simulation_data_nointervention[:,0]
@@ -103,7 +104,7 @@ NYC_death_data = np.asarray(NYC_death_data.iloc[-1].tolist()[1:])+np.asarray(NYC
 NYC_population = 8.399e6
 
 # fraction reported cases
-fraction_reported = 0.13
+fraction_reported = 1
 
 # cumulative cases NYC
 reported_cases_NYC = 1/fraction_reported*NYC_cases/NYC_population*1e5
@@ -156,102 +157,137 @@ fig, axs = plt.subplots(nrows = 2, ncols = 2)
 
 # cumulative death panel
 ax00 = axs[0][0]
+
+ax00_2 = axs[0][0].twinx()
+
 ax00.set_title(r'Deaths per 100,000')
 
-ax00.text(dt.date(2020, 3, 10), 0.9*1200, r'(a)')
+ax00.text(dt.date(2020, 3, 12), 0.9*1000, r'(a)')
 
-ax00.plot(simulation_dates+dt.timedelta(days = 17), cumulative_deaths_simulation, 'cornflowerblue', alpha = 1)
-ax00.plot(simulation_dates_nointervention+dt.timedelta(days = 17), cumulative_deaths_simulation_nointervention, 'Grey')
-ax00.bar(NYC_data_date_of_interest_deaths, cumulative_deaths_NYC, facecolor='lightsteelblue', edgecolor='lightsteelblue', alpha = 1, width = 2)
+ax00.plot(simulation_dates+dt.timedelta(days = 13), cumulative_deaths_simulation, 'cornflowerblue', alpha = 1)
+ax00.plot(simulation_dates_nointervention+dt.timedelta(days = 13), cumulative_deaths_simulation_nointervention, 'Grey')
+ax00.bar(NYC_data_date_of_interest_deaths, cumulative_deaths_NYC, facecolor='Grey', edgecolor='Grey', alpha = 0.6, width = 0.00001, align = 'center')
 
 ax00.text(dt.date(2020, 4, 29), 75, r'data')
-ax00.text(dt.date(2020, 6, 14), 400, r'model')
-ax00.text(dt.date(2020, 6, 28), 1120, r'no SD')
+ax00.text(dt.date(2020, 6, 14), 300, r'model')
+ax00.text(dt.date(2020, 4, 20), 900, r'no SD')
 
 ax00.set_ylabel("cumulative")
 
-ax00.set_ylim(0,1200)
-ax00.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 8, 9)])
+ax00.set_ylim(0,1000)
+ax00.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 9, 7)])
 ax00.set_xticklabels(NYC_date_of_interest_cases[::7], rotation = 45)
 ax00.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax00.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+ax00.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+
+ax00_2.set_yticks([])
+
 ax00.yaxis.grid()
 
 # cumulative infection panel
 ax01 = axs[0][1]
 ax01.set_title(r'Infections per 100,000')
 
-ax01.text(dt.date(2020, 3, 10), 0.9*60000, r'(b)')
+ax01_2 = axs[0][1].twinx()
 
-ax01.plot(simulation_dates+dt.timedelta(days = 17), cumulative_cases_simulation, 'cornflowerblue')
-ax01.plot(simulation_dates_nointervention+dt.timedelta(days = 17), cumulative_cases_simulation_nointervention, 'Grey')
-ax01.bar(NYC_date_of_interest_cases, cumulative_reported_cases_NYC, facecolor='lightsteelblue', edgecolor='lightsteelblue', alpha = 1, width = 2)
+ax01.text(dt.date(2020, 3, 12), 0.9*60000, r'(b)')
 
-ax01.text(dt.date(2020, 4, 29), 7300, r'data')
-ax01.text(dt.date(2020, 6, 11), 21000, r'model')
+ax01.plot(simulation_dates+dt.timedelta(days = 13), cumulative_cases_simulation, 'cornflowerblue')
+ax01.plot(simulation_dates_nointervention+dt.timedelta(days = 13), cumulative_cases_simulation_nointervention, 'Grey')
+ax01_2.bar(NYC_date_of_interest_cases, cumulative_reported_cases_NYC, facecolor='red', edgecolor='red', alpha = 0.4, width = 0.00001, align = 'center')
+
+ax01.text(dt.date(2020, 4, 29), 6000, r'data')
+ax01.text(dt.date(2020, 6, 11), 18000, r'model')
 ax01.text(dt.date(2020, 4, 5), 55000, r'no SD')
                            
 ax01.set_ylim(0,60000)
-ax01.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 8, 9)])
+ax01.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 9, 7)])
 ax01.set_xticklabels(NYC_date_of_interest_cases[::7], rotation = 45)
 ax01.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax01.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+ax01.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
 
+
+ax01_2.set_ylim(0,9000)
+ax01_2.tick_params(axis='y', colors='indianred')
+ax01_2.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+    
 ax01.yaxis.grid()
+#ax01_2.grid("off")
 
 # death cases panel
 ax10 = axs[1][0]
 
-ax10.text(dt.date(2020, 3, 10), 0.9*50, r'(c)')
+ax10_2 = axs[1][0].twinx()
 
-ax10.plot(simulation_dates2+dt.timedelta(days = 17), deaths_simulation, 'cornflowerblue')
-ax10.plot(simulation_dates_nointervention2+dt.timedelta(days = 17), deaths_simulation_nointervention, 'Grey')
+ax10.text(dt.date(2020, 3, 12), 0.9*30, r'(c)')
+
+ax10.plot(simulation_dates2+dt.timedelta(days = 13), deaths_simulation, 'cornflowerblue')
+ax10.plot(simulation_dates_nointervention2+dt.timedelta(days = 13), deaths_simulation_nointervention, 'Grey')
 ax10.fill_between(NYC_data_date_of_interest_deaths[::7]+dt.timedelta(days = 3.5), NYC_death_data_weekly,  edgecolor = 'k', facecolor = 'Grey', alpha = 0.4, linewidth = 1.)
 ax10.plot(NYC_data_date_of_interest_deaths[::7]+dt.timedelta(days = 3.5), NYC_death_data_weekly,  color = 'k',  linewidth = 1.)
 
-ax10.bar(NYC_data_date_of_interest_deaths, reported_deaths_NYC, facecolor='Grey', edgecolor='Grey', alpha = 0.6, width = 0.0001)
+ax10.bar(NYC_data_date_of_interest_deaths, reported_deaths_NYC, facecolor='Grey', edgecolor='Grey', alpha = 0.5, width = 0.0001)
 
-ax10.text(dt.date(2020, 4, 6), 10, r'new deaths', fontsize = 7)
-ax10.text(dt.date(2020, 5, 17), 6, r'7-day average', fontsize = 7)
-ax10.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 28)], [6.5, 3.2], color = 'k', linewidth = 0.5)
+ax10.text(dt.date(2020, 4, 3), 10.5, r'new deaths', fontsize = 7)
+ax10.text(dt.date(2020, 5, 18), 8, r'7-day average', fontsize = 7)
+ax10.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 28)], [8.0, 3.2], color = 'k', linewidth = 0.5)
                  
 ax10.set_ylabel("daily")
 
-ax10.set_ylim(0,50)
-ax10.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 8, 9)])
+ax10.set_ylim(0,30)
+ax10.set_yticks([0,10,20,30])
+ax10.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 9, 7)])
 ax10.set_xticklabels(NYC_date_of_interest_cases[::7], rotation = 45)
 ax10.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax10.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+ax10.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+
+ax10_2.set_yticks([])
 
 ax10.yaxis.grid()
 
 # cases panel
 ax11 = axs[1][1]
 
-ax11.text(dt.date(2020, 3, 10), 0.9*2500, r'(d)')
+ax11_2 = axs[1][1].twinx()
 
-ax11.plot(simulation_dates[:-1]+dt.timedelta(days = 17), cases_simulation, 'cornflowerblue')
-ax11.plot(simulation_dates_nointervention[:-1]+dt.timedelta(days = 17), cases_simulation_nointervention, 'Grey')
-ax11.fill_between(NYC_date_of_interest_cases[::7]+dt.timedelta(days = 3.5), NYC_cases_weekly,  edgecolor = 'red', facecolor = 'red', alpha = 0.15, linewidth = 1.)
-ax11.plot(NYC_date_of_interest_cases[::7]+dt.timedelta(days = 3.5), NYC_cases_weekly,  color = 'red',  linewidth = 1.)
+ax11.text(dt.date(2020, 3, 12), 0.9*2000, r'(d)')
 
-ax11.bar(NYC_date_of_interest_cases, reported_cases_NYC, facecolor='red', edgecolor='red', alpha = 0.4, width = 0.0001)
+ax11.plot(simulation_dates2+dt.timedelta(days = 13), cases_simulation, 'cornflowerblue')
+ax11.plot(simulation_dates_nointervention2+dt.timedelta(days = 13), cases_simulation_nointervention, 'Grey')
+ax11_2.fill_between(NYC_date_of_interest_cases[::7]+dt.timedelta(days = 3.5), NYC_cases_weekly,  edgecolor = 'red', facecolor = 'red', alpha = 0.15, linewidth = 1.)
+ax11_2.plot(NYC_date_of_interest_cases[::7]+dt.timedelta(days = 3.5), NYC_cases_weekly,  color = 'red',  linewidth = 1.)
 
-ax11.text(dt.date(2020, 3, 28), 600, r'new cases', fontsize = 7)
+ax11_2.bar(NYC_date_of_interest_cases, reported_cases_NYC, facecolor='red', edgecolor='red', alpha = 0.4, width = 0.0001)
+
+ax11.text(dt.date(2020, 3, 26), 550, r'new cases', fontsize = 7)
 ax11.text(dt.date(2020, 5, 17), 400, r'7-day average', fontsize = 7)
-ax11.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 25)], [400, 250], color = 'k', linewidth = 0.5)
+ax11.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 23)], [420, 240], color = 'k', linewidth = 0.5)
 
-ax11.set_ylim(0,2500)
-ax11.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 8, 9)])
+ax11.set_ylim(0,2050)
+ax11.set_xlim([dt.date(2020, 3, 8), dt.date(2020, 9, 7)])
 ax11.set_xticklabels(NYC_date_of_interest_cases[::7], rotation = 45)
 ax11.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax11.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-
+ax11.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+    
+ax11_2.set_ylim(0,300)
+ax11_2.set_yticks([0,100,200,300])
+ax11_2.tick_params(axis='y', colors='indianred')
+ax11_2.get_yaxis().set_major_formatter(
+    ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
+    
 ax11.yaxis.grid()
-
 
 plt.tight_layout()
 plt.margins(0,0)
 sns.despine(top=True, right=True, left=True)
-plt.savefig('new_york_cases.png', dpi=300, bbox_inches = 'tight',
+plt.savefig('new_york_cases.pdf', dpi=300, bbox_inches = 'tight',
     pad_inches = 0.05)
