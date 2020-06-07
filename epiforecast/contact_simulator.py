@@ -7,6 +7,9 @@ import networkx as nx
 
 @njit
 def initialize_state(active_contacts, event_time, overshoot_duration, edge_state):
+    """
+    Initialize active_contacts, event_time, overshoot_duration to the state in edge_state.
+    """
     for i, state in enumerate(edge_state.values()):
         active_contacts[i] = state[0]
         event_time[i] = state[1]
@@ -14,23 +17,35 @@ def initialize_state(active_contacts, event_time, overshoot_duration, edge_state
 
 @njit
 def synchronize_state(edge_state, active_contacts, event_time, overshoot_duration):
+    """
+    Synchronize the edge_state with active_contacts, event_time, and the overshoot_duration.
+    """
     for i, edge in enumerate(edge_state):
         edge_state[edge] = (active_contacts[i], event_time[i], overshoot_duration[i])
 
 def sever_edges(edge_state, edge_list):
+    """
+    Delete edges in edge_list from edge_state.
+    """
     for edge in edge_list:
         try:
             del edge_state[edge]
-        except KeyError:
+        except KeyError: # check symmetric edge listing
             del edge_state[(edge[1], edge[0])]
 
 def add_edges(edge_state, edge_list):
+    """
+    Add edges from edge_list to edge_state with default initial values.
+    """
     edge_state.update({ edge: (False, 0.0, 0.0) for edge in edge_list })
 
 @njit
 def calculate_inception_rates(day_inception_rate, night_inception_rate,
                               nodal_day_inception_rate, nodal_night_inception_rate,
                               edge_state):
+    """
+    Calculate the inspection rates for each contact given the settings for each node.
+    """
 
     for i, edge in enumerate(edge_state):
 
@@ -51,7 +66,7 @@ def generate_edge_state(contact_network):
     # Takes 19 s for 100000
     edge_state.update({ edge: (False, 0.0, 0.0) for edge in contact_network.edges() })
 
-    # Takes 6 s for 100000
+    # Takes 6 s for 100000? But returns a python rather than a numba dictionary.
     #edge_state = { edge: (False, 0.0, 0.0) for edge in contact_network.edges() }
 
     return edge_state
@@ -73,20 +88,18 @@ class ContactSimulator:
         """
         Args
         ----
-        initial_fraction_active_contacts (float): Initial fraction of active contacts between 0, 1.
+        initialize_contacts (bool): Whether or not to initialize the contact activity.
 
-        n_contacts (int): Number of contacts (default: None)
+        day_inception_rate (float): The rate of inception of new contacts during the day.
 
-        active_contacts (np.array): Array of booleans of length `n_contacts` indicating which
-                                    contacts are active (default: None)
-
-        inception_rate (class): The average number of people each individual encounters at a time.
-                                Must have a function `.rate(time)` that returns the current inception
-                                rate at `time` in units of days.
+        night_inception_rate (float): The rate of inception of new contacts at night.
 
         mean_event_lifetime (float): The mean duration of a contact event.
 
         start_time (float): Start time of the simulation, in days.
+
+        contacts_buffer (int): The size of the buffer to keep in state arrays in the
+                               case that new edges are added.
 
         rate_integral_increment (float): Increment used to integrate the time-varying inception rate
                                          within the Gillespie simulation of contact activity.
@@ -103,10 +116,10 @@ class ContactSimulator:
         self.mean_event_lifetime = mean_event_lifetime
         self.rate_integral_increment = rate_integral_increment
 
-        if day_inception_rate is not None:
+        if day_inception_rate is not None: # set day inception rates on the contact network nodes
             nx.set_node_attributes(contact_network, values=day_inception_rate, name="day_inception_rate")
 
-        if night_inception_rate is not None:
+        if night_inception_rate is not None: # set night inception rates contact network nodes
             nx.set_node_attributes(contact_network, values=night_inception_rate, name="night_inception_rate")
 
         # Initialize the active contacts
@@ -143,14 +156,16 @@ class ContactSimulator:
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        # Initialize state and synchronize with previous state
+        # Determine the number of contacts on the current contact network
         n_contacts = nx.number_of_edges(self.contact_network)
 
         # Fiddle with the contact state if edges have been added or deleted
         if len(admitted_patients) != 0 or len(discharged_patients) != 0:
+
             # First, synchronize current edge state prior to hospitalization
             synchronize_state(self.edge_state, self.active_contacts, self.event_time, self.overshoot_duration)
 
+            # Find edges to add and sever
             edges_to_sever = []
             edges_to_add = []
 
@@ -173,7 +188,7 @@ class ContactSimulator:
             # Reinitialize the state with the new edge list
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
 
-        # This takes 1 s for 100000
+        # Re-estimate day_inception_rate and night_inception_rate
         nodal_day_inception_rate = np.array(
             [ data['day_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
 
@@ -187,6 +202,8 @@ class ContactSimulator:
                                   nodal_day_inception_rate, nodal_night_inception_rate,
                                   self.edge_state)
 
+        # Simulate contacts using a time dependent gillespie algorithm for a birth death process
+        # with varying birth rate.
         simulate_contacts(
                           n_contacts,
                           stop_time,
@@ -220,7 +237,7 @@ class ContactSimulator:
         self.overshoot_duration *= 0
 
 
-# See discussion in
+# For implementation of Gillespie simulation with time-dependent rates, see discussion in
 #
 # Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation
 # of Contagion Processes on Time-Varying Networks", PLOS Computational Biology (2015)
@@ -230,7 +247,6 @@ class ContactSimulator:
 @njit
 def diurnal_inception_rate(λnight, λday, t):
     return np.maximum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
-
 
 @njit(parallel=True)
 def simulate_contacts(
