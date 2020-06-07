@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
-from epiforecast.contact_simulator import ContactSimulator, DiurnalContactInceptionRate
-from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
+from epiforecast.health_service import HealthService
+from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.scenarios import random_epidemic
 
 #
@@ -20,24 +20,24 @@ from epiforecast.scenarios import random_epidemic
 #
 
 # Both numpy.random and random are used by the KineticModel.
-np.random.seed(12223)
+np.random.seed(123)
 random.seed(123)
 
 #
 # Create an example network
 #
 
-population_network = nx.OrderedGraph(nx.barabasi_albert_graph(2000, 2))
-population = len(population_network)
+contact_network = nx.barabasi_albert_graph(10000, 2)
+population = len(contact_network)
 
 #
 # Clinical parameters of an age-distributed population
 #
 
-assign_ages(population_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
+assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
 
 # We process the clinical data to determine transition rates between each epidemiological state,
-transition_rates = TransitionRates(population_network,
+transition_rates = TransitionRates(contact_network,
 
                   latent_periods = 3.7,
      community_infection_periods = 3.2,
@@ -48,88 +48,46 @@ transition_rates = TransitionRates(population_network,
 
 )
 
-transmission_rate = 12.0
-hospital_transmission_reduction = 0.1
-
 #
-# Build the contact simulator
+# Build the epidemic simulator
 #
 
 minute = 1 / 60 / 24
 hour = 60 * minute
 
-contact_simulator = ContactSimulator(n_contacts = nx.number_of_edges(population_network),
-                                     mean_event_lifetime = 1 * minute,
-                                     inception_rate = DiurnalContactInceptionRate(maximum=34, minimum=2))
+health_service = HealthService(patient_capacity = 5,
+                               health_worker_population = 10, # sets the first 10 nodes as health workers
+                               static_population_network = contact_network)
 
-#
-# Build the kinetic model
-#
+epidemic_simulator = EpidemicSimulator(contact_network,            
+                                                      transition_rates = transition_rates,
+                                               static_contact_interval = 3 * hour,
+                                           community_transmission_rate = 12.0,
+                                       hospital_transmission_reduction = 0.1,
+                                                 mean_contact_lifetime = 1 * minute,
+                                                    day_inception_rate = 22,
+                                                  night_inception_rate = 3,
+                                                        health_service = health_service,
+                                      )
 
-kinetic_model = KineticModel(contact_network = population_network,
-                             transition_rates = transition_rates,
-                             community_transmission_rate = transmission_rate,
-                             hospital_transmission_reduction = hospital_transmission_reduction)
+statuses = random_epidemic(contact_network, fraction_infected=0.01)
+epidemic_simulator.set_statuses(statuses)
 
-# 
-# Seed an infection
-#
-
-statuses = random_epidemic(population_network, fraction_infected=0.01)
-kinetic_model.set_statuses(statuses)
-
-# 
-# Simulate the growth and equilibration of an epidemic
-#
-
-minute = 1 / 60 / 24
-hour = 60 * minute
-
-static_contact_interval = 3 * hour
-interval = 21 # days
-
-steps = int(interval / static_contact_interval)
-stop_times = static_contact_interval * np.arange(start=1, stop=steps+1)
-
-mean_contact_duration = []
-
-# Run the simulation
-for i in range(steps):
-
-    start = timer() 
-    contacts = contact_simulator.mean_contact_duration(stop_time = stop_times[i])
-    end = timer() 
-
-    mean_contact_duration.append(np.mean(contacts))
-
-    kinetic_model.set_mean_contact_duration(contacts)
-    kinetic_model.simulate(static_contact_interval)
-
-    print("Epidemic day: {: 7.3f}, wall_time: {: 6.3f} s,".format(kinetic_model.times[-1], end - start), 
-          "mean(w_ji): {: 3.0f} min,".format(mean_contact_duration[-1] / minute),
-          "statuses: ",
-          "S {: 4d} |".format(kinetic_model.statuses['S'][-1]), 
-          "E {: 4d} |".format(kinetic_model.statuses['E'][-1]), 
-          "I {: 4d} |".format(kinetic_model.statuses['I'][-1]), 
-          "H {: 4d} |".format(kinetic_model.statuses['H'][-1]), 
-          "R {: 4d} |".format(kinetic_model.statuses['R'][-1]), 
-          "D {: 4d} |".format(kinetic_model.statuses['D'][-1]))
+epidemic_simulator.run(stop_time = 21) # days
 
 #
 # Plot the results.
 #
 
-fig, axs = plt.subplots(nrows=3, sharex=True)
+kinetic_model = epidemic_simulator.kinetic_model
+
+fig, axs = plt.subplots(nrows=2, sharex=True)
 
 plt.sca(axs[0])
-plt.plot(stop_times, np.array(mean_contact_duration) / minute)
-plt.ylabel("Mean $ w_{ji} $")
-
-plt.sca(axs[1])
 plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
 plt.ylabel("Total susceptible, $S$")
 
-plt.sca(axs[2])
+plt.sca(axs[1])
 plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
 plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
 plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')
@@ -140,6 +98,6 @@ plt.xlabel("Time (days)")
 plt.ylabel("Total $E, I, H, R, D$")
 plt.legend()
 
-image_path = "simple_epidemic.png"
+image_path = "super_simple_epidemic.png"
 print("Saving a visualization of results at", image_path)
 plt.savefig(image_path, dpi=480)

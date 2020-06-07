@@ -5,19 +5,27 @@ from numba.typed import Dict
 from numba import njit, prange, float64
 import networkx as nx
 
-from numba.experimental import jitclass
-
 @njit
-def update_common_keys(recipient, donor):
-    for key in recipient:
-        recipient[key] = donor.get(key, recipient[key])
-
-@njit
-def initialize_state(active_contacts, event_time, overshoot, edge_state):
+def initialize_state(active_contacts, event_time, overshoot_duration, edge_state):
     for i, state in enumerate(edge_state.values()):
         active_contacts[i] = state[0]
         event_time[i] = state[1]
-        overshoot[i] = state[2]
+        overshoot_duration[i] = state[2]
+
+@njit
+def synchronize_state(edge_state, active_contacts, event_time, overshoot_duration):
+    for i, edge in enumerate(edge_state):
+        edge_state[edge] = (active_contacts[i], event_time[i], overshoot_duration[i])
+
+def sever_edges(edge_state, edge_list):
+    for edge in edge_list:
+        try:
+            del edge_state[edge]
+        except KeyError:
+            del edge_state[(edge[1], edge[0])]
+
+def add_edges(edge_state, edge_list):
+    edge_state.update({ edge: (False, 0.0, 0.0) for edge in edge_list })
 
 @njit
 def calculate_inception_rates(day_inception_rate, night_inception_rate,
@@ -32,26 +40,13 @@ def calculate_inception_rates(day_inception_rate, night_inception_rate,
         night_inception_rate[i] = np.minimum(nodal_night_inception_rate[edge[0]],
                                              nodal_night_inception_rate[edge[1]])
 
-
-@njit(parallel=True)
-def fill_empty_state(edge_list, edge_state):
-
-    for i in prange(len(edge_list)):
-        edge_state[edge_list[i]] = (False, 0.0, 0.0)
-
-
 def generate_edge_state(contact_network):
     """
     Generate an empty edge state (ordered) numba dictionary corresponding to the current
     contact network.
     """
-    edge_state = Dict.empty(
-                            key_type = types.Tuple((types.int64, types.int64)),
-                            value_type = types.Tuple((types.boolean, types.float64, types.float64))
-                           )
-
-    #edge_list = np.array(nx.convert.to_edgelist(contact_network))
-    #fill_empty_state(edge_list, edge_state)
+    edge_state = Dict.empty(key_type = types.Tuple((types.int64, types.int64)),
+                            value_type = types.Tuple((types.boolean, types.float64, types.float64)))
 
     # Takes 19 s for 100000
     edge_state.update({ edge: (False, 0.0, 0.0) for edge in contact_network.edges() })
@@ -60,9 +55,6 @@ def generate_edge_state(contact_network):
     #edge_state = { edge: (False, 0.0, 0.0) for edge in contact_network.edges() }
 
     return edge_state
-
-def buffer_size(nodes, health_service):
-    return 0
 
 class ContactSimulator:
     """
@@ -76,7 +68,7 @@ class ContactSimulator:
                       night_inception_rate = None,
                        mean_event_lifetime = None,
                                 start_time = 0.0,
-                            health_service = None,
+                           contacts_buffer = 0,
                    rate_integral_increment = 0.05):
         """
         Args
@@ -103,7 +95,7 @@ class ContactSimulator:
         """
 
         # Number of possible edges during an epidemic simulation
-        n_contacts = nx.number_of_edges(contact_network) + buffer_size(len(contact_network), health_service)
+        n_contacts = nx.number_of_edges(contact_network) + contacts_buffer
 
         self.contact_network = contact_network
         self.edge_state = generate_edge_state(contact_network)
@@ -144,33 +136,42 @@ class ContactSimulator:
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
 
-    def regenerate_edge_state(self):
-        new_edge_state = generate_edge_state(self.contact_network)
-        update_common_keys(new_edge_state, self.edge_state)
-        self.edge_state = new_edge_state
-
-    def run(self, stop_time):
+    def run(self, stop_time, admitted_patients=[], discharged_patients=[]):
         """
         Simulate time-dependent contacts with a birth/death process.
         """
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        # Regenerate edge_state and synchronize with previous edge_state
-        # (Expensive)
-        #self.regenerate_edge_state()
-
         # Initialize state and synchronize with previous state
         n_contacts = nx.number_of_edges(self.contact_network)
 
-        # This all take 14 s for 100000
-        #self.active_contacts = np.zeros(n_contacts, dtype=bool)
-        #self.overshoot_duration = np.zeros(n_contacts)
-        #self.event_time = np.zeros(n_contacts)
+        # Fiddle with the contact state if edges have been added or deleted
+        if len(admitted_patients) != 0 or len(discharged_patients) != 0:
+            # First, synchronize current edge state prior to hospitalization
+            synchronize_state(self.edge_state, self.active_contacts, self.event_time, self.overshoot_duration)
 
-        #initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
+            edges_to_sever = []
+            edges_to_add = []
 
-        #self.contact_duration = np.zeros(n_contacts)
+            if len(admitted_patients) != 0:
+                for patient in admitted_patients:
+                    edges_to_sever += patient.community_contacts
+                    edges_to_add += patient.health_worker_contacts
+
+            if len(discharged_patients) != 0:
+                for patient in discharged_patients:
+                    edges_to_sever += patient.health_worker_contacts
+                    edges_to_add += patient.community_contacts
+
+            if len(edges_to_sever) != 0:
+                sever_edges(self.edge_state, edges_to_sever)
+
+            if len(edges_to_add) != 0:
+                add_edges(self.edge_state, edges_to_add)
+
+            # Reinitialize the state with the new edge list
+            initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
 
         # This takes 1 s for 100000
         nodal_day_inception_rate = np.array(
@@ -203,14 +204,14 @@ class ContactSimulator:
         self.interval_start_time = self.interval_stop_time
         self.interval_stop_time = stop_time
 
-    def run_and_set_edge_weights(self, contact_network, stop_time):
-        self.run(stop_time)
+    def run_and_set_edge_weights(self, stop_time, **kwargs):
+        self.run(stop_time, **kwargs)
         time_interval = self.interval_stop_time - self.interval_start_time
         edge_weights = { edge: self.contact_duration[i] / time_interval
                          for i, edge in enumerate(self.edge_state) }
 
-        nx.set_edge_attributes(contact_network, values=edge_weights, name='exposed_by_infected')
-        nx.set_edge_attributes(contact_network, values=edge_weights, name='exposed_by_hospitalized')
+        nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_infected')
+        nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_hospitalized')
 
     def set_time(self, time):
         self.time = time
