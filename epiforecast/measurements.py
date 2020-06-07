@@ -82,8 +82,6 @@ class TestMeasurement:
         -------
 
         """
-
-
         measurements = {}
         uncertainty  = {}
 
@@ -97,12 +95,7 @@ class TestMeasurement:
 
         return measurements, uncertainty
 
-
-
-
 #### Adding Observations in here
-
-
 
 #We observe a subset of nodes at a status, only if the state exceeds a given threshold value.
 #e.g we have a probability of observing I_i if (I_i > 0.8) when the observation takes place.
@@ -159,7 +152,7 @@ class StateInformedObservation:
         else: #The value is too small
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
-            
+
 #combine them together
 class Observation(StateInformedObservation, TestMeasurement):
 
@@ -173,7 +166,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                  reduced_system=True,
                  sensitivity = 0.80,
                  specificity = 0.99):
-        
+
         self.name=obs_name
 
         StateInformedObservation.__init__(self,
@@ -261,23 +254,23 @@ class DataInformedObservation:
         # Obtain relevant data entries
         user_nodes = np.array(list(contact_network.nodes))
         user_data = {node : data[node] for node in user_nodes}
-                
+
         candidate_nodes = []
         for status in self.obs_status:
             candidate_nodes.extend([node for node in user_data.keys() if (user_data[node] == status) == self.bool_type])
-        
+
         # we now have the node numbers for the statuses we want to measure,
         # but we require an np index for them
         candidate_states_modulo_population = np.array([state for state in range(len(user_nodes))
                                                        if user_nodes[state] in candidate_nodes])
-        #now add the required shift to obtain the correct status 'I' or 'H' etc. 
+        #now add the required shift to obtain the correct status 'I' or 'H' etc.
         candidate_states = [candidate_states_modulo_population + i*self.N for i in self.obs_status_idx]
-        
+
         self.obs_states=np.hstack(candidate_states)
-      
 
 
-        
+
+
 class DataObservation(DataInformedObservation, TestMeasurement):
 
     def __init__(self,
@@ -290,19 +283,19 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                  specificity = 0.99):
 
         self.name=obs_name
-        
+
         DataInformedObservation.__init__(self,
                                          N,
                                          bool_type,
                                          obs_status,
                                          reduced_system)
-        
+
         TestMeasurement.__init__(self,
                                  obs_status,
                                  sensitivity,
                                  specificity,
                                  reduced_system)
-            
+
     #State is a numpy array of size [self.N * n_status]
     def find_observation_states(self,
                                 contact_network,
@@ -323,7 +316,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        
+
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
                                           state,
@@ -333,14 +326,14 @@ class DataObservation(DataInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-        
+
         mean,var =  TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale,
                                                       noisy_measurement)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([var[node] for node in observed_nodes])
+        observed_variance = np.array([ var[node] for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance

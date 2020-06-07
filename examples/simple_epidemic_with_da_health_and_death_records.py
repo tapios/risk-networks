@@ -111,14 +111,12 @@ assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(contact_network,
-
                   latent_periods = 3.7,
      community_infection_periods = 3.2,
       hospital_infection_periods = 5.0,
         hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.076,  0.16]),
     community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015]),
      hospital_mortality_fraction = AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512])
-
 )
 
 community_transmission_rate = 12.0
@@ -175,11 +173,11 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 ####
 
 medical_infection_test = Observation(N = population,
-                                     obs_frac = 1.0,
+                                     obs_frac = 0.50,
                                      obs_status = 'I',
-                                     obs_name = "0.25 < Infected(100%) < 0.5",
-                                     min_threshold=0.10,
-                                     max_threshold=1.00)
+                                     obs_name = "0.25 < Infected(100%) < 0.75",
+                                     min_threshold=0.25,
+                                     max_threshold=0.75)
 
 
 # hospital_records = Observation(N = population,
@@ -233,15 +231,15 @@ simulation_length = 30 #Number of days
 time = start_time
 
 statuses = random_epidemic(contact_network,
-                           fraction_infected=0.10)
+                           fraction_infected=0.01)
 
-states_ensemble = random_risk(contact_network,
-                              fraction_infected = 0.10,
-                              ensemble_size = ensemble_size)
-
-# states_ensemble = deterministic_risk(contact_network,
-#                               statuses,
+# states_ensemble = random_risk(contact_network,
+#                               fraction_infected = 0.10,
 #                               ensemble_size = ensemble_size)
+
+states_ensemble = deterministic_risk(contact_network,
+                              statuses,
+                              ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -300,11 +298,11 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-plt.savefig('master_eqns_da_01.png', rasterized=True, dpi=150)
+plt.savefig('master_eqns_da_deterministic_ic.png', rasterized=True, dpi=150)
 
 time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
 axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
-plt.savefig('da_parameters_01.png', rasterized=True, dpi=150)
+plt.savefig('da_parameters_deterministic_ic.png', rasterized=True, dpi=150)
 # np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 # # plot all model compartments

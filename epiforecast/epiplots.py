@@ -158,6 +158,6 @@ def plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace
     axes[1].fill_between(time_horizon, latent_periods_perc[0], latent_periods_perc[-1], alpha = .2, color = 'C0')
     axes[1].fill_between(time_horizon, latent_periods_perc[1], latent_periods_perc[-2], alpha = .2, color = 'C0')
     axes[1].plot(time_horizon, latent_periods_perc[2])
-    axes[1].set_title(r'Hospitalization fraction: $h$');
+    axes[1].set_title(r'Latent period: $\gamma$');
 
     return axes
