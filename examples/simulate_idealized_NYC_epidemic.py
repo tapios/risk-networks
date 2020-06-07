@@ -46,8 +46,6 @@ rcParams.update({'figure.figsize': fig_size})
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
-from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMeanContactRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges, random_epidemic
 
@@ -56,7 +54,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 
-from epiforecast.utilities import seed_numba_random_state
+from epiforecast.utilities import seed_numba_random_state, seed_three_random_states
 
 def simulation_average(model_data, sampling_time = 1):
     """
@@ -89,15 +87,9 @@ def simulation_average(model_data, sampling_time = 1):
 # Set random seeds for reproducibility
 #
 
-# Both numpy.random and random are used by the KineticModel.
 seed = 2132
 
-np.random.seed(seed)
-random.seed(seed)
-
-# set numba seed
-
-seed_numba_random_state(seed)
+seed_three_random_states(seed)
 
 #
 # Load an example network
@@ -110,19 +102,6 @@ contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
 contact_network = nx.convert_node_labels_to_integers(contact_network)
 population = len(contact_network)
-
-#
-# Build the contact simulator
-#
-
-contact_simulator = FastContactSimulator(
-
-             n_contacts = nx.number_of_edges(contact_network),
-    mean_event_duration = 0.6 / 60 / 24, # 1 minute in units of days
-      mean_contact_rate = DiurnalMeanContactRate(minimum_i = 2, maximum_i = 22, minimum_j = 2, maximum_j = 22),
-             start_time = -3 / 24, # negative start time allows short 'spinup' of contacts
-
-)
 
 #
 # Clinical parameters of an age-distributed population
@@ -160,19 +139,19 @@ health_service = HealthService(patient_capacity = int(0.05 * len(contact_network
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
+                                                  day_inception_rate = 22,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                       cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
-statuses = random_epidemic(contact_network, fraction_infected=0.01)
+statuses = random_epidemic(contact_network, fraction_infected=0.005)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 10)
+epidemic_simulator.run(stop_time = 14)
 
 kinetic_model = epidemic_simulator.kinetic_model
 
@@ -184,17 +163,17 @@ statuses = epidemic_simulator.kinetic_model.current_statuses
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=8, minimum=2),
+                                                  day_inception_rate = 8,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 97) # days
+epidemic_simulator.run(stop_time = 101) # days
 
 for key in kinetic_model.statuses.keys():
    kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
@@ -218,17 +197,17 @@ for i in range(len(statuses)):
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=20, minimum=2),
+                                                  day_inception_rate = 22,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                        cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 40) # days
+epidemic_simulator.run(stop_time = 70) # days
 
 for key in kinetic_model.statuses.keys():
    kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
@@ -240,7 +219,7 @@ kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_mo
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_1e4_4.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../data/simulation_data/simulation_data_NYC_1e4_6.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
 NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])

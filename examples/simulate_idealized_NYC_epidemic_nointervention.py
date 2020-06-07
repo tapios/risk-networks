@@ -15,39 +15,10 @@ from numba import set_num_threads
 
 set_num_threads(1)
 
-from matplotlib import rcParams
-
-# customized settings
-params = {  # 'backend': 'ps',
-    'font.family': 'serif',
-    'font.serif': 'Latin Modern Roman',
-    'font.size': 10,
-    'axes.labelsize': 'medium',
-    'axes.titlesize': 'medium',
-    'legend.fontsize': 'medium',
-    'xtick.labelsize': 'small',
-    'ytick.labelsize': 'small',
-    'savefig.dpi': 150,
-    'text.usetex': True}
-# tell matplotlib about your params
-rcParams.update(params)
-
-# set nice figure sizes
-fig_width_pt = 368    # Get this from LaTeX using \showthe\columnwidth
-golden_mean = (np.sqrt(5.) - 1.) / 2.  # Aesthetic ratio
-ratio = golden_mean
-inches_per_pt = 1. / 72.27  # Convert pt to inches
-fig_width = fig_width_pt * inches_per_pt  # width in inches
-fig_height = 0.75*fig_width*ratio  # height in inches
-fig_size = [fig_width, fig_height]
-rcParams.update({'figure.figsize': fig_size})
-
 # Utilities for generating random populations
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
-from epiforecast.fast_contact_simulator import FastContactSimulator, DiurnalMeanContactRate
 from epiforecast.kinetic_model_simulator import KineticModel, print_statuses
 from epiforecast.scenarios import load_edges, random_epidemic
 
@@ -56,7 +27,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 
-from epiforecast.utilities import seed_numba_random_state
+from epiforecast.utilities import seed_numba_random_state, seed_three_random_states
 
 
 def simulation_average(model_data, sampling_time = 1):
@@ -89,16 +60,9 @@ def simulation_average(model_data, sampling_time = 1):
 #
 # Set random seeds for reproducibility
 #
-
-# Both numpy.random and random are used by the KineticModel.
 seed = 2132
 
-np.random.seed(seed)
-random.seed(seed)
-
-# set numba seed
-
-seed_numba_random_state(seed)
+seed_three_random_states(seed)
 
 #
 # Load an example network
@@ -148,19 +112,19 @@ health_service = HealthService(patient_capacity = int(0.05 * len(contact_network
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                                  mean_contact_lifetime = 0.5 * minute,
-                                                contact_inception_rate = DiurnalContactInceptionRate(maximum=22, minimum=2),
+                                                  day_inception_rate = 22,
+                                                  night_inception_rate = 2,
                                                       transition_rates = transition_rates,
                                                static_contact_interval = 3 * hour,
                                            community_transmission_rate = 12.0,
                                                         health_service = health_service,
-                                       hospital_transmission_reduction = 0.1,
-                                                       cycle_contacts = True)
+                                       hospital_transmission_reduction = 0.1)
 
-statuses = random_epidemic(contact_network, fraction_infected=0.01)
+statuses = random_epidemic(contact_network, fraction_infected=0.005)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 147)
+epidemic_simulator.run(stop_time = 185)
 
 kinetic_model = epidemic_simulator.kinetic_model
 
@@ -168,7 +132,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_nointervention.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../data/simulation_data/simulation_data_nointervention_1e4_7.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
 NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])
