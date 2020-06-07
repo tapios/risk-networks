@@ -31,7 +31,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation
+from epiforecast.measurements import Observation,DataObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 from epiforecast.utilities import seed_numba_random_state
@@ -74,7 +74,7 @@ def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 #
 
 # Both numpy.random and random are used by the KineticModel.
-seed = 2132
+seed = 213213
 
 np.random.seed(seed)
 random.seed(seed)
@@ -182,27 +182,42 @@ medical_infection_test = Observation(N = population,
                                      max_threshold=1.00)
 
 
-hospital_records = Observation(N = population,
-                                     obs_frac = 1.0,
-                                     obs_status = 'H',
-                                     obs_name = "0.25 < Infected(100%) < 0.5",
-                                     min_threshold= 0.01,
-                                     max_threshold= 1.00,
-                                     specificity  = 0.999,
-                                     sensitivity  = 0.999)
+# hospital_records = Observation(N = population,
+#                                      obs_frac = 1.0,
+#                                      obs_status = 'H',
+#                                      obs_name = "0.0 < Hospital(100%) < 0.5",
+#                                      min_threshold= 0.00,
+#                                      max_threshold= 0.5,
+#                                      specificity  = 0.999,
+#                                      sensitivity  = 0.999)
 
-death_records = Observation(N = population,
-                                     obs_frac = 1.0,
-                                     obs_status = 'D',
-                                     obs_name = "0.25 < Infected(100%) < 0.5",
-                                     min_threshold= 0.10,
-                                     max_threshold= 1.00,
-                                     specificity  = 0.999,
-                                     sensitivity  = 0.999)
+# death_records = Observation(N = population,
+#                                      obs_frac = 1.0,
+#                                      obs_status = 'D',
+#                                      obs_name = "0.0 < Deceased(100%) < 0.5",
+#                                      min_threshold= 0.0,
+#                                      max_threshold= 0.5,
+#                                      specificity  = 0.999,
+#                                      sensitivity  = 0.999)
+
+hospital_records = DataObservation(N = population,
+                                   bool_type=True,
+                                   obs_status = 'H',
+                                   obs_name = "Hospitalized from Data",
+                                   specificity  = 0.999,
+                                   sensitivity  = 0.999)
+
+death_records = DataObservation(N = population,
+                                bool_type=True,
+                                obs_status = 'D',
+                                obs_name = "Deceased from Data",
+                                specificity  = 0.999,
+                                sensitivity  = 0.999)
 
 
 # give the data assimilator the methods for how to choose observed states
 observations=[medical_infection_test, hospital_records, death_records]
+
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
 transmission_rate_to_update_flag=True
@@ -259,8 +274,8 @@ for i in range(int(simulation_length/static_contact_interval)):
     (states_ensemble,
      transition_rates_ensemble,
      community_transmission_rate_ensemble
-     ) = assimilator.update(states_ensemble,
-                            statuses,
+     ) = assimilator.update(ensemble_state = states_ensemble,
+                            data = epidemic_simulator.kinetic_model.current_statuses,
                             full_ensemble_transition_rates = transition_rates_ensemble,
                             full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                             user_network = contact_network)

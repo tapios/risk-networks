@@ -80,19 +80,25 @@ class DataAssimilator:
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
 
-    def find_observation_states(self, ensemble_state):
+    def find_observation_states(self,
+                                contact_network,
+                                ensemble_state,
+                                data):
         """
         Make all the observations in the list self.observations.
 
         This sets observation.obs_states.
         """
-
+        print("Observation type : Number of Observed states") 
+        observed_states = []
         for observation in self.observations:
-            observation.find_observation_states(ensemble_state)
-        
-        observed_states = np.hstack([observation.obs_states for observation in self.observations])
-      
-        return observed_states
+            observation.find_observation_states(contact_network, ensemble_state, data)
+            print(observation.name,":",len(observation.obs_states))
+            if observation.obs_states.size > 0:
+                observed_states.extend(observation.obs_states)
+                
+       # observed_states = np.hstack([observation.obs_states for observation in self.observations])
+        return np.array(observed_states)
 
     def observe(self,
                 contact_network,
@@ -101,18 +107,23 @@ class DataAssimilator:
                 scale = 'log',
                 noisy_measurement = False):
 
-        
+        observed_means = []
+        observed_variances = []
         for observation in self.observations:
-            observation.observe(contact_network,
-                                state,
-                                data,
-                                scale,
-                                noisy_measurement)
-            
-        observed_means = np.hstack([observation.mean for observation in self.observations])
-        observed_variances= np.hstack([observation.variance for observation in self.observations])
+            if (observation.obs_states.size >0):
+                observation.observe(contact_network,
+                                    state,
+                                    data,
+                                    scale,
+                                    noisy_measurement)
+                
+                observed_means.extend(observation.mean)
+                observed_variances.extend(observation.variance)
 
-        return observed_means, observed_variances
+        #observed_means = np.hstack([observation.mean for observation in self.observations])
+        #observed_variances= np.hstack([observation.variance for observation in self.observations])
+        
+        return np.array(observed_means), np.array(observed_variances)
     
 
     # ensemble_state np.array([ensemble size, num status * num nodes]
@@ -164,16 +175,15 @@ class DataAssimilator:
             om = self.observations
             dam = self.damethod
 
-            obs_states = self.find_observation_states(ensemble_state) # Generate states to observe
+            obs_states = self.find_observation_states(user_network, ensemble_state, data) # Generate states to observe
             if (obs_states.size > 0):
                 
-                print("Partial states to be assimilated: ", obs_states.size)
+                print("Total states to be assimilated: ", obs_states.size)
                 # Get the truth indices, for the observation(s)
 
                 truth,var = self.observe(user_network,
                                          ensemble_state,
                                          data)
-                                          
                 cov = np.diag(var)
                 # Get the covariances for the observation(s), with the minimum returned if two overlap
                 #cov = self.get_observation_cov()
