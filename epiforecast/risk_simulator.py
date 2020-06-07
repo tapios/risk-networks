@@ -18,7 +18,7 @@ class NetworkCompartmentalModel:
     def set_parameters(self,
                        transition_rates  = None,
                        transmission_rate = None,
-                       exogenous_rate    = None
+                       exogenous_transmission_rate    = None,
                        ix_reduced        = True):
         """
         Setup the parameters from the transition_rates container into the model
@@ -31,9 +31,9 @@ class NetworkCompartmentalModel:
             self.beta   = transmission_rate 
             self.betap  = self.hospital_transmission_reduction * self.beta
 
-        if exogenous_rate is not None:
-            self.eta = exogenous_rate*np.ones(self.N)
-            
+        if exogenous_transmission_rate is not None:
+            self.eta = exogenous_transmission_rate*np.ones(self.N)
+
         if transition_rates is not None:
             self.sigma  = np.array(list(transition_rates.exposed_to_infected.values()))
             self.delta  = np.array(list(transition_rates.infected_to_hospitalized.values()))
@@ -83,19 +83,19 @@ class NetworkCompartmentalModel:
         transition_rates dictionary.
         """
         self.set_parameters(transition_rates  = new_transition_rates,
-                            transmission_rate = None
-                            exogenous_rate    = None)
+                            transmission_rate = None,
+                  exogenous_transmission_rate = None)
 
-    def update_transmission_rate(self, new_transmission_rate, new_exogenous_rate = None):
+    def update_transmission_rate(self, new_transmission_rate, new_exogenous_transmission_rate = None):
         """
         Args:
         -------
         new_transmission_rate np.array.
-        new_exogenous_rate : np.array.
+        new_exogenous_transmission_rate : np.array.
         """
         self.set_parameters(transition_rates  = None,
                             transmission_rate = new_transmission_rate,
-                            exogenous_rate    = new_exogenous_rate)
+                  exogenous_transmission_rate = new_exogenous_transmission_rate)
 
         
 class MasterEquationModelEnsemble:
@@ -103,7 +103,7 @@ class MasterEquationModelEnsemble:
                 contact_network,
                 transition_rates,
                 transmission_rate,
-                exogenous_rate = None,
+                exogenous_transmission_rate = None,
                 ensemble_size = 1,
                 hospital_transmission_reduction = 0.25,
                 reduced_system = True):
@@ -114,16 +114,16 @@ class MasterEquationModelEnsemble:
           contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
          transition_rates : `list` or single instance of `TransitionRate` container
         transmission_rate : `np.array` length ensemble size
-        exogenous_rate    : `np.array` length ensemble size  (defined for when user network smaller than contact network)
+        exogenous_transmission_rate    : `np.array` length ensemble size  (defined for when user network smaller than contact network)
         """
 
         
-        if exogenous_rate is None:
+        if exogenous_transmission_rate is None:
             if isinstance(transition_rates, list):
-                exogenous_rate = np.zeros(ensemble_size)
+                exogenous_transmission_rate = np.zeros(ensemble_size)
             else:
-                exogenous_rate = 0.0
-            
+                exogenous_transmission_rate = 0.0
+           
         
         self.G = self.contact_network = contact_network
         self.M = self.ensemble_size = ensemble_size
@@ -140,12 +140,12 @@ class MasterEquationModelEnsemble:
             if isinstance(transition_rates, list):
                 member.set_parameters(transition_rates  = transition_rates[mm],
                                       transmission_rate = transmission_rate[mm],
-                                      exogenous_rate    = exogenous_rate[mm],
+                            exogenous_transmission_rate = exogenous_transmission_rate[mm],
                                       ix_reduced        = self.ix_reduced)
             else:
                 member.set_parameters(transition_rates  = transition_rates,
                                       transmission_rate = transmission_rate,
-                                      exogenous_rate    = exogenous_rate,
+                            exogenous_transmission_rate = exogenous_transmission_rate,
                                       ix_reduced        = self.ix_reduced)
             member.id = mm
             self.ensemble.append(member)
@@ -164,15 +164,20 @@ class MasterEquationModelEnsemble:
         
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'SI->E')
 
-    def update_transmission_rate(self, new_transmission_rate, new_exogenous_rate = None):
+    def update_transmission_rate(self, new_transmission_rate, new_exogenous_transmission_rate = None):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`
-        new_exogenous_rate : `np.array` of length `ensemble_size`
+        new_exogenous_transmission_rate : `np.array` of length `ensemble_size`
         
         """
-        for mm, member in enumerate(self.ensemble):
-            member.update_transmission_rate(new_transmission_rate[mm],new_exogenous_rate[mm])
+        if new_exogenous_transmission_rate is not None:
+            for mm, member in enumerate(self.ensemble):
+                member.update_transmission_rate(new_transmission_rate[mm], new_exogenous_transmission_rate[mm])
+        else:
+            for mm, member in enumerate(self.ensemble):
+                member.update_transmission_rate(new_transmission_rate[mm], None)
 
+                
     def update_transition_rates(self, new_transition_rates):
         """
         new_transition_rates : `list` of `TransitionRate`s
@@ -183,12 +188,12 @@ class MasterEquationModelEnsemble:
     def update_ensemble(self,
                         new_transition_rates,
                         new_transmission_rate,
-                        new_exogenous_rate):
+                        new_exogenous_transmission_rate):
         """
         update all parameters of ensemeble
         """
         self.update_transition_rates(new_transition_rates)
-        self.update_transmission_rate(new_transmission_rate,new_exogenous_rate)
+        self.update_transmission_rate(new_transmission_rate, new_exogenous_transmission_rate)
 
     def set_states_ensemble(self, states_ensemble):
         self.y0 = np.copy(states_ensemble)
@@ -210,13 +215,11 @@ class MasterEquationModelEnsemble:
         if closure == 'independent':
             member.beta_closure = member.beta  * self.CM_SI[:, member.id] + \
                                   member.betap * self.CM_SH[:, member.id]
-#            member.yS_holder = member.beta_closure * y[iS]
         else:
             member.beta_closure = sps.kron(np.array([member.beta, member.betap]), self.L).dot(y[iI[0]:(iH[-1]+1)])
-#            member.yS_holder = member.beta_closure  * y[iS]
 
-        #Add in the exogenous infections here?
-        member.yS_holder = (member.beta_closure + sps.diags(self.eta))*y[iS]
+        #Add in the exogenous_transmission infections here?
+        member.yS_holder = (member.beta_closure + member.eta)*y[iS]
             
         member.y_dot     =   member.coeffs.dot(y) + member.offset
         member.y_dot[iS] = - member.yS_holder
@@ -242,13 +245,11 @@ class MasterEquationModelEnsemble:
         if closure == 'independent':
             member.beta_closure = member.beta  * self.CM_SI[:, member.id] + \
                                   member.betap * self.CM_SH[:, member.id]
-#            member.y0[iS]    = member.beta_closure * member.y0[iS]
         else:
             member.beta_closure = sps.kron(np.array([member.beta, member.betap]), self.L).dot(y[iI[0]:(iH[-1]+1)])
-#            member.y0[iS]    = member.beta_closure  * member.y0[iS]
 
-        # Add in the exogenous infections here?
-        member.y0[iS] = (member.beta_closure +  sps.diags(self.eta))*member.y0[iS]
+        # Add in the exogenous_transmission infections here?
+        member.y0[iS] = (member.beta_closure +  member.eta)*member.y0[iS]
             
         member.y_dot = member.coeffs.dot(member.y0)
         # if self.dt < 0:

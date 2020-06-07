@@ -19,8 +19,6 @@ set_num_threads(1)
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
-
 from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.epiplots import plot_master_eqns
@@ -123,12 +121,13 @@ mean_contact_lifetime=0.5*minute
 
 epidemic_simulator = EpidemicSimulator( 
                  contact_network = contact_network,
-           mean_contact_lifetime = mean_contact_lifetime,
-          contact_inception_rate = DiurnalContactInceptionRate(minimum = 2, maximum = 22),
                 transition_rates = transition_rates,
+         static_contact_interval = static_contact_interval,
      community_transmission_rate = community_transmission_rate,
  hospital_transmission_reduction = hospital_transmission_reduction,
-         static_contact_interval = static_contact_interval,
+           mean_contact_lifetime = mean_contact_lifetime,
+              day_inception_rate = 22,
+            night_inception_rate = 2,
                   health_service = health_service,
                       start_time = start_time
                                       )
@@ -170,11 +169,13 @@ for i in range(ensemble_size):
                         )
         )
 #set transmission_rates
-community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
+community_transmission_rate_ensemble = np.random.normal(12.0, 1.0, size=(ensemble_size,1))
+exogenous_transmission_rate_ensemble = np.random.normal(2.0,  1.0, size=(ensemble_size,1))
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
+                                        exogenous_transmission_rate = exogenous_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
                                                   ensemble_size = ensemble_size)
 ####
