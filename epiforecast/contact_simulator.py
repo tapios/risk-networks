@@ -6,6 +6,13 @@ from numba import njit, prange, float64
 import networkx as nx
 
 @njit
+def normalize(edge):
+    n, m = edge
+    if m > n: # switch
+        n, m = m, n
+    return n, m
+
+@njit
 def initialize_state(active_contacts, event_time, overshoot_duration, edge_state):
     """
     Initialize active_contacts, event_time, overshoot_duration to the state in edge_state.
@@ -23,21 +30,25 @@ def synchronize_state(edge_state, active_contacts, event_time, overshoot_duratio
     for i, edge in enumerate(edge_state):
         edge_state[edge] = (active_contacts[i], event_time[i], overshoot_duration[i])
 
-def sever_edges(edge_state, edge_list):
+def remove_edges(edge_state, edge_list):
     """
     Delete edges in edge_list from edge_state.
     """
-    for edge in edge_list:
-        try:
-            del edge_state[edge]
-        except KeyError: # check symmetric edge listing
-            del edge_state[(edge[1], edge[0])]
+    if len(edge_list) > 0:
+        for edge in edge_list:
+            try:
+                del edge_state[edge]
+            except:
+                print(edge, "not found in edge_state, perhaps because",
+                      edge[0], "and", edge[1], "are both hospitalized.")
+                pass
 
 def add_edges(edge_state, edge_list):
     """
     Add edges from edge_list to edge_state with default initial values.
     """
-    edge_state.update({ edge: (False, 0.0, 0.0) for edge in edge_list })
+    if len(edge_list) > 0:
+        edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, edge_list) })
 
 @njit
 def calculate_inception_rates(day_inception_rate, night_inception_rate,
@@ -64,7 +75,7 @@ def generate_edge_state(contact_network):
                             value_type = types.Tuple((types.boolean, types.float64, types.float64)))
 
     # Takes 19 s for 100000
-    edge_state.update({ edge: (False, 0.0, 0.0) for edge in contact_network.edges() })
+    edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, contact_network.edges()) })
 
     # Takes 6 s for 100000? But returns a python rather than a numba dictionary.
     #edge_state = { edge: (False, 0.0, 0.0) for edge in contact_network.edges() }
@@ -153,6 +164,7 @@ class ContactSimulator:
         """
         Simulate time-dependent contacts with a birth/death process.
         """
+
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
@@ -165,25 +177,22 @@ class ContactSimulator:
             # First, synchronize current edge state prior to hospitalization
             synchronize_state(self.edge_state, self.active_contacts, self.event_time, self.overshoot_duration)
 
-            # Find edges to add and sever
-            edges_to_sever = []
-            edges_to_add = []
+            # Find edges to add and remove
+            edges_to_remove = set()
+            edges_to_add = set()
 
             if len(admitted_patients) != 0:
                 for patient in admitted_patients:
-                    edges_to_sever += patient.community_contacts
-                    edges_to_add += patient.health_worker_contacts
+                    edges_to_remove.update(map(normalize, patient.community_contacts))
+                    edges_to_add.update(map(normalize, patient.health_worker_contacts))
 
             if len(discharged_patients) != 0:
                 for patient in discharged_patients:
-                    edges_to_sever += patient.health_worker_contacts
-                    edges_to_add += patient.community_contacts
+                    edges_to_remove.update(map(normalize, patient.health_worker_contacts))
+                    edges_to_add.update(map(normalize, patient.community_contacts))
 
-            if len(edges_to_sever) != 0:
-                sever_edges(self.edge_state, edges_to_sever)
-
-            if len(edges_to_add) != 0:
-                add_edges(self.edge_state, edges_to_add)
+            remove_edges(self.edge_state, edges_to_remove)
+            add_edges(self.edge_state, edges_to_add)
 
             # Reinitialize the state with the new edge list
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)

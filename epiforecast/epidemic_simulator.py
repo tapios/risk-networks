@@ -49,8 +49,6 @@ class EpidemicSimulator:
 
     def run(self, stop_time):
 
-        start_step = timer()
-
         # Duration of the run
         run_time = stop_time - self.time
 
@@ -72,8 +70,6 @@ class EpidemicSimulator:
             else:
                 admitted_patients, discharged_patients = [], []
 
-            start = timer()
-
             start_contact_simulation = timer()
 
             self.contact_simulator.run_and_set_edge_weights(stop_time=interval_stop_time,
@@ -81,15 +77,17 @@ class EpidemicSimulator:
                                                             discharged_patients=discharged_patients)
 
             end_contact_simulation = timer()
-            print("Contact simulation time:", end_contact_simulation - start_contact_simulation)
+
+            start_kinetic_simulation = timer()
 
             self.kinetic_model.simulate(self.static_contact_interval)
             self.time += self.static_contact_interval
 
-            end_step = timer()
+            end_kinetic_simulation = timer()
 
-            print("Epidemic day: {: 7.3f}, wall_time: {: 6.3f} s,".format(self.kinetic_model.times[-1], end_step - start_step),
-                  "mean(w_ji): {: 3.0f} min,".format(self.contact_simulator.contact_duration.mean() / minute),
+            print("Epidemic day: {: 7.3f},".format(self.kinetic_model.times[-1]),
+                  "contact sim: {: 6.3f} s,".format(end_contact_simulation - start_contact_simulation),
+                  "kinetic sim: {: 6.3f} s,".format(end_kinetic_simulation - start_kinetic_simulation),
                   "statuses: ",
                   "S {: 4d} |".format(self.kinetic_model.statuses['S'][-1]),
                   "E {: 4d} |".format(self.kinetic_model.statuses['E'][-1]),

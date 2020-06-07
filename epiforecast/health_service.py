@@ -191,8 +191,7 @@ class HealthService:
                 population_network.add_edges_from(new_patient.health_worker_contacts)
 
                 print("Admitting patient from", new_patient.address,
-                      "with assigned health workers", health_worker_contacts,
-                      "and severing community contacts", new_patient.community_contacts)
+                      "with assigned health workers", health_worker_contacts)
 
         return admitted_patients
 
