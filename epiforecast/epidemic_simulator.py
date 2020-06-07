@@ -58,6 +58,8 @@ class EpidemicSimulator:
         # Interval stop times
         interval_stop_times = self.time + self.static_contact_interval * np.arange(start = 1, stop = 1 + constant_steps)
 
+        start_run = timer()
+
         # Step forward
         for i in range(constant_steps):
 
