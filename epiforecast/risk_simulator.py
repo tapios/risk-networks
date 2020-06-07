@@ -161,13 +161,11 @@ class MasterEquationModelEnsemble:
             member.update_transition_rates(new_transition_rates[mm])
 
     def update_ensemble(self,
-                        new_contact_network,
                         new_transition_rates,
                         new_transmission_rate):
         """
         update all parameters of ensemeble
         """
-        self.update_contact_network(new_contact_network)
         self.update_transition_rates(new_transition_rates)
         self.update_transmission_rate(new_transmission_rate)
 
