@@ -125,7 +125,7 @@ hospital_transmission_reduction = 0.1
 #
 # Simulate the growth and equilibration of an epidemic
 #
-static_contact_interval = 12 * hour
+static_contact_interval = 6 * hour
 
 health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
                                health_worker_population = len(node_identifiers['health_workers']),
@@ -176,8 +176,8 @@ medical_infection_test = Observation(N = population,
                                      obs_frac = 0.50,
                                      obs_status = 'I',
                                      obs_name = "0.25 < Infected(100%) < 0.75",
-                                     min_threshold=0.25,
-                                     max_threshold=0.75)
+                                     min_threshold=0.01,
+                                     max_threshold=1.00)
 
 
 # hospital_records = Observation(N = population,
@@ -233,13 +233,13 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.10,
-#                               ensemble_size = ensemble_size)
-
-states_ensemble = deterministic_risk(contact_network,
-                              statuses,
+states_ensemble = random_risk(contact_network,
+                              fraction_infected = 0.01,
                               ensemble_size = ensemble_size)
+
+# states_ensemble = deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -268,26 +268,27 @@ for i in range(int(simulation_length/static_contact_interval)):
     # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
+    if i % 6 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
-    (states_ensemble,
-     transition_rates_ensemble,
-     community_transmission_rate_ensemble
-     ) = assimilator.update(ensemble_state = states_ensemble,
-                            data = epidemic_simulator.kinetic_model.current_statuses,
-                            full_ensemble_transition_rates = transition_rates_ensemble,
-                            full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                            user_network = contact_network)
+        (states_ensemble,
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+         ) = assimilator.update(ensemble_state = states_ensemble,
+                                data = epidemic_simulator.kinetic_model.current_statuses,
+                                full_ensemble_transition_rates = transition_rates_ensemble,
+                                full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                user_network = contact_network)
 
-    #update model parameters (transition and transmission rates) of the master eqn model
-    master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
-    master_eqn_ensemble.update_transmission_rate(community_transmission_rate_ensemble)
+        #update model parameters (transition and transmission rates) of the master eqn model
+        master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
+        master_eqn_ensemble.update_transmission_rate(community_transmission_rate_ensemble)
 
-    #update states/statuses/times for next iteration
-    master_eqn_ensemble.set_states_ensemble(states_ensemble)
+        #update states/statuses/times for next iteration
+        master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-    # for tracking purposes
-    community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
-    latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
+        # for tracking purposes
+        community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
+        latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
 
     axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
                                 master_eqn_ensemble.simulation_time,
@@ -300,9 +301,11 @@ for i in range(int(simulation_length/static_contact_interval)):
 
 plt.savefig('master_eqns_da_deterministic_ic.png', rasterized=True, dpi=150)
 
-time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
-axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
-plt.savefig('da_parameters_deterministic_ic.png', rasterized=True, dpi=150)
+# time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+# axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
+# plt.savefig('da_parameters_deterministic_ic.png', rasterized=True, dpi=150)
+
+
 # np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 # # plot all model compartments
