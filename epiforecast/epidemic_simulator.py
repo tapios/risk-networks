@@ -71,6 +71,7 @@ class EpidemicSimulator:
             print("")
             print("")
             print("                               *** Day: {:.3f}".format(interval_stop_time))
+            print("")
 
             # Manage hospitalization
             start_health_service_action = timer()
@@ -119,12 +120,18 @@ class EpidemicSimulator:
 
             end_kinetic_simulation = timer()
 
+            n_contacts = nx.number_of_edges(self.contact_network)
+
+            print("")
             print("[ Status report ]          Susceptible: {:d}".format(self.kinetic_model.statuses['S'][-1]))
             print("                               Exposed: {:d}".format(self.kinetic_model.statuses['E'][-1]))
             print("                              Infected: {:d}".format(self.kinetic_model.statuses['I'][-1]))
             print("                          Hospitalized: {:d}".format(self.kinetic_model.statuses['H'][-1]))
             print("                             Resistant: {:d}".format(self.kinetic_model.statuses['R'][-1]))
             print("                              Deceased: {:d}".format(self.kinetic_model.statuses['D'][-1]))
+            print("             Current possible contacts: {:d}".format(n_contacts))
+            print("               Current active contacts: {:d}".format(np.count_nonzero(~self.contact_simulator.active_contacts[:n_contacts])))
+            print("")
             print("[ Wall times ]    Hosp. administration: {:.4f} s,".format(end_health_service_action - start_health_service_action))
             print("                    Contact simulation: {:.4f} s,".format(end_contact_simulation - start_contact_simulation))
             print("                    Kinetic simulation: {:.4f} s".format(end_kinetic_simulation - start_kinetic_simulation))

@@ -14,7 +14,7 @@ def recruit_health_workers_randomly(workers, network):
     return np.random.choice(network.nodes(), workers)
 
 @recruit_health_workers.register(list)
-@recruit_health_workers.register(np.array)
+@recruit_health_workers.register(np.ndarray)
 def recruit_health_workers_from_list(workers, network):
     return workers
 
@@ -94,9 +94,6 @@ class HealthService:
 
         # List of Patient classes
         self.patients = set()
-
-        # List of people unable to go into hospital due to maximum capacity
-        self.waiting_list = set()
 
     def current_patient_addresses(self):
         return set(p.address for p in self.patients)
