@@ -120,19 +120,23 @@ class HealthService:
         """
         Discharge and admit patients.
         """
-        # Discharge patients first
+        # Discharge recovered and deceased patients first
         discharged_patients = self.discharge_patients(statuses, population_network)
 
-        if len(discharged_patients) > 0:
-            print("Discharging patients", [(p.address, statuses[p.address]) for p in discharged_patients])
-
-        # Then admit patients
+        # Then admit new patients
         admitted_patients = self.admit_patients(statuses, population_network)
 
-        if len(admitted_patients) > 0:
-            print("Admitting patients", [p.address for p in admitted_patients])
+        admitted_people = [p.address for p in admitted_patients]
+        discharged_people_and_statuses = [(p.address, statuses[p.address]) for p in discharged_patients]
+        current_patient_addresses = self.current_patient_addresses()
 
-        print("Current patients", self.current_patient_addresses())
+        print("\nPatient manifest from the Health Service")
+        print("      Admitted: ", end='')
+        print(*admitted_people, sep=', ')
+        print("    Discharged: ", end='')
+        print(*discharged_people_and_statuses, sep=', ')
+        print("       Current: ", end='')
+        print(*current_patient_addresses, sep=', ', end='\n\n')
 
         return admitted_patients, discharged_patients
 
@@ -163,30 +167,32 @@ class HealthService:
 
         hospitalized_people = set(i for i in self.populace if statuses[i] == 'H')
 
-        patient_admissions = hospitalized_people - self.current_patient_addresses()
+        waiting_room = hospitalized_people - self.current_patient_addresses()
 
         viable_health_workers = self.health_workers - hospitalized_people
 
-        for patient in patient_admissions:
+        admissions = set()
 
-            health_worker_contacts = self.assign_health_workers(patient, viable_health_workers)
+        for person in waiting_room:
 
-            community_contacts = list(self.static_population_network.edges(patient))
+            health_worker_contacts = self.assign_health_workers(person, viable_health_workers)
 
-            # Store patient details
-            new_patient = Patient(patient,
+            community_contacts = list(self.static_population_network.edges(person))
+
+            # Record patient information
+            new_patient = Patient(person,
                                   community_contacts,
                                   health_worker_contacts)
 
-            # Obtain the patients seeking to be hospitalized (state = 'H').
+            # Admit the patient
             self.patients.add(new_patient)
-            patient_admissions.add(new_patient)
+            admissions.add(new_patient)
 
-            # Admit patient
+            # Rewire the population contact network
             population_network.remove_edges_from(new_patient.community_contacts)
             population_network.add_edges_from(new_patient.health_worker_contacts)
 
-        return patient_admissions
+        return admissions
 
 
 
