@@ -3,6 +3,8 @@ import numpy as np
 import networkx as nx
 from functools import singledispatch
 
+from .utilities import normalize, NotInvolving
+
 @singledispatch
 def recruit_health_workers(workers, network):
     return workers.recruit(network)
@@ -130,13 +132,12 @@ class HealthService:
         discharged_people_and_statuses = [(p.address, statuses[p.address]) for p in discharged_patients]
         current_patient_addresses = self.current_patient_addresses()
 
-        print("\nPatient manifest from the Health Service")
-        print("      Admitted: ", end='')
+        print("[ Patient manifest ]          Admitted: ", end='')
         print(*admitted_people, sep=', ')
-        print("    Discharged: ", end='')
+        print("                            Discharged: ", end='')
         print(*discharged_people_and_statuses, sep=', ')
-        print("       Current: ", end='')
-        print(*current_patient_addresses, sep=', ', end='\n\n')
+        print("                               Current: ", end='')
+        print(*current_patient_addresses, sep=', ')
 
         return admitted_patients, discharged_patients
 
@@ -147,16 +148,19 @@ class HealthService:
         """
 
         discharged_patients = set()
+        discharged_community_contacts = []
 
         for i, patient in enumerate(self.patients):
             if statuses[patient.address] != 'H': # patient is no longer hospitalized
-
                 population_network.remove_edges_from(patient.health_worker_contacts)
-                population_network.add_edges_from(patient.community_contacts)
-
+                discharged_community_contacts += patient.community_contacts
                 discharged_patients.add(patient)
 
         self.patients = self.patients - discharged_patients
+
+        # Filter contacts with current patients from the list of contacts to add to network
+        discharged_community_contacts = [edge for edge in filter(NotInvolving(self.current_patient_addresses()), discharged_community_contacts)]
+        population_network.add_edges_from(discharged_community_contacts)
 
         return discharged_patients
 
@@ -165,14 +169,18 @@ class HealthService:
         Method to find unoccupied beds, and admit patients from the community (storing their details).
         """
 
+        # Set of all hospitalized people
         hospitalized_people = set(i for i in self.populace if statuses[i] == 'H')
 
-        waiting_room = hospitalized_people - self.current_patient_addresses()
-
+        # Hospitalized health workers do not care for patients
         viable_health_workers = self.health_workers - hospitalized_people
 
-        admissions = set()
+        # Patients waiting to be admitted
+        waiting_room = hospitalized_people - self.current_patient_addresses()
 
+        admissions = set() # paperwork
+
+        # Admit patients
         for person in waiting_room:
 
             health_worker_contacts = self.assign_health_workers(person, viable_health_workers)

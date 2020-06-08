@@ -5,12 +5,7 @@ from numba.typed import Dict
 from numba import njit, prange, float64
 import networkx as nx
 
-@njit
-def normalize(edge):
-    n, m = edge
-    if m > n: # switch
-        n, m = m, n
-    return n, m
+from .utilities import normalize
 
 @njit
 def initialize_state(active_contacts, event_time, overshoot_duration, edge_state):
@@ -94,7 +89,7 @@ class ContactSimulator:
                       night_inception_rate = None,
                        mean_event_lifetime = None,
                                 start_time = 0.0,
-                           buffer_margin = 1,
+                             buffer_margin = 1,
                    rate_integral_increment = 0.05):
         """
         Args
@@ -164,7 +159,7 @@ class ContactSimulator:
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
 
-    def run(self, stop_time, admitted_patients=set(), discharged_patients=set()):
+    def run(self, stop_time, edges_to_remove=set(), edges_to_add=set()):
         """
         Simulate time-dependent contacts with a birth/death process.
         """
@@ -176,7 +171,7 @@ class ContactSimulator:
         n_contacts = nx.number_of_edges(self.contact_network)
 
         # Fiddle with the contact state if edges have been added or deleted
-        if len(admitted_patients) != 0 or len(discharged_patients) != 0:
+        if len(edges_to_add) > 0 or len(edges_to_remove) > 0:
 
             if n_contacts > self.buffer: # resize the buffer
 
@@ -193,21 +188,14 @@ class ContactSimulator:
             synchronize_state(self.edge_state, self.active_contacts, self.event_time, self.overshoot_duration)
 
             # Find edges to add and remove
-            edges_to_remove = set()
-            edges_to_add = set()
+            normalized_removals = set()
+            normalized_removals.update(map(normalize, edges_to_remove))
 
-            if len(admitted_patients) != 0:
-                for patient in admitted_patients:
-                    edges_to_remove.update(map(normalize, patient.community_contacts))
-                    edges_to_add.update(map(normalize, patient.health_worker_contacts))
+            normalized_additions = set()
+            normalized_additions.update(map(normalize, edges_to_add))
 
-            if len(discharged_patients) != 0:
-                for patient in discharged_patients:
-                    edges_to_remove.update(map(normalize, patient.health_worker_contacts))
-                    edges_to_add.update(map(normalize, patient.community_contacts))
-
-            remove_edges(self.edge_state, edges_to_remove)
-            add_edges(self.edge_state, edges_to_add)
+            remove_edges(self.edge_state, normalized_removals)
+            add_edges(self.edge_state, normalized_additions)
 
             # Reinitialize the state with the new edge list
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
@@ -251,7 +239,7 @@ class ContactSimulator:
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_infected')
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_hospitalized')
 
-    def set_time(self, time):
+    def reset_time(self, time):
         self.time = time
         self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
         self.interval_stop_time = time
