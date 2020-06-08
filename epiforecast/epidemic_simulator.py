@@ -127,7 +127,7 @@ class EpidemicSimulator:
             print("                              Deceased: {:d}".format(self.kinetic_model.statuses['D'][-1]))
             print("[ Wall times ]    Hosp. administration: {:.4f} s,".format(end_health_service_action - start_health_service_action))
             print("                    Contact simulation: {:.4f} s,".format(end_contact_simulation - start_contact_simulation))
-            print("                    Kinetic simulation: {:.4f} s,".format(end_kinetic_simulation - start_kinetic_simulation))
+            print("                    Kinetic simulation: {:.4f} s".format(end_kinetic_simulation - start_kinetic_simulation))
             print("")
 
         if self.time < stop_time: # One final step...
