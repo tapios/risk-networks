@@ -197,7 +197,9 @@ class DataAssimilator:
                                                               ensemble_transmission_rate,
                                                               truth,
                                                               cov)
-                
+
+                self.sum_to_one(ensemble_state)
+
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
@@ -223,11 +225,12 @@ class DataAssimilator:
                 # Update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
                     full_ensemble_transmission_rate=new_ensemble_transmission_rate
-                            
+                
+                    
                 print("EAKF error:", dam.error[-1])
             else:
                 print("No assimilation required")
-
+            
             # Error to truth
             if len(self.online_emodel)>0:
                 self.error_to_truth_state(ensemble_state,data)
@@ -268,3 +271,35 @@ class DataAssimilator:
 
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
+
+    def sum_to_one(self, ensemble_state):
+        N=self.observations[0].N
+        n_status=self.observations[0].n_status
+        if n_status == 6:
+            #First enforce probabilities == 1, by placing excess in susceptible and Exposed
+            #split based on their current proportionality.
+            #(Put all in S or E leads quickly to [0,1] bounding issues.
+            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
+            IHRDmass = np.sum(tmp[:,2:,:],axis=1) #sum over I H R D
+            Smass = ensemble_state[:,0:N]#mass in S
+            Emass = ensemble_state[:,N:2*N]#mass in E
+            fracS = Smass/(Smass+Emass)#get the proportion of mass in frac1
+            fracE = 1.0-fracS
+            ensemble_state[:,0:N] = (1.0 - IHRDmass)*fracS #mult rows by fracS
+            ensemble_state[:,N:2*N] =  (1.0 - IHRDmass)*fracE 
+        elif n_status==5:
+            # All mass automatically lumped into empty field: E
+
+            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
+            SIHRDmass = np.sum(tmp, axis=1) #mass over I H R D
+            for mm in range(ensemble_state.shape[0]):
+                #if there is too much mass in latter categories
+                exceeds_one =  (i for i in range(N) if SIHRDmass[mm,i] > 1.0 )
+                for i in exceeds_one:
+                    ensemble_state[mm,i]     = tmp[mm,0,i]/SIHRDmass[mm,i]
+                    ensemble_state[mm,N+i]   = tmp[mm,1,i]/SIHRDmass[mm,i]
+                    ensemble_state[mm,2*N+i] = tmp[mm,2,i]/SIHRDmass[mm,i]
+                    ensemble_state[mm,3*N+i] = tmp[mm,3,i]/SIHRDmass[mm,i]
+                    ensemble_state[mm,4*N+i] = tmp[mm,4,i]/SIHRDmass[mm,i]
+                   
+            
