@@ -326,7 +326,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-
+        print(observed_data)
         mean,var =  TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale,
@@ -334,6 +334,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([ var[node] for node in observed_nodes])
-
+        print(observed_mean)
+        print(observed_variance)
         self.mean     = observed_mean
         self.variance = observed_variance
