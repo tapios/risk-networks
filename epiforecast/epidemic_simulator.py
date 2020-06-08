@@ -29,14 +29,16 @@ class EpidemicSimulator:
 
         contacts_buffer = 0
 
-        if health_service is not None:
-            contacts_buffer = len(health_service.health_workers) * health_service.patient_capacity
+        if health_service is None:
+            buffer_margin = 1
+        else:
+            buffer_margin = 1.2
 
         self.contact_simulator = ContactSimulator(contact_network,
                                                     day_inception_rate = day_inception_rate,
                                                   night_inception_rate = night_inception_rate,
                                                    mean_event_lifetime = mean_contact_lifetime,
-                                                       contacts_buffer = contacts_buffer,
+                                                       buffer_margin = buffer_margin,
                                                             start_time = start_time)
 
         self.kinetic_model = KineticModel(contact_network = contact_network,
