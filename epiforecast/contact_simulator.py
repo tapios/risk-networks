@@ -257,7 +257,7 @@ class ContactSimulator:
 def diurnal_inception_rate(λnight, λday, t):
     return np.maximum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
 
-@njit(parallel=True)
+@njit#(parallel=True)
 def simulate_contacts(
                       n_contacts,
                       stop_time,
