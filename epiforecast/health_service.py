@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 from functools import singledispatch
 
-from .utilities import normalize, NotInvolving
+from .utilities import normalize, not_involving
 
 @singledispatch
 def recruit_health_workers(workers, network):
@@ -156,7 +156,7 @@ class HealthService:
         self.patients = self.patients - discharged_patients
 
         # Filter contacts with current patients from the list of contacts to add to network
-        discharged_community_contacts = [edge for edge in filter(NotInvolving(self.current_patient_addresses()), discharged_community_contacts)]
+        discharged_community_contacts = [edge for edge in filter(not_involving(self.current_patient_addresses()), discharged_community_contacts)]
         population_network.add_edges_from(discharged_community_contacts)
 
         return discharged_patients
