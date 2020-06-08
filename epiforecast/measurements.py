@@ -33,7 +33,7 @@ class TestMeasurement:
             self.prevalence = ensemble_states.reshape(ensemble_size,self.n_status,-1)[:,self.status_catalog[self.status],:].sum(axis = 1)/population
         else:
             self.prevalence = fixed_prevalence
-            
+
     def _set_ppv(self, scale = 'log'):
         PPV = self.sensitivity * self.prevalence / \
              (self.sensitivity * self.prevalence + (1 - self.specificity) * (1 - self.prevalence))
@@ -319,8 +319,8 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        #Hack to observe perfectly.
-        fixed_prevalence = 1.0
+        #Hack to observe perfectly, with an additional hack for being able to take the _mean_
+        fixed_prevalence = np.ones(1,)
         # calculate the prevalence of the measurement?
         TestMeasurement.update_prevalence(self,
                                           state,
@@ -331,7 +331,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-        print(observed_data)
+        # print(observed_data)
         mean,var =  TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale,
