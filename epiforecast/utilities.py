@@ -13,15 +13,14 @@ def seed_three_random_states(seed):
     np.random.seed(seed)
     seed_numba_random_state(seed)
 
-class NotInvolving:
+def not_involving(nodes):
     """
     Filters edges that connect to `nodes`.
     """
-    def __init__(self, nodes):
-        self.nodes = nodes
+    def edge_doesnt_involve_any_nodes(edge, nodes=nodes):
+        return edge[0] not in nodes and edge[1] not in nodes
 
-    def __call__(self, edge):
-        return edge[0] not in self.nodes and edge[1] not in self.nodes
+    return edge_doesnt_involve_any_nodes
 
 @njit
 def normalize(edge):
@@ -32,5 +31,3 @@ def normalize(edge):
     if m > n: # switch
         n, m = m, n
     return n, m
-
-

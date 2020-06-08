@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 
 from .contact_simulator import ContactSimulator
 from .kinetic_model_simulator import KineticModel, print_statuses
-from .utilities import NotInvolving
+from .utilities import not_involving
 
 day = 1
 hour = day / 24
@@ -90,13 +90,13 @@ class EpidemicSimulator:
 
                 if len(admitted) > 0:
                     for patient in admitted:
-                        edges_to_remove.update(filter(NotInvolving(previous_patients), patient.community_contacts))
+                        edges_to_remove.update(filter(not_involving(previous_patients), patient.community_contacts))
                         edges_to_add.update(patient.health_worker_contacts)
 
                 if len(discharged) > 0:
                     for patient in discharged:
                         edges_to_remove.update(patient.health_worker_contacts)
-                        edges_to_add.update(filter(NotInvolving(current_patients), patient.community_contacts))
+                        edges_to_add.update(filter(not_involving(current_patients), patient.community_contacts))
 
             else:
                 edges_to_add, edges_to_remove = set(), set()
