@@ -5,6 +5,7 @@ from timeit import default_timer as timer
 
 from .contact_simulator import ContactSimulator
 from .kinetic_model_simulator import KineticModel, print_statuses
+from .utilities import NotInvolving
 
 day = 1
 hour = day / 24
@@ -29,14 +30,16 @@ class EpidemicSimulator:
 
         contacts_buffer = 0
 
-        if health_service is not None:
-            contacts_buffer = len(health_service.health_workers) * health_service.patient_capacity
+        if health_service is None:
+            buffer_margin = 1
+        else:
+            buffer_margin = 1.2
 
         self.contact_simulator = ContactSimulator(contact_network,
                                                     day_inception_rate = day_inception_rate,
                                                   night_inception_rate = night_inception_rate,
                                                    mean_event_lifetime = mean_contact_lifetime,
-                                                       contacts_buffer = contacts_buffer,
+                                                         buffer_margin = buffer_margin,
                                                             start_time = start_time)
 
         self.kinetic_model = KineticModel(contact_network = contact_network,
@@ -65,21 +68,51 @@ class EpidemicSimulator:
 
             interval_stop_time = interval_stop_times[i]
 
-            if self.health_service is not None:
-                admitted_patients, discharged_patients = (
-                    self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
-                                                                     self.contact_network))
-            else:
-                admitted_patients, discharged_patients = [], []
+            print("")
+            print("")
+            print("                               *** Day: {:.3f}".format(interval_stop_time))
+            print("")
 
+            # Manage hospitalization
+            start_health_service_action = timer()
+
+            if self.health_service is not None:
+                discharged, admitted = self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
+                                                                                        self.contact_network)
+
+                # Find edges to add and remove from contact simulation
+                edges_to_remove = set()
+                edges_to_add = set()
+
+                current_patients = self.health_service.current_patient_addresses()
+                previous_patients = current_patients - {p.address for p in admitted}
+                previous_patients.update(p.address for p in discharged)
+
+                if len(admitted) > 0:
+                    for patient in admitted:
+                        edges_to_remove.update(filter(NotInvolving(previous_patients), patient.community_contacts))
+                        edges_to_add.update(patient.health_worker_contacts)
+
+                if len(discharged) > 0:
+                    for patient in discharged:
+                        edges_to_remove.update(patient.health_worker_contacts)
+                        edges_to_add.update(filter(NotInvolving(current_patients), patient.community_contacts))
+
+            else:
+                edges_to_add, edges_to_remove = set(), set()
+
+            end_health_service_action = timer()
+
+            # Simulate contacts
             start_contact_simulation = timer()
 
-            self.contact_simulator.run_and_set_edge_weights(stop_time=interval_stop_time,
-                                                            admitted_patients=admitted_patients,
-                                                            discharged_patients=discharged_patients)
+            self.contact_simulator.run_and_set_edge_weights(stop_time = interval_stop_time,
+                                                            edges_to_add = edges_to_add,
+                                                            edges_to_remove = edges_to_remove)
 
             end_contact_simulation = timer()
 
+            # Run the kinetic simulation
             start_kinetic_simulation = timer()
 
             self.kinetic_model.simulate(self.static_contact_interval)
@@ -87,20 +120,24 @@ class EpidemicSimulator:
 
             end_kinetic_simulation = timer()
 
-            print("Epidemic day: {: 7.3f},".format(self.kinetic_model.times[-1]),
-                  "contact sim: {: 6.3f} s,".format(end_contact_simulation - start_contact_simulation),
-                  "kinetic sim: {: 6.3f} s,".format(end_kinetic_simulation - start_kinetic_simulation),
-                  "statuses: ",
-                  "S {: 4d} |".format(self.kinetic_model.statuses['S'][-1]),
-                  "E {: 4d} |".format(self.kinetic_model.statuses['E'][-1]),
-                  "I {: 4d} |".format(self.kinetic_model.statuses['I'][-1]),
-                  "H {: 4d} |".format(self.kinetic_model.statuses['H'][-1]),
-                  "R {: 4d} |".format(self.kinetic_model.statuses['R'][-1]),
-                  "D {: 4d} |".format(self.kinetic_model.statuses['D'][-1]))
+            n_contacts = nx.number_of_edges(self.contact_network)
 
-            self.contact_simulator.set_time(self.time)
+            print("")
+            print("[ Status report ]          Susceptible: {:d}".format(self.kinetic_model.statuses['S'][-1]))
+            print("                               Exposed: {:d}".format(self.kinetic_model.statuses['E'][-1]))
+            print("                              Infected: {:d}".format(self.kinetic_model.statuses['I'][-1]))
+            print("                          Hospitalized: {:d}".format(self.kinetic_model.statuses['H'][-1]))
+            print("                             Resistant: {:d}".format(self.kinetic_model.statuses['R'][-1]))
+            print("                              Deceased: {:d}".format(self.kinetic_model.statuses['D'][-1]))
+            print("             Current possible contacts: {:d}".format(n_contacts))
+            print("               Current active contacts: {:d}".format(np.count_nonzero(~self.contact_simulator.active_contacts[:n_contacts])))
+            print("")
+            print("[ Wall times ]    Hosp. administration: {:.4f} s,".format(end_health_service_action - start_health_service_action))
+            print("                    Contact simulation: {:.4f} s,".format(end_contact_simulation - start_contact_simulation))
+            print("                    Kinetic simulation: {:.4f} s".format(end_kinetic_simulation - start_kinetic_simulation))
+            print("")
 
-        if self.time != stop_time: # One final step...
+        if self.time < stop_time: # One final step...
 
             contact_duration = self.contact_simulator.mean_contact_duration(stop_time=stop_time)
             self.kinetic_model.set_mean_contact_duration(contact_duration)

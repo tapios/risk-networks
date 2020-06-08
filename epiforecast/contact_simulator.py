@@ -5,12 +5,7 @@ from numba.typed import Dict
 from numba import njit, prange, float64
 import networkx as nx
 
-@njit
-def normalize(edge):
-    n, m = edge
-    if m > n: # switch
-        n, m = m, n
-    return n, m
+from .utilities import normalize
 
 @njit
 def initialize_state(active_contacts, event_time, overshoot_duration, edge_state):
@@ -94,7 +89,7 @@ class ContactSimulator:
                       night_inception_rate = None,
                        mean_event_lifetime = None,
                                 start_time = 0.0,
-                           contacts_buffer = 0,
+                             buffer_margin = 1,
                    rate_integral_increment = 0.05):
         """
         Args
@@ -109,8 +104,9 @@ class ContactSimulator:
 
         start_time (float): Start time of the simulation, in days.
 
-        contacts_buffer (int): The size of the buffer to keep in state arrays in the
-                               case that new edges are added.
+        buffer_margin (int): The multiplicative factor by which to resize state arrays
+                               compared to nx.number_of_edges(contact_network) initially,
+                               and when the number of contacts exceeds allocation.
 
         rate_integral_increment (float): Increment used to integrate the time-varying inception rate
                                          within the Gillespie simulation of contact activity.
@@ -119,7 +115,9 @@ class ContactSimulator:
         """
 
         # Number of possible edges during an epidemic simulation
-        n_contacts = nx.number_of_edges(contact_network) + contacts_buffer
+        n_contacts = nx.number_of_edges(contact_network)
+        self.buffer_margin = buffer_margin
+        self.buffer = int(np.round(n_contacts * self.buffer_margin))
 
         self.contact_network = contact_network
         self.edge_state = generate_edge_state(contact_network)
@@ -134,6 +132,8 @@ class ContactSimulator:
             nx.set_node_attributes(contact_network, values=night_inception_rate, name="night_inception_rate")
 
         # Initialize the active contacts
+        self.active_contacts = np.zeros(self.buffer, dtype=bool)
+
         if initialize_contacts:
             λ = night_inception_rate
             μ = 1 / mean_event_lifetime
@@ -143,24 +143,23 @@ class ContactSimulator:
             active_probability = initial_fraction_active_contacts
             inactive_probability = 1 - active_probability
 
-            self.active_contacts = np.random.choice([False, True],
-                                                    size = n_contacts,
-                                                    p = [inactive_probability, active_probability])
+            active_contacts = np.random.choice([False, True],
+                                               size = n_contacts,
+                                               p = [inactive_probability, active_probability])
 
-        else:
-            self.active_contacts = np.zeros(n_contacts, dtype=bool)
+            self.active_contacts[:n_contacts] = active_contacts
 
-        self.contact_duration = np.zeros(n_contacts)
-        self.overshoot_duration = np.zeros(n_contacts)
-        self.event_time = np.zeros(n_contacts)
+        self.contact_duration = np.zeros(self.buffer)
+        self.overshoot_duration = np.zeros(self.buffer)
+        self.event_time = np.zeros(self.buffer)
 
-        self.day_inception_rate = day_inception_rate * np.ones(n_contacts)
-        self.night_inception_rate = night_inception_rate * np.ones(n_contacts)
+        self.day_inception_rate = day_inception_rate * np.ones(self.buffer)
+        self.night_inception_rate = night_inception_rate * np.ones(self.buffer)
 
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
 
-    def run(self, stop_time, admitted_patients=[], discharged_patients=[]):
+    def run(self, stop_time, edges_to_remove=set(), edges_to_add=set()):
         """
         Simulate time-dependent contacts with a birth/death process.
         """
@@ -172,27 +171,31 @@ class ContactSimulator:
         n_contacts = nx.number_of_edges(self.contact_network)
 
         # Fiddle with the contact state if edges have been added or deleted
-        if len(admitted_patients) != 0 or len(discharged_patients) != 0:
+        if len(edges_to_add) > 0 or len(edges_to_remove) > 0:
+
+            if n_contacts > self.buffer: # resize the buffer
+
+                self.buffer = int(np.round(n_contacts * self.buffer_margin))
+
+                self.contact_duration = np.zeros(self.buffer)
+                self.active_contacts = np.zeros(self.buffer)
+                self.overshoot_duration = np.zeros(self.buffer)
+                self.event_time = np.zeros(self.buffer)
+                self.day_inception_rate = np.zeros(self.buffer)
+                self.night_inception_rate = np.zeros(self.buffer)
 
             # First, synchronize current edge state prior to hospitalization
             synchronize_state(self.edge_state, self.active_contacts, self.event_time, self.overshoot_duration)
 
             # Find edges to add and remove
-            edges_to_remove = set()
-            edges_to_add = set()
+            normalized_removals = set()
+            normalized_removals.update(map(normalize, edges_to_remove))
 
-            if len(admitted_patients) != 0:
-                for patient in admitted_patients:
-                    edges_to_remove.update(map(normalize, patient.community_contacts))
-                    edges_to_add.update(map(normalize, patient.health_worker_contacts))
+            normalized_additions = set()
+            normalized_additions.update(map(normalize, edges_to_add))
 
-            if len(discharged_patients) != 0:
-                for patient in discharged_patients:
-                    edges_to_remove.update(map(normalize, patient.health_worker_contacts))
-                    edges_to_add.update(map(normalize, patient.community_contacts))
-
-            remove_edges(self.edge_state, edges_to_remove)
-            add_edges(self.edge_state, edges_to_add)
+            remove_edges(self.edge_state, normalized_removals)
+            add_edges(self.edge_state, normalized_additions)
 
             # Reinitialize the state with the new edge list
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
@@ -203,9 +206,6 @@ class ContactSimulator:
 
         nodal_night_inception_rate = np.array(
             [ data['night_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
-
-        day_inception_rate = np.zeros(n_contacts)
-        night_inception_rate = np.zeros(n_contacts)
 
         calculate_inception_rates(self.day_inception_rate, self.night_inception_rate,
                                   nodal_day_inception_rate, nodal_night_inception_rate,
@@ -239,7 +239,7 @@ class ContactSimulator:
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_infected')
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_hospitalized')
 
-    def set_time(self, time):
+    def reset_time(self, time):
         self.time = time
         self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
         self.interval_stop_time = time
