@@ -39,7 +39,7 @@ class EpidemicSimulator:
                                                     day_inception_rate = day_inception_rate,
                                                   night_inception_rate = night_inception_rate,
                                                    mean_event_lifetime = mean_contact_lifetime,
-                                                       buffer_margin = buffer_margin,
+                                                         buffer_margin = buffer_margin,
                                                             start_time = start_time)
 
         self.kinetic_model = KineticModel(contact_network = contact_network,
