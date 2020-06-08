@@ -14,14 +14,14 @@ from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.health_service import HealthService
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.scenarios import random_epidemic
+from epiforecast.utilities import seed_three_random_states
 
 #
-# Set random seeds for reproducibility
+# Set random states for reproducibility
 #
 
 # Both numpy.random and random are used by the KineticModel.
-np.random.seed(123)
-random.seed(123)
+seed_three_random_states(123)
 
 #
 # Create an example network
