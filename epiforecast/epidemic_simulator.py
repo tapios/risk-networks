@@ -77,7 +77,7 @@ class EpidemicSimulator:
             start_health_service_action = timer()
 
             if self.health_service is not None:
-                admitted, discharged = self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
+                discharged, admitted = self.health_service.discharge_and_admit_patients(self.kinetic_model.current_statuses,
                                                                                         self.contact_network)
 
                 # Find edges to add and remove from contact simulation

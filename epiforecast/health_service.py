@@ -136,7 +136,7 @@ class HealthService:
         print("                               Current: ", end='')
         print(*current_patient_addresses, sep=', ')
 
-        return admitted_patients, discharged_patients
+        return discharged_patients, admitted_patients
 
     def discharge_patients(self, statuses, population_network):
         """
