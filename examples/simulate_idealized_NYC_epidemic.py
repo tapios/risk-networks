@@ -95,8 +95,8 @@ seed_three_random_states(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e5_nobeds.txt')) 
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e5_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -151,7 +151,7 @@ statuses = random_epidemic(contact_network, fraction_infected=0.005)
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 14)
+epidemic_simulator.run(stop_time = 15)
 
 kinetic_model = epidemic_simulator.kinetic_model
 
@@ -173,7 +173,7 @@ epidemic_simulator = EpidemicSimulator(contact_network,
 
 epidemic_simulator.set_statuses(statuses)
 
-epidemic_simulator.run(stop_time = 101) # days
+epidemic_simulator.run(stop_time = 100) # days
 
 for key in kinetic_model.statuses.keys():
    kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
@@ -219,7 +219,7 @@ kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_mo
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_1e4_6.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../data/simulation_data/simulation_data_NYC_1e4_9.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
 NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])

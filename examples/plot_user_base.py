@@ -36,7 +36,8 @@ print("User base: Full")
 print("number of nodes:", len(full_user_base.contact_network.nodes))
 print("number of edges:", len(full_user_base.contact_network.edges))
 if write_graphs:
-    nx.write_gexf(full_user_base.contact_network,'full_user_graph.gexf')
+    nx.write_gexf(full_user_base.contact_network,'../data/networks/full_user_graph.gexf')
+    nx.write_edgelist(full_user_base.contact_network,'../data/networks/full_user_graph.csv', data = False)
 
     # create a user base from a random fraction of the population
 user_fraction = 0.05
@@ -46,12 +47,16 @@ print("User base: ", user_fraction, " fraction of nodes, randomly chosen")
 print("number of nodes:", len(fractional_user_base.contact_network.nodes))
 print("number of edges:", len(fractional_user_base.contact_network.edges))
 if write_graphs:
-    nx.write_gexf(fractional_user_base.contact_network,'fractional_user_graph.gexf')
+    nx.write_gexf(fractional_user_base.contact_network,'../data/networks/fractional_user_graph.gexf')
+    nx.write_edgelist(fractional_user_base.contact_network,'../data/networks/fractional_user_graph.csv', data = False)
 
-interior,boundary,mean_exterior_neighbors = contiguous_indicators(contact_network,fractional_user_base.contact_network)
+interior, boundary, mean_exterior_neighbors, edge_indicator_list, node_indicator_list = contiguous_indicators(contact_network,fractional_user_base.contact_network)
 print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
+
+np.savetxt('../data/networks/fractional_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
+np.savetxt('../data/networks/fractional_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
 
 # create a user base from a Contiguous region about a random seed user (or a specified one)
 neighbor_user_base = ContiguousUserBase(contact_network,user_fraction, method="neighbor", seed_user=None)
@@ -60,13 +65,16 @@ print("User base:", user_fraction, " fraction of nodes, chosen using neighbor me
 print("number of nodes:", len(neighbor_user_base.contact_network.nodes))
 print("number of edges:", len(neighbor_user_base.contact_network.edges))
 if write_graphs:
-    nx.write_gexf(neighbor_user_base.contact_network,'neighbor_user_graph.gexf')
+    nx.write_gexf(neighbor_user_base.contact_network,'../data/networks/neighbor_user_graph.gexf')
+    nx.write_edgelist(neighbor_user_base.contact_network,'../data/networks/neighbor_user_graph.csv', data = False)
 
-interior,boundary,mean_exterior_neighbors = contiguous_indicators(contact_network,neighbor_user_base.contact_network)
+interior, boundary, mean_exterior_neighbors, edge_indicator_list, node_indicator_list = contiguous_indicators(contact_network,neighbor_user_base.contact_network)
 print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
 
+np.savetxt('../data/networks/neighbor_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
+np.savetxt('../data/networks/neighbor_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
 
 # create a user base from a Contiguous region about a random seed user (or a specified one)
 clique_user_base = ContiguousUserBase(contact_network,user_fraction, method="clique", seed_user=None)
@@ -75,12 +83,16 @@ print("User base:", user_fraction, " fraction of nodes, chosen using clique meth
 print("number of nodes:", len(clique_user_base.contact_network.nodes))
 print("number of edges:", len(clique_user_base.contact_network.edges))
 if write_graphs:
-    nx.write_gexf(clique_user_base.contact_network,'clique_user_graph.gexf')
+    nx.write_gexf(clique_user_base.contact_network,'../data/networks/clique_user_graph.gexf')
+    nx.write_edgelist(clique_user_base.contact_network,'../data/networks/clique_user_graph.csv', data = False)
 
-interior,boundary,mean_exterior_neighbors = contiguous_indicators(contact_network,clique_user_base.contact_network)
+interior, boundary, mean_exterior_neighbors, edge_indicator_list, node_indicator_list = contiguous_indicators(contact_network,clique_user_base.contact_network)
 print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
+
+np.savetxt('../data/networks/clique_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
+np.savetxt('../data/networks/clique_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
 
 #plot graph
 if plot_figs:
