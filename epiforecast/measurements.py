@@ -19,7 +19,7 @@ class TestMeasurement:
         self.status = status
         self.n_status = len(self.status_catalog.keys())
 
-    def _set_prevalence(self, ensemble_states):
+    def _set_prevalence(self, ensemble_states, fixed_prevalence = None):
         """
         Inputs:
         -------
@@ -27,10 +27,13 @@ class TestMeasurement:
             status_idx      : status id of interest. Following the ordering of the reduced system SIRHD.
         """
 
-        population      = ensemble_states.shape[1]/self.n_status
-        ensemble_size   = ensemble_states.shape[0]
-        self.prevalence = ensemble_states.reshape(ensemble_size,self.n_status,-1)[:,self.status_catalog[self.status],:].sum(axis = 1)/population
-
+        if fixed_prevalence is None:
+            population      = ensemble_states.shape[1]/self.n_status
+            ensemble_size   = ensemble_states.shape[0]
+            self.prevalence = ensemble_states.reshape(ensemble_size,self.n_status,-1)[:,self.status_catalog[self.status],:].sum(axis = 1)/population
+        else:
+            self.prevalence = fixed_prevalence
+            
     def _set_ppv(self, scale = 'log'):
         PPV = self.sensitivity * self.prevalence / \
              (self.sensitivity * self.prevalence + (1 - self.specificity) * (1 - self.prevalence))
@@ -55,8 +58,8 @@ class TestMeasurement:
             self.for_mean = FOR.mean()
             self.for_var  = FOR.var()
 
-    def update_prevalence(self, ensemble_states, scale = 'log' ):
-        self._set_prevalence(ensemble_states)
+    def update_prevalence(self, ensemble_states, scale = 'log', fixed_prevalence=None ):
+        self._set_prevalence(ensemble_states, fixed_prevalence)
         self._set_ppv(scale = scale)
 
     def get_mean_and_variance(self, positive_test = True, scale = 'log'):
@@ -316,11 +319,13 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-
-        #make a measurement of the data
+        #Hack to observe perfectly.
+        fixed_prevalence = 1.0
+        # calculate the prevalence of the measurement?
         TestMeasurement.update_prevalence(self,
                                           state,
-                                          scale)
+                                          scale,
+                                          fixed_prevalence=fixed_prevalence)
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
@@ -334,7 +339,10 @@ class DataObservation(DataInformedObservation, TestMeasurement):
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([ var[node] for node in observed_nodes])
-        print(observed_mean)
-        print(observed_variance)
+
+        if fixed_prevalence is not None:
+            observed_variance = np.array([1.0 for node in observed_nodes])
+
+            #as there will be no ensemble spread in this case.
         self.mean     = observed_mean
         self.variance = observed_variance
