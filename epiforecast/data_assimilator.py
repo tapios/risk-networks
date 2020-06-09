@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
 
@@ -193,6 +194,7 @@ class DataAssimilator:
 
                 # Perform da model update with ensemble_state: states, transition and transmission rates
 
+                prev_ensemble_state = copy.deepcopy(ensemble_state)
                 (ensemble_state[:, obs_states],
                  new_ensemble_transition_rates,
                  new_ensemble_transmission_rate) = dam.update(ensemble_state[:, obs_states],
@@ -203,9 +205,18 @@ class DataAssimilator:
 
 
                 # Let's see if I turn this off
-                self.sum_to_one(ensemble_state)
+                tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
+                sum_states = np.sum(tmp,axis=1) 
 
+                print(sum_states[sum_states > 1+1e-2])
+                
+                
+                self.sum_to_one(prev_ensemble_state, ensemble_state)
 
+                tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
+                sum_states_after = np.sum(tmp,axis=1) 
+                print(sum_states_after[sum_states>1+1e-2]) #see what the sum_to_one did to them
+                    
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
@@ -278,7 +289,7 @@ class DataAssimilator:
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
 
-    def sum_to_one(self, ensemble_state):
+    def sum_to_one(self, prev_ensemble_state, ensemble_state):
         N=self.observations[0].N
         n_status=self.observations[0].n_status
         if n_status == 6:
@@ -293,18 +304,30 @@ class DataAssimilator:
             fracE = 1.0-fracS
             ensemble_state[:,0:N] = (1.0 - IHRDmass)*fracS #mult rows by fracS
             ensemble_state[:,N:2*N] =  (1.0 - IHRDmass)*fracE
+
         elif n_status==5:
-            # All mass automatically lumped into empty field: E
-            # for observation in self.observations:
-            #     observation.obs_status_idx
-            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
-            SIHRDmass = np.sum(tmp, axis=1) #mass over S I H R D
-            for mm in range(ensemble_state.shape[0]):
-                #if there is too much mass in latter categories
-                exceeds_one =  (i for i in range(N) if SIHRDmass[mm,i] > 1.0 )
-                for i in exceeds_one:
-                    ensemble_state[mm,i]     = tmp[mm,0,i]/SIHRDmass[mm,i]
-                    ensemble_state[mm,N+i]   = tmp[mm,1,i]/SIHRDmass[mm,i]
-                    ensemble_state[mm,2*N+i] = tmp[mm,2,i]/SIHRDmass[mm,i]
-                    ensemble_state[mm,3*N+i] = tmp[mm,3,i]/SIHRDmass[mm,i]
-                    ensemble_state[mm,4*N+i] = tmp[mm,4,i]/SIHRDmass[mm,i]
+            # First obtain the mass contained in category "E"
+            prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0],n_status, N)
+            Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
+            # for each observation we get the observed status e.g 'I' and fix it (as it was updated)
+            # we then normalize the other states e.g (S,'E',H,R,D) over the difference 1-I
+            for observation in self.observations:
+                if len(observation.obs_states > 0):
+                    observed_nodes = np.remainder(observation.obs_states,N)
+                    updated_status = observation.obs_status_idx
+                    free_statuses = [ i for i in range(5) if i!= updated_status]
+                    tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status, N)
+                 
+                    # create arrays of the mass in the observed and the unobserved "free" statuses at the observed nodes.
+                    observed_tmp = tmp[:,:,observed_nodes]
+                    updated_mass = observed_tmp[:, updated_status, :]
+                    free_states  = observed_tmp
+                    free_states[:, updated_status, :]  = np.zeros([free_states.shape[0], 1, free_states.shape[2]]) #remove this axis for the sum (but maintain the shape)
+                    
+                    free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
+                    
+                    # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
+                    for i in free_statuses:
+                        ensemble_state[:, i*N+observed_nodes] = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / free_mass)
+                        
+                 

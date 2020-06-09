@@ -347,7 +347,8 @@ class DataObservation(DataInformedObservation, TestMeasurement):
             else:
                 observed_variance = np.array([1e-9 for node in observed_nodes])
 
-            #as there will be no ensemble spread in this case.
+        print(observed_mean)
+        print(observed_variance)
         self.mean     = observed_mean
         self.variance = observed_variance
 

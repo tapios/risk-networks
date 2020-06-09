@@ -147,7 +147,7 @@ epidemic_simulator = EpidemicSimulator(
                   health_service = health_service,
                       start_time = start_time
                                       )
-ensemble_size = 100 # minimum number for an 'ensemble'
+ensemble_size = 20 #100 # minimum number for an 'ensemble'
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates_ensemble = []
@@ -185,32 +185,14 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-# hospital_records = Observation(N = population,
-#                                      obs_frac = 1.0,
-#                                      obs_status = 'H',
-#                                      obs_name = "0.0 < Hospital(100%) < 0.5",
-#                                      min_threshold= 0.00,
-#                                      max_threshold= 0.5,
-#                                      specificity  = 0.999,
-#                                      sensitivity  = 0.999)
-
-# death_records = Observation(N = population,
-#                                      obs_frac = 1.0,
-#                                      obs_status = 'D',
-#                                      obs_name = "0.0 < Deceased(100%) < 0.5",
-#                                      min_threshold= 0.0,
-#                                      max_threshold= 0.5,
-#                                      specificity  = 0.999,
-#                                      sensitivity  = 0.999)
-
-hospital_records = DataNodeObservation(N = population,
+hospital_records = DataObservation(N = population,
                                    bool_type=True,
                                    obs_status = 'H',
                                    obs_name = "Hospitalized from Data",
                                    specificity  = 0.999,
                                    sensitivity  = 0.999)
 
-death_records = DataNodeObservation(N = population,
+death_records = DataObservation(N = population,
                                 bool_type=True,
                                 obs_status = 'D',
                                 obs_name = "Deceased from Data",
@@ -275,7 +257,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i % 4 == 0:
+    if i % 1 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
