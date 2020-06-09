@@ -342,7 +342,10 @@ class DataObservation(DataInformedObservation, TestMeasurement):
         observed_variance = np.array([ var[node] for node in observed_nodes])
 
         if fixed_prevalence is not None:
-            observed_variance = np.array([1.0 for node in observed_nodes])
+            if scale == 'log':
+                observed_variance = np.array([1.0 for node in observed_nodes])
+            else:
+                observed_variance = np.array([1e-9 for node in observed_nodes])
 
             #as there will be no ensemble spread in this case.
         self.mean     = observed_mean
@@ -371,7 +374,8 @@ class DataNodeInformedObservation(DataInformedObservation):
         self.find_observation_states(contact_network, state, data)
         self.obs_nodes        = self.obs_states % len(contact_network)
         self.states_per_node  =  np.asarray([ node + len(contact_network) * np.arange(5) for node in self.obs_nodes])
-        self.obs_nodes_states = self.states_per_node.flatten()
+        self._obs_states     = np.copy(self.obs_states)
+        self.obs_states = self.states_per_node.flatten()
 
 
 class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
@@ -427,7 +431,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                                           scale,
                                           fixed_prevalence=fixed_prevalence)
         #mean, var np.arrays of size state
-        observed_states = np.remainder(self.obs_states,self.N)
+        observed_states = np.remainder(self._obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
