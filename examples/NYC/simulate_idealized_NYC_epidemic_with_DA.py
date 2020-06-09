@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join(".."))
+import os, sys; sys.path.append(os.path.join("..", ".."))
 
 from timeit import default_timer as timer
 
@@ -31,7 +31,7 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation
 from epiforecast.data_assimilator import DataAssimilator
-from epiforecast.user_base import ContiguousUserBase, contiguous_indicators
+
 from epiforecast.utilities import seed_numba_random_state
 
 
@@ -40,12 +40,12 @@ from epiforecast.utilities import seed_numba_random_state
 
 def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
     
-    user_population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * user_population])
+    population = len(contact_network)
+    states_ensemble = np.zeros([ensemble_size, 5 * population])
     for mm in range(ensemble_size):
-        infected = np.random.choice(user_population, replace = False, size = int(user_population * fraction_infected))
-        E, I, H, R, D = np.zeros([5, user_population])
-        S = np.ones(user_population,)
+        infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
+        E, I, H, R, D = np.zeros([5, population])
+        S = np.ones(population,)
         I[infected] = 1.
         S[infected] = 0.
 
@@ -72,8 +72,8 @@ seed_numba_random_state(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -134,24 +134,6 @@ epidemic_simulator = EpidemicSimulator(
                                       )
 
 
-### Create the user base.
-user_fraction=0.05
-user_base = ContiguousUserBase(contact_network,
-                               user_fraction,
-                               method="neighbor",
-                               seed_user=None)
-
-user_population=len(user_base.contact_network)
-print("size of network", population,
-      " and size of user base", user_population)
-
-#some info about the user base:
-interior,boundary,mean_exterior_neighbors = contiguous_indicators(contact_network,user_base.contact_network)
-print("user base interior nodes:", interior)
-print("user base boundary nodes:", boundary)
-print("average exterior neighbors of boundary node:", mean_exterior_neighbors)
-
-
 ## construct master equations model
 
 ensemble_size = 100 # minimum number for an 'ensemble'
@@ -160,7 +142,7 @@ ensemble_size = 100 # minimum number for an 'ensemble'
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(
-        TransitionRates(user_base.contact_network,
+        TransitionRates(contact_network,
                         latent_periods = np.random.normal(3.7,0.37),
                         community_infection_periods = np.random.normal(3.2,0.32),
                         hospital_infection_periods = np.random.normal(5.0,0.5),
@@ -172,14 +154,14 @@ for i in range(ensemble_size):
 #set transmission_rates
 community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
 
-master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.contact_network,
+master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
                                                   ensemble_size = ensemble_size)
 ####
 
-medical_infection_test = Observation(N = user_population,
+medical_infection_test = Observation(N = population,
                                      obs_frac = 1.0,
                                      obs_status = 'I',
                                      obs_name = "0.25 < Infected(100%) < 0.5",
@@ -203,7 +185,7 @@ simulation_length = 30 #Number of days
 #initial conditions
 statuses = random_epidemic(contact_network,
                            fraction_infected = 0.01)
-states_ensemble = random_risk(user_base.contact_network,
+states_ensemble = random_risk(contact_network,
                               fraction_infected = 0.01,
                               ensemble_size = ensemble_size)
 epidemic_simulator.set_statuses(statuses)
@@ -230,10 +212,10 @@ for i in range(int(simulation_length/static_contact_interval)):
      transition_rates_ensemble,
      community_transmission_rate_ensemble
      ) = assimilator.update(states_ensemble,
-                            epidemic_simulator.kinetic_model.current_statuses,
+                            statuses,
                             full_ensemble_transition_rates = transition_rates_ensemble,
                             full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                            user_network = user_base.contact_network)
+                            user_network = contact_network)
 
     #update model parameters (transition and transmission rates) of the master eqn model
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
@@ -249,4 +231,28 @@ for i in range(int(simulation_length/static_contact_interval)):
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[epidemic_simuator.kinetic_model.times, epidemic_simuator.kinetic_model.statuses['S'], epidemic_simuator.kinetic_model.statuses['E'], epidemic_simuator.kinetic_model.statuses['I'], epidemic_simuator.kinetic_model.statuses['H'], epidemic_simuator.kinetic_model.statuses['R'],epidemic_simuator.kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+
+# # plot all model compartments
+# fig, axs = plt.subplots(nrows=2, sharex=True)
+
+# plt.sca(axs[0])
+# plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
+# plt.ylabel("Total susceptible, $S$")
+
+# plt.sca(axs[1])
+# plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
+# plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
+# plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')
+# plt.plot(kinetic_model.times, kinetic_model.statuses['R'], label='Resistant')
+# plt.plot(kinetic_model.times, kinetic_model.statuses['D'], label='Deceased')
+
+# plt.xlabel("Time (days)")
+# plt.ylabel("Total $E, I, H, R, D$")
+# plt.legend()
+
+# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" +
+#               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
+
+# print("Saving a visualization of results at", image_path)
+# plt.savefig(image_path, dpi=480)
