@@ -155,13 +155,26 @@ for i in range(ensemble_size):
     transition_rates_ensemble.append(
         TransitionRates(contact_network,
                         latent_periods = np.random.normal(3.7,0.37),
-                        community_infection_periods = np.random.normal(3.2,0.32),
-                        hospital_infection_periods = np.random.normal(5.0,0.5),
-                        hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
-                        community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
-                        hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
+                        community_infection_periods = transition_rates.community_infection_periods,
+                        hospital_infection_periods  = transition_rates.hospital_infection_periods,
+                        hospitalization_fraction    = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
+                        community_mortality_fraction = transition_rates.community_mortality_fraction,
+                        hospital_mortality_fraction  = transition_rates.hospital_mortality_fraction
                         )
         )
+
+# transition_rates_ensemble = []
+# for i in range(ensemble_size):
+#     transition_rates_ensemble.append(
+#         TransitionRates(contact_network,
+#                         latent_periods = np.random.normal(3.7,0.37),
+#                         community_infection_periods = np.random.normal(3.2,0.32),
+#                         hospital_infection_periods = np.random.normal(5.0,0.5),
+#                         hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
+#                         community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
+#                         hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
+#                         )
+#         )
 #set transmission_rates
 community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
 
@@ -177,15 +190,15 @@ medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
                                      obs_status = 'I',
                                      obs_name = "0.25 < Infected(100%) < 0.75",
-                                     min_threshold=0.00,
-                                     max_threshold=1.00)
+                                     min_threshold=0.01,
+                                     max_threshold=0.10)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.01,
+                                     obs_frac = 0.10,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-hospital_records = DataObservation(N = population,
+hospital_records = DataNodeObservation(N = population,
                                    bool_type=True,
                                    obs_status = 'H',
                                    obs_name = "Hospitalized from Data",
@@ -203,7 +216,7 @@ death_records = DataNodeObservation(N = population,
 # give the data assimilator the methods for how to choose observed states
 # observations=[medical_infection_test, random_infection_test, hospital_records, death_records]
 # observations=[medical_infection_test]
-observations=[hospital_records]
+observations=[random_infection_test, hospital_records, death_records]
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
@@ -222,13 +235,13 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
-
-states_ensemble = deterministic_risk(contact_network,
-                              statuses,
+states_ensemble = random_risk(contact_network,
+                              fraction_infected = 0.01,
                               ensemble_size = ensemble_size)
+
+# states_ensemble = deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -289,7 +302,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-    plt.savefig('da_dic_tprobs_ninfectest_whospital_ndeath_nrandtest.png', rasterized=True, dpi=150)
+    plt.savefig('da_dic_tprobs_ninfectest_whospital_wdeath_wrandtest_nodedata_nomodelerror.png', rasterized=True, dpi=150)
 
 
 # time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)

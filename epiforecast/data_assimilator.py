@@ -207,8 +207,11 @@ class DataAssimilator:
                 #tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
                 #sum_states = np.sum(tmp,axis=1)
                 # print(sum_states[sum_states > 1 + 1e-2])
+                # print(prev_ensemble_state[:,obs_states])
+                # print(" ")
                 # print(ensemble_state[:,obs_states])
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
+                # print(" ")
 
                 # print same states after the sum_to_one()
                 # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
