@@ -192,7 +192,6 @@ class DataAssimilator:
                 #cov = self.get_observation_cov()
 
                 # Perform da model update with ensemble_state: states, transition and transmission rates
-                # print(ensemble_state[:,obs_states])
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
                 (ensemble_state[:, obs_states],
                  new_ensemble_transition_rates,
@@ -207,11 +206,14 @@ class DataAssimilator:
                 #tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
                 #sum_states = np.sum(tmp,axis=1)
                 # print(sum_states[sum_states > 1 + 1e-2])
-                # print(prev_ensemble_state[:,obs_states])
+
+                # print(truth[:5])
                 # print(" ")
-                # print(ensemble_state[:,obs_states])
+                # print(np.round(prev_ensemble_state[:,obs_states][:3,:5], 2))
+                # print(" ")
+                # print(np.round(ensemble_state[:,obs_states][:3,:5], 2))
+
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
-                # print(" ")
 
                 # print same states after the sum_to_one()
                 # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)

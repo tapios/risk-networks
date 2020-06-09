@@ -24,7 +24,7 @@ from epiforecast.contact_simulator import DiurnalContactInceptionRate
 
 from epiforecast.scenarios import load_edges, random_epidemic
 
-from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_ensemble_transmission_latent_fraction
+from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters
 
 
 from epiforecast.node_identifier_helper import load_node_identifiers
@@ -74,7 +74,7 @@ def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 #
 
 # Both numpy.random and random are used by the KineticModel.
-seed = 213213
+seed = 212212
 
 np.random.seed(seed)
 random.seed(seed)
@@ -149,7 +149,21 @@ epidemic_simulator = EpidemicSimulator(
                                       )
 ensemble_size = 20 #100 # minimum number for an 'ensemble'
 
-# We process the clinical data to determine transition rates between each epidemiological state,
+# # We process the clinical data to determine transition rates between each epidemiological state,
+# transition_rates_ensemble = []
+# for i in range(ensemble_size):
+#     transition_rates_ensemble.append(
+#         TransitionRates(contact_network,
+#                         latent_periods = np.random.normal(3.7,0.37),
+#                         community_infection_periods = np.random.normal(3.2,0.32),
+#                         hospital_infection_periods = np.random.normal(5.0,0.5),
+#                         hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
+#                         community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
+#                         hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
+#                         )
+#         )
+#
+
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(
@@ -163,18 +177,7 @@ for i in range(ensemble_size):
                         )
         )
 
-# transition_rates_ensemble = []
-# for i in range(ensemble_size):
-#     transition_rates_ensemble.append(
-#         TransitionRates(contact_network,
-#                         latent_periods = np.random.normal(3.7,0.37),
-#                         community_infection_periods = np.random.normal(3.2,0.32),
-#                         hospital_infection_periods = np.random.normal(5.0,0.5),
-#                         hospitalization_fraction = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
-#                         community_mortality_fraction = AgeDependentBetaSampler(mean=[ 1e-4,  1e-3,  0.003,  0.01,  0.02], b=4),
-#                         hospital_mortality_fraction = AgeDependentBetaSampler(mean=[0.019, 0.075,  0.195, 0.328, 0.514], b=4)
-#                         )
-#         )
+
 #set transmission_rates
 community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
 
@@ -190,11 +193,11 @@ medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
                                      obs_status = 'I',
                                      obs_name = "0.25 < Infected(100%) < 0.75",
-                                     min_threshold=0.01,
-                                     max_threshold=0.10)
+                                     min_threshold=0.25,
+                                     max_threshold=0.75)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.10,
+                                     obs_frac = 0.01,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
@@ -292,7 +295,7 @@ for i in range(int(simulation_length/static_contact_interval)):
         community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
         latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
         community_infection_periods_trace = np.hstack([community_infection_periods_trace, np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
-        hospital_infection_periods_trace = np.hstack([hospital_infection_periods_trace, np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
+        hospital_infection_periods_trace  = np.hstack([hospital_infection_periods_trace, np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
 
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -306,13 +309,14 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-    plt.savefig('da_dic_tprobs_ninfectest_whospital_wdeath_wrandtest_nodedata_nomodelerror.png', rasterized=True, dpi=150)
+    plt.savefig('da_ric_tprobs_ninfectest_whospital_wdeath_wrandtest_nodedata_nomodelerror.png', rasterized=True, dpi=150)
 
-time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+parameters = [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trace ]
+parameters_names = ['transmission_rates', 'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 
-# [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trac ]
-# axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
-# plt.savefig('da_parameters_deterministic_ic.png', rasterized=True, dpi=150)
+axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
+plt.savefig('da_parameters_ric_tprobs_ninfectest_whospital_wdeath_wrandtest_nodedata_nomodelerror.png', rasterized=True, dpi=150)
 
 
 # np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)

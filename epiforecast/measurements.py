@@ -217,13 +217,13 @@ class Observation(StateInformedObservation, TestMeasurement):
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean,var =  TestMeasurement.take_measurements(self,
+        mean, var =  TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale,
                                                       noisy_measurement)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([var[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance
@@ -321,8 +321,8 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 noisy_measurement = False):
 
         #do not set mean = 1...
-        observed_mean = 0.99*np.ones(self.obs_states.size)
-        observed_variance = 1e-9*np.ones(self.obs_states.size)
+        observed_mean = (1-0.05/6) * np.ones(self.obs_states.size)
+        observed_variance = 1e-5 * np.ones(self.obs_states.size)
 
         if scale == 'log':
             observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
@@ -403,14 +403,15 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        observed_mean     = 0.99 * np.ones(self._obs_states.size)
-        observed_variance = 1e-9 * np.ones(self._obs_states.size)
+        observed_mean     = (1-0.05/6) * np.ones(self._obs_states.size)
+        # observed_variance = 1e-9 * np.ones(self._obs_states.size)
+        observed_variance = 1e-5 * np.ones(self._obs_states.size)
 
         if scale == 'log':
             observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
             observed_mean     = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
-        observed_means     = (0.01/5) * np.ones_like(self.states_per_node)
+        observed_means     = (0.01/6) * np.ones_like(self.states_per_node)
         observed_variances = observed_variance[0] * np.ones_like(self.states_per_node)
 
         observed_means[:, self.obs_status_idx] = observed_mean.reshape(-1,1)

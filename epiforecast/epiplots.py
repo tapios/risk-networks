@@ -142,6 +142,8 @@ def plot_kinetic_model_data(kinetic_model, axes):
     axes[2].scatter(kinetic_model.current_time, data['H'][-1], c = colors_dict['H'], marker = 'x')
     axes[2].scatter(kinetic_model.current_time, data['D'][-1], c = colors_dict['D'], marker = 'x')
 
+    # axes[2].set_ylim(-.5, 10)
+
     return axes
 
 def plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon):
@@ -164,14 +166,14 @@ def plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace
 
 def plot_scalar_parameters(parameters, time_horizon, names):
     percentiles = {}
-    fig, axes = plt.subplots(1, len(parameters), figsize = (12, 4))
+    fig, axes = plt.subplots(1, len(parameters), figsize = (4 * len(parameters), 4))
 
     for kk, parameter in enumerate(names):
         percentiles[parameter] = np.percentile(parameters[kk], q = [1, 25, 50, 75, 99], axis = 0)
 
-        axes[0].fill_between(time_horizon, percentiles[parameters][0], percentiles[parameters][-1], alpha = .2, color = 'C0')
-        axes[0].fill_between(time_horizon, percentiles[parameters][1], percentiles[parameters][-2], alpha = .2, color = 'C0')
-        axes[0].plot(time_horizon, percentiles[parameters][2])
-        axes[0].set_title(names[kk]);
+        axes[kk].fill_between(time_horizon, percentiles[parameter][0], percentiles[parameter][-1], alpha = .2, color = 'C0')
+        axes[kk].fill_between(time_horizon, percentiles[parameter][1], percentiles[parameter][-2], alpha = .2, color = 'C0')
+        axes[kk].plot(time_horizon, percentiles[parameter][2])
+        axes[kk].set_title(names[kk]);
 
     return axes
