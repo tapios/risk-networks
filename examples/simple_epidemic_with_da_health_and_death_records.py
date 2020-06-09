@@ -185,14 +185,14 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-hospital_records = DataObservation(N = population,
+hospital_records = DataNodeObservation(N = population,
                                    bool_type=True,
                                    obs_status = 'H',
                                    obs_name = "Hospitalized from Data",
                                    specificity  = 0.999,
                                    sensitivity  = 0.999)
 
-death_records = DataObservation(N = population,
+death_records = DataNodeObservation(N = population,
                                 bool_type=True,
                                 obs_status = 'D',
                                 obs_name = "Deceased from Data",
@@ -203,7 +203,7 @@ death_records = DataObservation(N = population,
 # give the data assimilator the methods for how to choose observed states
 # observations=[medical_infection_test, random_infection_test, hospital_records, death_records]
 # observations=[medical_infection_test]
-observations=[hospital_records, death_records]
+observations=[hospital_records]
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
@@ -257,7 +257,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i % 8 == 0:
+    if i % 1 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
@@ -289,7 +289,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-    plt.savefig('da_dic_tprobs_ninfectest_whospital_wdeath_nrandtest.png', rasterized=True, dpi=150)
+    plt.savefig('da_dic_tprobs_ninfectest_whospital_ndeath_nrandtest.png', rasterized=True, dpi=150)
 
 
 # time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
