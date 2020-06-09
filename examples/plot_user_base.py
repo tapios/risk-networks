@@ -20,7 +20,7 @@ write_graphs=True
 #population = len(contact_network)
 
 #2) Or create from file:
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
+edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')) 
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -55,8 +55,8 @@ print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
 
-np.savetxt('../data/networks/fractional_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
-np.savetxt('../data/networks/fractional_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
+np.savetxt('../data/networks/fractional_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '')
+np.savetxt('../data/networks/fractional_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '')
 
 # create a user base from a Contiguous region about a random seed user (or a specified one)
 neighbor_user_base = ContiguousUserBase(contact_network,user_fraction, method="neighbor", seed_user=None)
@@ -73,8 +73,8 @@ print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
 
-np.savetxt('../data/networks/neighbor_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
-np.savetxt('../data/networks/neighbor_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
+np.savetxt('../data/networks/neighbor_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '')
+np.savetxt('../data/networks/neighbor_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '')
 
 # create a user base from a Contiguous region about a random seed user (or a specified one)
 clique_user_base = ContiguousUserBase(contact_network,user_fraction, method="clique", seed_user=None)
@@ -91,8 +91,8 @@ print("number of interior nodes:", interior)
 print("number of boundary nodes:", boundary)
 print("average exterior neighbours of boundary node:", mean_exterior_neighbors)
 
-np.savetxt('../data/networks/clique_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '#')
-np.savetxt('../data/networks/clique_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '#')
+np.savetxt('../data/networks/clique_indicator_edge_list.csv', np.c_[edge_indicator_list], fmt = "%s", header = 'Source Target Property', comments = '')
+np.savetxt('../data/networks/clique_indicator_node_list.csv', np.c_[node_indicator_list], fmt = "%s", header = 'Node Property', comments = '')
 
 #plot graph
 if plot_figs:
