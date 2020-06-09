@@ -155,9 +155,9 @@ for i in range(ensemble_size):
     transition_rates_ensemble.append(
         TransitionRates(contact_network,
                         latent_periods = np.random.normal(3.7,0.37),
-                        community_infection_periods = transition_rates.community_infection_periods,
-                        hospital_infection_periods  = transition_rates.hospital_infection_periods,
-                        hospitalization_fraction    = AgeDependentBetaSampler(mean=[0.002,  0.01,   0.04, 0.075,  0.16], b=4),
+                        community_infection_periods = np.random.normal(3.2, 0.32),
+                        hospital_infection_periods  = np.random.normal(5.0, 0.50),
+                        hospitalization_fraction    = transition_rates.hospitalization_fraction,
                         community_mortality_fraction = transition_rates.community_mortality_fraction,
                         hospital_mortality_fraction  = transition_rates.hospital_mortality_fraction
                         )
@@ -219,7 +219,7 @@ death_records = DataNodeObservation(N = population,
 observations=[random_infection_test, hospital_records, death_records]
 
 # give the data assimilator which transition rates and transmission rate to assimilate
-transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
+transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 transmission_rate_to_update_flag=True
 
 # create the assimilator
@@ -227,8 +227,6 @@ assimilator = DataAssimilator(observations = observations,
                               errors = [],
                               transition_rates_to_update_str= transition_rates_to_update_str,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
-
-
 
 time = start_time
 
@@ -252,8 +250,12 @@ master_eqn_ensemble.set_states_ensemble(states_ensemble)
 # fig, axes = plt.subplots(1, 2, figsize = (15, 5))
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 
+transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
+
 community_transmission_rate_trace = np.copy(community_transmission_rate_ensemble)
 latent_periods_trace              = np.copy(np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1))
+community_infection_periods_trace = np.copy(np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
+hospital_infection_periods_trace  = np.copy(np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
 
 for i in range(int(simulation_length/static_contact_interval)):
 
@@ -289,6 +291,8 @@ for i in range(int(simulation_length/static_contact_interval)):
         # for tracking purposes
         community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
         latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
+        community_infection_periods_trace = np.hstack([community_infection_periods_trace, np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
+        hospital_infection_periods_trace = np.hstack([hospital_infection_periods_trace, np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
 
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -304,8 +308,9 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     plt.savefig('da_dic_tprobs_ninfectest_whospital_wdeath_wrandtest_nodedata_nomodelerror.png', rasterized=True, dpi=150)
 
+time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
 
-# time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+# [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trac ]
 # axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
 # plt.savefig('da_parameters_deterministic_ic.png', rasterized=True, dpi=150)
 

@@ -161,3 +161,17 @@ def plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace
     axes[1].set_title(r'Latent period: $\gamma$');
 
     return axes
+
+def plot_scalar_parameters(parameters, time_horizon, names):
+    percentiles = {}
+    fig, axes = plt.subplots(1, len(parameters), figsize = (12, 4))
+
+    for kk, parameter in enumerate(names):
+        percentiles[parameter] = np.percentile(parameters[kk], q = [1, 25, 50, 75, 99], axis = 0)
+
+        axes[0].fill_between(time_horizon, percentiles[parameters][0], percentiles[parameters][-1], alpha = .2, color = 'C0')
+        axes[0].fill_between(time_horizon, percentiles[parameters][1], percentiles[parameters][-2], alpha = .2, color = 'C0')
+        axes[0].plot(time_horizon, percentiles[parameters][2])
+        axes[0].set_title(names[kk]);
+
+    return axes
