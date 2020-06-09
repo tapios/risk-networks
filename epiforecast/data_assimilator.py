@@ -183,7 +183,8 @@ class DataAssimilator:
 
                 truth,var = self.observe(user_network,
                                          ensemble_state,
-                                         data)
+                                         data,
+                                         scale = None)
                 cov = np.diag(var)
 
                 # Get the covariances for the observation(s), with the minimum returned if two overlap
@@ -290,7 +291,8 @@ class DataAssimilator:
             ensemble_state[:,N:2*N] =  (1.0 - IHRDmass)*fracE
         elif n_status==5:
             # All mass automatically lumped into empty field: E
-
+            # for observation in self.observations:
+            #     observation.obs_status_idx
             tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
             SIHRDmass = np.sum(tmp, axis=1) #mass over S I H R D
             for mm in range(ensemble_state.shape[0]):
