@@ -74,7 +74,8 @@ class EnsembleAdjustedKalmanFilter:
 
         cov = (1./np.maximum(x_t, 1e-9)/np.maximum(1-x_t, 1e-9))**2 * cov
         x_t = np.log(np.maximum(x_t, 1e-9)/np.maximum(1.-x_t, 1e-9))
-
+        print(x_t)
+        print(cov)
         try:
             cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
@@ -83,13 +84,25 @@ class EnsembleAdjustedKalmanFilter:
 
         # States
         x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
-
         # Stacked parameters and states
         # the transition and transmission parameters act similarly in the algorithm
         p = clinical_statistics
         q = transmission_rates
 
-        zp = np.hstack([p, q, x])
+        #if only 1 state is given
+        if (ensemble_state.ndim == 1):
+            x=x[np.newaxis].T
+            
+        if p.size>0 and q.size>0:
+            zp = np.hstack([p, q, x])
+        elif p.size>0 and q.size==0:
+            zp = np.hstack([p,x])
+        elif q.size>0 and p.size==0:
+            zp = np.hstack([q, x])
+        else:
+            zp = x
+            params_noise_active=False
+
         x_t = x_t
         cov = cov
 
@@ -102,7 +115,12 @@ class EnsembleAdjustedKalmanFilter:
 
         zp_bar = np.mean(zp, 0)
         Sigma = np.cov(zp.T)
-
+        
+        #if only one state is given
+        if Sigma.ndim < 2:
+            Sigma=np.array([Sigma])
+            Sigma=Sigma[np.newaxis]
+            
         if self.full_svd == True:
             # Add noises to the diagonal of sample covariance
             # Current implementation involves a small constant
@@ -198,8 +216,12 @@ class EnsembleAdjustedKalmanFilter:
 
         #self.x = np.append(self.x, [x_p], axis=0)
 
+        if (ensemble_state.ndim == 1):
+            new_ensemble_state=new_ensemble_state.squeeze()
+      
         # Compute error
         self.compute_error(x_logit,x_t,cov)
+      
         #print("new_clinical_statistics", new_clinical_statistics)
         #print("new_transmission_rates", new_transmission_rates)
         return new_ensemble_state, new_clinical_statistics, new_transmission_rates

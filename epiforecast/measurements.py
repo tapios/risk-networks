@@ -320,33 +320,14 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        #Hack to observe perfectly, with an additional hack for being able to take the _mean_
-        fixed_prevalence = np.ones(1,)
-        # calculate the prevalence of the measurement?
-        TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale,
-                                          fixed_prevalence=fixed_prevalence)
-        #mean, var np.arrays of size state
-        observed_states = np.remainder(self.obs_states,self.N)
-        #convert from np.array indexing to the node id in the (sub)graph
-        observed_nodes = np.array(list(contact_network.nodes))[observed_states]
-        observed_data = {node : data[node] for node in observed_nodes}
-        # print(observed_data)
-        mean,var =  TestMeasurement.take_measurements(self,
-                                                      observed_data,
-                                                      scale,
-                                                      noisy_measurement)
+        #do not set mean = 1...
+        observed_mean = 0.99*np.ones(self.obs_states.size)
+        observed_variance = 1e-9*np.ones(self.obs_states.size)
 
-        observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([ var[node] for node in observed_nodes])
-
-        if fixed_prevalence is not None:
-            if scale == 'log':
-                observed_variance = np.array([1.0 for node in observed_nodes])
-            else:
-                observed_variance = np.array([1e-9 for node in observed_nodes])
-
+        if scale == 'log':            
+            observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+            observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+                
         self.mean     = observed_mean
         self.variance = observed_variance
 
