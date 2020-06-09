@@ -31,7 +31,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation,DataObservation
+from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 from epiforecast.utilities import seed_numba_random_state
@@ -203,14 +203,14 @@ random_infection_test = Observation(N = population,
 #                                      specificity  = 0.999,
 #                                      sensitivity  = 0.999)
 
-hospital_records = DataObservation(N = population,
+hospital_records = DataNodeObservation(N = population,
                                    bool_type=True,
                                    obs_status = 'H',
                                    obs_name = "Hospitalized from Data",
                                    specificity  = 0.999,
                                    sensitivity  = 0.999)
 
-death_records = DataObservation(N = population,
+death_records = DataNodeObservation(N = population,
                                 bool_type=True,
                                 obs_status = 'D',
                                 obs_name = "Deceased from Data",
@@ -221,7 +221,7 @@ death_records = DataObservation(N = population,
 # give the data assimilator the methods for how to choose observed states
 # observations=[medical_infection_test, random_infection_test, hospital_records, death_records]
 # observations=[medical_infection_test]
-observations=[hospital_records]
+observations=[hospital_records, death_records]
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
@@ -290,12 +290,13 @@ for i in range(int(simulation_length/static_contact_interval)):
         master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
         master_eqn_ensemble.update_transmission_rate(community_transmission_rate_ensemble)
 
-        #update states/statuses/times for next iteration
-        master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
         # for tracking purposes
         community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
         latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
+
+    #update states/statuses/times for next iteration
+    master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
     axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
                                 master_eqn_ensemble.simulation_time,
@@ -306,7 +307,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-    plt.savefig('da_dic_tprobs_ninfectest_whospital_ndeath_nrandtest.png', rasterized=True, dpi=150)
+    plt.savefig('da_dic_tprobs_ninfectest_wnodehospital_wnodedeath_nrandtest.png', rasterized=True, dpi=150)
 
 
 # time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)

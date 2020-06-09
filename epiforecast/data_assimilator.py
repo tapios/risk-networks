@@ -185,6 +185,7 @@ class DataAssimilator:
                                          ensemble_state,
                                          data,
                                          scale = None)
+
                 cov = np.diag(var)
 
                 # Get the covariances for the observation(s), with the minimum returned if two overlap

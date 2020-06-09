@@ -366,14 +366,14 @@ class DataNodeInformedObservation(DataInformedObservation):
         DataInformedObservation.__init__(self, N, bool_type, obs_status, reduced_system)
 
     #updates the observation model when taking observation
-    def find_observation_nodes(self,
+    def find_observation_states(self,
                                contact_network,
                                state,
                                data):
 
-        self.find_observation_states(contact_network, state, data)
-        self.obs_nodes        = self.obs_states % len(contact_network)
-        self.states_per_node  =  np.asarray([ node + len(contact_network) * np.arange(5) for node in self.obs_nodes])
+        DataInformedObservation.find_observation_states(self, contact_network, state, data)
+        self.obs_nodes       = self.obs_states % len(contact_network)
+        self.states_per_node =  np.asarray([ node + len(contact_network) * np.arange(5) for node in self.obs_nodes])
         self._obs_states     = np.copy(self.obs_states)
         self.obs_states = self.states_per_node.flatten()
 
@@ -404,13 +404,13 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                                  reduced_system)
 
     #State is a numpy array of size [self.N * n_status]
-    def find_observation_nodes(self,
+    def find_observation_states(self,
                                 contact_network,
                                 state,
                                 data):
         # obtain where one should make an observation based on the
         # current state, and the contact network
-        DataNodeInformedObservation.find_observation_nodes(self,
+        DataNodeInformedObservation.find_observation_states(self,
                                                         contact_network,
                                                         state,
                                                         data)
@@ -442,16 +442,16 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                                                       noisy_measurement)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([ var[node] for node in observed_nodes])
+        observed_variance = np.array([ var[node] for node in observed_nodes]) + 1e-4
 
         if fixed_prevalence is not None:
             if scale == 'log':
-                observed_variance = np.array([1.0 for node in observed_nodes])
+                observed_variance = np.array([1.0 + 1e-4 for node in observed_nodes])
             else :
-                observed_variance = np.array([1e-8 for node in observed_nodes])
+                observed_variance = np.array([1e-4 for node in observed_nodes])
 
         observed_means     = np.zeros_like(self.states_per_node)
-        observed_variances = np.zeros_like(self.states_per_node)
+        observed_variances = np.zeros_like(self.states_per_node) + 1e-8
         #as there will be no ensemble spread in this case.
 
         observed_means[:, self.obs_status_idx]     = observed_mean.reshape(-1,1)
