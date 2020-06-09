@@ -19,8 +19,6 @@ set_num_threads(1)
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
-
 from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.epiplots import plot_master_eqns
@@ -32,7 +30,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation
 from epiforecast.data_assimilator import DataAssimilator
 
-from epiforecast.utilities import seed_numba_random_state
+from epiforecast.utilities import seed_three_random_states
 
 
 
@@ -57,16 +55,9 @@ def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
 #
 # Set random seeds for reproducibility
 #
-
-# Both numpy.random and random are used by the KineticModel.
 seed = 2132
 
-np.random.seed(seed)
-random.seed(seed)
-
-# set numba seed
-
-seed_numba_random_state(seed)
+seed_three_random_states(seed)
 
 #
 # Load an example network
@@ -114,9 +105,8 @@ hospital_transmission_reduction = 0.1
 #
 static_contact_interval = 3 * hour
 
-health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
-                               health_worker_population = len(node_identifiers['health_workers']),
-                               static_population_network = contact_network)
+health_service = HealthService(static_population_network = contact_network,
+                               health_workers = node_identifiers['health_workers'])
 
 
 mean_contact_lifetime=0.5*minute
@@ -124,7 +114,8 @@ mean_contact_lifetime=0.5*minute
 epidemic_simulator = EpidemicSimulator( 
                  contact_network = contact_network,
            mean_contact_lifetime = mean_contact_lifetime,
-          contact_inception_rate = DiurnalContactInceptionRate(minimum = 2, maximum = 22),
+            night_inception_rate = 2,
+              day_inception_rate = 22,
                 transition_rates = transition_rates,
      community_transmission_rate = community_transmission_rate,
  hospital_transmission_reduction = hospital_transmission_reduction,
