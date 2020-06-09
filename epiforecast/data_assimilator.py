@@ -200,7 +200,10 @@ class DataAssimilator:
                                                               truth,
                                                               cov)
 
+
+                # Let's see if I turn this off
                 self.sum_to_one(ensemble_state)
+
 
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:

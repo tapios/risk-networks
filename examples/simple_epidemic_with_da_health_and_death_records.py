@@ -126,6 +126,7 @@ hospital_transmission_reduction = 0.1
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 6 * hour
+simulation_length = 30
 
 health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
                                health_worker_population = len(node_identifiers['health_workers']),
@@ -176,8 +177,8 @@ medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
                                      obs_status = 'I',
                                      obs_name = "0.25 < Infected(100%) < 0.75",
-                                     min_threshold=0.25,
-                                     max_threshold=0.75)
+                                     min_threshold=0.00,
+                                     max_threshold=1.00)
 
 random_infection_test = Observation(N = population,
                                      obs_frac = 0.01,
@@ -218,8 +219,9 @@ death_records = DataObservation(N = population,
 
 
 # give the data assimilator the methods for how to choose observed states
-observations=[medical_infection_test, random_infection_test, hospital_records, death_records]
-# observations=[medical_infection_test, hospital_records]
+# observations=[medical_infection_test, random_infection_test, hospital_records, death_records]
+# observations=[medical_infection_test]
+observations=[hospital_records]
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=['latent_periods', 'hospitalization_fraction']
@@ -231,20 +233,20 @@ assimilator = DataAssimilator(observations = observations,
                               transition_rates_to_update_str= transition_rates_to_update_str,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
-simulation_length = 30 #Number of days
+
 
 time = start_time
 
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-states_ensemble = random_risk(contact_network,
-                              fraction_infected = 0.01,
-                              ensemble_size = ensemble_size)
-
-# states_ensemble = deterministic_risk(contact_network,
-#                               statuses,
+# states_ensemble = random_risk(contact_network,
+#                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
+
+states_ensemble = deterministic_risk(contact_network,
+                              statuses,
+                              ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -273,7 +275,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i < 0:
+    if i % 4 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
@@ -304,7 +306,8 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-plt.savefig('da_dic_tprobs_ninfectest_nhospital_ndeath_nrandtest.png', rasterized=True, dpi=150)
+    plt.savefig('da_dic_tprobs_ninfectest_whospital_ndeath_nrandtest.png', rasterized=True, dpi=150)
+
 
 # time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
 # axes = plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon)
