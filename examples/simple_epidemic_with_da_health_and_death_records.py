@@ -185,7 +185,7 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-hospital_records = DataNodeObservation(N = population,
+hospital_records = DataObservation(N = population,
                                    bool_type=True,
                                    obs_status = 'H',
                                    obs_name = "Hospitalized from Data",
