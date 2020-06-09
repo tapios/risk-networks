@@ -204,19 +204,18 @@ class DataAssimilator:
                                                               cov)
 
 
-                # Let's see if I turn this off
-                tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                sum_states = np.sum(tmp,axis=1) 
-
-                print(sum_states[sum_states > 1+1e-2])
-                
+                # print states > 1
+                #tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
+                #sum_states = np.sum(tmp,axis=1) 
+                #print(sum_states[sum_states > 1+1e-2])
                 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
+                # print same states after the sum_to_one()
+                # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
+                # sum_states_after = np.sum(tmp,axis=1) 
+                # print(sum_states_after[sum_states>1+1e-2]) #see what the sum_to_one did to them
 
-                tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                sum_states_after = np.sum(tmp,axis=1) 
-                print(sum_states_after[sum_states>1+1e-2]) #see what the sum_to_one did to them
-                    
+                
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
