@@ -104,7 +104,6 @@ mean, var = test.take_measurements(statuses)
 
 print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[47:47+6])
 
-
 print('\n4th Test: Noisy measurements for positive cases -------------')
 
 test = TestMeasurement('I')
@@ -129,6 +128,14 @@ mean, var = test.take_measurements({node: 'S' for node in range(population)},
 
 # print(np.vstack([['S']*population, mean, var]).T[:5])
 print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == negative_test).mean())
+
+
+hospital_records = DataObservation(N = population,
+                                   bool_type=True,
+                                   obs_status = 'H',
+                                   obs_name = "Hospitalized from Data",
+                                   specificity = 0.999,
+                                   sensitivity = 0.999)
 
 
 # print('\n5th Test: Hospitalized --------------------------------------')

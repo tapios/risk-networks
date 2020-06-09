@@ -345,7 +345,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
             if scale == 'log':
                 observed_variance = np.array([1.0 for node in observed_nodes])
             else:
-                observed_variance = np.array([1e-9 for node in observed_nodes])
+                observed_variance = np.array([1e-4 for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance

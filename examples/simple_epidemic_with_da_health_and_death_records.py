@@ -257,7 +257,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i % 1 == 0:
+    if i % 8 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
@@ -289,7 +289,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-    plt.savefig('da_dic_tprobs_ninfectest_wnodehospital_wnodedeath_nrandtest.png', rasterized=True, dpi=150)
+    plt.savefig('da_dic_tprobs_ninfectest_whospital_wdeath_nrandtest.png', rasterized=True, dpi=150)
 
 
 # time_horizon      = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
