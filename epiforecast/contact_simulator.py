@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from numba.core import types
 from numba.typed import Dict
-from numba import njit, prange, float64
+from numba import njit, prange
 import networkx as nx
 
 from .utilities import normalize
@@ -69,11 +69,7 @@ def generate_edge_state(contact_network):
     edge_state = Dict.empty(key_type = types.Tuple((types.int64, types.int64)),
                             value_type = types.Tuple((types.boolean, types.float64, types.float64)))
 
-    # Takes 19 s for 100000
     edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, contact_network.edges()) })
-
-    # Takes 6 s for 100000? But returns a python rather than a numba dictionary.
-    #edge_state = { edge: (False, 0.0, 0.0) for edge in contact_network.edges() }
 
     return edge_state
 
@@ -94,6 +90,7 @@ class ContactSimulator:
         """
         Args
         ----
+
         initialize_contacts (bool): Whether or not to initialize the contact activity.
 
         day_inception_rate (float): The rate of inception of new contacts during the day.
@@ -111,7 +108,8 @@ class ContactSimulator:
         rate_integral_increment (float): Increment used to integrate the time-varying inception rate
                                          within the Gillespie simulation of contact activity.
                                          Must be much shorter than one day when the inception rate varies
-                                         diurnally.
+                                         diurnally. The default 0.05 is barely large enough to resolve
+                                         diurnal variation.
         """
 
         # Number of possible edges during an epidemic simulation
@@ -200,7 +198,7 @@ class ContactSimulator:
             # Reinitialize the state with the new edge list
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
 
-        # Re-estimate day_inception_rate and night_inception_rate
+        # Re-estimate day_inception_rate and night_inception_rate. This is relatively expensive.
         nodal_day_inception_rate = np.array(
             [ data['day_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
 
@@ -211,7 +209,7 @@ class ContactSimulator:
                                   nodal_day_inception_rate, nodal_night_inception_rate,
                                   self.edge_state)
 
-        # Simulate contacts using a time dependent gillespie algorithm for a birth death process
+        # Simulate contacts using a time-dependent Gillespie algorithm for a birth death process
         # with varying birth rate.
         simulate_contacts(
                           n_contacts,
@@ -231,18 +229,27 @@ class ContactSimulator:
         self.interval_stop_time = stop_time
 
     def run_and_set_edge_weights(self, stop_time, **kwargs):
+        """
+        Run the ContactSimulator, and then set edge weights on `contact_network`.
+        """
+
         self.run(stop_time, **kwargs)
+
         time_interval = self.interval_stop_time - self.interval_start_time
+
         edge_weights = { edge: self.contact_duration[i] / time_interval
                          for i, edge in enumerate(self.edge_state) }
 
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_infected')
         nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_hospitalized')
 
-    def reset_time(self, time):
-        self.time = time
+    def reset(self, time):
+        """
+        Reset the event_time, interval_start_time, interval_stop_time, and zero out overshoot_duration.
+        """
         self.interval_start_time = time - (self.interval_stop_time - self.interval_start_time)
         self.interval_stop_time = time
+        self.event_time = 0 * self.event_time + time
         self.overshoot_duration *= 0
 
 
@@ -305,19 +312,21 @@ def simulate_contact(
 
     while event_time < stop_time:
 
-        if active_contact: # Compute contact deactivation time.
+        if active_contact: # compute contact deactivation time.
 
             # Contact is deactivated after
             time_step = - np.log(np.random.random()) * mean_event_lifetime
+
+            # Record duration of contact prior to deactivation
             contact_duration += time_step
 
             # Deactivation
             event_time += time_step
             active_contact = False
 
-        else: # Compute next contact inception.
+        else: # compute next contact inception.
 
-            # Normalized step with τ ~ Exp(1)
+            # Compute "normalized" random step τ, with τ ~ Exp(1)
             τ = - np.log(np.random.random())
 
             # Solve
@@ -325,18 +334,16 @@ def simulate_contact(
             #       τ = ∫ λ(t) dt
             #
             # where the integral goes from the current time to the time of the
-            # next event, or from t to t + Δt, where Δt = time_step.
+            # next event, or from t to t + time_step.
             #
             # For this we accumulate the integral Λ = ∫ λ dt using trapezoidal integration
-            # over microintervals of length δ. When Λ > τ, we calculate Δt with an
-            # O(δ) approximation. An O(δ²) approximation is also possible, but we do not
-            # pursue this here.
+            # over microintervals of length δ. When Λ > τ, we correct Δt by O(δ).
             #
             # Definitions:
             #   - δ: increment width
             #   - n: increment counter
             #   - λⁿ: λ at t = event_time + n * δ
-            #   - λᵐ: λ at t = event_time + m * δ, with m = n-1
+            #   - λᵐ: λ at t = event_time + (n - 1) * δ, with the connotation m = n - 1
             #   - Λⁿ: integral of λ(t) from event_time to n * δ
 
             δ = rate_integral_increment  # 0.05 # day
@@ -351,7 +358,7 @@ def simulate_contact(
                 λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + n * δ)
                 Λⁿ += δ / 2 * (λᵐ + λⁿ)
 
-            # O(δ²) approximation for time_step.
+            # Calculate time_step with error = O(δ²)
             time_step = n * δ - (Λⁿ - τ) * 2 / (λⁿ + λᵐ)
 
             # Contact inception

@@ -38,12 +38,12 @@ class HealthService:
 
     The primary method of this class is:
 
-    population_network = `discharge_and_obtain_patients(current_statuses)`
+    population_network = `discharge_and_admit_patients(current_statuses)`
 
     The output is a network identified with only human beings, known as the `population network`
     and the connectivity would be given by the following:
 
-    (obtain) Any `community` or `health_worker` node that (and not already a `patient`)
+    (admit) Any `community` or `health_worker` node that (and not already a `patient`)
     with status 'H' (hospitalized)  will lose their edges connecting them to current
     neighbours and gain the edges of some health workers. If there is capacity to do so.
     We refer to them as a `patient`.
@@ -51,11 +51,11 @@ class HealthService:
     (discharge) Any `patient` with status !='H' (i.e it is now resistant 'R' or deceased 'D') will lose
     the edges to their current `health_worker` neighbours and regain thier original neighbours.
 
-    We perform first (discharge) to empy beds, then (obtain) to gain new patients in the function.
+    We perform first (discharge) to empy beds, then (admit) to gain new patients in the function.
 
     For example. Applying this function to the world network above yields the following.
-    1) discharge: There is noone to discharge from beds 1,2
-    2) obtain: `community 3` has status H and so is placed into hospital. They lose their community edges
+    1) discharge: There is noone to discharge from beds 1, 2
+    2) admit: `community 3` has status H and so is placed into hospital. They lose their community edges
                and gain the edges of `hospital bed 1`. We denote them `patient 1`.
 
     |---------------------Population network---------------------|
@@ -153,6 +153,7 @@ class HealthService:
                 discharged_community_contacts += patient.community_contacts
                 discharged_patients.add(patient)
 
+        # Remove discharged from patient set
         self.patients = self.patients - discharged_patients
 
         # Filter contacts with current patients from the list of contacts to add to network
@@ -163,7 +164,7 @@ class HealthService:
 
     def admit_patients(self, statuses, population_network):
         """
-        Method to find unoccupied beds, and admit patients from the community (storing their details).
+        Find unoccupied beds, and admit patients from the community (storing their details).
         """
 
         # Set of all hospitalized people
