@@ -80,7 +80,7 @@ random.seed(123)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4.txt')) 
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e4.txt')) 
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -208,7 +208,7 @@ for i in range(steps):
 # Plot the results and compare with NYC data.
 #
 
-NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
+NYC_data = pd.read_csv(os.path.join('..', '..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
 NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])
 NYC_deaths =  np.asarray([float(x) for x in NYC_data['Deaths'].tolist()])
 NYC_date_of_interest = np.asarray([dt.datetime.strptime(x, "%m/%d/%Y") for x in NYC_data['DATE_OF_INTEREST'].tolist()])

@@ -68,8 +68,8 @@ seed_three_random_states(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', '..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -132,9 +132,9 @@ kinetic_model = epidemic_simulator.kinetic_model
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_nointervention_1e4_7.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../../data/simulation_data/simulation_data_nointervention_1e4_7.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
-NYC_data = pd.read_csv(os.path.join('..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
+NYC_data = pd.read_csv(os.path.join('..', '..', 'data', 'NYC_COVID_CASES', 'data_new_york.csv'))
 NYC_cases = np.asarray([float(x) for x in NYC_data['Cases'].tolist()])
 NYC_deaths =  np.asarray([float(x) for x in NYC_data['Deaths'].tolist()])
 NYC_date_of_interest = np.asarray([dt.datetime.strptime(x, "%m/%d/%Y") for x in NYC_data['DATE_OF_INTEREST'].tolist()])
@@ -184,7 +184,7 @@ ax2.legend(frameon = False, loc = 1, fontsize = 6)
 
 plt.tight_layout()
 plt.margins(0,0)
-plt.savefig('../figs/new_york_cases_nointervention.png', dpi=300, bbox_inches = 'tight',
+plt.savefig('../../figs/new_york_cases_nointervention.png', dpi=300, bbox_inches = 'tight',
     pad_inches = 0.05)
 
 # plot reproduction number estimate
@@ -206,7 +206,7 @@ ax.set_ylim(0,4)
 
 plt.tight_layout()
 plt.margins(0,0)
-plt.savefig('../figs/reproduction_number_nointervention.png', dpi=300, bbox_inches = 'tight',
+plt.savefig('../../figs/reproduction_number_nointervention.png', dpi=300, bbox_inches = 'tight',
     pad_inches = 0.05)
 
 # plot all model compartments
@@ -227,7 +227,7 @@ plt.xlabel("Time (days)")
 plt.ylabel("Total $E, I, H, R, D$")
 plt.legend()
 
-image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_noint_" +
+image_path = ("../../figs/simple_epidemic_with_slow_contact_simulator_noint_" +
               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
 
 print("Saving a visualization of results at", image_path)

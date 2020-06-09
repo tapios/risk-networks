@@ -63,8 +63,8 @@ seed_three_random_states(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', '..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -222,7 +222,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 # # plot all model compartments
 # fig, axs = plt.subplots(nrows=2, sharex=True)
@@ -242,7 +242,7 @@ np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinet
 # plt.ylabel("Total $E, I, H, R, D$")
 # plt.legend()
 
-# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" +
+# image_path = ("../../figs/simple_epidemic_with_slow_contact_simulator_" +
 #               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
 
 # print("Saving a visualization of results at", image_path)
