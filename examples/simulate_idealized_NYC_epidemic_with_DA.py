@@ -203,7 +203,7 @@ for i in range(int(simulation_length/static_contact_interval)):
      transition_rates_ensemble,
      community_transmission_rate_ensemble
      ) = assimilator.update(states_ensemble,
-                            statuses,
+                            epidemic_simulator.kinetic_model.current_statuses,
                             full_ensemble_transition_rates = transition_rates_ensemble,
                             full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                             user_network = contact_network)
