@@ -20,6 +20,7 @@ set_num_threads(1)
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
+# from epiforecast.contact_simulator import DiurnalMeanContactRate
 from epiforecast.contact_simulator import DiurnalContactInceptionRate
 
 from epiforecast.scenarios import load_edges, random_epidemic
@@ -139,7 +140,8 @@ mean_contact_lifetime=0.5*minute
 epidemic_simulator = EpidemicSimulator(
                  contact_network = contact_network,
            mean_contact_lifetime = mean_contact_lifetime,
-          contact_inception_rate = DiurnalContactInceptionRate(minimum = 2, maximum = 22),
+          contact_inception_rate = DiurnalMeanContactRate(minimum = 2, maximum = 22),
+          # contact_inception_rate = DiurnalContactInceptionRate(minimum = 2, maximum = 22),
                 transition_rates = transition_rates,
      community_transmission_rate = community_transmission_rate,
  hospital_transmission_reduction = hospital_transmission_reduction,
