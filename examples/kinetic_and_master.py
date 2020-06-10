@@ -99,7 +99,7 @@ community_transmission_rate = 12.0
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 50
 
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'],

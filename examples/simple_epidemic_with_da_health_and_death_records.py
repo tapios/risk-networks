@@ -116,12 +116,11 @@ transition_rates = TransitionRates(contact_network,
 )
 
 community_transmission_rate = 12.0
-hospital_transmission_reduction = 0.1
 
 #
 # Simulate the growth and equilibration of an epidemic
 #
-static_contact_interval = 6 * hour
+static_contact_interval = 3 * hour
 simulation_length = 30
 
 health_service = HealthService(static_population_network = contact_network,
@@ -129,6 +128,7 @@ health_service = HealthService(static_population_network = contact_network,
                                health_workers_per_patient=5)
 
 mean_contact_lifetime=0.5*minute
+hospital_transmission_reduction = 0.1
 
 epidemic_simulator = EpidemicSimulator(
                  contact_network = contact_network,
@@ -147,6 +147,7 @@ ensemble_size = 100 # minimum number for an 'ensemble'
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(
+ 
         TransitionRates(contact_network,
                         latent_periods = np.random.normal(3.7,0.37),
                         community_infection_periods = np.random.normal(3.2, 0.32),
@@ -154,18 +155,19 @@ for i in range(ensemble_size):
                         hospitalization_fraction    = transition_rates.hospitalization_fraction,
                         community_mortality_fraction = transition_rates.community_mortality_fraction,
                         hospital_mortality_fraction  = transition_rates.hospital_mortality_fraction
-                        )
+                       )
         )
 
 
 #set transmission_rates
-community_transmission_rate_ensemble = np.random.normal(12.0,1.0, size=(ensemble_size,1))
+community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) #np.random.normal(12.0,1.0, size=(ensemble_size,1))
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
-                                                  ensemble_size = ensemble_size)
+                                                  ensemble_size = ensemble_size,
+                                                  start_time=start_time)
 
 ####
 #possible observations:
@@ -177,7 +179,7 @@ medical_infection_test = Observation(N = population,
                                      max_threshold=0.25)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.1,
+                                     obs_frac = 0.01,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
@@ -213,21 +215,17 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-states_ensemble = random_risk(contact_network,
-                              fraction_infected = 0.01,
-                              ensemble_size = ensemble_size)
-
-# states_ensemble = deterministic_risk(contact_network,
-#                               statuses,
+# states_ensemble = random_risk(contact_network,
+#                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
+
+states_ensemble = deterministic_risk(contact_network,
+                              statuses,
+                              ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-# print(static_contact_interval)
-# print(int(simulation_length/static_contact_interval))
-
-# fig, axes = plt.subplots(1, 2, figsize = (15, 5))
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 
 transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
