@@ -9,7 +9,7 @@ from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 from epiforecast.observations import FullObservation, HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.measurements import TestMeasurement
+from epiforecast.measurements import TestMeasurement, DataObservation
 
 import numpy as np
 import networkx as nx
