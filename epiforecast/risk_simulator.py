@@ -142,9 +142,9 @@ class MasterEquationModelEnsemble:
         if new_mean_contact_duration is not None:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
-            nx.set_edge_attributes(self.contact_network, values=self.weight, name='SI->E')
-        
-        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'SI->E')
+            nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
+            
+        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
     def update_transmission_rate(self, new_transmission_rate):
         """
