@@ -17,42 +17,21 @@ set_num_threads(1)
 
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
-
 from epiforecast.scenarios import load_edges, random_epidemic
-
 from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters
-
 from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
-from epiforecast.data_assimilator import DataAssimilator
-
 from epiforecast.utilities import seed_numba_random_state
 
-def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-    for mm in range(ensemble_size):
-        infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
-
-def deterministic_risk(contact_network, initial_states, ensemble_size=1):
+def deterministic_risk(contact_network, initial_statuses, ensemble_size=1):
 
     population = len(contact_network)
     states_ensemble = np.zeros([ensemble_size, 5 * population])
 
     init_catalog = {'S': False, 'I': True}
-    infected = np.array([init_catalog[status] for status in list(initial_states.values())])
+    infected = np.array([init_catalog[status] for status in list(initial_statuses.values())])
 
     for mm in range(ensemble_size):
         E, I, H, R, D = np.zeros([5, population])
@@ -144,11 +123,10 @@ epidemic_simulator = EpidemicSimulator(
 ensemble_size = 100 # minimum number for an 'ensemble'
 
 transition_rates_ensemble = []
+community_transmission_rate_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(transition_rates)
-
-#set transmission_rates
-community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) #np.random.normal(12.0,1.0, size=(ensemble_size,1))
+    community_transmission_rate_ensemble.append(community_transmission_rate)
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
@@ -168,25 +146,20 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
-
 states_ensemble = deterministic_risk(contact_network,
-                              statuses,
-                              ensemble_size = ensemble_size)
+                                     statuses,
+                                     ensemble_size = ensemble_size)
 
+#ICs
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-# fig, axes = plt.subplots(1, 2, figsize = (15, 5))
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-
-transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 
 for i in range(int(simulation_length/static_contact_interval)):
 
     epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval)
+
     master_eqn_ensemble.set_mean_contact_duration() #do not need to reset weights as already set in kinetic model
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -199,7 +172,6 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
-
      
     plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 

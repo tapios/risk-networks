@@ -103,7 +103,7 @@ class MasterEquationModelEnsemble:
             ensemble_size : `int`
           contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
          transition_rates : `list` or single instance of `TransitionRate` container
-        transmission_rate : `float`
+        transmission_rate : `list`
         """
 
         self.G = self.contact_network = contact_network
