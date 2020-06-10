@@ -215,13 +215,13 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
-
-states_ensemble = deterministic_risk(contact_network,
-                              statuses,
+states_ensemble = random_risk(contact_network,
+                              fraction_infected = 0.01,
                               ensemble_size = ensemble_size)
+
+# states_ensemble = deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -294,29 +294,3 @@ parameters_names = ['transmission_rates', 'latent_periods', 'community_infection
 axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
 plt.savefig('da_parameters_ric_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
 
-
-# np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
-
-# # plot all model compartments
-# fig, axs = plt.subplots(nrows=2, sharex=True)
-
-# plt.sca(axs[0])
-# plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
-# plt.ylabel("Total susceptible, $S$")
-
-# plt.sca(axs[1])
-# plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
-# plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
-# plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')
-# plt.plot(kinetic_model.times, kinetic_model.statuses['R'], label='Resistant')
-# plt.plot(kinetic_model.times, kinetic_model.statuses['D'], label='Deceased')
-
-# plt.xlabel("Time (days)")
-# plt.ylabel("Total $E, I, H, R, D$")
-# plt.legend()
-
-# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" +
-#               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
-
-# print("Saving a visualization of results at", image_path)
-# plt.savefig(image_path, dpi=480)
