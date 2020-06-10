@@ -98,7 +98,7 @@ community_transmission_rate = 12.0
 #
 # Simulate the growth and equilibration of an epidemic
 #
-static_contact_interval = 6 * hour
+static_contact_interval = 3 * hour
 simulation_length = 30
 
 health_service = HealthService(static_population_network = contact_network,
@@ -132,16 +132,8 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
-                                                  ensemble_size = ensemble_size)
-
-####
-# give the data assimilator which transition rates and transmission rate to assimilate
-transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
-transmission_rate_to_update_flag=True
-
-# create the assimilator
-
-time = start_time
+                                                  ensemble_size = ensemble_size,
+                                                  start_time = start_time)
 
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
@@ -173,5 +165,5 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
      
-    plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+    plt.savefig('compare_kinetic_and_master.png', rasterized=True, dpi=150)
 
