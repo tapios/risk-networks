@@ -89,10 +89,14 @@ class EpidemicSimulator:
         self.static_contact_interval = static_contact_interval
         self.time = start_time
 
-    def run_with_static_contacts(self, stop_time):
+    def run_with_static_contacts(self, stop_time, mean_contact_duration=None):
         """
         Run the kinetic model forward until `stop_time` without running the ContactSimulator.
         """
+
+        if mean_contact_duration is not None:
+            nx.set_edge_attributes(self.contact_network, values = mean_contact_duration, name='exposed_by_infected')
+            nx.set_edge_attributes(self.contact_network, values = mean_contact_duration, name='exposed_by_hospitalized')
 
         time_interval = stop_time - self.time
 

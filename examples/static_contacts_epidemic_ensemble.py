@@ -49,11 +49,8 @@ transition_rates = TransitionRates(contact_network,
 )
 
 #
-# Build the epidemic simulator
+# Build the epidemic simulator and determine initial condition
 #
-
-minute = 1 / 60 / 24
-hour = 60 * minute
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
                                        contact_simulator = False,
@@ -64,20 +61,25 @@ epidemic_simulator = EpidemicSimulator(contact_network,
 # Random initial condition
 statuses = random_epidemic(contact_network, fraction_infected=0.01)
 
-# Set all weights of the contact network to constant values
-nx.set_edge_attributes(contact_network, values = 10 * minute, name='exposed_by_infected')
-nx.set_edge_attributes(contact_network, values = 10 * minute, name='exposed_by_hospitalized')
+#
+# Create an ensemble of epidemics starting from identical initial conditions
+#
 
-# Create an ensemble
 n_ensemble = 10
 ensemble_times = []
 ensemble_statuses = []
 
 kinetic_model = epidemic_simulator.kinetic_model
 
+minute = 1 / 60 / 24
+
 for m in range(n_ensemble):
+    # Resets kinetic_model.times and kinetic_model.statuses with time=0.0
     epidemic_simulator.set_statuses(statuses, time=0.0)
-    epidemic_simulator.run_with_static_contacts(stop_time = 35) # days
+
+    # Run forward. mean_contact_duration is passed to nx.set_edge_attributes.
+    epidemic_simulator.run_with_static_contacts(stop_time = 35,
+                                                mean_contact_duration = 10 * minute)
 
     ensemble_times.append(kinetic_model.times)
     ensemble_statuses.append(kinetic_model.statuses)
