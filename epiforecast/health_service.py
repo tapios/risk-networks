@@ -103,9 +103,10 @@ class HealthService:
         Assign health workers to a patient.
         """
         if self.health_workers_per_patient < len(viable_health_workers):
-
+            # binomial degree distribution
+            size = np.random.binomial(len(viable_health_workers), self.health_workers_per_patient/len(viable_health_workers))
             assigned = np.random.choice(list(viable_health_workers),
-                                        size = self.health_workers_per_patient,
+                                        size = size,
                                         replace = False)
 
         else:
