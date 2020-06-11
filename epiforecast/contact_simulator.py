@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from numba.core import types
 from numba.typed import Dict
-from numba import njit, prange
+from numba import njit
 import networkx as nx
 
 from .utilities import normalize
@@ -264,7 +264,7 @@ class ContactSimulator:
 def diurnal_inception_rate(λnight, λday, t):
     return np.maximum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
 
-@njit(parallel=True)
+@njit
 def simulate_contacts(
                       n_contacts,
                       stop_time,
@@ -278,7 +278,7 @@ def simulate_contacts(
                       rate_integral_increment
                      ):
 
-    for i in prange(n_contacts):
+    for i in range(n_contacts):
 
         (event_time[i],
          active_contacts[i],
@@ -385,3 +385,4 @@ def simulate_contact(
     contact_duration -= overshoot_duration
 
     return event_time, active_contact, contact_duration, overshoot_duration
+

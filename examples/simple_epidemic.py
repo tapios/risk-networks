@@ -17,7 +17,7 @@ from epiforecast.scenarios import random_epidemic
 from epiforecast.utilities import seed_three_random_states
 
 #
-# Set random seeds for reproducibility
+# Set random states for reproducibility
 #
 
 # Both numpy.random and random are used by the KineticModel.
