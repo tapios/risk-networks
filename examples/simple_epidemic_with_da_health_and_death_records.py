@@ -149,9 +149,9 @@ for i in range(ensemble_size):
     transition_rates_ensemble.append(
  
         TransitionRates(contact_network,
-                        latent_periods = np.random.normal(3.7,0.37),
-                        community_infection_periods = np.random.normal(3.2, 0.32),
-                        hospital_infection_periods  = np.random.normal(5.0, 0.50),
+                        latent_periods = transition_rates.latent_periods, # np.random.normal(3.7,0.37),
+                        community_infection_periods = transition_rates.community_infection_periods, # np.random.normal(3.2, 0.32),
+                        hospital_infection_periods  = transition_rates.hospital_infection_periods, # np.random.normal(5.0, 0.50),
                         hospitalization_fraction    = transition_rates.hospitalization_fraction,
                         community_mortality_fraction = transition_rates.community_mortality_fraction,
                         hospital_mortality_fraction  = transition_rates.hospital_mortality_fraction
@@ -183,26 +183,44 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-hospital_records = DataNodeObservation(N = population,
+positive_hospital_records = DataObservation(N = population,
                                        bool_type=True,
                                        obs_status = 'H',
-                                       obs_name = "Hospitalized from Data",
+                                       obs_name = "Hospitalized (from Data)",
                                        specificity  = 0.999,
                                        sensitivity  = 0.999)
 
-death_records = DataNodeObservation(N = population,
+positive_death_records = DataObservation(N = population,
                                     bool_type=True,
                                     obs_status = 'D',
-                                    obs_name = "Deceased from Data",
+                                    obs_name = "Deceased (from Data)",
                                     specificity  = 0.999,
                                     sensitivity  = 0.999)
 
-observations=[death_records,hospital_records]
-plot_name_observations = "hrec_drec"
+negative_hospital_records = DataObservation(N = population,
+                                                bool_type=False,
+                                                obs_status = 'H',
+                                                obs_name = "Not Hospitalized (from Data)",
+                                                specificity  = 0.999,
+                                                sensitivity  = 0.999)
+
+negative_death_records = DataObservation(N = population,
+                                    bool_type=False,
+                                    obs_status = 'D',
+                                    obs_name = "Not Deceased (from Data)",
+                                    specificity  = 0.999,
+                                    sensitivity  = 0.999)
+
+observations=[positive_death_records,
+              negative_death_records,
+              positive_hospital_records,
+              negative_hospital_records]
+
+plot_name_observations = "posdrec_negdrec"
 
 # give the data assimilator which transition rates and transmission rate to assimilate
-transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
-transmission_rate_to_update_flag=True
+transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
+transmission_rate_to_update_flag=False #True
 
 # create the assimilator
 assimilator = DataAssimilator(observations = observations,

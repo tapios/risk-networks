@@ -171,7 +171,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                  specificity = 0.99):
 
         self.name=obs_name
-
+        
         StateInformedObservation.__init__(self,
                                           N,
                                           obs_frac,
@@ -287,7 +287,7 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                  specificity = 0.99):
 
         self.name=obs_name
-
+        self.bool_type = bool_type
         DataInformedObservation.__init__(self,
                                          N,
                                          bool_type,
@@ -320,14 +320,26 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        #do not set mean = 1...
-        observed_mean = (1-0.05/6) * np.ones(self.obs_states.size)
-        observed_variance = 1e-5 * np.ones(self.obs_states.size)
+        # if we find positive observations
+        if self.bool_type:
+            #do not set mean = 1...
+            observed_mean = (1-(1e-6)/6) * np.ones(self.obs_states.size)
+            observed_variance = 1e-20 * np.ones(self.obs_states.size)
 
-        if scale == 'log':
-            observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-            observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+            if scale == 'log':
+                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
+        #if we find negative observations
+        else:
+            #do not set mean = 0... 
+            observed_mean = (1e-6)/6 * np.ones(self.obs_states.size)
+            observed_variance = 1e-20 * np.ones(self.obs_states.size)
+
+            if scale == 'log':
+                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+            
         self.mean     = observed_mean
         self.variance = observed_variance
 
