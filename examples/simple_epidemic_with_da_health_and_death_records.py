@@ -184,32 +184,24 @@ random_infection_test = Observation(N = population,
                                      obs_name = "Random Infection Test")
 
 positive_hospital_records = DataObservation(N = population,
-                                       bool_type=True,
+                                       set_to_one=True,
                                        obs_status = 'H',
-                                       obs_name = "Hospitalized (from Data)",
-                                       specificity  = 0.999,
-                                       sensitivity  = 0.999)
+                                       obs_name = "Hospitalized (from Data)")
 
 positive_death_records = DataObservation(N = population,
-                                    bool_type=True,
+                                    set_to_one=True,
                                     obs_status = 'D',
-                                    obs_name = "Deceased (from Data)",
-                                    specificity  = 0.999,
-                                    sensitivity  = 0.999)
+                                    obs_name = "Deceased (from Data)")
 
 negative_hospital_records = DataObservation(N = population,
-                                                bool_type=False,
+                                                set_to_one=False,
                                                 obs_status = 'H',
-                                                obs_name = "Not Hospitalized (from Data)",
-                                                specificity  = 0.999,
-                                                sensitivity  = 0.999)
+                                                obs_name = "Not Hospitalized (from Data)")
 
 negative_death_records = DataObservation(N = population,
-                                    bool_type=False,
+                                    set_to_one=False,
                                     obs_status = 'D',
-                                    obs_name = "Not Deceased (from Data)",
-                                    specificity  = 0.999,
-                                    sensitivity  = 0.999)
+                                    obs_name = "Not Deceased (from Data)")
 
 observations=[positive_death_records,
               negative_death_records,

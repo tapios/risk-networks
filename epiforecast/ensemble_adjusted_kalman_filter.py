@@ -78,8 +78,8 @@ class EnsembleAdjustedKalmanFilter:
         # print(np.diag(cov)[:3])
         # print("----------------------------------------------------")
 
-        cov = (1./np.maximum(x_t, 1e-9)/np.maximum(1-x_t, 1e-9))**2 * cov
-        x_t = np.log(np.maximum(x_t, 1e-9)/np.maximum(1.-x_t, 1e-9))
+        cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
+        x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
        
 
         try:
