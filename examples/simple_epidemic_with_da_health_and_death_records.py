@@ -147,7 +147,7 @@ ensemble_size = 100 # minimum number for an 'ensemble'
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(
- 
+
         TransitionRates(contact_network,
                         latent_periods = np.random.normal(3.7,0.37),
                         community_infection_periods = np.random.normal(3.2, 0.32),
@@ -284,7 +284,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-     
+
     plt.savefig('da_ric_tprobs_'+plot_name_observations+'.png', rasterized=True, dpi=150)
 
 time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
@@ -293,4 +293,3 @@ parameters_names = ['transmission_rates', 'latent_periods', 'community_infection
 
 axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
 plt.savefig('da_parameters_ric_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
-

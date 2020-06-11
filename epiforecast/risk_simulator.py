@@ -144,7 +144,7 @@ class MasterEquationModelEnsemble:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
             nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
-            
+
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
     def update_transmission_rate(self, new_transmission_rate):
@@ -265,7 +265,7 @@ class MasterEquationModelEnsemble:
         yt[:,0] = np.copy(self.y0.flatten())
 
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = 'Simulate forward. Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
+                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
                     total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
