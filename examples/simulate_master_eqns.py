@@ -66,6 +66,14 @@ master_eqn_ensemble.set_mean_contact_duration()
 
 res = master_eqn_ensemble.simulate(100, n_steps = 20, closure = None)
 
+master_eqn_ensemble.set_mean_contact_duration()
+master_eqn_ensemble.set_states_ensemble(y0)
+res = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
+
+
+master_eqn_ensemble.set_mean_contact_duration()
+master_eqn_ensemble.set_states_ensemble(y0)
+res = master_eqn_ensemble.simulate(100, n_steps = 200)
 print('Simulation done!')
 
 

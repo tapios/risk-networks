@@ -171,7 +171,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                  specificity = 0.99):
 
         self.name=obs_name
-
+        
         StateInformedObservation.__init__(self,
                                           N,
                                           obs_frac,
@@ -275,30 +275,39 @@ class DataInformedObservation:
 
 
 
-class DataObservation(DataInformedObservation, TestMeasurement):
+class DataObservation(DataInformedObservation):
 
     def __init__(self,
                  N,
-                 bool_type,
+                 set_to_one,
                  obs_status,
                  obs_name,
-                 reduced_system=True,
-                 sensitivity = 0.80,
-                 specificity = 0.99):
+                 reduced_system=True):
+
+        """
+        An observation which uses the current statuses of the epidemic model to influence the risk simulation.
+        It doesn't make a measurement, just fixes the value to near 1, or near 0.
+
+        Args
+        ----
+        N (int)               : number of nodes
+        set_to_one (bool)     : set_to_one=True  means we set "state = 1" when "status == obs_status"
+                                set_to_one=False means we set "state = 0" when "status != obs_status"
+        obs_status (string)   : character of the status we assimilate
+        obs_name (string)     : name of observation
+        reduced_system (bool) : whether we have 5 (True) or 6 (False) statuses
+        
+        """
+
 
         self.name=obs_name
-
+        self.set_to_one = set_to_one
+        
         DataInformedObservation.__init__(self,
                                          N,
-                                         bool_type,
+                                         set_to_one,
                                          obs_status,
                                          reduced_system)
-
-        TestMeasurement.__init__(self,
-                                 obs_status,
-                                 sensitivity,
-                                 specificity,
-                                 reduced_system)
 
     #State is a numpy array of size [self.N * n_status]
     def find_observation_states(self,
@@ -320,14 +329,30 @@ class DataObservation(DataInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        #do not set mean = 1...
-        observed_mean = (1-0.05/6) * np.ones(self.obs_states.size)
-        observed_variance = 1e-5 * np.ones(self.obs_states.size)
+        #tolerance,as we cannot set values "equal" to 0 or 1
+        # Note: this has to be very small if one assimilates the values for many nodes)
+        #       always check the variances in the logit transformed variables.
+        Tol=1e-10
+        
+        # set_to_one=True  means we set "state = 1" when "status == obs_status"
+        if self.set_to_one:
+          
+            observed_mean = (1-Tol) * np.ones(self.obs_states.size)
+            observed_variance = 1e-40 * np.ones(self.obs_states.size)
 
-        if scale == 'log':
-            observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-            observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+            if scale == 'log':
+                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
+        # set_to_one=False means we set "state = 0" when "status != obs_status"
+        else:
+            observed_mean = Tol * np.ones(self.obs_states.size)
+            observed_variance = 1e-40 * np.ones(self.obs_states.size)
+
+            if scale == 'log':
+                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+            
         self.mean     = observed_mean
         self.variance = observed_variance
 

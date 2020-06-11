@@ -78,10 +78,9 @@ class EnsembleAdjustedKalmanFilter:
         # print(np.diag(cov)[:3])
         # print("----------------------------------------------------")
 
-        cov = (1./np.maximum(x_t, 1e-9)/np.maximum(1-x_t, 1e-9))**2 * cov
-        x_t = np.log(np.maximum(x_t, 1e-9)/np.maximum(1.-x_t, 1e-9))
-
-        # print(np.diag(cov))
+        cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
+        x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
+       
 
         try:
             cov_inv = np.linalg.inv(cov)
@@ -109,9 +108,6 @@ class EnsembleAdjustedKalmanFilter:
         else:
             zp = x
             params_noise_active=False
-
-        x_t = x_t
-        cov = cov
 
         # Ensemble size
         J = x.shape[0]
@@ -219,8 +215,8 @@ class EnsembleAdjustedKalmanFilter:
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
 
         pqout=np.dot(zu,Hpq.T)
-        new_clinical_statistics, new_transmission_rates = pqout[:, :clinical_statistics.shape[1]], pqout[:,clinical_statistics.shape[1]:]
-
+        new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
+        new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
         #self.x = np.append(self.x, [x_p], axis=0)
 
         if (ensemble_state.ndim == 1):
