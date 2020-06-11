@@ -291,8 +291,8 @@ class DataObservation(DataInformedObservation):
         Args
         ----
         N (int)               : number of nodes
-        set_to_one (bool)     : set_to_one=True  means we set "state = 1" when "status == obs_status_idx"
-                                set_to_one=False means we set "state = 0" when "status != obs_status_idx"
+        set_to_one (bool)     : set_to_one=True  means we set "state = 1" when "status == obs_status"
+                                set_to_one=False means we set "state = 0" when "status != obs_status"
         obs_status (string)   : character of the status we assimilate
         obs_name (string)     : name of observation
         reduced_system (bool) : whether we have 5 (True) or 6 (False) statuses
@@ -334,7 +334,7 @@ class DataObservation(DataInformedObservation):
         #       always check the variances in the logit transformed variables.
         Tol=1e-10
         
-        # set_to_one=True  means we set "state = 1" when "status == obs_status_idx"
+        # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:
           
             observed_mean = (1-Tol) * np.ones(self.obs_states.size)
@@ -344,7 +344,7 @@ class DataObservation(DataInformedObservation):
                 observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
                 observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
-        # set_to_one=False means we set "state = 0" when "status != obs_status_idx"
+        # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
             observed_mean = Tol * np.ones(self.obs_states.size)
             observed_variance = 1e-40 * np.ones(self.obs_states.size)
