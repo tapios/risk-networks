@@ -329,7 +329,8 @@ class DataAssimilator:
                     free_states[:, updated_status, :]  = np.zeros([free_states.shape[0], 1, free_states.shape[2]]) #remove this axis for the sum (but maintain the shape)
 
                     free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
-
+                    
                     # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
-                    for i in free_statuses:
-                        ensemble_state[:, i*N+observed_nodes] = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / free_mass)
+                    if free_mass > 0:
+                        for i in free_statuses:
+                            ensemble_state[:, i*N+observed_nodes] = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / free_mass)
