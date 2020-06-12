@@ -287,8 +287,10 @@ class MasterEquationModelEnsemble:
 
         return self.y0
 
-    def simulate_backwards(self, y0, stop_time, n_steps = 100, start_time = 0.0, closure = 'independent', **kwargs):
+    def simulate_backwards(self, time_window, n_steps = 100,  closure = 'independent', **kwargs):
         """
+        Note: start time > stop time...
+        
         Args:
         -------
                      y0 : `np.array` of initial states for simulation of size (M, 5 times N)
@@ -297,14 +299,16 @@ class MasterEquationModelEnsemble:
            start_time : initial time of simulation
                 closure : by default consider that closure = 'independent'
         """
-        self.tf = 0.
-        self.y0 = np.copy(y0)
-        t       = np.linspace(stop_time, start_time, n_steps + 1)
+        self.stop_time = self.start_time - time_window
+        t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        yt      = np.empty((len(y0.flatten()), len(t)))
-        yt[:,0] = np.copy(y0.flatten())
+        
+        yt      = np.empty((len(self.y0.flatten()), len(t)))
+        yt[:,0] = np.copy(self.y0.flatten())
 
-        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate backward', total = n_steps):
+        for jj, time in tqdm(enumerate(t[:-1]),
+                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
+                    total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 if self.ix_reduced:
@@ -312,8 +316,10 @@ class MasterEquationModelEnsemble:
                 else:
                     self.y0[mm] += self.dt * self.do_step_full(t, self.y0[mm], member, closure = closure)
                 self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
-            self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
-        return {'times' : t,
-                'states': yt.reshape(self.M, -1, len(t))}
+        self.simulation_time = t
+        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.start_time   -= time_window
+
+        return self.y0

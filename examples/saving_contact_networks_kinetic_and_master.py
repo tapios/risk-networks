@@ -67,6 +67,9 @@ seed_numba_random_state(seed)
 # Load an example network
 #
 
+
+
+
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
 node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
@@ -105,8 +108,9 @@ community_transmission_rate = 12.0
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 1
 
+print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward and backward")
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'],
                                health_workers_per_patient=5)
@@ -135,6 +139,9 @@ for i in range(ensemble_size):
 #set transmission_rates
 community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) 
 
+
+
+
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
@@ -150,19 +157,16 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
-
 states_ensemble = deterministic_risk(contact_network,
-                              statuses,
-                              ensemble_size = ensemble_size)
+                                     statuses,
+                                     ensemble_size = ensemble_size)
+
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-
+# First we run and save the epidemic
 for i in range(int(simulation_length/static_contact_interval)):
     
     epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval)
@@ -183,15 +187,17 @@ for i in range(int(simulation_length/static_contact_interval)):
     plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 
 
-time=start_time
 
+time = start_time
+
+# Then we run the master equations forward on the loaded networks
 for i in range(int(simulation_length/static_contact_interval)):
 
     loaded_static_network=network_storage.get_network_from_start_time(start_time=time)
     loaded_contact_network= loaded_static_network.contact_network
     master_eqn_ensemble.set_contact_network(loaded_contact_network) #do not need to reset weights as already set in kinetic model
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
-
+    
     #at the update the time
     time = time + static_contact_interval
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -201,10 +207,36 @@ for i in range(int(simulation_length/static_contact_interval)):
                                 axes = axes,
                                 xlims = (-0.1, simulation_length),
                                 a_min = 0.0)
-
-    #axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
-    #                               axes = axes)
-
-     
+    
     plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 
+
+
+master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
+                                                  transition_rates = transition_rates_ensemble,
+                                                  transmission_rate = community_transmission_rate_ensemble,
+                                                  hospital_transmission_reduction = hospital_transmission_reduction,
+                                                  ensemble_size = ensemble_size,
+                                                  start_time = time)
+
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+
+#then we run the master equations backwards on the loaded networks
+for i in range(int(simulation_length/static_contact_interval)):
+
+        loaded_static_network=network_storage.get_network_from_end_time(end_time=time)
+        loaded_contact_network= loaded_static_network.contact_network
+        master_eqn_ensemble.set_contact_network(loaded_contact_network) #do not need to reset weights as already set in kinetic model
+        states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 25)
+
+        #at the update the time
+        time = time - static_contact_interval
+        master_eqn_ensemble.set_states_ensemble(states_ensemble)
+
+        axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
+                                    master_eqn_ensemble.simulation_time,
+                                    axes = axes,
+                                    xlims = (-0.1, simulation_length),
+                                    a_min = 0.0)
+        
+        plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
