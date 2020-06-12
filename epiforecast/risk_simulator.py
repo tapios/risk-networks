@@ -147,6 +147,11 @@ class MasterEquationModelEnsemble:
 
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
+    def set_contact_network(self, new_contact_network):
+        self.contact_network = new_contact_network
+        # Automatically reset the edge weights
+        self.set_mean_contact_duration()
+
     def update_transmission_rate(self, new_transmission_rate):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`

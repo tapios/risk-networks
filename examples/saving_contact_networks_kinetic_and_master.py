@@ -28,23 +28,8 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
 from epiforecast.data_assimilator import DataAssimilator
-
 from epiforecast.utilities import seed_numba_random_state
-
-def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-    for mm in range(ensemble_size):
-        infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
+from epiforecast.network_storage import StaticNetworkSeries
 
 def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 
@@ -93,7 +78,7 @@ population = len(contact_network)
 #
 # Build the contact simulator
 #
-start_time = -3 / 24
+start_time =0.0
 
 minute = 1 / 60 / 24
 hour = 60 * minute
@@ -119,7 +104,7 @@ community_transmission_rate = 12.0
 #
 # Simulate the growth and equilibration of an epidemic
 #
-static_contact_interval = 6 * hour
+static_contact_interval = 3 * hour
 simulation_length = 30
 
 health_service = HealthService(static_population_network = contact_network,
@@ -141,20 +126,21 @@ epidemic_simulator = EpidemicSimulator(
                   health_service = health_service,
                       start_time = start_time
                                       )
-ensemble_size = 100 # minimum number for an 'ensemble'
+ensemble_size = 2 # minimum number for an 'ensemble'
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
-    transition_rates_ensemble.append(transition_rates))
+    transition_rates_ensemble.append(transition_rates)
 
 #set transmission_rates
-community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) #np.random.normal(12.0,1.0, size=(ensemble_size,1))
+community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) 
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
-                                                  ensemble_size = ensemble_size)
+                                                  ensemble_size = ensemble_size,
+                                                  start_time = start_time)
 
 # Create storage for networks and data
 network_storage = StaticNetworkSeries(static_contact_interval)
@@ -185,24 +171,25 @@ for i in range(int(simulation_length/static_contact_interval)):
     network_storage.save_start_statuses_to_network(start_time=time, start_statuses=statuses)
 
     #update the statuses and time
-    statuses = epidemic_model.kinetic_model.current_statuses
+    statuses = epidemic_simulator.kinetic_model.current_statuses
     time=epidemic_simulator.time
 
     #save the statuses at the new time
     network_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
     
-     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
+    axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
 
-     plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+    plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 
 
 time=start_time
 
 for i in range(int(simulation_length/static_contact_interval)):
 
-    contact_network=network_storage.get_network_from_start_time(start_time=time)
-    master_eqn_ensemble.set_mean_contact_duration() #do not need to reset weights as already set in kinetic model
+    loaded_static_network=network_storage.get_network_from_start_time(start_time=time)
+    loaded_contact_network= loaded_static_network.contact_network
+    master_eqn_ensemble.set_contact_network(loaded_contact_network) #do not need to reset weights as already set in kinetic model
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
     #at the update the time
