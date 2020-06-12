@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
+import pdb
 
 def plot_master_eqns(states, t, axes = None, xlims = None, reduced_system = True, leave = False, figsize = (15, 4), **kwargs):
     if axes is None:
@@ -132,16 +133,21 @@ def plot_ensemble_states(states, t, axes = None,
 
     return axes
 
-def plot_kinetic_model_data(kinetic_model, axes):
+def plot_kinetic_model_data(kinetic_model, axes, statuses_input = False, current_time = 0., statuses = None):
     statuses_name   = kinetic_model.return_statuses
     statuses_colors = ['C0', 'C3', 'C1', 'C2', 'C4', 'C6']
     colors_dict = dict(zip(statuses_name, statuses_colors))
 
-    data = kinetic_model.statuses
-    axes[1].scatter(kinetic_model.current_time, data['I'][-1], c = colors_dict['I'], marker = 'x')
-    axes[2].scatter(kinetic_model.current_time, data['H'][-1], c = colors_dict['H'], marker = 'x')
-    axes[2].scatter(kinetic_model.current_time, data['D'][-1], c = colors_dict['D'], marker = 'x')
-
+    if statuses_input == False:
+        data = kinetic_model.statuses
+        axes[1].scatter(kinetic_model.current_time, data['I'][-1], c = colors_dict['I'], marker = 'x')
+        axes[2].scatter(kinetic_model.current_time, data['H'][-1], c = colors_dict['H'], marker = 'x')
+        axes[2].scatter(kinetic_model.current_time, data['D'][-1], c = colors_dict['D'], marker = 'x')
+    else:
+        data = statuses
+        axes[1].scatter(current_time, data['I'][-1], c = colors_dict['I'], marker = 'x')
+        axes[2].scatter(current_time, data['H'][-1], c = colors_dict['H'], marker = 'x')
+        axes[2].scatter(current_time, data['D'][-1], c = colors_dict['D'], marker = 'x')
     # axes[2].set_ylim(-.5, 10)
 
     return axes

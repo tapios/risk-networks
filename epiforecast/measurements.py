@@ -223,7 +223,8 @@ class Observation(StateInformedObservation, TestMeasurement):
                                                       noisy_measurement)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
+        #observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], 1e-8) for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance

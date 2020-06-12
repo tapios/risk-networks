@@ -310,5 +310,7 @@ class MasterEquationModelEnsemble:
             self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
+        self.states_trace    = yt.reshape(self.M, -1, len(t))
+
         return {'times' : t,
                 'states': yt.reshape(self.M, -1, len(t))}
