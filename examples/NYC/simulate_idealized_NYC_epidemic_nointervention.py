@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join(".."))
+import os, sys; sys.path.append(os.path.join("..", ".."))
 
 from timeit import default_timer as timer
 
@@ -35,8 +35,8 @@ seed_three_random_states(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e5_nobeds.txt')) 
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e5_nobeds.txt'))
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e5_nobeds.txt')) 
+node_identifiers = load_node_identifiers(os.path.join('..', '..', 'data', 'networks', 'node_identifier_SBM_1e5_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -98,4 +98,4 @@ kinetic_model = epidemic_simulator.kinetic_model
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_nointervention_1e5.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../../data/simulation_data/simulation_data_nointervention_1e5.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
