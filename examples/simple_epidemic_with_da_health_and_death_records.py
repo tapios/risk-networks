@@ -179,7 +179,7 @@ medical_infection_test = Observation(N = population,
                                      max_threshold=0.25)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.01,
+                                     obs_frac = 0.5,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
@@ -192,6 +192,17 @@ positive_death_records = DataObservation(N = population,
                                     set_to_one=True,
                                     obs_status = 'D',
                                     obs_name = "Deceased (from Data)")
+
+
+# positive_hospital_records = DataNodeObservation(N = population,
+#                                        bool_type  = True,
+#                                        obs_status = 'H',
+#                                        obs_name   = "Hospitalized (from Data)")
+#
+# positive_death_records = DataNodeObservation(N = population,
+#                                     bool_type  = True,
+#                                     obs_status = 'D',
+#                                     obs_name   = "Deceased (from Data)")
 
 negative_hospital_records = DataObservation(N = population,
                                                 set_to_one=False,
@@ -208,7 +219,12 @@ observations=[positive_death_records,
               positive_hospital_records,
               negative_hospital_records]
 
-plot_name_observations = "posdrec_negdrec"
+observations=[random_infection_test,
+              positive_death_records,
+              positive_hospital_records]
+
+
+plot_name_observations = "050randinf_posdrec_poshrec_state_3hrs"
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
