@@ -385,3 +385,4 @@ def simulate_contact(
     contact_duration -= overshoot_duration
 
     return event_time, active_contact, contact_duration, overshoot_duration
+

@@ -91,26 +91,27 @@ class NetworkCompartmentalModel:
 
 class MasterEquationModelEnsemble:
     def __init__(self,
-                contact_network,
-                transition_rates,
-                transmission_rate,
-                ensemble_size = 1,
-                hospital_transmission_reduction = 0.25,
-                reduced_system = True):
+                 contact_network,
+                 transition_rates,
+                 transmission_rate,
+                 ensemble_size = 1,
+                 hospital_transmission_reduction = 0.25,
+                 reduced_system = True,
+                 start_time = 0.0):
         """
         Args:
         -------
             ensemble_size : `int`
           contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
          transition_rates : `list` or single instance of `TransitionRate` container
-        transmission_rate : `float`
+        transmission_rate : `list`
         """
 
         self.G = self.contact_network = contact_network
         self.M = self.ensemble_size = ensemble_size
         self.N = len(self.G)
         self.ix_reduced = reduced_system
-        self.initial_time = 0.0
+        self.start_time = start_time
 
         self.ensemble = []
 
@@ -142,9 +143,9 @@ class MasterEquationModelEnsemble:
         if new_mean_contact_duration is not None:
             self.weight = {tuple(edge): new_mean_contact_duration[i]
                            for i, edge in enumerate(nx.edges(self.contact_network))}
-            nx.set_edge_attributes(self.contact_network, values=self.weight, name='SI->E')
-        
-        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'SI->E')
+            nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
+
+        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
     def update_transmission_rate(self, new_transmission_rate):
         """
@@ -254,17 +255,17 @@ class MasterEquationModelEnsemble:
                      y0 : `np.array` of initial states for simulation of size (M, 5 times N)
               stop_time : final time of simulation
                 n_steps : number of Euler steps
-           initial_time : initial time of simulation
+           start_time : initial time of simulation
                 closure : by default consider that closure = 'independent'
         """
-        self.stop_time = self.initial_time + time_window
-        t       = np.linspace(self.initial_time, self.stop_time, n_steps + 1)
+        self.stop_time = self.start_time + time_window
+        t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
         yt      = np.empty((len(self.y0.flatten()), len(t)))
         yt[:,0] = np.copy(self.y0.flatten())
 
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = 'Simulate forward. Time window [%2.2f, %2.2f]'%(self.initial_time, self.stop_time),
+                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
                     total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
@@ -277,23 +278,23 @@ class MasterEquationModelEnsemble:
 
         self.simulation_time = t
         self.states_trace    = yt.reshape(self.M, -1, len(t))
-        self.initial_time   += time_window
+        self.start_time   += time_window
 
         return self.y0
 
-    def simulate_backwards(self, y0, stop_time, n_steps = 100, initial_time = 0.0, closure = 'independent', **kwargs):
+    def simulate_backwards(self, y0, stop_time, n_steps = 100, start_time = 0.0, closure = 'independent', **kwargs):
         """
         Args:
         -------
                      y0 : `np.array` of initial states for simulation of size (M, 5 times N)
               stop_time : final time of simulation
                 n_steps : number of Euler steps
-           initial_time : initial time of simulation
+           start_time : initial time of simulation
                 closure : by default consider that closure = 'independent'
         """
         self.tf = 0.
         self.y0 = np.copy(y0)
-        t       = np.linspace(stop_time, initial_time, n_steps + 1)
+        t       = np.linspace(stop_time, start_time, n_steps + 1)
         self.dt = np.diff(t).min()
         yt      = np.empty((len(y0.flatten()), len(t)))
         yt[:,0] = np.copy(y0.flatten())
