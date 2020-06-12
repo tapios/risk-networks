@@ -121,6 +121,7 @@ class StateInformedObservation:
             self.status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
         self.n_status = len(self.status_catalog.keys())
 
+
         #array of status to observe
         self.obs_status_idx=np.array([self.status_catalog[status] for status in obs_status])
 
@@ -132,6 +133,7 @@ class StateInformedObservation:
 
         #default init observation
         self.obs_states=np.empty(0)
+
     #updates the observation model when taking observation
     def find_observation_states(self,
                                 contact_network,
@@ -142,7 +144,7 @@ class StateInformedObservation:
 
         xmean = np.mean(state[:,candidate_states],axis=0)
         candidate_states_ens=candidate_states[(xmean>=self.obs_min_threshold) & \
-                                                  (xmean<=self.obs_max_threshold)]
+                                              (xmean<=self.obs_max_threshold)]
 
         M=candidate_states_ens.size
         if (int(self.obs_frac*M)>=1)&(self.obs_frac < 1.0) :
@@ -163,7 +165,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                  N,
                  obs_frac,
                  obs_status,
-                 obs_name,
+                 obs_name, *,
                  min_threshold=0.0,
                  max_threshold=1.0,
                  reduced_system=True,
@@ -211,6 +213,7 @@ class Observation(StateInformedObservation, TestMeasurement):
         TestMeasurement.update_prevalence(self,
                                           state,
                                           scale)
+                                          # fixed_prevalence = 0.01 * np.ones(1,))
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph

@@ -22,9 +22,9 @@ from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters
 
-
 from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
+from epiforecast.performance_metrics import model_accuracy, f1_score
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
@@ -47,6 +47,19 @@ def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
 
     return states_ensemble
 
+def uniform_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
+
+    population = len(contact_network)
+    states_ensemble = np.zeros([ensemble_size, 5 * population])
+    for mm in range(ensemble_size):
+        S, E, I, H, R, D = np.zeros([6, population])
+        I += fraction_infected
+        S += 1 - fraction_infected
+
+        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
+
+    return states_ensemble
+
 def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 
     population = len(contact_network)
@@ -64,8 +77,8 @@ def deterministic_risk(contact_network, initial_states, ensemble_size=1):
         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 
     return states_ensemble
-
 #
+
 # Set random seeds for reproducibility
 #
 
@@ -172,37 +185,37 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 ####
 #possible observations:
 medical_infection_test = Observation(N = population,
-                                     obs_frac = 0.20,
+                                     obs_frac = 1.00,
                                      obs_status = 'I',
                                      obs_name = "0.01 < Infected(100%) < 0.25",
-                                     min_threshold=0.01,
-                                     max_threshold=0.25)
+                                     min_threshold=0.00,
+                                     max_threshold=1.00)
+                                     # sensitivity = 0.99)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.5,
+                                     obs_frac = .10,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-positive_hospital_records = DataObservation(N = population,
-                                       set_to_one=True,
-                                       obs_status = 'H',
-                                       obs_name = "Hospitalized (from Data)")
-
-positive_death_records = DataObservation(N = population,
-                                    set_to_one=True,
-                                    obs_status = 'D',
-                                    obs_name = "Deceased (from Data)")
-
-
-# positive_hospital_records = DataNodeObservation(N = population,
-#                                        bool_type  = True,
+# positive_hospital_records = DataObservation(N = population,
+#                                        set_to_one=True,
 #                                        obs_status = 'H',
-#                                        obs_name   = "Hospitalized (from Data)")
+#                                        obs_name = "Hospitalized (from Data)")
 #
-# positive_death_records = DataNodeObservation(N = population,
-#                                     bool_type  = True,
+# positive_death_records = DataObservation(N = population,
+#                                     set_to_one=True,
 #                                     obs_status = 'D',
-#                                     obs_name   = "Deceased (from Data)")
+#                                     obs_name = "Deceased (from Data)")
+
+positive_hospital_records = DataNodeObservation(N = population,
+                                       bool_type  = True,
+                                       obs_status = 'H',
+                                       obs_name   = "Hospitalized (from Data)")
+
+positive_death_records = DataNodeObservation(N = population,
+                                    bool_type  = True,
+                                    obs_status = 'D',
+                                    obs_name   = "Deceased (from Data)")
 
 negative_hospital_records = DataObservation(N = population,
                                                 set_to_one=False,
@@ -219,12 +232,16 @@ observations=[positive_death_records,
               positive_hospital_records,
               negative_hospital_records]
 
+observations=[medical_infection_test,
+              random_infection_test,
+              positive_death_records,
+              positive_hospital_records]
+
 observations=[random_infection_test,
               positive_death_records,
               positive_hospital_records]
 
-
-plot_name_observations = "050randinf_posdrec_poshrec_state_3hrs"
+plot_name_observations = "urisk_010randinf_posdef_posdeath_node_3hrs"
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
@@ -241,7 +258,11 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-states_ensemble = random_risk(contact_network,
+# states_ensemble = random_risk(contact_network,
+#                               fraction_infected = 0.01,
+#                               ensemble_size = ensemble_size)
+
+states_ensemble = uniform_risk(contact_network,
                               fraction_infected = 0.01,
                               ensemble_size = ensemble_size)
 
@@ -273,7 +294,6 @@ for i in range(int(simulation_length/static_contact_interval)):
     # as kinetic sets the weights, we do not need to update the contact network.
     # run the master equation model [master eqn produces the current states of the risk model]
     master_eqn_ensemble.set_mean_contact_duration() #do not need to reset weights as already set in kinetic model
-    # would love to double check this! ^
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
     if i % 1 == 0:
@@ -300,6 +320,9 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
+
+    print("[ Accuracy ]        : {:.4f} s,".format(model_accuracy(data, states_ensemble, ['I', 'E'])))
+    print("[ F1 Score ]        : {:.4f} s,".format(f1_score(data, states_ensemble, ['I', 'E'])))
 
     axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
                                 master_eqn_ensemble.simulation_time,

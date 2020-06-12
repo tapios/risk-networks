@@ -80,7 +80,12 @@ class EnsembleAdjustedKalmanFilter:
 
         cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
         x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
-       
+
+        # print("-"*60)
+        # print(x_t)
+        # print(" ")
+        # print(np.diag(cov))
+        # print("-"*60)
 
         try:
             cov_inv = np.linalg.inv(cov)

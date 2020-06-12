@@ -57,7 +57,6 @@ class NetworkCompartmentalModel:
                 self.y_dot = np.zeros_like(5 * self.N,)
 
             else:
-
                 # Full system with 6 equations ---------------------------------
                 self.coeffs = sps.csr_matrix(sps.bmat(
                     [

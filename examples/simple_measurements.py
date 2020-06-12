@@ -8,7 +8,7 @@ from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.measurements import TestMeasurement, DataObservation
+from epiforecast.measurements import TestMeasurement, DataObservation, Observation
 
 import numpy as np
 import networkx as nx
@@ -129,6 +129,14 @@ mean, var = test.take_measurements({node: 'S' for node in range(population)},
 print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == negative_test).mean())
 
 # print('\n5th Test: Hospitalized --------------------------------------')
+
+random_infection_test = Observation(N = population,
+                                     obs_frac = 0.5,
+                                     obs_status = 'I',
+                                     obs_name = "Random Infection Test")
+
+
+
 # test = TestMeasurement(specificity = 1., sensitivity = 1.)
 # test.update_prevalence(ode_states, scale = 'log', status = 'H')
 # mean, var = test.take_measurements(statuses, scale = 'log')
