@@ -241,7 +241,7 @@ observations=[random_infection_test,
               positive_death_records,
               positive_hospital_records]
 
-plot_name_observations = "urisk_010randinf_posdef_posdeath_node_3hrs"
+plot_name_observations = "drisk_010randinf_posdef_posdeath_node_3hrs"
 
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
@@ -262,13 +262,13 @@ statuses = random_epidemic(contact_network,
 #                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
 
-states_ensemble = uniform_risk(contact_network,
-                              fraction_infected = 0.01,
-                              ensemble_size = ensemble_size)
-
-# states_ensemble = deterministic_risk(contact_network,
-#                               statuses,
+# states_ensemble = uniform_risk(contact_network,
+#                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
+
+states_ensemble = deterministic_risk(contact_network,
+                              statuses,
+                              ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -281,6 +281,9 @@ community_transmission_rate_trace = np.copy(community_transmission_rate_ensemble
 latent_periods_trace              = np.copy(np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1))
 community_infection_periods_trace = np.copy(np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
 hospital_infection_periods_trace  = np.copy(np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
+
+ac_scores = []
+f1_scores = []
 
 for i in range(int(simulation_length/static_contact_interval)):
 
@@ -296,7 +299,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     master_eqn_ensemble.set_mean_contact_duration() #do not need to reset weights as already set in kinetic model
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i % 1 == 0:
+    if i % 1 < 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
@@ -321,8 +324,16 @@ for i in range(int(simulation_length/static_contact_interval)):
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-    print("[ Accuracy ]        : {:.4f} s,".format(model_accuracy(data, states_ensemble, ['I', 'E'])))
-    print("[ F1 Score ]        : {:.4f} s,".format(f1_score(data, states_ensemble, ['I', 'E'])))
+    ac_scores.append(model_accuracy(epidemic_simulator.kinetic_model.current_statuses, states_ensemble, ['I', 'E']))
+    f1_scores.append(f1_score(epidemic_simulator.kinetic_model.current_statuses, states_ensemble, ['I', 'E']))
+
+    print(" ")
+    print("=="*30)
+    print("[ Accuracy ]                          : {:.4f},".format(model_accuracy(epidemic_simulator.kinetic_model.current_statuses,
+                                                    states_ensemble, ['I', 'E'])))
+    print("[ F1 Score ]                          : {:.4f},".format(f1_score(epidemic_simulator.kinetic_model.current_statuses,
+                                                    states_ensemble, ['I', 'E'])))
+    print("=="*30)
 
     axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
                                 master_eqn_ensemble.simulation_time,
@@ -334,11 +345,19 @@ for i in range(int(simulation_length/static_contact_interval)):
                                    axes = axes)
 
 
-    plt.savefig('da_ric_tprobs_'+plot_name_observations+'.png', rasterized=True, dpi=150)
+    plt.savefig('da_tprobs_'+plot_name_observations+'.png', rasterized=True, dpi=150)
 
 time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
 parameters = [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trace ]
 parameters_names = ['transmission_rates', 'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 
 axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
-plt.savefig('da_parameters_ric_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+plt.savefig('da_parameters_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+
+fig, axes =  plt.subplots(1, 2, figsize = (8, 4))
+axes[0].append(ac_scores)
+axes[1].append(f1_scores)
+
+axes[0].set_title("Accuracy")
+axes[1].set_title("F1-Score")
+plt.savefig('performance_'+plot_name_observations +'.png', rasterized=True, dpi=150)
