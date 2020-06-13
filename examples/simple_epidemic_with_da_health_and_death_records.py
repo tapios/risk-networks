@@ -30,71 +30,20 @@ from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
 from epiforecast.data_assimilator import DataAssimilator
 
+from epiforecast.initial_conditions import random_risk, uniform_risk, deterministic_risk
 from epiforecast.utilities import seed_numba_random_state
 
-def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-    for mm in range(ensemble_size):
-        infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
-
-def uniform_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-    for mm in range(ensemble_size):
-        S, E, I, H, R, D = np.zeros([6, population])
-        I += fraction_infected
-        S += 1 - fraction_infected
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
-
-def deterministic_risk(contact_network, initial_states, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-    init_catalog = {'S': False, 'I': True}
-    infected = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    for mm in range(ensemble_size):
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
-#
-
-# Set random seeds for reproducibility
-#
-
-# Both numpy.random and random are used by the KineticModel.
+"""
+Set random seeds for reproducibility -----------------------------------------
+"""
 seed = 212212
-
 np.random.seed(seed)
 random.seed(seed)
-
-# set numba seed
-
 seed_numba_random_state(seed)
 
-#
-# Load an example network
-#
+"""
+Load an example network ------------------------------------------------------
+"""
 
 edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
 node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
@@ -104,17 +53,17 @@ contact_network.add_edges_from(edges)
 contact_network = nx.convert_node_labels_to_integers(contact_network)
 population = len(contact_network)
 
-#
-# Build the contact simulator
-#
-start_time = -3 / 24
+"""
+Build the contact simulator --------------------------------------------------
+"""
 
+start_time = -3 / 24
 minute = 1 / 60 / 24
 hour = 60 * minute
 
-#
-# Clinical parameters of an age-distributed population
-#
+"""
+Clinical parameters of an age-distributed population -------------------------
+"""
 
 assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
 
@@ -130,11 +79,15 @@ transition_rates = TransitionRates(contact_network,
 
 community_transmission_rate = 12.0
 
-#
-# Simulate the growth and equilibration of an epidemic
-#
+"""
+Define time horizon parameters------------------------------------------------
+"""
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 1
+
+"""
+Initalize health service and epidemic simulator ------------------------------
+"""
 
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'],
@@ -142,6 +95,7 @@ health_service = HealthService(static_population_network = contact_network,
 
 mean_contact_lifetime=0.5*minute
 hospital_transmission_reduction = 0.1
+
 
 epidemic_simulator = EpidemicSimulator(
                  contact_network = contact_network,
@@ -155,9 +109,14 @@ epidemic_simulator = EpidemicSimulator(
                   health_service = health_service,
                       start_time = start_time
                                       )
-ensemble_size = 100 # minimum number for an 'ensemble'
+"""
+Initialize ensemble ----------------------------------------------------------
+"""
+
+ensemble_size = 20
 
 transition_rates_ensemble = []
+community_transmission_rate_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(
 
@@ -170,20 +129,18 @@ for i in range(ensemble_size):
                         hospital_mortality_fraction  = transition_rates.hospital_mortality_fraction
                        )
         )
-
-
-#set transmission_rates
-community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) #np.random.normal(12.0,1.0, size=(ensemble_size,1))
+    community_transmission_rate_ensemble.append(community_transmission_rate)
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
                                                   ensemble_size = ensemble_size,
-                                                  start_time=start_time)
+                                                  start_time=0.0)
 
-####
-#possible observations:
+"""
+Observations objects ---------------------------------------------------------
+"""
 medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
                                      obs_status = 'I',
@@ -193,56 +150,63 @@ medical_infection_test = Observation(N = population,
                                      # sensitivity = 0.99)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = .10,
+                                     obs_frac = 0.50,
                                      obs_status = 'I',
                                      obs_name = "Random Infection Test")
 
-# positive_hospital_records = DataObservation(N = population,
-#                                        set_to_one=True,
-#                                        obs_status = 'H',
-#                                        obs_name = "Hospitalized (from Data)")
-#
-# positive_death_records = DataObservation(N = population,
-#                                     set_to_one=True,
-#                                     obs_status = 'D',
-#                                     obs_name = "Deceased (from Data)")
-
-positive_hospital_records = DataNodeObservation(N = population,
-                                       bool_type  = True,
+positive_hospital_records = DataObservation(N = population,
+                                       set_to_one=True,
                                        obs_status = 'H',
-                                       obs_name   = "Hospitalized (from Data)")
+                                       obs_name = "Hospitalized (from Data)")
 
-positive_death_records = DataNodeObservation(N = population,
-                                    bool_type  = True,
+positive_death_records = DataObservation(N = population,
+                                    set_to_one=True,
                                     obs_status = 'D',
-                                    obs_name   = "Deceased (from Data)")
+                                    obs_name = "Deceased (from Data)")
+
+# positive_hospital_records = DataNodeObservation(N = population,
+#                                         bool_type = True,
+#                                        obs_status = 'H',
+#                                          obs_name = "Hospitalized (from Data)")
+#
+# positive_death_records = DataNodeObservation(N = population,
+#                                     bool_type  = True,
+#                                     obs_status = 'D',
+#                                     obs_name   = "Deceased (from Data)")
 
 negative_hospital_records = DataObservation(N = population,
-                                                set_to_one=False,
-                                                obs_status = 'H',
-                                                obs_name = "Not Hospitalized (from Data)")
+                                    set_to_one=False,
+                                    obs_status = 'H',
+                                    obs_name = "Not Hospitalized (from Data)")
 
 negative_death_records = DataObservation(N = population,
                                     set_to_one=False,
                                     obs_status = 'D',
                                     obs_name = "Not Deceased (from Data)")
 
-observations=[positive_death_records,
-              negative_death_records,
-              positive_hospital_records,
-              negative_hospital_records]
-
-observations=[medical_infection_test,
-              random_infection_test,
-              positive_death_records,
-              positive_hospital_records]
+# observations=[positive_death_records,
+#               negative_death_records,
+#               positive_hospital_records,
+#               negative_hospital_records]
+#
+# observations=[medical_infection_test,
+#               random_infection_test,
+#               positive_death_records,
+#               positive_hospital_records]
 
 observations=[random_infection_test,
               positive_death_records,
               positive_hospital_records]
 
-plot_name_observations = "drisk_010randinf_posdef_posdeath_node_3hrs"
+"""
+Setup output name --------------------------------------------------------------
+"""
 
+plot_name_observations = "rrisk_100randinf_posdef_posdeath_state_3hrs_1day"
+
+"""
+Initialize the Data Assimilator ----------------------------------------------
+"""
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 transmission_rate_to_update_flag=False #True
@@ -253,29 +217,42 @@ assimilator = DataAssimilator(observations = observations,
                               transition_rates_to_update_str= transition_rates_to_update_str,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
-time = start_time
+"""
+Create initial conditions ----------------------------------------------------
+"""
 
+time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
+states_ensemble = random_risk(contact_network,
+                              fraction_infected = 0.01,
+                              ensemble_size = ensemble_size)
 
 # states_ensemble = uniform_risk(contact_network,
 #                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
 
-states_ensemble = deterministic_risk(contact_network,
-                              statuses,
-                              ensemble_size = ensemble_size)
+# states_ensemble = deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+"""
+Simulation code ----------------------------------------------------------------
 
-transition_rates_to_update_str=['latent_periods', 'community_infection_periods', 'hospital_infection_periods']
+As some other functions above use the random seeds, I need to set them again for
+reproducibility.
+
+"""
+
+np.random.seed(seed)
+random.seed(seed)
+seed_numba_random_state(seed)
+
+fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 
 community_transmission_rate_trace = np.copy(community_transmission_rate_ensemble)
 latent_periods_trace              = np.copy(np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1))
@@ -296,10 +273,10 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     # as kinetic sets the weights, we do not need to update the contact network.
     # run the master equation model [master eqn produces the current states of the risk model]
-    master_eqn_ensemble.set_mean_contact_duration() #do not need to reset weights as already set in kinetic model
+    master_eqn_ensemble.set_mean_contact_duration()
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
 
-    if i % 1 < 0:
+    if i % 1 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
         (states_ensemble,
          transition_rates_ensemble,
@@ -310,12 +287,12 @@ for i in range(int(simulation_length/static_contact_interval)):
                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                 user_network = contact_network)
 
-        #update model parameters (transition and transmission rates) of the master eqn model
+        # update model parameters (transition and transmission rates) of the master eqn model
         master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
         master_eqn_ensemble.update_transmission_rate(community_transmission_rate_ensemble)
 
 
-        # for tracking purposes
+        # for tracking and plotting purposes
         community_transmission_rate_trace = np.hstack([community_transmission_rate_trace, community_transmission_rate_ensemble])
         latent_periods_trace              = np.hstack([latent_periods_trace, np.array([member.latent_periods for member in transition_rates_ensemble]).reshape(-1,1)])
         community_infection_periods_trace = np.hstack([community_infection_periods_trace, np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
@@ -343,20 +320,26 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
-
-
     plt.savefig('da_tprobs_'+plot_name_observations+'.png', rasterized=True, dpi=150)
 
-time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
-parameters = [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trace ]
-parameters_names = ['transmission_rates', 'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
+"""
+Additional plots: parameters --------------------------------------------------
+"""
 
-axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
-plt.savefig('da_parameters_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+# time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+# parameters = [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trace ]
+# parameters_names = ['transmission_rates', 'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
+#
+# axes = plot_scalar_parameters(parameters, time_horizon, parameters_names)
+# plt.savefig('da_parameters_tprobs_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+
+"""
+Additional plots: Performance scores -------------------------------------------
+"""
 
 fig, axes =  plt.subplots(1, 2, figsize = (8, 4))
-axes[0].append(ac_scores)
-axes[1].append(f1_scores)
+axes[0].plot(ac_scores)
+axes[1].plot(f1_scores)
 
 axes[0].set_title("Accuracy")
 axes[1].set_title("F1-Score")
