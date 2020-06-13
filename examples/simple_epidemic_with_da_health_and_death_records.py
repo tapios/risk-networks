@@ -30,7 +30,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
 from epiforecast.data_assimilator import DataAssimilator
 
-from epiforecast.initial_conditions import random_risk, uniform_risk, deterministic_risk
+from epiforecast.initial_conditions import random_risk, uniform_risk, deterministic_risk, prevalence_random_risk, prevalence_deterministic_risk
 from epiforecast.utilities import seed_numba_random_state
 
 """
@@ -229,7 +229,15 @@ statuses = random_epidemic(contact_network,
 #                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
 
-states_ensemble, risk_str = deterministic_risk(contact_network,
+# states_ensemble, risk_str = deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
+
+# states_ensemble, risk_str = prevalence_random_risk(contact_network,
+#                               fraction_infected = 0.01,
+#                               ensemble_size = ensemble_size)
+
+states_ensemble, risk_str = prevalence_deterministic_risk(contact_network,
                               statuses,
                               ensemble_size = ensemble_size)
 
@@ -244,7 +252,6 @@ simulation_length_str = str(simulation_length).zfill(3)+'days'
 obs_str = '_'.join([obs.name for obs in observations])
 
 plot_name_observations = risk_str + '_' + obs_str + '_' + simulation_length_str + '_' + contact_interval_str
-print(plot_name_observations)
 
 """
 Simulation code ----------------------------------------------------------------
@@ -350,3 +357,6 @@ axes[1].plot(f1_scores)
 axes[0].set_title("Accuracy")
 axes[1].set_title("F1-Score")
 plt.savefig('performance_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+
+
+print("See figures: " + plot_name_observations)
