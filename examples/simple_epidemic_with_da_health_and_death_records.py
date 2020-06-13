@@ -83,7 +83,7 @@ community_transmission_rate = 12.0
 Define time horizon parameters------------------------------------------------
 """
 static_contact_interval = 3 * hour
-simulation_length = 1
+simulation_length = 5
 
 """
 Initalize health service and epidemic simulator ------------------------------
@@ -141,6 +141,8 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
+obs_frac = 0.50
+
 medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
                                      obs_status = 'I',
@@ -150,19 +152,19 @@ medical_infection_test = Observation(N = population,
                                      # sensitivity = 0.99)
 
 random_infection_test = Observation(N = population,
-                                     obs_frac = 0.50,
+                                     obs_frac = obs_frac,
                                      obs_status = 'I',
-                                     obs_name = "Random Infection Test")
+                                     obs_name = str(int(obs_frac*100)).zfill(3)+"randinf")
 
 positive_hospital_records = DataObservation(N = population,
                                        set_to_one=True,
                                        obs_status = 'H',
-                                       obs_name = "Hospitalized (from Data)")
+                                       obs_name = "hospstate")
 
 positive_death_records = DataObservation(N = population,
                                     set_to_one=True,
                                     obs_status = 'D',
-                                    obs_name = "Deceased (from Data)")
+                                    obs_name = "deathstate")
 
 # positive_hospital_records = DataNodeObservation(N = population,
 #                                         bool_type = True,
@@ -177,12 +179,12 @@ positive_death_records = DataObservation(N = population,
 negative_hospital_records = DataObservation(N = population,
                                     set_to_one=False,
                                     obs_status = 'H',
-                                    obs_name = "Not Hospitalized (from Data)")
+                                    obs_name = "nohospstate")
 
 negative_death_records = DataObservation(N = population,
                                     set_to_one=False,
                                     obs_status = 'D',
-                                    obs_name = "Not Deceased (from Data)")
+                                    obs_name = "nodeathstate")
 
 # observations=[positive_death_records,
 #               negative_death_records,
@@ -199,13 +201,7 @@ observations=[random_infection_test,
               positive_hospital_records]
 
 """
-Setup output name --------------------------------------------------------------
-"""
-
-plot_name_observations = "rrisk_100randinf_posdef_posdeath_state_3hrs_1day"
-
-"""
-Initialize the Data Assimilator ----------------------------------------------
+Initialize the Data Assimilator ------------------------------------------------
 """
 # give the data assimilator which transition rates and transmission rate to assimilate
 transition_rates_to_update_str=[]#'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
@@ -218,27 +214,37 @@ assimilator = DataAssimilator(observations = observations,
                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
 """
-Create initial conditions ----------------------------------------------------
+Create initial conditions ------------------------------------------------------
 """
 
 time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-states_ensemble = random_risk(contact_network,
-                              fraction_infected = 0.01,
-                              ensemble_size = ensemble_size)
-
-# states_ensemble = uniform_risk(contact_network,
+# states_ensemble, risk_str = random_risk(contact_network,
 #                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
 
-# states_ensemble = deterministic_risk(contact_network,
-#                               statuses,
+# states_ensemble, risk_str = uniform_risk(contact_network,
+#                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
+
+states_ensemble, risk_str = deterministic_risk(contact_network,
+                              statuses,
+                              ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
+
+"""
+Setup for output name ----------------------------------------------------------
+"""
+contact_interval_str = str(round(static_contact_interval/hour)).zfill(2)+'hrs'
+simulation_length_str = str(simulation_length).zfill(3)+'days'
+obs_str = '_'.join([obs.name for obs in observations])
+
+plot_name_observations = risk_str + '_' + obs_str + '_' + simulation_length_str + '_' + contact_interval_str
+print(plot_name_observations)
 
 """
 Simulation code ----------------------------------------------------------------
@@ -320,7 +326,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
-    plt.savefig('da_tprobs_'+plot_name_observations+'.png', rasterized=True, dpi=150)
+    plt.savefig('da_obs_imgs/'+plot_name_observations+'.png', rasterized=True, dpi=150)
 
 """
 Additional plots: parameters --------------------------------------------------

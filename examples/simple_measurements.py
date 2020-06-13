@@ -72,13 +72,20 @@ def random_state(population):
 
 statuses = random_state(population)
 
+print('\n0th Test: Probs in natural scale ----------------------------')
+
+test = TestMeasurement('I')
+test.update_prevalence(ensemble_model.states_trace[:,:,0], scale = None)
+mean, var = test.take_measurements(statuses, scale = None)
+
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
+# print(statuses.values())state
+
+print('\n1st Test: Probs in natural scale ----------------------------')
+
 test = TestMeasurement('I')
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements(statuses, scale = None)
-
-# print(statuses.values())
-
-print('\n1st Test: Probs in natural scale ----------------------------')
 
 print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
 
