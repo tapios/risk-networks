@@ -2,7 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
 
-def plot_master_eqns(states, t, axes = None, xlims = None, leave = False, figsize = (15, 4), **kwargs):
+def plot_master_eqns(
+        states,
+        t,
+        axes=None,
+        xlims=None,
+        leave=False,
+        figsize=(15, 4),
+        **kwargs):
+
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize = figsize)
     N_eqns = 5
@@ -54,8 +62,16 @@ def plot_master_eqns(states, t, axes = None, xlims = None, leave = False, figsiz
 
     return axes
 
-def plot_ensemble_states(states, t, axes=None, xlims=None, leave=False,
-        figsize=(15, 4), a_min=None, a_max=None):
+def plot_ensemble_states(
+        states,
+        t,
+        axes=None,
+        xlims=None,
+        leave=False,
+        figsize=(15, 4),
+        a_min=None,
+        a_max=None):
+
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize = figsize)
 
@@ -125,7 +141,10 @@ def plot_kinetic_model_data(kinetic_model, axes):
 
     return axes
 
-def plot_ensemble_transmission_latent_fraction(community_transmission_rate_trace, latent_periods_trace, time_horizon):
+def plot_ensemble_transmission_latent_fraction(
+        community_transmission_rate_trace,
+        latent_periods_trace, time_horizon):
+
     transmission_perc = np.percentile(community_transmission_rate_trace, q = [1, 25, 50, 75, 99], axis = 0)
     latent_periods_perc = np.percentile(latent_periods_trace, q = [1, 25, 50, 75, 99], axis = 0)
 

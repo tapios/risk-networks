@@ -5,9 +5,13 @@ from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFi
 
 class DataAssimilator:
 
-    def __init__(self, observations, errors, *,
-                         transition_rates_to_update_str = None,
-                       transmission_rate_to_update_flag = None):
+    def __init__(
+            self,
+            observations,
+            errors,
+            *,
+            transition_rates_to_update_str=None,
+            transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method.
@@ -81,10 +85,11 @@ class DataAssimilator:
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
 
-    def find_observation_states(self,
-                                contact_network,
-                                ensemble_state,
-                                data):
+    def find_observation_states(
+            self,
+            contact_network,
+            ensemble_state,
+            data):
         """
         Make all the observations in the list self.observations.
 
@@ -101,12 +106,13 @@ class DataAssimilator:
        # observed_states = np.hstack([observation.obs_states for observation in self.observations])
         return np.array(observed_states)
 
-    def observe(self,
-                contact_network,
-                state,
-                data,
-                scale = 'log',
-                noisy_measurement = False):
+    def observe(
+            self,
+            contact_network,
+            state,
+            data,
+            scale='log',
+            noisy_measurement=False):
 
         observed_means = []
         observed_variances = []
@@ -132,12 +138,13 @@ class DataAssimilator:
     # contact network networkx.graph (if provided)
     # full_ensemble_transition_rates list[ensemble size] of  TransitionRates objects from epiforecast.populations
     # full_ensemble_transmission_rate np.array([ensemble size])
-    def update(self,
-               ensemble_state,
-               data,
-               full_ensemble_transition_rates,
-               full_ensemble_transmission_rate,
-               user_network):
+    def update(
+            self,
+            ensemble_state,
+            data,
+            full_ensemble_transition_rates,
+            full_ensemble_transmission_rate,
+            user_network):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -256,7 +263,10 @@ class DataAssimilator:
 
 
     #defines a method to take a difference to the data state
-    def error_to_truth_state(self,ensemble_state,data):
+    def error_to_truth_state(
+            self,
+            ensemble_state,
+            data):
 
         em = self.online_emodel # get corresponding error model
 
@@ -288,7 +298,11 @@ class DataAssimilator:
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
 
-    def sum_to_one(self, prev_ensemble_state, ensemble_state):
+    def sum_to_one(
+            self,
+            prev_ensemble_state,
+            ensemble_state):
+
         N=self.observations[0].N
         n_status=self.observations[0].n_status
         if n_status == 6:
