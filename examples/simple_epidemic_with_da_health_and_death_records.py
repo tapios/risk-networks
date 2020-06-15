@@ -141,7 +141,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
-obs_frac = 0.30
+obs_frac = 0.10
 
 medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,

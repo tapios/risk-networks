@@ -335,7 +335,7 @@ class DataObservation(DataInformedObservation):
         #tolerance,as we cannot set values "equal" to 0 or 1
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
-        Tol=1e-4 #1e-9
+        Tol = 1e-9 #1e-9
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:
