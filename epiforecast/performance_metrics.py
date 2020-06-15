@@ -13,19 +13,12 @@ def confusion_matrix(data,
     ensemble_size = len(ensemble_states)
     population    = len(data)
 
-    if ensemble_states.shape[1] / population == 5:
-        reduced_system = True
-    else:
-        reduced_system = False
-
-    n_status = 5 if reduced_system else 6
+    n_status = 5
 
     ensemble_probabilities = np.zeros((6, population))
-    if reduced_system:
-        ensemble_probabilities[1] = ((1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)) > threshold).mean(axis = 0)
-        ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = (ensemble_states.reshape(ensemble_size, n_status, population) > threshold).mean(axis = 0)
-    else:
-        ensemble_probabilities = (ensemble_states.reshape(ensemble_size, n_status, population) > threshold).mean(axis = 0)
+
+    ensemble_probabilities[1] = ((1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)) > threshold).mean(axis = 0)
+    ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = (ensemble_states.reshape(ensemble_size, n_status, population) > threshold).mean(axis = 0)
 
     ensemble_statuses = ensemble_probabilities.argmax(axis = 0)
     if not combined:
