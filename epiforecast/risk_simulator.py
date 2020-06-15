@@ -147,7 +147,7 @@ class MasterEquationModelEnsemble:
 
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
-    def set_contact_network(self, new_contact_network):
+    def set_contact_network_and_contact_duration(self, new_contact_network):
         self.contact_network = new_contact_network
         # Automatically reset the edge weights
         self.set_mean_contact_duration()
@@ -257,11 +257,9 @@ class MasterEquationModelEnsemble:
         """
         Args:
         -------
-                     y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-              stop_time : final time of simulation
-                n_steps : number of Euler steps
-           start_time : initial time of simulation
-                closure : by default consider that closure = 'independent'
+        time_window : duration of simulation
+            n_steps : number of Euler steps
+            closure : by default consider that closure = 'independent'
         """
         self.stop_time = self.start_time + time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
@@ -288,16 +286,12 @@ class MasterEquationModelEnsemble:
         return self.y0
 
     def simulate_backwards(self, time_window, n_steps = 100,  closure = 'independent', **kwargs):
-        """
-        Note: start time > stop time...
-        
+        """    
         Args:
         -------
-                     y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-              stop_time : final time of simulation
-                n_steps : number of Euler steps
-           start_time : initial time of simulation
-                closure : by default consider that closure = 'independent'
+        time_window : duration of simulation
+            n_steps : number of Euler steps
+            closure : by default consider that closure = 'independent'
         """
         self.stop_time = self.start_time - time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
