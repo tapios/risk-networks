@@ -20,7 +20,7 @@ from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDepen
 
 from epiforecast.scenarios import load_edges, random_epidemic
 
-from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters
+from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters, plot_epidemic_data
 
 from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
@@ -108,7 +108,7 @@ community_transmission_rate = 12.0
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 2
 
 print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward and backward")
 health_service = HealthService(static_population_network = contact_network,
@@ -163,6 +163,11 @@ states_ensemble = deterministic_risk(contact_network,
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
+time_trace = np.arange(start_time,simulation_length,static_contact_interval)
+statuses_sum_trace = [[population-int(0.01*population), 0, int(0.01*population),0,0,0]]
+states_trace_ensemble=np.zeros([ensemble_size,5*population,time_trace.size])
+states_trace_ensemble[:,:,0] = states_ensemble
+
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 # First we run and save the epidemic
 for i in range(int(simulation_length/static_contact_interval)):
@@ -178,11 +183,21 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     #save the statuses at the new time
     epidemic_data_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
-    
-    axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
-                                   axes = axes)
 
-    plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+    
+    statuses_sum_trace.append([epidemic_simulator.kinetic_model.statuses['S'][-1],
+                           epidemic_simulator.kinetic_model.statuses['E'][-1],
+                           epidemic_simulator.kinetic_model.statuses['I'][-1],
+                           epidemic_simulator.kinetic_model.statuses['H'][-1],
+                           epidemic_simulator.kinetic_model.statuses['R'][-1],
+                           epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
+
+axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
+                          statuses_list = statuses_sum_trace,
+                                   axes = axes,
+                             plot_times = time_trace)
+
+plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 
 
 
@@ -191,22 +206,27 @@ time = start_time
 # Then we run the master equations forward on the loaded networks
 for i in range(int(simulation_length/static_contact_interval)):
 
-    loaded_static_network=epidemic_data_storage.get_network_from_start_time(start_time=time)
-    loaded_contact_network= loaded_static_network.contact_network
-    master_eqn_ensemble.set_contact_network_and_contact_duration(loaded_contact_network) #do not need to reset weights as already set in kinetic model
+    loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=time)
+    master_eqn_ensemble.set_contact_network_and_contact_duration(loaded_data.contact_network) # contact duration stored on network
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
     
     #at the update the time
     time = time + static_contact_interval
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-    axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
-                                master_eqn_ensemble.simulation_time,
-                                axes = axes,
-                                xlims = (-0.1, simulation_length),
-                                a_min = 0.0)
+    states_trace_ensemble[:,:,i] = states_ensemble
+
+axes = plot_ensemble_states(states_trace_ensemble,
+                            time_trace,
+                            axes = axes,
+                            xlims = (-0.1, simulation_length),
+                            a_min = 0.0)
     
-    plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+
+
+
+
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_network,
                                                   transition_rates = transition_rates_ensemble,
@@ -218,21 +238,21 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
 #then we run the master equations backwards on the loaded networks
-for i in range(int(simulation_length/static_contact_interval)):
+# for i in range(int(simulation_length/static_contact_interval)):
 
-        loaded_static_network=epidemic_data_storage.get_network_from_end_time(end_time=time)
-        loaded_contact_network= loaded_static_network.contact_network
-        master_eqn_ensemble.set_contact_network(loaded_contact_network) #do not need to reset weights as already set in kinetic model
-        states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 100)
+#         loaded_static_network=epidemic_data_storage.get_network_from_end_time(end_time=time)
+#         loaded_contact_network= loaded_static_network.contact_network
+#         master_eqn_ensemble.set_contact_network(loaded_contact_network) #do not need to reset weights as already set in kinetic model
+#         states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 100)
 
-        #at the update the time
-        time = time - static_contact_interval
-        master_eqn_ensemble.set_states_ensemble(states_ensemble)
+#         #at the update the time
+#         time = time - static_contact_interval
+#         master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-        axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
-                                    master_eqn_ensemble.simulation_time,
-                                    axes = axes,
-                                    xlims = (-0.1, simulation_length),
-                                    a_min = 0.0)
+#         # axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
+#         #                             master_eqn_ensemble.simulation_time,
+#         #                             axes = axes,
+#         #                             xlims = (-0.1, simulation_length),
+#         #                             a_min = 0.0)
         
-        plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
+#         # plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
