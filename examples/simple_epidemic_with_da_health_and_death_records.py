@@ -83,7 +83,7 @@ community_transmission_rate = 12.0
 Define time horizon parameters------------------------------------------------
 """
 static_contact_interval = 3 * hour
-simulation_length = 5
+simulation_length = 3
 
 """
 Initalize health service and epidemic simulator ------------------------------
@@ -141,7 +141,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
-obs_frac = 0.50
+obs_frac = 0.30
 
 medical_infection_test = Observation(N = population,
                                      obs_frac = 1.00,
@@ -221,9 +221,9 @@ time = start_time
 statuses = random_epidemic(contact_network,
                            fraction_infected=0.01)
 
-# states_ensemble, risk_str = random_risk(contact_network,
-#                               fraction_infected = 0.01,
-#                               ensemble_size = ensemble_size)
+states_ensemble, risk_str = random_risk(contact_network,
+                              fraction_infected = 0.01,
+                              ensemble_size = ensemble_size)
 
 # states_ensemble, risk_str = uniform_risk(contact_network,
 #                               fraction_infected = 0.01,
@@ -237,9 +237,9 @@ statuses = random_epidemic(contact_network,
 #                               fraction_infected = 0.01,
 #                               ensemble_size = ensemble_size)
 
-states_ensemble, risk_str = prevalence_deterministic_risk(contact_network,
-                              statuses,
-                              ensemble_size = ensemble_size)
+# states_ensemble, risk_str = prevalence_deterministic_risk(contact_network,
+#                               statuses,
+#                               ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -339,7 +339,8 @@ for i in range(int(simulation_length/static_contact_interval)):
 Additional plots: parameters --------------------------------------------------
 """
 
-# time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval) + 1)
+
+
 # parameters = [community_transmission_rate_trace, latent_periods_trace, community_infection_periods_trace, hospital_infection_periods_trace ]
 # parameters_names = ['transmission_rates', 'latent_periods', 'community_infection_periods', 'hospital_infection_periods']
 #
@@ -349,10 +350,11 @@ Additional plots: parameters --------------------------------------------------
 """
 Additional plots: Performance scores -------------------------------------------
 """
+time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval))
 
-fig, axes =  plt.subplots(1, 2, figsize = (8, 4))
-axes[0].plot(ac_scores)
-axes[1].plot(f1_scores)
+fig, axes =  plt.subplots(1, 2, figsize = (12, 4))
+axes[0].plot(time_horizon, ac_scores)
+axes[1].plot(time_horizon, f1_scores)
 
 axes[0].set_title("Accuracy")
 axes[1].set_title("F1-Score")
