@@ -68,7 +68,7 @@ seed_numba_random_state(seed)
 minute = 1 / 60 / 24
 hour = 60 * minute
 static_contact_interval = 3 * hour
-simulation_length = 50
+simulation_length = 100
 epidemic_ens_size = 10
 
 #now run a collection of kinetic equations
