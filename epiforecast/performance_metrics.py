@@ -8,6 +8,16 @@ def confusion_matrix(data,
                      threshold = 0.5,
                      combined = False):
 
+    """
+    Wrapper of `sklearn.metrics.confusion_matrix`.
+    Args:
+    -----
+        ensemble_states: (ensemble_size, 5 * population) `np.array` of the current state of the ensemble ODE system.
+        statuses: list of statuses of interest.
+        threshold for declaring a given status.
+        combined: Boolean that allows to treat a classification as one vs the rest.
+    """
+
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
     status_of_interest = [status_catalog[status] for status in statuses]
     ensemble_size = len(ensemble_states)
@@ -41,6 +51,10 @@ def model_accuracy(data,
                    threshold = 0.5,
                    combined = False
                    ):
+    """
+    Metric based on overall class assignment.
+            Accuracy = TP + TN / Total cases
+    """
 
     cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
 
@@ -51,18 +65,30 @@ def f1_score(data,
              statuses = ['E', 'I'],
              threshold = 0.5
              ):
-
+    """
+    Score used for highly unbalanced data sets. Harmonic mean of precision and recall.
+            F1 = 2 / ( recall^-1 + precision^-1)
+    """
     cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
     tn, fp, fn, tp = cm.ravel()
 
     return 2 * tp / (2 * tp + fp + fn)
 
 class PerformanceTracker:
-
+    """
+    Container to track how a classification model behaves over time.
+    """
     def __init__(self,
                   metrics   = [model_accuracy, f1_score],
                   statuses  = ['E', 'I'],
                   threshold = 0.5):
+        """
+        Args:
+        ------
+            metrics: list of metrics that can be fed to the wrapper.
+            statuses: statuses of interest.
+            threhold: 0.5 by default to declare a given status.
+        """
 
         self.statuses  = statuses
         self.metrics   = metrics
@@ -89,6 +115,7 @@ class PerformanceTracker:
             self.performance_track = np.vstack([self.performance_track, results])
 
     def eval_prevalence(self, data):
+
         status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         population = len(data)
 
@@ -103,5 +130,6 @@ class PerformanceTracker:
             self.prevalence_track = np.hstack([self.prevalence_track, prevalence])
 
     def update(self, data, ensemble_states):
+        
         self.eval_metrics(data, ensemble_states)
         self.eval_prevalence(data)
