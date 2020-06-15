@@ -1,5 +1,6 @@
 import numpy as np
 import sklearn.metrics as skm
+from collections import defaultdict
 
 def confusion_matrix(data,
                      ensemble_states,
@@ -62,3 +63,52 @@ def f1_score(data,
     tn, fp, fn, tp = cm.ravel()
 
     return 2 * tp / (2 * tp + fp + fn)
+
+class PerformanceTracker:
+
+    def __init__(self,
+                  metrics   = [model_accuracy, f1_score],
+                  statuses  = ['E', 'I'],
+                  threshold = 0.5):
+
+        self.statuses  = statuses
+        self.metrics   = metrics
+        self.threshold = threshold
+        self.performance_track = None
+        self.prevalence_track  = None
+
+    def print(self):
+        print(self.performance_track.shape)
+        print(" ")
+        print("=="*30)
+        print("[ Accuracy ]                          : {:.4f},".format(self.performance_track[-1,0]))
+        print("[ F1 Score ]                          : {:.4f},".format(self.performance_track[-1,1]))
+        print("=="*30)
+
+    def eval_metrics(self,
+                     data,
+                     ensemble_states):
+
+        results = [metric(data, ensemble_states, self.statuses, self.threshold) for metric in self.metrics]
+        if self.performance_track is None:
+            self.performance_track = np.array(results).reshape(1, len(self.metrics))
+        else:
+            self.performance_track = np.vstack([self.performance_track, results])
+
+    def eval_prevalence(self, data):
+        status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        population = len(data)
+
+        a, b = np.unique([v for v in data.values()], return_counts=True)
+        status_counts = defaultdict(int, zip(a, b))
+
+        prevalence = np.array([status_counts[status] for status in self.statuses]).sum()/population
+
+        if self.prevalence_track is None:
+            self.prevalence_track = np.array(prevalence)
+        else:
+            self.prevalence_track = np.hstack([self.prevalence_track, prevalence])
+
+    def update(self, data, ensemble_states):
+        self.eval_metrics(data, ensemble_states)
+        self.eval_prevalence(data)

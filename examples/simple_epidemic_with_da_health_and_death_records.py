@@ -24,7 +24,7 @@ from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, 
 
 from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.performance_metrics import model_accuracy, f1_score
+from epiforecast.performance_metrics import PerformanceTracker
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
@@ -83,7 +83,7 @@ community_transmission_rate = 12.0
 Define time horizon parameters------------------------------------------------
 """
 static_contact_interval = 3 * hour
-simulation_length = 3
+simulation_length = 80
 
 """
 Initalize health service and epidemic simulator ------------------------------
@@ -272,8 +272,7 @@ latent_periods_trace              = np.copy(np.array([member.latent_periods for 
 community_infection_periods_trace = np.copy(np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
 hospital_infection_periods_trace  = np.copy(np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1))
 
-ac_scores = []
-f1_scores = []
+model_performance = PerformanceTracker()
 
 for i in range(int(simulation_length/static_contact_interval)):
 
@@ -311,19 +310,12 @@ for i in range(int(simulation_length/static_contact_interval)):
         community_infection_periods_trace = np.hstack([community_infection_periods_trace, np.array([member.community_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
         hospital_infection_periods_trace  = np.hstack([hospital_infection_periods_trace, np.array([member.hospital_infection_periods for member in transition_rates_ensemble]).reshape(-1,1)])
 
+
+    model_performance.update(epidemic_simulator.kinetic_model.current_statuses, states_ensemble)
+    model_performance.print()
+
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
-
-    ac_scores.append(model_accuracy(epidemic_simulator.kinetic_model.current_statuses, states_ensemble, ['I', 'E']))
-    f1_scores.append(f1_score(epidemic_simulator.kinetic_model.current_statuses, states_ensemble, ['I', 'E']))
-
-    print(" ")
-    print("=="*30)
-    print("[ Accuracy ]                          : {:.4f},".format(model_accuracy(epidemic_simulator.kinetic_model.current_statuses,
-                                                    states_ensemble, ['I', 'E'])))
-    print("[ F1 Score ]                          : {:.4f},".format(f1_score(epidemic_simulator.kinetic_model.current_statuses,
-                                                    states_ensemble, ['I', 'E'])))
-    print("=="*30)
 
     axes = plot_ensemble_states(master_eqn_ensemble.states_trace,
                                 master_eqn_ensemble.simulation_time,
@@ -353,8 +345,10 @@ Additional plots: Performance scores -------------------------------------------
 time_horizon = np.linspace(0.0, simulation_length, int(simulation_length/static_contact_interval))
 
 fig, axes =  plt.subplots(1, 2, figsize = (12, 4))
-axes[0].plot(time_horizon, ac_scores)
-axes[1].plot(time_horizon, f1_scores)
+axes[0].plot(time_horizon, model_performance.performance_track[:,0])
+axes[0].plot(time_horizon, 1 - model_performance.prevalence_track, linestyle = '--', color = 'red')
+
+axes[1].plot(time_horizon, model_performance.performance_track[:,1])
 
 axes[0].set_title("Accuracy")
 axes[1].set_title("F1-Score")
