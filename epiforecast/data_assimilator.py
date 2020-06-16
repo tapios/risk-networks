@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import pdb
 
 from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
 
@@ -332,4 +333,6 @@ class DataAssimilator:
 
                     # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
                     for i in free_statuses:
-                        ensemble_state[:, i*N+observed_nodes] = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / free_mass)
+                        update_weight = (free_mass < 0.001)
+                        new_ensemble_state = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
+                        ensemble_state[:, i*N+observed_nodes] = (update_weight) *  ensemble_state[:, i*N+observed_nodes] + (1-update_weight) * new_ensemble_state

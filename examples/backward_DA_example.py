@@ -193,18 +193,18 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 
 ####
 #possible observations:
-medical_infection_test = Observation(N = population,
-                                     obs_frac = 0.20,
-                                     obs_status = 'I',
-                                     obs_name = "0.01 < Infected(100%) < 0.25",
-                                     min_threshold=0.01,
-                                     max_threshold=0.25)
 #medical_infection_test = Observation(N = population,
-#                                     obs_frac = 1.,
+#                                     obs_frac = 0.20,
 #                                     obs_status = 'I',
-#                                     obs_name = "0.01 < Infected(100%) < 1.",
-#                                     min_threshold=0.1,
-#                                     max_threshold=1.0)
+#                                     obs_name = "0.01 < Infected(100%) < 0.25",
+#                                     min_threshold=0.01,
+#                                     max_threshold=0.25)
+medical_infection_test = Observation(N = population,
+                                     obs_frac = 1.,
+                                     obs_status = 'I',
+                                     obs_name = "0.01 < Infected(100%) < 1.",
+                                     min_threshold=0.,
+                                     max_threshold=1.0)
 
 random_infection_test = Observation(N = population,
                                     obs_frac = 0.01,
@@ -225,7 +225,7 @@ death_records = DataNodeObservation(N = population,
                                     specificity  = 0.999,
                                     sensitivity  = 0.999)
 
-observations=[death_records,hospital_records]
+observations=[medical_infection_test,death_records,hospital_records]
 plot_name_observations = "hrec_drec"
 
 # give the data assimilator which transition rates and transmission rate to assimilate
@@ -314,7 +314,7 @@ for i in range(1,total_steps):
                                                                   stop_time = stop_time, \
                                                                   start_time = start_time, \
                                                                   n_steps = 25)
-    states_ensemble = states_ensemble_dict['states'][:,:,-1]
+    states_ensemble = np.copy(states_ensemble_dict['states'][:,:,-1])
 
     if i % 1 == 0:
     # perform data assimlation [update the master eqn states, the transition rates, and the transmission rate (if supplied)]
