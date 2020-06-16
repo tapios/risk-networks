@@ -2,6 +2,7 @@ import os, sys; sys.path.append(os.path.join(".."))
 
 from timeit import default_timer as timer
 
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -150,7 +151,7 @@ ensemble_size = 1
 
 
 #user_base = FullUserBase(contact_network)
-user_fraction=0.5
+user_fraction=0.2
 user_base = ContiguousUserBase(contact_network,
                                user_fraction,
                                method="neighbor",
@@ -175,7 +176,7 @@ for i in range(ensemble_size):
  
 #set transmission_rates
 community_transmission_rate_ensemble = 1.0*community_transmission_rate * np.ones([ensemble_size,1]) 
-exogenous_transmission_rate_ensemble = 0.01*community_transmission_rate * np.ones([ensemble_size,1])
+exogenous_transmission_rate_ensemble = 0.002*community_transmission_rate * np.ones([ensemble_size,1])
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.contact_network,
                                                   transition_rates = transition_rates_ensemble,
@@ -224,13 +225,16 @@ for i in range(int(simulation_length/static_contact_interval)):
     #save the statuses at the new time
     epidemic_data_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
 
-    
-    statuses_sum_trace.append([epidemic_simulator.kinetic_model.statuses['S'][-1],
-                           epidemic_simulator.kinetic_model.statuses['E'][-1],
-                           epidemic_simulator.kinetic_model.statuses['I'][-1],
-                           epidemic_simulator.kinetic_model.statuses['H'][-1],
-                           epidemic_simulator.kinetic_model.statuses['R'][-1],
-                           epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
+    #user_statuses = {node : statuses[node] for node in users}
+    Scount=len([node for node in users if statuses[node] == 'S'])
+    Ecount=len([node for node in users if statuses[node] == 'E'])
+    Icount=len([node for node in users if statuses[node] == 'I'])
+    Hcount=len([node for node in users if statuses[node] == 'H'])
+    Rcount=len([node for node in users if statuses[node] == 'R'])
+    Dcount=len([node for node in users if statuses[node] == 'D'])
+
+    statuses_sum_trace.append([Scount,Ecount,Icount,Hcount,Rcount,Dcount])
+
 
 axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
                           statuses_list = statuses_sum_trace,
