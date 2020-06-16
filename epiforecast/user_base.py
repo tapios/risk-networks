@@ -79,7 +79,8 @@ class ContiguousUserBase:
 
 
                     
-def contiguous_indicators(graph, subgraph):
+def contiguous_indicators(graph,
+                          subgraph):
     """
     A function that returns user base subgraph indicators and corresponding edge/node
     lists with attributes "exterior" and "interior".
@@ -111,3 +112,29 @@ def contiguous_indicators(graph, subgraph):
     mean_neighbors_exterior=exterior_neighbor_count / boundary_nodes
                     
     return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list
+
+
+
+def assign_user_connectivity_to_contact_network(full_contact_network,
+                                                user_base,
+                                                homogeneous_score = False):
+    """
+    A function to assign a score in [0,1] to the nodes of the full contact network that are in the user base.
+    The score gives an measure of the connectivity of the user with the user base versus the connectivity
+    with the rest of the network. (0 for interior node, near 1 for 'boundary node')
+    (NB the `user_base` is a read-only type object so we must apply this to the full network)
+
+    Args
+    ----
+    full_contact_network (networkx Graph): the full contact network
+    user_base       (networkx Graph view): A subgraph of full_contact_network, the nodes are `users`
+    """
+    if homogeneous_score is True:
+        connectivity_score = [ 1.0 for node in user_base.nodes ]
+    else:
+        connectivity_score = [(len(full_contact_network.edges(node)) - len(user_base.edges(node))) /
+                              len(full_contact_network.edges(node))
+                              for node in user_base.nodes]
+    
+    user_scores = { node: connectivity_score[i] for i, node in enumerate(user_base.nodes) }
+    nx.set_node_attributes(full_contact_network, values = user_scores, name = "user_connectivity")

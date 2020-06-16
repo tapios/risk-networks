@@ -10,15 +10,17 @@ class NetworkCompartmentalModel:
 
     def __init__(self,
                  N,
-                 hospital_transmission_reduction=0.25):
+                 user_connectivity,
+                 hospital_transmission_reduction = 0.25):
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
+        self.user_connectivity = user_connectivity
         self.N = N
 
     def set_parameters(self,
                        transition_rates  = None,
                        transmission_rate = None,
-                       exogenous_transmission_rate    = None):
+                       exogenous_transmission_rate = None):
         """
         Setup the parameters from the transition_rates, transmission rates and exogenous transmission_rate
         container into the model instance.
@@ -29,7 +31,8 @@ class NetworkCompartmentalModel:
             self.betap  = self.hospital_transmission_reduction * self.beta
 
         if exogenous_transmission_rate is not None:
-            self.eta = exogenous_transmission_rate*np.ones(self.N)
+            self.eta = exogenous_transmission_rate * self.user_connectivity
+           
 
         if transition_rates is not None:
             self.sigma  = np.array(list(transition_rates.exposed_to_infected.values()))
@@ -83,12 +86,13 @@ class NetworkCompartmentalModel:
         
 class MasterEquationModelEnsemble:
     def __init__(self,
-                contact_network,
-                transition_rates,
-                transmission_rate,
-                exogenous_transmission_rate = None,
-                ensemble_size = 1,
-                hospital_transmission_reduction = 0.25):
+                 contact_network,
+                 transition_rates,
+                 transmission_rate,
+                 ensemble_size = 1,
+                 exogenous_transmission_rate = None,
+                 hospital_transmission_reduction = 0.25,
+                 start_time = 0.0):
         """
         Args:
         -------
@@ -99,6 +103,18 @@ class MasterEquationModelEnsemble:
         exogenous_transmission_rate    : `np.array` length ensemble size  (defined for when user network smaller than contact network)
         """
 
+       
+        
+        self.G = self.contact_network = contact_network
+        self.M = self.ensemble_size = ensemble_size
+        self.N = len(self.G)
+        self.start_time = start_time
+
+        if exogenous_transmission_rate is None:
+            self.user_connectivity = np.ones(self.N)
+        else:
+            user_connectivity = nx.get_node_attributes(contact_network, name = 'user_connectivity')
+            self.user_connectivity = np.array([user_connectivity[node] for node in self.G.nodes])
         
         if exogenous_transmission_rate is None:
             if isinstance(transition_rates, list):
@@ -107,16 +123,12 @@ class MasterEquationModelEnsemble:
                 exogenous_transmission_rate = 0.0
            
         
-        self.G = self.contact_network = contact_network
-        self.M = self.ensemble_size = ensemble_size
-        self.N = len(self.G)
-        self.start_time = start_time
-
         self.ensemble = []
 
         for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
             member = NetworkCompartmentalModel(N = self.N,
-                               hospital_transmission_reduction = hospital_transmission_reduction)
+                                               user_connectivity = self.user_connectivity,
+                                               hospital_transmission_reduction = hospital_transmission_reduction)
 
             if isinstance(transition_rates, list):
                 member.set_parameters(transition_rates  = transition_rates[mm],
@@ -133,7 +145,7 @@ class MasterEquationModelEnsemble:
 
     #  Set methods -------------------------------------------------------------
     def set_mean_contact_duration(self,
-                                  new_mean_contact_duration=None):
+                                  new_mean_contact_duration = None):
         """
         For update purposes
         """
@@ -143,6 +155,13 @@ class MasterEquationModelEnsemble:
             nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
 
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
+
+        
+    def set_contact_network_and_contact_duration(self,
+                                                 new_contact_network):
+        self.contact_network = new_contact_network
+        # Automatically reset the edge weights
+        self.set_mean_contact_duration()
 
     def update_transmission_rate(self,
                                  new_transmission_rate):
@@ -202,7 +221,8 @@ class MasterEquationModelEnsemble:
             member.beta_closure = member.beta  * self.CM_SI[:, member.id] + \
                                   member.betap * self.CM_SH[:, member.id]
         else:
-            member.beta_closure = sps.kron(np.array([member.beta, member.betap]), self.L).dot(y[iI[0]:(iH[-1]+1)])
+            member.beta_closure = (sps.kron(np.array([member.beta, member.betap]), self.L).T.dot(y[iI[0]:(iH[-1]+1)])).T
+            member.yS_holder = member.beta_closure  * y[iS]
 
         #Add in the exogenous_transmission infections here?
         member.yS_holder = (member.beta_closure + member.eta)*y[iS]
@@ -238,11 +258,9 @@ class MasterEquationModelEnsemble:
         """
         Args:
         -------
-                     y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-              stop_time : final time of simulation
-                n_steps : number of Euler steps
-           start_time : initial time of simulation
-                closure : by default consider that closure = 'independent'
+        time_window : duration of simulation
+            n_steps : number of Euler steps
+            closure : by default consider that closure = 'independent'
         """
         self.stop_time = self.start_time + time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
@@ -266,35 +284,35 @@ class MasterEquationModelEnsemble:
         return self.y0
 
     def simulate_backwards(self,
-                           y0,
-                           stop_time,
-                           n_steps=100,
-                           start_time=0.0,
-                           closure='independent',
+                           time_window,
+                           n_steps = 100,
+                           closure = 'independent',
                            **kwargs):
-        """
+        """    
         Args:
         -------
-                     y0 : `np.array` of initial states for simulation of size (M, 5 times N)
-              stop_time : final time of simulation
-                n_steps : number of Euler steps
-           start_time : initial time of simulation
-                closure : by default consider that closure = 'independent'
+        time_window : duration of simulation
+            n_steps : number of Euler steps
+            closure : by default consider that closure = 'independent'
         """
-        self.tf = 0.
-        self.y0 = np.copy(y0)
-        t       = np.linspace(stop_time, start_time, n_steps + 1)
+        self.stop_time = self.start_time - time_window
+        t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        yt      = np.empty((len(y0.flatten()), len(t)))
-        yt[:,0] = np.copy(y0.flatten())
+        
+        yt      = np.empty((len(self.y0.flatten()), len(t)))
+        yt[:,0] = np.copy(self.y0.flatten())
 
-        for jj, time in tqdm(enumerate(t[:-1]), desc = 'Simulate backward', total = n_steps):
+        for jj, time in tqdm(enumerate(t[:-1]),
+                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
+                    total = n_steps):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
                 self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
-            self.tf += self.dt
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
-        return {'times' : t,
-                'states': yt.reshape(self.M, -1, len(t))}
+        self.simulation_time = t
+        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.start_time   -= time_window
+
+        return self.y0
