@@ -197,7 +197,7 @@ class MasterEquationModelEnsemble:
                                   member.betap * self.CM_SH[:, member.id]
             member.yS_holder = member.beta_closure * y[iS]
         else:
-            member.beta_closure = sps.kron(np.array([member.beta, member.betap]), self.L).dot(y[iI[0]:(iH[-1]+1)])
+            member.beta_closure = (sps.kron(np.array([member.beta, member.betap]), self.L).T.dot(y[iI[0]:(iH[-1]+1)])).T
             member.yS_holder = member.beta_closure  * y[iS]
 
         member.y_dot     =   member.coeffs.dot(y) + member.offset
