@@ -5,9 +5,13 @@ from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFi
 
 class DataAssimilator:
 
-    def __init__(self, observations, errors, *,
-                         transition_rates_to_update_str = None,
-                       transmission_rate_to_update_flag = None):
+    def __init__(
+            self,
+            observations,
+            errors,
+            *,
+            transition_rates_to_update_str=None,
+            transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method.
@@ -81,10 +85,11 @@ class DataAssimilator:
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
 
-    def find_observation_states(self,
-                                contact_network,
-                                ensemble_state,
-                                data):
+    def find_observation_states(
+            self,
+            contact_network,
+            ensemble_state,
+            data):
         """
         Make all the observations in the list self.observations.
 
@@ -101,12 +106,13 @@ class DataAssimilator:
        # observed_states = np.hstack([observation.obs_states for observation in self.observations])
         return np.array(observed_states)
 
-    def observe(self,
-                contact_network,
-                state,
-                data,
-                scale = 'log',
-                noisy_measurement = False):
+    def observe(
+            self,
+            contact_network,
+            state,
+            data,
+            scale='log',
+            noisy_measurement=False):
 
         observed_means = []
         observed_variances = []
@@ -132,12 +138,13 @@ class DataAssimilator:
     # contact network networkx.graph (if provided)
     # full_ensemble_transition_rates list[ensemble size] of  TransitionRates objects from epiforecast.populations
     # full_ensemble_transmission_rate np.array([ensemble size])
-    def update(self,
-               ensemble_state,
-               data,
-               full_ensemble_transition_rates,
-               full_ensemble_transmission_rate,
-               user_network):
+    def update(
+            self,
+            ensemble_state,
+            data,
+            full_ensemble_transition_rates,
+            full_ensemble_transmission_rate,
+            user_network):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -256,7 +263,10 @@ class DataAssimilator:
 
 
     #defines a method to take a difference to the data state
-    def error_to_truth_state(self,ensemble_state,data):
+    def error_to_truth_state(
+            self,
+            ensemble_state,
+            data):
 
         em = self.online_emodel # get corresponding error model
 
@@ -288,47 +298,50 @@ class DataAssimilator:
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
 
-    def sum_to_one(self, prev_ensemble_state, ensemble_state):
-        N=self.observations[0].N
-        n_status=self.observations[0].n_status
-        if n_status == 6:
-            #First enforce probabilities == 1, by placing excess in susceptible and Exposed
-            #split based on their current proportionality.
-            #(Put all in S or E leads quickly to [0,1] bounding issues.
-            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status,N)
-            IHRDmass = np.sum(tmp[:,2:,:],axis=1) #sum over I H R D
-            Smass = ensemble_state[:,0:N]#mass in S
-            Emass = ensemble_state[:,N:2*N]#mass in E
-            fracS = Smass/(Smass+Emass)#get the proportion of mass in frac1
-            fracE = 1.0-fracS
-            ensemble_state[:,0:N] = (1.0 - IHRDmass)*fracS #mult rows by fracS
-            ensemble_state[:,N:2*N] =  (1.0 - IHRDmass)*fracE
+    def sum_to_one(
+            self,
+            prev_ensemble_state,
+            ensemble_state):
 
-        elif n_status==5:
-            # First obtain the mass contained in category "E"
-            prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0],n_status, N)
-            Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
-            # for each observation we get the observed status e.g 'I' and fix it (as it was updated)
-            # we then normalize the other states e.g (S,'E',H,R,D) over the difference 1-I
-            for observation in self.observations:
-                if len(observation.obs_states > 0):
-                   
-                    observed_nodes = np.remainder(observation.obs_states,N)
-                    updated_status = observation.obs_status_idx
-                
-                    free_statuses = [ i for i in range(5) if i!= updated_status]
-                    tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status, N)
-               
-                    # create arrays of the mass in the observed and the unobserved "free" statuses at the observed nodes.
-                    observed_tmp = tmp[:,:,observed_nodes]
-                    updated_mass = observed_tmp[:, updated_status, :]
-                    free_states  = observed_tmp
-                    free_states[:, updated_status, :]  = np.zeros([free_states.shape[0], 1, free_states.shape[2]]) #remove this axis for the sum (but maintain the shape)
-                  
-                    free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
-                    
-                    # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
-                    for i in free_statuses:
-                        
-                        ensemble_state[:, i*N+observed_nodes] = (1.0 - updated_mass[:,0,:]) * (free_states[:, i, :] / free_mass)
-                    
+        N = self.observations[0].N
+        n_status = self.observations[0].n_status
+        assert n_status == 5
+
+        # First obtain the mass contained in category "E"
+        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0],
+                n_status, N)
+        Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
+
+        # for each observation we get the observed status e.g 'I' and fix it
+        # (as # it was updated); we then normalize the other states e.g
+        # (S,'E',H,R,D) over the difference 1-I
+        for observation in self.observations:
+            if not observation.obs_states.size > 0:
+                continue
+
+            observed_nodes = np.remainder(observation.obs_states,N)
+            updated_status = observation.obs_status_idx
+
+            free_statuses = [ i for i in range(5) if i!= updated_status]
+            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status, N)
+
+            # create arrays of the mass in the observed and the unobserved
+            # "free" statuses at the observed nodes.
+            observed_tmp = tmp[:,:,observed_nodes]
+            updated_mass = observed_tmp[:, updated_status, :]
+            free_states  = observed_tmp
+
+            # remove this axis for the sum (but maintain the shape)
+            free_states[:, updated_status, :] = np.zeros(
+                    [free_states.shape[0], 1, free_states.shape[2]])
+
+            free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
+
+            # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
+            for i in free_statuses:
+                ensemble_state[:, i*N+observed_nodes] = (
+                        (1.0 - updated_mass[:,0,:])
+                        * (free_states[:,i,:] / free_mass)
+                        )
+
+

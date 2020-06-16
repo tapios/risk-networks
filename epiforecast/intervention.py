@@ -51,7 +51,7 @@ class Intervention:
       self.E_slice = np.s_[E * N : (E+1) * N]
 
     if I == -1:
-      self.E_slice = None
+      self.I_slice = None
     else:
       self.I_slice = np.s_[I * N : (I+1) * N]
 
@@ -90,7 +90,7 @@ class Intervention:
       E_substate = ensemble_states[:, self.E_slice]
 
     if self.I_slice is None:
-      I_substate = self.get_complement_substate(ensemble_states)
+      I_substate = self.__get_complement_substate(ensemble_states)
     else:
       I_substate = ensemble_states[:, self.I_slice]
 
