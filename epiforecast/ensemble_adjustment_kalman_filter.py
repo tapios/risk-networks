@@ -2,13 +2,13 @@ import numpy as np
 import scipy.linalg as la
 import sys
 
-class EnsembleAdjustedKalmanFilter:
+class EnsembleAdjustmentKalmanFilter:
 
     def __init__(self, full_svd = True, \
                  params_cov_noise = 1e-2, states_cov_noise = 1e-2, \
                  params_noise_active = True, states_noise_active = True):
         '''
-        Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
+        Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
 
         Key functions:
             * eakf.obs

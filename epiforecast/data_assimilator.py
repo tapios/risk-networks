@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
+from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
 class DataAssimilator:
 
@@ -13,7 +13,7 @@ class DataAssimilator:
                  transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
-           ensemble adjusted Kalman filter (EAKF) method.
+           ensemble adjustment Kalman filter (EAKF) method.
 
            Positional Args
            ---------------
@@ -75,7 +75,7 @@ class DataAssimilator:
         self.observations = observations
 
         # the data assimilation models (One for each observation model)
-        self.damethod = EnsembleAdjustedKalmanFilter()
+        self.damethod = EnsembleAdjustmentKalmanFilter()
 
         # online evaluations of errors, one needs an observation class to check differences in data
         self.online_emodel= errors

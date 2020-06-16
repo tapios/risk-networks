@@ -227,12 +227,13 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time + time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        yt      = np.empty((len(self.y0.flatten()), len(t)))
-        yt[:,0] = np.copy(self.y0.flatten())
+
+        yt      = np.empty(self.y0.size, t.size)
+        yt[:,0] = self.y0.flatten()
 
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
-                    total = n_steps):
+                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
+                             total = t.size - 1):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
@@ -240,7 +241,7 @@ class MasterEquationModelEnsemble:
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
         self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.states_trace    = yt.reshape(self.M, -1, t.size)
         self.start_time   += time_window
 
         return self.y0
@@ -260,13 +261,13 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time - time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        
-        yt      = np.empty((len(self.y0.flatten()), len(t)))
-        yt[:,0] = np.copy(self.y0.flatten())
 
+        yt      = np.empty(self.y0.size, t.size)
+        yt[:,0] = self.y0.flatten()
+        
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
-                    total = n_steps):
+                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
+                             total = t.size - 1):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
@@ -274,7 +275,7 @@ class MasterEquationModelEnsemble:
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
         self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.states_trace    = yt.reshape(self.M, -1, t.size)
         self.start_time   -= time_window
 
         return self.y0
