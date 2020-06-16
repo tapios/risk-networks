@@ -228,7 +228,9 @@ class MasterEquationModelEnsemble:
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
 
-        yt      = np.empty(self.y0.size, t.size)
+        print(self.y0.size)
+        print(t.size)
+        yt      = np.empty([self.y0.size, t.size])
         yt[:,0] = self.y0.flatten()
 
         for jj, time in tqdm(enumerate(t[:-1]),
@@ -261,8 +263,8 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time - time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-
-        yt      = np.empty(self.y0.size, t.size)
+        
+        yt      = np.empty([self.y0.size, t.size])
         yt[:,0] = self.y0.flatten()
         
         for jj, time in tqdm(enumerate(t[:-1]),
