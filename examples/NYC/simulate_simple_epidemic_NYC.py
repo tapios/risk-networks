@@ -103,18 +103,26 @@ contact_simulator = FastContactSimulator(
 # Clinical parameters of an age-distributed population
 #
 
-# The age category of each community individual,
+# age distribution of population
 
-age_distribution = [ 0.21,  # 0-17 years
-                     0.40,  # 18-44 years
-                     0.25,  # 45-64 years
-                     0.08   # 65-75 years
-                   ]
+distribution=[0.21, # 0-17 years
+              0.4,  # 18-44 years
+              0.25, # 45-64 years
+              0.08, # 65-75 years
+              0.06  # > 75 years
+             ]
 
-## 75 onwards
-age_distribution.append(1 - sum(age_distribution))
-                       
-ages = populate_ages(population, distribution=age_distribution)
+# age distribution of health workers
+
+distribution_HCW=np.asarray([0.0,  # 0-17 years
+                             0.4,  # 18-44 years
+                             0.25, # 45-64 years
+                             0.0,  # 65-75 years
+                             0.0   # > 75 years
+                 ])
+distribution_HCW /= sum(distribution_HCW)
+
+assign_ages(contact_network, distribution, distribution_HCW, node_identifiers)
 
 # Next, we randomly generate clinical properties for our example population.
 # Note that the units of 'periods' are days, and the units of 'rates' are 1/day.

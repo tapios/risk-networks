@@ -70,11 +70,14 @@ compartment_index = { # the layout of states in 'ensemble_states'
 
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
 age_distribution = [0.207, 0.400, 0.245, 0.083, 0.065]
+age_distribution_HCW = np.asarray([0, 0.400, 0.245, 0, 0])
+age_distribution_HCW /= sum(age_distribution_HCW)
 age_dep_h      = [0.002   ,  0.010  ,  0.040,  0.076,  0.160]
 age_dep_d      = [0.000001,  0.00001,  0.001,  0.007,  0.015]
 age_dep_dprime = [0.019   ,  0.073  ,  0.193,  0.327,  0.512]
 
 assert sum(age_distribution) == 1.0
+assert sum(age_distribution_HCW) == 1.0
 
 ################################################################################
 # initialization ###############################################################
@@ -99,7 +102,8 @@ contact_network = nx.convert_node_labels_to_integers(contact_network)
 population = len(contact_network)
 
 # clinical parameters of an age-distributed population
-assign_ages(contact_network, distribution=age_distribution)
+
+assign_ages(contact_network, age_distribution, age_distribution_HCW, node_identifiers)
 
 # stochastic model #############################################################
 # transition rates between each epidemiological state
@@ -115,7 +119,7 @@ transition_rates = TransitionRates(
 # simulate the growth and equilibration of an epidemic
 health_service = HealthService(
     static_population_network = contact_network,
-    health_workers = node_identifiers['health_workers'])
+    health_workers = np.arange(node_identifiers['health_workers'].size))
 
 epidemic_simulator = EpidemicSimulator(
     contact_network,
