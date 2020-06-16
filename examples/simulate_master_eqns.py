@@ -61,7 +61,14 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 
     y0[mm, : ] = np.hstack((S, I, H, R, D))
 
-res = master_eqn_ensemble.simulate(y0, 100, n_steps = 20)
+master_eqn_ensemble.set_mean_contact_duration()
+master_eqn_ensemble.set_states_ensemble(y0)
+res = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
+
+
+master_eqn_ensemble.set_mean_contact_duration()
+master_eqn_ensemble.set_states_ensemble(y0)
+res = master_eqn_ensemble.simulate(100, n_steps = 200)
 print('Simulation done!')
 
 # fig, axes = plot_master_eqns(res['states'], res['times'])

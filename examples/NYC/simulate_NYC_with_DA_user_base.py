@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join(".."))
+import os, sys; sys.path.append(os.path.join("..", ".."))
 
 from timeit import default_timer as timer
 
@@ -70,8 +70,8 @@ seed_numba_random_state(seed)
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', '..', 'data', 'networks', 'node_identifier_SBM_1e4_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -250,4 +250,4 @@ for i in range(int(simulation_length/static_contact_interval)):
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[epidemic_simuator.kinetic_model.times, epidemic_simuator.kinetic_model.statuses['S'], epidemic_simuator.kinetic_model.statuses['E'], epidemic_simuator.kinetic_model.statuses['I'], epidemic_simuator.kinetic_model.statuses['H'], epidemic_simuator.kinetic_model.statuses['R'],epidemic_simuator.kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[epidemic_simuator.kinetic_model.times, epidemic_simuator.kinetic_model.statuses['S'], epidemic_simuator.kinetic_model.statuses['E'], epidemic_simuator.kinetic_model.statuses['I'], epidemic_simuator.kinetic_model.statuses['H'], epidemic_simuator.kinetic_model.statuses['R'],epidemic_simuator.kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)

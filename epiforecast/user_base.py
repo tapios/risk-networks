@@ -80,7 +80,21 @@ class ContiguousUserBase:
 
                     
 def contiguous_indicators(graph, subgraph):
+    """
+    A function that returns user base subgraph indicators and corresponding edge/node
+    lists with attributes "exterior" and "interior".
+    """
+    edge_indicator_dict = {edge: "interior" if edge in subgraph.edges() else "exterior" for edge in graph.edges()}    
+    node_indicator_dict = {node: "interior" if node in subgraph.nodes() else "exterior" for node in graph.nodes()}    
 
+    edge_indicator_list = []
+    for key, value in  zip(edge_indicator_dict.keys(), edge_indicator_dict.values()):
+        edge_indicator_list.append([key[0], key[1], value])
+    
+    node_indicator_list = []
+    for key, value in  zip(node_indicator_dict.keys(), node_indicator_dict.values()):
+        node_indicator_list.append([key, value])
+        
     interior_nodes=0
     boundary_nodes=0
     exterior_neighbor_count=0
@@ -96,4 +110,4 @@ def contiguous_indicators(graph, subgraph):
 
     mean_neighbors_exterior=exterior_neighbor_count / boundary_nodes
                     
-    return interior_nodes, boundary_nodes, mean_neighbors_exterior
+    return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list

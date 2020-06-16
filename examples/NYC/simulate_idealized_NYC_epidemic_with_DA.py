@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join(".."))
+import os, sys; sys.path.append(os.path.join("..", ".."))
 
 from timeit import default_timer as timer
 
@@ -19,8 +19,6 @@ set_num_threads(1)
 from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
 
-from epiforecast.contact_simulator import DiurnalContactInceptionRate
-
 from epiforecast.scenarios import load_edges, random_epidemic
 
 from epiforecast.epiplots import plot_master_eqns
@@ -32,7 +30,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation
 from epiforecast.data_assimilator import DataAssimilator
 
-from epiforecast.utilities import seed_numba_random_state
+from epiforecast.utilities import seed_three_random_states
 
 
 
@@ -57,23 +55,16 @@ def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
 #
 # Set random seeds for reproducibility
 #
-
-# Both numpy.random and random are used by the KineticModel.
 seed = 2132
 
-np.random.seed(seed)
-random.seed(seed)
-
-# set numba seed
-
-seed_numba_random_state(seed)
+seed_three_random_states(seed)
 
 #
 # Load an example network
 #
 
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
-node_identifiers = load_node_identifiers(os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
+edges = load_edges(os.path.join('..', '..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
+node_identifiers = load_node_identifiers(os.path.join('..', '..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
 contact_network = nx.Graph()
 contact_network.add_edges_from(edges)
@@ -114,9 +105,8 @@ hospital_transmission_reduction = 0.1
 #
 static_contact_interval = 3 * hour
 
-health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
-                               health_worker_population = len(node_identifiers['health_workers']),
-                               static_population_network = contact_network)
+health_service = HealthService(static_population_network = contact_network,
+                               health_workers = node_identifiers['health_workers'])
 
 
 mean_contact_lifetime=0.5*minute
@@ -124,7 +114,8 @@ mean_contact_lifetime=0.5*minute
 epidemic_simulator = EpidemicSimulator( 
                  contact_network = contact_network,
            mean_contact_lifetime = mean_contact_lifetime,
-          contact_inception_rate = DiurnalContactInceptionRate(minimum = 2, maximum = 22),
+            night_inception_rate = 2,
+              day_inception_rate = 22,
                 transition_rates = transition_rates,
      community_transmission_rate = community_transmission_rate,
  hospital_transmission_reduction = hospital_transmission_reduction,
@@ -212,7 +203,7 @@ for i in range(int(simulation_length/static_contact_interval)):
      transition_rates_ensemble,
      community_transmission_rate_ensemble
      ) = assimilator.update(states_ensemble,
-                            statuses,
+                            epidemic_simulator.kinetic_model.current_statuses,
                             full_ensemble_transition_rates = transition_rates_ensemble,
                             full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                             user_network = contact_network)
@@ -231,7 +222,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 # Plot the results and compare with NYC data.
 #
 
-np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
+np.savetxt("../../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinetic_model.times, kinetic_model.statuses['S'], kinetic_model.statuses['E'], kinetic_model.statuses['I'], kinetic_model.statuses['H'], kinetic_model.statuses['R'],kinetic_model.statuses['D']], header = 'S E I H R D seed: %d'%seed)
 
 # # plot all model compartments
 # fig, axs = plt.subplots(nrows=2, sharex=True)
@@ -251,7 +242,7 @@ np.savetxt("../data/simulation_data/simulation_data_NYC_DA_1e3.txt", np.c_[kinet
 # plt.ylabel("Total $E, I, H, R, D$")
 # plt.legend()
 
-# image_path = ("../figs/simple_epidemic_with_slow_contact_simulator_" +
+# image_path = ("../../figs/simple_epidemic_with_slow_contact_simulator_" +
 #               "maxlambda_{:d}.png".format(contact_simulator.mean_contact_rate.maximum_i))
 
 # print("Saving a visualization of results at", image_path)
