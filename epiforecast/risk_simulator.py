@@ -77,10 +77,20 @@ class NetworkCompartmentalModel:
         Args:
         -------
         new_transmission_rate np.array.
-        new_exogenous_transmission_rate : np.array.
         """
         self.set_parameters(transition_rates  = None,
                             transmission_rate = new_transmission_rate,
+                  exogenous_transmission_rate = None )
+        
+    def update_exogenous_transmission_rate(self,
+                                           new_exogenous_transmission_rate):
+        """
+        Args:
+        -------
+        new_exogenous_transmission_rate : np.array.
+        """
+        self.set_parameters(transition_rates  = None,
+                            transmission_rate = None,
                   exogenous_transmission_rate = new_exogenous_transmission_rate)
 
         
@@ -167,15 +177,19 @@ class MasterEquationModelEnsemble:
                                  new_transmission_rate):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`
+        """
+        for mm, member in enumerate(self.ensemble):
+            member.update_transmission_rate(new_transmission_rate[mm])
+
+    def update_exogenous_transmission_rate(self,
+                                           new_exogenous_transmission_rate):
+        """
+        new_transmission_rate : `np.array` of length `ensemble_size`
         new_exogenous_transmission_rate : `np.array` of length `ensemble_size`
         
         """
-        if new_exogenous_transmission_rate is not None:
-            for mm, member in enumerate(self.ensemble):
-                member.update_transmission_rate(new_transmission_rate[mm], new_exogenous_transmission_rate[mm])
-        else:
-            for mm, member in enumerate(self.ensemble):
-                member.update_transmission_rate(new_transmission_rate[mm], None)
+        for mm, member in enumerate(self.ensemble):
+            member.update_exogenous_transmission_rate(new_exogenous_transmission_rate[mm])
 
     def update_transition_rates(self,
                                 new_transition_rates):
@@ -193,7 +207,8 @@ class MasterEquationModelEnsemble:
         update all parameters of ensemeble
         """
         self.update_transition_rates(new_transition_rates)
-        self.update_transmission_rate(new_transmission_rate, new_exogenous_transmission_rate)
+        self.update_transmission_rate(new_transmission_rate)
+        self.update_exogenous_transmission_rate(new_exogenous_transmission_rate)
 
     def set_states_ensemble(self,
                             states_ensemble):

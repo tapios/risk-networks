@@ -10,7 +10,8 @@ class DataAssimilator:
                  errors,
                  *,
                  transition_rates_to_update_str=None,
-                 transmission_rate_to_update_flag=None):
+                 transmission_rate_to_update_flag=None,
+                 exogenous_transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjusted Kalman filter (EAKF) method.
@@ -68,6 +69,9 @@ class DataAssimilator:
         if transmission_rate_to_update_flag is None:
             transmission_rate_to_update_flag = False
 
+        if exogenous_transmission_rate_to_update_flag is None:
+            exogenous_transmission_rate_to_update_flag = False
+
         if not isinstance(transition_rates_to_update_str,list):#if it's a string, not array
             transition_rates_to_update_str = [transition_rates_to_update_str]
 
@@ -83,6 +87,7 @@ class DataAssimilator:
         # which parameter to assimilate joint with the state
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
+        self.exogenous_transmission_rate_to_update_flag = exogenous_transmission_rate_to_update_flag
 
     def find_observation_states(self,
                                 contact_network,
@@ -140,6 +145,7 @@ class DataAssimilator:
                data,
                full_ensemble_transition_rates,
                full_ensemble_transmission_rate,
+               full_ensemble_exogenous_transmission_rate,
                user_network):
 
         ensemble_size = ensemble_state.shape[0]
@@ -176,6 +182,12 @@ class DataAssimilator:
             else: # set to column of empties
                 ensemble_transmission_rate = np.empty((ensemble_size, 0), dtype=float)
 
+            if self.exogenous_transmission_rate_to_update_flag is True:
+                ensemble_exogenous_transmission_rate = full_ensemble_exogenous_transmission_rate
+
+            else: # set to column of empties
+                ensemble_exogenous_transmission_rate = np.empty((ensemble_size, 0), dtype=float)
+
             om = self.observations
             dam = self.damethod
 
@@ -191,34 +203,23 @@ class DataAssimilator:
                                          scale = None)
                 cov = np.diag(var)
                 
-                # Get the covariances for the observation(s), with the minimum returned if two overlap
-                #cov = self.get_observation_cov()
-                # Perform da model update with ensemble_state: states, transition and transmission rates
-                
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
+                
+                # Perform da model update with ensemble_state: states, transition and transmission rates       
                 (ensemble_state[:, obs_states],
                  new_ensemble_transition_rates,
-                 new_ensemble_transmission_rate) = dam.update(ensemble_state[:, obs_states],
-                                                              ensemble_transition_rates,
-                                                              ensemble_transmission_rate,
-                                                              truth,
-                                                              cov)
+                 new_ensemble_transmission_rate,
+                 new_ensemble_exogenous_transmission_rate) = dam.update(ensemble_state[:, obs_states],
+                                                                        ensemble_transition_rates,
+                                                                        ensemble_transmission_rate,
+                                                                        ensemble_exogenous_transmission_rate,
+                                                                        truth,
+                                                                        cov)
 
 
-                # print states > 1
-                #tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                #sum_states = np.sum(tmp,axis=1)
-                # print(sum_states[sum_states > 1 + 1e-2])
-
-             
+                #enforce statuses of an updated node to sum up to 1 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
-                   
-                # print same states after the sum_to_one()
-                # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                # sum_states_after = np.sum(tmp,axis=1)
-                # print(sum_states_after[sum_states > 1 + 1e-2]) #see what the sum_to_one did to them
-
-
+              
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
@@ -245,6 +246,9 @@ class DataAssimilator:
                 if self.transmission_rate_to_update_flag is True:
                     full_ensemble_transmission_rate=new_ensemble_transmission_rate
 
+                # Update the exogenous_transmission_rate if required
+                if self.exogenous_transmission_rate_to_update_flag is True:
+                    full_ensemble_exogenous_transmission_rate=new_ensemble_exogenous_transmission_rate
 
                 print("EAKF error:", dam.error[-1])
             else:
@@ -255,7 +259,10 @@ class DataAssimilator:
                 self.error_to_truth_state(ensemble_state,data)
 
             # Return ensemble_state, transition rates, and transmission rate
-            return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            return (ensemble_state,
+                    full_ensemble_transition_rates,
+                    full_ensemble_transmission_rate,
+                    full_ensemble_exogenous_transmission_rate)
 
 
     #defines a method to take a difference to the data state
@@ -299,10 +306,8 @@ class DataAssimilator:
 
         N = self.observations[0].N
 
-
         # First obtain the mass contained in category "E"
-        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0],
-                n_status, N)
+        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, N)
         Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
 
         # for each observation we get the observed status e.g 'I' and fix it
@@ -316,7 +321,7 @@ class DataAssimilator:
             updated_status = observation.obs_status_idx
 
             free_statuses = [ i for i in range(5) if i!= updated_status]
-            tmp = ensemble_state.reshape(ensemble_state.shape[0],n_status, N)
+            tmp = ensemble_state.reshape(ensemble_state.shape[0],5, N)
 
             # create arrays of the mass in the observed and the unobserved
             # "free" statuses at the observed nodes.

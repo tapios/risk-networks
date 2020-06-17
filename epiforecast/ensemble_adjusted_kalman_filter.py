@@ -4,9 +4,12 @@ import sys
 
 class EnsembleAdjustedKalmanFilter:
 
-    def __init__(self, full_svd = True, \
-                 params_cov_noise = 1e-2, states_cov_noise = 1e-2, \
-                 params_noise_active = True, states_noise_active = True):
+    def __init__(self,
+                 full_svd = True, 
+                 params_cov_noise = 1e-2,
+                 states_cov_noise = 1e-2, 
+                 params_noise_active = True,
+                 states_noise_active = True):
         '''
         Instantiate an object that implements an Ensemble Adjusted Kalman Filter.
 
@@ -29,7 +32,10 @@ class EnsembleAdjustedKalmanFilter:
         self.states_noise_active = states_noise_active
 
         # Compute error
-    def compute_error(self, x, x_t, cov):
+    def compute_error(self,
+                      x,
+                      x_t,
+                      cov):
         diff = x_t - x.mean(0)
         error = diff.dot(np.linalg.solve(cov, diff))
         # Normalize error
@@ -41,14 +47,23 @@ class EnsembleAdjustedKalmanFilter:
 
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, ensemble_state, clinical_statistics, transmission_rates, truth, cov, r=1.0):
+    def update(self,
+               ensemble_state,
+               ensemble_clinical_statistics,
+               ensemble_transmission_rate,
+               ensemble_exogenous_transmission_rate,
+               truth,
+               cov):
 
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
 
-        - clinical_statistics (np.array): transition rate model parameters for each of the J ensembles
+        - ensemble_clinical_statistics (np.array): transition rate model parameters for each of the J ensembles
 
-        - transmission_rates (np.array): transmission rate of model parameters for each of the J ensembles
+        - ensemble_transmission_rate (np.array): transmission rate model parameters for each of the J ensembles
+
+        - ensemble_exogenous transmission_rate (np.array): exogenous transmission rate model parameters for
+                                                           each of the J ensembles
 
         - truth (np.array): M x 1 array of observed states.
 
@@ -69,19 +84,9 @@ class EnsembleAdjustedKalmanFilter:
             'EAKF init: truth and cov are not the correct sizes'
 
         # Observation data statistics at the observed nodes
-        x_t = truth
-        cov = r**2 * cov
-
-        # print("----------------------------------------------------")
-        # print(x_t[:3])
-        # print(" ")
-        # print(np.diag(cov)[:3])
-        # print("----------------------------------------------------")
-
-        cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
-        x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
-       
-
+        cov = (1./np.maximum(truth, 1e-12)/np.maximum(1-truth, 1e-12))**2 * cov
+        x_t = np.log(np.maximum(truth, 1e-12)/np.maximum(1.-truth, 1e-12))
+      
         try:
             cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
@@ -90,35 +95,32 @@ class EnsembleAdjustedKalmanFilter:
 
         # States
         x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
+        
         # Stacked parameters and states
         # the transition and transmission parameters act similarly in the algorithm
-        p = clinical_statistics
-        q = transmission_rates
+        p = ensemble_clinical_statistics
+        q = ensemble_transmission_rate
+        r = ensemble_exogenous_transmission_rate
 
         #if only 1 state is given
         if (ensemble_state.ndim == 1):
             x=x[np.newaxis].T
 
-        if p.size>0 and q.size>0:
-            zp = np.hstack([p, q, x])
-        elif p.size>0 and q.size==0:
-            zp = np.hstack([p,x])
-        elif q.size>0 and p.size==0:
-            zp = np.hstack([q, x])
-        else:
-            zp = x
-            params_noise_active=False
+        zp = [i for i in [p,q,r,x] if i.size > 0]
+        zp = np.hstack(zp)
+   
+        if p.size == 0 and q.size == 0 and r.size == 0:
+             params_noise_active=False
 
         # Ensemble size
         J = x.shape[0]
 
-        # Sizes of q and x
-        pqs = q[0].size +p[0].size
+        # Sizes of model parameters, and states
+        pqrs = q[0].size + p[0].size + r[0].size
         xs = x[0].size
 
         zp_bar = np.mean(zp, 0)
         Sigma = np.cov(zp.T)
-
         #if only one state is given
         if Sigma.ndim < 2:
             Sigma=np.array([Sigma])
@@ -129,14 +131,14 @@ class EnsembleAdjustedKalmanFilter:
             # Current implementation involves a small constant
             # This numerical trick can be deactivated if Sigma is not ill-conditioned
             if self.params_noise_active == True:
-                Sigma[:pqs,:pqs] = Sigma[:pqs,:pqs] + np.identity(pqs) * self.params_cov_noise
+                Sigma[:pqrs,:pqrs] = Sigma[:pqrs,:pqrs] + np.identity(pqrs) * self.params_cov_noise
             if self.states_noise_active == True:
-                Sigma[pqs:,pqs:] = Sigma[pqs:,pqs:] + np.identity(xs) * self.states_cov_noise
+                Sigma[pqrs:,pqrs:] = Sigma[pqrs:,pqrs:] + np.identity(xs) * self.states_cov_noise
 
             # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
             # Preparing matrices for EAKF
-            H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
-            Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
+            H = np.hstack([np.zeros((xs, pqrs)), np.eye(xs)])
+            Hpqr = np.hstack([np.eye(pqrs), np.zeros((pqrs, xs))])
             F, Dp_vec, _ = la.svd(Sigma)
             Dp = np.diag(Dp_vec)
             Sigma_inv = np.linalg.inv(Sigma)
@@ -158,8 +160,8 @@ class EnsembleAdjustedKalmanFilter:
 
             # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
             # Preparing matrices for EAKF
-            H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
-            Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
+            H = np.hstack([np.zeros((xs, pqrs)), np.eye(xs)])
+            Hpqr = np.hstack([np.eye(pqrs), np.zeros((pqrs, xs))])
             svd1 = TruncatedSVD(n_components=J-1, random_state=42)
             svd1.fit(Sigma)
             F = svd1.components_.T
@@ -214,10 +216,11 @@ class EnsembleAdjustedKalmanFilter:
         # replace unchanged states
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
 
-        pqout=np.dot(zu,Hpq.T)
-        new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
-        new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
-        #self.x = np.append(self.x, [x_p], axis=0)
+        #update the model parameters
+        pqrout=np.dot(zu,Hpqr.T)
+        new_ensemble_clinical_statistics         = pqrout[:,                      :p[0].size]
+        new_ensemble_transmission_rate           = pqrout[:,             p[0].size:p[0].size + q[0].size]
+        new_ensemble_exogenous_transmission_rate = pqrout[:, p[0].size + q[0].size:] 
 
         if (ensemble_state.ndim == 1):
             new_ensemble_state=new_ensemble_state.squeeze()
@@ -225,6 +228,7 @@ class EnsembleAdjustedKalmanFilter:
         # Compute error
         self.compute_error(x_logit,x_t,cov)
 
-        #print("new_clinical_statistics", new_clinical_statistics)
-        #print("new_transmission_rates", new_transmission_rates)
-        return new_ensemble_state, new_clinical_statistics, new_transmission_rates
+        return (new_ensemble_state,
+                new_ensemble_clinical_statistics,
+                new_ensemble_transmission_rate,
+                new_ensemble_exogenous_transmission_rate)
