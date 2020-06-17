@@ -5,7 +5,11 @@ import networkx as nx
 
 from .samplers import AgeDependentBetaSampler, AgeDependentConstant, BetaSampler, GammaSampler
 
-def sample_distribution(sampler, ages=None, population=None, minimum=0):
+def sample_distribution(
+    sampler, 
+    ages=None, 
+    population=None, 
+    minimum=0):
     """
     Generate clinical parameters by sampling from a distribution.
 
@@ -43,24 +47,29 @@ def sample_distribution(sampler, ages=None, population=None, minimum=0):
 
 # For numpy arrays and constants
 @singledispatch
-def on_network(parameter, network):
+def on_network(
+    parameter, network):
     return parameter
 
 @on_network.register(list)
-def list_on_network(parameter, network):
+def list_on_network(
+    parameter, network):
     return np.array(parameter)
 
 @on_network.register(BetaSampler)
 @on_network.register(GammaSampler)
-def random_sample_on_network(sampler, network):
+def random_sample_on_network(
+    sampler, network):
     return np.array([sampler.minimum + sampler.draw() for node in network.nodes()])
 
 @on_network.register(AgeDependentBetaSampler)
-def age_dependent_random_sample_on_network(sampler, network):
+def age_dependent_random_sample_on_network(
+    sampler, network):
     return np.array([sampler.draw(data['age']) for node, data in network.nodes(data=True)])
 
 @on_network.register(AgeDependentConstant)
-def age_dependent_on_network(parameter, network):
+def age_dependent_on_network(
+    parameter, network):
     return np.array([parameter.constants[data['age']] for node, data in network.nodes(data=True)])
 
 class TransitionRates:
@@ -103,14 +112,15 @@ class TransitionRates:
     5. transition_rates.infected_to_deceased
     6. transition_rates.hospitalized_to_deceased
     """
-    def __init__(self,
-                 population_network,
-                 latent_periods,
-                 community_infection_periods,
-                 hospital_infection_periods,
-                 hospitalization_fraction,
-                 community_mortality_fraction,
-                 hospital_mortality_fraction):
+    def __init__(
+        self,
+        population_network,
+        latent_periods,
+        community_infection_periods,
+        hospital_infection_periods,
+        hospitalization_fraction,
+        community_mortality_fraction,
+        hospital_mortality_fraction):
 
         self.population_network = population_network
         self.population = len(population_network)
@@ -126,7 +136,8 @@ class TransitionRates:
 
         self._calculate_transition_rates()
 
-    def _calculate_transition_rates(self):
+    def _calculate_transition_rates(
+        self):
         """
         Calculates the transition rates, given the current clinical parameters.
         If the clinical parameter is only a single value, we apply it to all nodes.
@@ -161,7 +172,9 @@ class TransitionRates:
 
 
 
-def populate_ages(population, distribution):
+def populate_ages(
+    population, 
+    distribution):
     """
     Returns a numpy array of length `population`, with age categories from
     0 to len(`distribution`), where the elements of `distribution` specify
@@ -183,9 +196,15 @@ def populate_ages(population, distribution):
 
 
 
-def assign_ages(population_network, distribution, distribution_HCW, node_identifiers):
+def assign_ages(
+    population_network,
+    distribution,
+    distribution_HCW,
+    node_identifiers):
     """
     Assigns ages to the nodes of `population_network` according to `distribution`.
+    Note that health workers are assumed to be the first K nodes in `population_network',
+    where K = node_identifiers['health_workers'].size.
 
     Args
     ----
