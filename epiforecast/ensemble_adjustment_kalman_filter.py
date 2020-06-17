@@ -4,9 +4,13 @@ import sys
 
 class EnsembleAdjustmentKalmanFilter:
 
-    def __init__(self, full_svd = True, \
-                 params_cov_noise = 1e-2, states_cov_noise = 1e-2, \
-                 params_noise_active = True, states_noise_active = True):
+    def __init__(
+            self,
+            full_svd = True, 
+            params_cov_noise = 1e-2,
+            states_cov_noise = 1e-2,
+            params_noise_active = True,
+            states_noise_active = True):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
 
@@ -29,7 +33,11 @@ class EnsembleAdjustmentKalmanFilter:
         self.states_noise_active = states_noise_active
 
         # Compute error
-    def compute_error(self, x, x_t, cov):
+    def compute_error(
+            self,
+            x,
+            x_t,
+            cov):
         diff = x_t - x.mean(0)
         error = diff.dot(np.linalg.solve(cov, diff))
         # Normalize error
@@ -41,7 +49,14 @@ class EnsembleAdjustmentKalmanFilter:
 
     # x: forward evaluation of state, i.e. x(q), with shape (num_ensembles, num_elements)
     # q: model parameters, with shape (num_ensembles, num_elements)
-    def update(self, ensemble_state, clinical_statistics, transmission_rates, truth, cov, r=1.0):
+    def update(
+            self,
+            ensemble_state,
+            clinical_statistics,
+            transmission_rates,
+            truth,
+            cov,
+            r=1.0):
 
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles

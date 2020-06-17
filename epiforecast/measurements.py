@@ -1,11 +1,12 @@
 import numpy as np
 
 class TestMeasurement:
-    def __init__(self,
-                 status,
-                 sensitivity=0.80,
-                 specificity=0.99,
-                 noisy_measurement=False):
+    def __init__(
+            self,
+            status,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=False):
 
         self.sensitivity = sensitivity
         self.specificity = specificity
@@ -15,9 +16,10 @@ class TestMeasurement:
         self.status = status
         self.n_status = len(self.status_catalog.keys())
 
-    def _set_prevalence(self,
-                        ensemble_states,
-                        fixed_prevalence=None):
+    def _set_prevalence(
+            self,
+            ensemble_states,
+            fixed_prevalence=None):
         """
         Inputs:
         -------
@@ -58,17 +60,19 @@ class TestMeasurement:
             self.for_mean = FOR.mean()
             self.for_var  = FOR.var()
 
-    def update_prevalence(self,
-                          ensemble_states,
-                          scale='log',
-                          fixed_prevalence=None):
+    def update_prevalence(
+            self,
+            ensemble_states,
+            scale='log',
+            fixed_prevalence=None):
 
         self._set_prevalence(ensemble_states, fixed_prevalence)
         self._set_ppv(scale = scale)
 
-    def get_mean_and_variance(self,
-                              positive_test=True,
-                              scale='log'):
+    def get_mean_and_variance(
+            self,
+            positive_test=True,
+            scale='log'):
 
         if scale == 'log':
             if positive_test:
@@ -81,9 +85,10 @@ class TestMeasurement:
             else:
                 return self.for_mean, self.for_var
 
-    def take_measurements(self,
-                          nodes_state_dict,
-                          scale='log'):
+    def take_measurements(
+            self,
+            nodes_state_dict,
+            scale='log'):
         """
         Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
         population with a certain prevelance (computed from an ensemble of master equations).
@@ -112,12 +117,13 @@ class TestMeasurement:
 #We observe a subset of nodes at a status, only if the state exceeds a given threshold value.
 #e.g we have a probability of observing I_i if (I_i > 0.8) when the observation takes place.
 class StateInformedObservation:
-    def __init__(self,
-                 N,
-                 obs_frac,
-                 obs_status,
-                 min_threshold,
-                 max_threshold):
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status,
+            min_threshold,
+            max_threshold):
 
         #number of nodes in the graph
         self.N = N
@@ -138,9 +144,10 @@ class StateInformedObservation:
         #default init observation
         self.obs_states = np.empty(0)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Update the observation model when taking observation
         """
@@ -166,17 +173,18 @@ class StateInformedObservation:
 #combine them together
 class Observation(StateInformedObservation, TestMeasurement):
 
-    def __init__(self,
-                 N,
-                 obs_frac,
-                 obs_status,
-                 obs_name,
-                 min_threshold=0.0,
-                 max_threshold=1.0,
-                 sensitivity=0.80,
-                 specificity=0.99,
-                 noisy_measurement=False):
-
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status,
+            obs_name,
+            min_threshold=0.0,
+            max_threshold=1.0,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=False):
+        
         self.name=obs_name
         
         StateInformedObservation.__init__(self,
@@ -191,9 +199,10 @@ class Observation(StateInformedObservation, TestMeasurement):
                                  specificity,
                                  noisy_measurement)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Obtain where one should make an observation based on the current state,
         and the contact network
@@ -205,11 +214,12 @@ class Observation(StateInformedObservation, TestMeasurement):
                                                          state,
                                                          data)
 
-    def observe(self,
-                contact_network,          
-                state,
-                data,
-                scale='log'):
+    def observe(
+            self,
+            contact_network,          
+            state,
+            data,
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -237,10 +247,11 @@ class Observation(StateInformedObservation, TestMeasurement):
         self.variance = observed_variance
 
 class DataInformedObservation:
-    def __init__(self,
-                 N,
-                 bool_type,
-                 obs_status):
+    def __init__(
+            self,
+            N,
+            bool_type,
+            obs_status):
 
         #number of nodes in the graph
         self.N = N
@@ -252,9 +263,10 @@ class DataInformedObservation:
         self.obs_status_idx=np.array([self.status_catalog[status] for status in obs_status])
         self.obs_states=np.empty(0)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Update the observation model when taking observation
         """
@@ -281,11 +293,12 @@ class DataInformedObservation:
 
 class DataObservation(DataInformedObservation):
 
-    def __init__(self,
-                 N,
-                 set_to_one,
-                 obs_status,
-                 obs_name):
+    def __init__(
+            self,
+            N,
+            set_to_one,
+            obs_status,
+            obs_name):
         """
         An observation which uses the current statuses of the epidemic model to influence the risk simulation.
         It doesn't make a measurement, just fixes the value to near 1, or near 0.
@@ -302,11 +315,15 @@ class DataObservation(DataInformedObservation):
         self.name=obs_name
         self.set_to_one = set_to_one
 
-        DataInformedObservation.__init__(self, N, set_to_one, obs_status)
+        DataInformedObservation.__init__(self,
+                                         N,
+                                         set_to_one,
+                                         obs_status)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Obtain where one should make an observation based on the current state,
         and the contact network
@@ -318,11 +335,12 @@ class DataObservation(DataInformedObservation):
                                                         state,
                                                         data)
 
-    def observe(self,
-                contact_network,
-                state,
-                data,
-                scale='log'):
+    def observe(
+            self,
+            contact_network,
+            state,
+            data,
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -364,19 +382,21 @@ class DataNodeInformedObservation(DataInformedObservation):
     This means that observing, for example, H = 1 propagates the information to
     the other states as S = I = R = D = 0.
     """
-    def __init__(self,
-                 N,
-                 bool_type,
-                 obs_status):
+    def __init__(
+            self,
+            N,
+            bool_type,
+            obs_status):
         
         DataInformedObservation.__init__(self,
                                          N,
                                          bool_type,
                                          obs_status)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Update the observation model when taking observation
         """
@@ -391,13 +411,14 @@ class DataNodeInformedObservation(DataInformedObservation):
 
 class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
-    def __init__(self,
-                 N,
-                 bool_type,
-                 obs_status,
-                 obs_name,
-                 sensitivity=0.80,
-                 specificity=0.99):
+    def __init__(
+            self,
+            N,
+            bool_type,
+            obs_status,
+            obs_name,
+            sensitivity=0.80,
+            specificity=0.99):
 
         self.name = obs_name
 
@@ -410,9 +431,10 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                                  sensitivity,
                                  specificity)
 
-    def find_observation_states(self,
-                                state,
-                                data):
+    def find_observation_states(
+            self,
+            state,
+            data):
         """
         Obtain where one should make an observation based on the current state,
         and the contact network
@@ -424,11 +446,12 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                                                             state,
                                                             data)
 
-    def observe(self,
-                contact_network,
-                state,
-                data,
-                scale='log'):
+    def observe(
+            self,
+            contact_network,
+            state,
+            data,
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
