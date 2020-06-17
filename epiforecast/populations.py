@@ -48,28 +48,33 @@ def sample_distribution(
 # For numpy arrays and constants
 @singledispatch
 def on_network(
-    parameter, network):
+    parameter,
+    network):
     return parameter
 
 @on_network.register(list)
 def list_on_network(
-    parameter, network):
+    parameter, 
+    network):
     return np.array(parameter)
 
 @on_network.register(BetaSampler)
 @on_network.register(GammaSampler)
 def random_sample_on_network(
-    sampler, network):
+    sampler, 
+    network):
     return np.array([sampler.minimum + sampler.draw() for node in network.nodes()])
 
 @on_network.register(AgeDependentBetaSampler)
 def age_dependent_random_sample_on_network(
-    sampler, network):
+    sampler, 
+    network):
     return np.array([sampler.draw(data['age']) for node, data in network.nodes(data=True)])
 
 @on_network.register(AgeDependentConstant)
 def age_dependent_on_network(
-    parameter, network):
+    parameter,
+    network):
     return np.array([parameter.constants[data['age']] for node, data in network.nodes(data=True)])
 
 class TransitionRates:
