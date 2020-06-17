@@ -2,7 +2,7 @@ import numpy as np
 import scipy.linalg as la
 import sys
 
-class EnsembleAdjustedKalmanFilter:
+class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
