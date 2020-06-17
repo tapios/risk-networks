@@ -119,14 +119,14 @@ class TestMeasurement:
 class StateInformedObservation:
     def __init__(
             self,
-            N,
+            user_population,
             obs_frac,
             obs_status,
             min_threshold,
             max_threshold):
 
         #number of nodes in the graph
-        self.N = N
+        self.N = user_population
         #number of different states a node can be in
 
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
@@ -176,7 +176,7 @@ class Observation(StateInformedObservation, TestMeasurement):
 
     def __init__(
             self,
-            N,
+            user_population,
             obs_frac,
             obs_status,
             obs_name,
@@ -187,9 +187,16 @@ class Observation(StateInformedObservation, TestMeasurement):
 
         self.name=obs_name
         
-        StateInformedObservation.__init__(self, N, obs_frac, obs_status,
-                                          min_threshold, max_threshold)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        StateInformedObservation.__init__(self,
+                                          user_population,
+                                          obs_frac,
+                                          obs_status,
+                                          min_threshold,
+                                          max_threshold)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity)
 
     def find_observation_states(
             self,
@@ -203,8 +210,10 @@ class Observation(StateInformedObservation, TestMeasurement):
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        StateInformedObservation.find_observation_states(self, contact_network,
-                                                         state, data)
+        StateInformedObservation.find_observation_states(self,
+                                                         contact_network,
+                                                         state,
+                                                         data)
 
     def observe(
             self,
@@ -320,8 +329,10 @@ class DataObservation(DataInformedObservation):
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        DataInformedObservation.find_observation_states(self, contact_network,
-                                                        state, data)
+        DataInformedObservation.find_observation_states(self,
+                                                        contact_network,
+                                                        state,
+                                                        data)
 
     def observe(
             self,
@@ -406,8 +417,14 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
         self.name = obs_name
 
-        DataNodeInformedObservation.__init__(self, N, bool_type, obs_status)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        DataNodeInformedObservation.__init__(self,
+                                             N,
+                                             bool_type,
+                                             obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity)
 
     def find_observation_states(
             self,
@@ -422,7 +439,9 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         DataNodeInformedObservation.find_observation_states(self,
-                contact_network, state, data)
+                                                            contact_network,
+                                                            state,
+                                                            data)
 
     def observe(
             self,

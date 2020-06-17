@@ -6,8 +6,8 @@ class EnsembleAdjustedKalmanFilter:
 
     def __init__(self,
                  full_svd = True, 
-                 params_cov_noise = 1e-2,
-                 states_cov_noise = 1e-2, 
+                 params_cov_noise = 1e-6,
+                 states_cov_noise = 1e-6, 
                  params_noise_active = True,
                  states_noise_active = True):
         '''
