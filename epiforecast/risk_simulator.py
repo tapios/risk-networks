@@ -8,16 +8,18 @@ class NetworkCompartmentalModel:
     ODE representation of the SEIHRD compartmental model.
     """
 
-    def __init__(self,
-                 N,
-                 hospital_transmission_reduction=0.25):
+    def __init__(
+            self,
+            N,
+            hospital_transmission_reduction=0.25):
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
         self.N = N
 
-    def set_parameters(self,
-                       transition_rates=None,
-                       transmission_rate=None):
+    def set_parameters(
+            self,
+            transition_rates=None,
+            transmission_rate=None):
         """
         Setup the parameters from the transition_rates container into the model
         instance.
@@ -53,8 +55,9 @@ class NetworkCompartmentalModel:
             self.offset[iI] = self.sigma
             self.y_dot = np.zeros_like(5 * self.N,)
 
-    def update_transition_rates(self,
-                                new_transition_rates):
+    def update_transition_rates(
+            self,
+            new_transition_rates):
         """
         Args:
         -------
@@ -63,8 +66,9 @@ class NetworkCompartmentalModel:
         self.set_parameters(transition_rates = new_transition_rates,
                            transmission_rate = None)
 
-    def update_transmission_rate(self,
-                                 new_transmission_rate):
+    def update_transmission_rate(
+            self,
+            new_transmission_rate):
         """
         Args:
         -------
@@ -74,13 +78,14 @@ class NetworkCompartmentalModel:
                            transmission_rate = new_transmission_rate)
 
 class MasterEquationModelEnsemble:
-    def __init__(self,
-                 contact_network,
-                 transition_rates,
-                 transmission_rate,
-                 ensemble_size=1,
-                 hospital_transmission_reduction=0.25,
-                 start_time=0.0):
+    def __init__(
+            self,
+            contact_network,
+            transition_rates,
+            transmission_rate,
+            ensemble_size=1,
+            hospital_transmission_reduction=0.25,
+            start_time=0.0):
         """
         Args:
         -------
@@ -116,8 +121,9 @@ class MasterEquationModelEnsemble:
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
     #  Set methods -------------------------------------------------------------
-    def set_mean_contact_duration(self,
-                                  new_mean_contact_duration=None):
+    def set_mean_contact_duration(
+            self,
+            new_mean_contact_duration=None):
         """
         For update purposes
         """
@@ -128,47 +134,53 @@ class MasterEquationModelEnsemble:
 
         self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
 
-    def set_contact_network_and_contact_duration(self,
-                                                 new_contact_network):
+    def set_contact_network_and_contact_duration(
+            self,
+            new_contact_network):
         self.contact_network = new_contact_network
         # Automatically reset the edge weights
         self.set_mean_contact_duration()
 
-    def update_transmission_rate(self,
-                                 new_transmission_rate):
+    def update_transmission_rate(
+            self,
+            new_transmission_rate):
         """
         new_transmission_rate : `np.array` of length `ensemble_size`
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transmission_rate(new_transmission_rate[mm])
 
-    def update_transition_rates(self,
-                                new_transition_rates):
+    def update_transition_rates(
+            self,
+            new_transition_rates):
         """
         new_transition_rates : `list` of `TransitionRate`s
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transition_rates(new_transition_rates[mm])
 
-    def update_ensemble(self,
-                        new_transition_rates,
-                        new_transmission_rate):
+    def update_ensemble(
+            self,
+            new_transition_rates,
+            new_transmission_rate):
         """
         update all parameters of ensemeble
         """
         self.update_transition_rates(new_transition_rates)
         self.update_transmission_rate(new_transmission_rate)
 
-    def set_states_ensemble(self,
-                            states_ensemble):
+    def set_states_ensemble(
+            self,
+            states_ensemble):
         self.y0 = np.copy(states_ensemble)
 
     # ODE solver methods -------------------------------------------------------
-    def do_step(self,
-                t,
-                y,
-                member,
-                closure='independent'):
+    def do_step(
+            self,
+            t,
+            y,
+            member,
+            closure='independent'):
         """
         Args:
         --------
@@ -212,11 +224,12 @@ class MasterEquationModelEnsemble:
             self.CM_SI = self.L.multiply(self.numSI/(self.denSI+1e-8)).dot(y[:,iI].T)
             self.CM_SH = self.L.multiply(self.numSH/(self.denSH+1e-8)).dot(y[:,iH].T)
 
-    def simulate(self,
-                 time_window,
-                 n_steps=50,
-                 closure='independent',
-                 **kwargs):
+    def simulate(
+            self,
+            time_window,
+            n_steps=50,
+            closure='independent',
+            **kwargs):
         """
         Args:
         -------
@@ -227,12 +240,13 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time + time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        yt      = np.empty((len(self.y0.flatten()), len(t)))
-        yt[:,0] = np.copy(self.y0.flatten())
+
+        yt      = np.empty([self.y0.size, t.size])
+        yt[:,0] = self.y0.flatten()
 
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
-                    total = n_steps):
+                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
+                             total = t.size - 1):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
@@ -240,16 +254,17 @@ class MasterEquationModelEnsemble:
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
         self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.states_trace    = yt.reshape(self.M, -1, t.size)
         self.start_time   += time_window
 
         return self.y0
 
-    def simulate_backwards(self,
-                           time_window,
-                           n_steps = 100,
-                           closure = 'independent',
-                           **kwargs):
+    def simulate_backwards(
+            self,
+            time_window,
+            n_steps = 100,
+            closure = 'independent',
+            **kwargs):
         """    
         Args:
         -------
@@ -261,12 +276,12 @@ class MasterEquationModelEnsemble:
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
         
-        yt      = np.empty((len(self.y0.flatten()), len(t)))
-        yt[:,0] = np.copy(self.y0.flatten())
-
+        yt      = np.empty([self.y0.size, t.size])
+        yt[:,0] = self.y0.flatten()
+        
         for jj, time in tqdm(enumerate(t[:-1]),
-                    desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
-                    total = n_steps):
+                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
+                             total = t.size - 1):
             self.eval_closure(self.y0, closure = closure)
             for mm, member in enumerate(self.ensemble):
                 self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
@@ -274,7 +289,7 @@ class MasterEquationModelEnsemble:
             yt[:,jj + 1] = np.copy(self.y0.flatten())
 
         self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, len(t))
+        self.states_trace    = yt.reshape(self.M, -1, t.size)
         self.start_time   -= time_window
 
         return self.y0

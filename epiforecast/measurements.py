@@ -5,11 +5,12 @@ class TestMeasurement:
             self,
             status,
             sensitivity=0.80,
-            specificity=0.99):
+            specificity=0.99,
+            noisy_measurement=False):
 
         self.sensitivity = sensitivity
         self.specificity = specificity
-
+        self.noisy_measurement=noisy_measurement
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
 
         self.status = status
@@ -87,8 +88,7 @@ class TestMeasurement:
     def take_measurements(
             self,
             nodes_state_dict,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
         population with a certain prevelance (computed from an ensemble of master equations).
@@ -105,10 +105,10 @@ class TestMeasurement:
         for node in nodes_state_dict.keys():
             if nodes_state_dict[node] == self.status:
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test = not (noisy_measurement and (np.random.random() > self.sensitivity)))
+                                   positive_test = not (self.noisy_measurement and (np.random.random() > self.sensitivity)))
             else:
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test =     (noisy_measurement and (np.random.random() < 1 - self.specificity)))
+                                   positive_test =     (self.noisy_measurement and (np.random.random() < 1 - self.specificity)))
 
         return measurements, uncertainty
 
@@ -146,7 +146,6 @@ class StateInformedObservation:
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
@@ -160,7 +159,7 @@ class StateInformedObservation:
                                                   (xmean<=self.obs_max_threshold)]
 
         M=candidate_states_ens.size
-        if (int(self.obs_frac*M)>=1)&(self.obs_frac < 1.0) :
+        if (int(self.obs_frac*M)>=1) and (self.obs_frac < 1.0) :
             # If there is at least one state to sample (...)>=1.0
             # and if we don't sample every state
             choice=np.random.choice(np.arange(M), size=int(self.obs_frac*M), replace=False)
@@ -183,17 +182,25 @@ class Observation(StateInformedObservation, TestMeasurement):
             min_threshold=0.0,
             max_threshold=1.0,
             sensitivity=0.80,
-            specificity=0.99):
-
+            specificity=0.99,
+            noisy_measurement=False):
+        
         self.name=obs_name
         
-        StateInformedObservation.__init__(self, N, obs_frac, obs_status,
-                                          min_threshold, max_threshold)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        StateInformedObservation.__init__(self,
+                                          N,
+                                          obs_frac,
+                                          obs_status,
+                                          min_threshold,
+                                          max_threshold)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
@@ -203,23 +210,25 @@ class Observation(StateInformedObservation, TestMeasurement):
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        StateInformedObservation.find_observation_states(self, contact_network,
-                                                         state, data)
+        StateInformedObservation.find_observation_states(self,
+                                                         state,
+                                                         data)
 
     def observe(
             self,
-            contact_network,
+            contact_network,          
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
         """
 
         #make a measurement of the data
-        TestMeasurement.update_prevalence(self, state, scale)
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
 
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
@@ -227,8 +236,9 @@ class Observation(StateInformedObservation, TestMeasurement):
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean, var = TestMeasurement.take_measurements(self, observed_data,
-                scale, noisy_measurement)
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
@@ -255,7 +265,6 @@ class DataInformedObservation:
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
@@ -306,11 +315,13 @@ class DataObservation(DataInformedObservation):
         self.name=obs_name
         self.set_to_one = set_to_one
 
-        DataInformedObservation.__init__(self, N, set_to_one, obs_status)
+        DataInformedObservation.__init__(self,
+                                         N,
+                                         set_to_one,
+                                         obs_status)
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
@@ -320,16 +331,16 @@ class DataObservation(DataInformedObservation):
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        DataInformedObservation.find_observation_states(self, contact_network,
-                                                        state, data)
+        DataInformedObservation.find_observation_states(self,
+                                                        state,
+                                                        data)
 
     def observe(
             self,
             contact_network,
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -376,19 +387,24 @@ class DataNodeInformedObservation(DataInformedObservation):
             N,
             bool_type,
             obs_status):
-        DataInformedObservation.__init__(self, N, bool_type, obs_status)
+        
+        DataInformedObservation.__init__(self,
+                                         N,
+                                         bool_type,
+                                         obs_status)
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
         Update the observation model when taking observation
         """
-        DataInformedObservation.find_observation_states(self, contact_network, state, data)
-        self.obs_nodes       = self.obs_states % len(contact_network)
-        self.states_per_node = np.asarray([ node + len(contact_network) * np.arange(5) for node in self.obs_nodes])
+        DataInformedObservation.find_observation_states(self,
+                                                        state,
+                                                        data)
+        self.obs_nodes       = self.obs_states % self.N 
+        self.states_per_node = np.asarray([ node + self.N * np.arange(5) for node in self.obs_nodes])
         self._obs_states     = np.copy(self.obs_states)
         self.obs_states      = self.states_per_node.flatten()
 
@@ -406,12 +422,17 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
         self.name = obs_name
 
-        DataNodeInformedObservation.__init__(self, N, bool_type, obs_status)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        DataNodeInformedObservation.__init__(self,
+                                             N,
+                                             bool_type,
+                                             obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity)
 
     def find_observation_states(
             self,
-            contact_network,
             state,
             data):
         """
@@ -422,15 +443,15 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         DataNodeInformedObservation.find_observation_states(self,
-                contact_network, state, data)
+                                                            state,
+                                                            data)
 
     def observe(
             self,
             contact_network,
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
