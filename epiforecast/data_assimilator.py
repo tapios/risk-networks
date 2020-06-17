@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from epiforecast.ensemble_adjusted_kalman_filter import EnsembleAdjustedKalmanFilter
+from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
 class DataAssimilator:
 
@@ -15,7 +15,7 @@ class DataAssimilator:
             exogenous_transmission_rate_to_update_flag=None):
         """
            A data assimilator, to perform updates of model parameters and states using an
-           ensemble adjusted Kalman filter (EAKF) method.
+           ensemble adjustment Kalman filter (EAKF) method.
 
            Positional Args
            ---------------
@@ -80,7 +80,7 @@ class DataAssimilator:
         self.observations = observations
 
         # the data assimilation models (One for each observation model)
-        self.damethod = EnsembleAdjustedKalmanFilter()
+        self.damethod = EnsembleAdjustmentKalmanFilter()
 
         # online evaluations of errors, one needs an observation class to check differences in data
         self.online_emodel= errors
@@ -312,7 +312,7 @@ class DataAssimilator:
             self,
             prev_ensemble_state,
             ensemble_state):
-
+        
         N = self.observations[0].N
 
         # First obtain the mass contained in category "E"
@@ -330,7 +330,7 @@ class DataAssimilator:
             updated_status = observation.obs_status_idx
 
             free_statuses = [ i for i in range(5) if i!= updated_status]
-            tmp = ensemble_state.reshape(ensemble_state.shape[0],5, N)
+            tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, N)
 
             # create arrays of the mass in the observed and the unobserved
             # "free" statuses at the observed nodes.
