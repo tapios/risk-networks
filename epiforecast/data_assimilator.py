@@ -87,7 +87,6 @@ class DataAssimilator:
 
     def find_observation_states(
             self,
-            contact_network,
             ensemble_state,
             data):
         """
@@ -98,7 +97,7 @@ class DataAssimilator:
         print("Observation type : Number of Observed states")
         observed_states = []
         for observation in self.observations:
-            observation.find_observation_states(contact_network, ensemble_state, data)
+            observation.find_observation_states(ensemble_state, data)
             print(observation.name,":",len(observation.obs_states))
             if observation.obs_states.size > 0:
                 observed_states.extend(observation.obs_states)
@@ -183,7 +182,7 @@ class DataAssimilator:
             om = self.observations
             dam = self.damethod
 
-            obs_states = self.find_observation_states(user_network, ensemble_state, data) # Generate states to observe
+            obs_states = self.find_observation_states(ensemble_state, data) # Generate states to observe
             if (obs_states.size > 0):
 
                 print("Total states to be assimilated: ", obs_states.size)
