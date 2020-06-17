@@ -146,6 +146,7 @@ class StateInformedObservation:
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
@@ -201,16 +202,17 @@ class Observation(StateInformedObservation, TestMeasurement):
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
         Obtain where one should make an observation based on the current state,
-        and the contact network
 
         Inputs:
             state: np.array of size [self.N * n_status]
         """
         StateInformedObservation.find_observation_states(self,
+                                                         contact_network,
                                                          state,
                                                          data)
 
@@ -265,6 +267,7 @@ class DataInformedObservation:
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
@@ -322,6 +325,7 @@ class DataObservation(DataInformedObservation):
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
@@ -332,6 +336,7 @@ class DataObservation(DataInformedObservation):
             state: np.array of size [self.N * n_status]
         """
         DataInformedObservation.find_observation_states(self,
+                                                        contact_network,
                                                         state,
                                                         data)
 
@@ -395,12 +400,14 @@ class DataNodeInformedObservation(DataInformedObservation):
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
         Update the observation model when taking observation
         """
         DataInformedObservation.find_observation_states(self,
+                                                        contact_network,
                                                         state,
                                                         data)
         self.obs_nodes       = self.obs_states % self.N 
@@ -433,6 +440,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
     def find_observation_states(
             self,
+            contact_network,
             state,
             data):
         """
@@ -443,6 +451,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         DataNodeInformedObservation.find_observation_states(self,
+                                                            contact_network,
                                                             state,
                                                             data)
 

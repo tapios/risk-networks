@@ -92,7 +92,7 @@ class DataAssimilator:
 
     def find_observation_states(
             self,
-            contact_network,
+            user_network,
             ensemble_state,
             data):
         """
@@ -103,7 +103,7 @@ class DataAssimilator:
         print("Observation type : Number of Observed states")
         observed_states = []
         for observation in self.observations:
-            observation.find_observation_states(contact_network, ensemble_state, data)
+            observation.find_observation_states(user_network, ensemble_state, data)
             print(observation.name,":",len(observation.obs_states))
             if observation.obs_states.size > 0:
                 observed_states.extend(observation.obs_states)
@@ -126,8 +126,7 @@ class DataAssimilator:
                 observation.observe(contact_network,
                                     state,
                                     data,
-                                    scale,
-                                    noisy_measurement)
+                                    scale)
 
                 observed_means.extend(observation.mean)
                 observed_variances.extend(observation.variance)
