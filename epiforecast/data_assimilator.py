@@ -188,10 +188,6 @@ class DataAssimilator:
                                          scale = None)
                 cov = np.diag(var)
 
-                # print("-"*60)
-                # print(truth)
-                # print("-"*60)
-
                 # Get the covariances for the observation(s), with the minimum returned if two overlap
                 #cov = self.get_observation_cov()
                 # Perform da model update with ensemble_state: states, transition and transmission rates
@@ -218,7 +214,6 @@ class DataAssimilator:
                 # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
                 # sum_states_after = np.sum(tmp,axis=1)
                 # print(sum_states_after[sum_states > 1 + 1e-2]) #see what the sum_to_one did to them
-
 
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
@@ -278,8 +273,6 @@ class DataAssimilator:
 
         # take error
         actual_infected= em.obs_states
-
-        #print(truth[actual_infected])
 
         different_states=np.zeros(em.n_status*em.N)
         different_states[predicted_infected]=1.0
