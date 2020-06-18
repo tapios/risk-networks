@@ -154,7 +154,7 @@ ensemble_size = 20
 
 
 #user_base = FullUserBase(contact_network)
-user_fraction=0.2
+user_fraction=0.5
 user_base = ContiguousUserBase(
     contact_network,
     user_fraction,
@@ -180,8 +180,8 @@ for i in range(ensemble_size):
                                      )
  
 #set transmission_rates
-community_transmission_rate_ensemble = community_transmission_rate * np.ones([ensemble_size,1]) 
-exogenous_transmission_rate_ensemble = 0.1*np.random.random(size=[ensemble_size,1])
+community_transmission_rate_ensemble = 0.0*community_transmission_rate * np.ones([ensemble_size,1]) 
+exogenous_transmission_rate_ensemble = 0.0*np.random.random(size=[ensemble_size,1])
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.contact_network,
                                                  transition_rates = transition_rates_ensemble,
@@ -204,7 +204,7 @@ plot_name_observations = "randitest"
 
 # give the data assimilator which transition rates and transmission rates to assimilate
 transition_rates_to_update_str = []
-transmission_rate_to_update_flag = False 
+transmission_rate_to_update_flag = True
 exogenous_transmission_rate_to_update_flag = True 
 
 # create the assimilator
@@ -232,7 +232,14 @@ master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
 time_trace = np.linspace(start=start_time, stop=simulation_length,
                          num=int(simulation_length/static_contact_interval)+1)
-statuses_sum_trace=[[population-int(0.01*population), 0, int(0.01*population),0,0,0]]
+Scount=len([node for node in users if statuses[node] == 'S'])
+Ecount=len([node for node in users if statuses[node] == 'E'])
+Icount=len([node for node in users if statuses[node] == 'I'])
+Hcount=len([node for node in users if statuses[node] == 'H'])
+Rcount=len([node for node in users if statuses[node] == 'R'])
+Dcount=len([node for node in users if statuses[node] == 'D'])
+
+statuses_sum_trace=[[Scount,Ecount,Icount,Hcount,Rcount,Dcount]]
 states_trace_ensemble = np.zeros([ensemble_size,5*user_population,time_trace.size])
 states_trace_ensemble[:,:,0] = states_ensemble
 
@@ -293,7 +300,7 @@ for i in range(int(simulation_length/static_contact_interval)):
            full_ensemble_transition_rates = transition_rates_ensemble,
           full_ensemble_transmission_rate = community_transmission_rate_ensemble,
 full_ensemble_exogenous_transmission_rate = exogenous_transmission_rate_ensemble,
-                             user_network = contact_network)
+                             user_network = user_network)
     
     #update model parameters (transition and transmission rates) of the master eqn model
     
@@ -301,11 +308,12 @@ full_ensemble_exogenous_transmission_rate = exogenous_transmission_rate_ensemble
                                        new_transmission_rate = community_transmission_rate_ensemble,
                              new_exogenous_transmission_rate = exogenous_transmission_rate_ensemble)
     
-    exogenous_transmission_rate_ensemble += np.random.normal(0,0.001/(1+i),size=[ensemble_size,1])
+    exogenous_transmission_rate_ensemble += np.random.normal(0,0.01,size=[ensemble_size,1])
     exogenous_transmission_rate_ensemble = np.clip(exogenous_transmission_rate_ensemble, 1e-8, None)
-    
+    community_transmission_rate_ensemble += np.random.normal(0,0.01,size=[ensemble_size,1])
+    community_transmission_rate_ensemble = np.clip(community_transmission_rate_ensemble, 1e-8, None)
     print(np.mean(exogenous_transmission_rate_ensemble))
-    print(np.var(exogenous_transmission_rate_ensemble))
+    print(np.mean(community_transmission_rate_ensemble))
 
     #at the update the time
     time = time + static_contact_interval
