@@ -343,7 +343,6 @@ class DataObservation(DataInformedObservation):
         if self.set_to_one:
 
             observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
-            # observed_variance = 1e-40 * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
@@ -439,7 +438,6 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
         VARIANCE_TOLERANCE = 1e-5
 
         observed_mean     = (1-MEAN_TOLERANCE) * np.ones(self._obs_states.size)
-        # observed_variance = 1e-9 * np.ones(self._obs_states.size)
         observed_variance = VARIANCE_TOLERANCE * np.ones(self._obs_states.size)
 
         if scale == 'log':
