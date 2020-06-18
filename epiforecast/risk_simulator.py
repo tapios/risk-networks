@@ -121,6 +121,11 @@ class MasterEquationModelEnsemble:
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
 
     #  Set methods -------------------------------------------------------------
+    def set_start_time(
+            self,
+            start_time):
+        self.start_time = start_time
+
     def set_mean_contact_duration(
             self,
             new_mean_contact_duration=None):
