@@ -30,7 +30,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
 from epiforecast.data_assimilator import DataAssimilator
 
-from epiforecast.initial_conditions import random_risk, uniform_risk, deterministic_risk, prevalence_random_risk, prevalence_deterministic_risk
+from epiforecast.risk_simulator_initial_conditions import random_risk, uniform_risk, deterministic_risk, prevalence_random_risk, prevalence_deterministic_risk
 from epiforecast.utilities import seed_numba_random_state
 
 """
@@ -141,10 +141,10 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
-obs_frac = 0.10
+obs_frac = 0.30
 
 medical_infection_test = Observation(N = population,
-                                     obs_frac = 1.00,
+                                     obs_frac = obs_frac,
                                      obs_status = 'I',
                                      obs_name = "0.01 < Infected(100%) < 0.25",
                                      min_threshold=0.00,
@@ -156,25 +156,25 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = str(int(obs_frac*100)).zfill(3)+"randinf")
 
-positive_hospital_records = DataObservation(N = population,
-                                       set_to_one=True,
-                                       obs_status = 'H',
-                                       obs_name = "hospstate")
-
-positive_death_records = DataObservation(N = population,
-                                    set_to_one=True,
-                                    obs_status = 'D',
-                                    obs_name = "deathstate")
-
-# positive_hospital_records = DataNodeObservation(N = population,
-#                                         bool_type = True,
+# positive_hospital_records = DataObservation(N = population,
+#                                        set_to_one=True,
 #                                        obs_status = 'H',
-#                                          obs_name = "Hospitalized (from Data)")
+#                                        obs_name = "hospstate")
 #
-# positive_death_records = DataNodeObservation(N = population,
-#                                     bool_type  = True,
+# positive_death_records = DataObservation(N = population,
+#                                     set_to_one=True,
 #                                     obs_status = 'D',
-#                                     obs_name   = "Deceased (from Data)")
+#                                     obs_name = "deathstate")
+
+positive_hospital_records = DataNodeObservation(N = population,
+                                        bool_type = True,
+                                       obs_status = 'H',
+                                         obs_name = "hospnode")
+
+positive_death_records = DataNodeObservation(N = population,
+                                    bool_type  = True,
+                                    obs_status = 'D',
+                                    obs_name   = "deathnode")
 
 negative_hospital_records = DataObservation(N = population,
                                     set_to_one=False,

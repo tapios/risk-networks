@@ -97,7 +97,6 @@ class PerformanceTracker:
         self.prevalence_track  = None
 
     def print(self):
-        print(self.performance_track.shape)
         print(" ")
         print("=="*30)
         print("[ Accuracy ]                          : {:.4f},".format(self.performance_track[-1,0]))
@@ -130,6 +129,6 @@ class PerformanceTracker:
             self.prevalence_track = np.hstack([self.prevalence_track, prevalence])
 
     def update(self, data, ensemble_states):
-        
+
         self.eval_metrics(data, ensemble_states)
         self.eval_prevalence(data)
