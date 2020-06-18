@@ -106,7 +106,7 @@ hour = 60 * minute
 
 mean_contact_lifetime=0.5*minute
 static_contact_interval = 3 * hour
-simulation_length = 2
+simulation_length = 30
 
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'])
@@ -199,7 +199,7 @@ initial_statuses = loaded_data.start_statuses
 # Set up the population priors
 #
 
-ensemble_size = 2
+ensemble_size = 100 
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
@@ -226,7 +226,8 @@ transmission_rate_to_update_flag = False
 random_infection_test = Observation(N = user_population,
                              obs_frac = 1.0,
                            obs_status = 'I',
-                             obs_name = "Random Infection Test")
+                             obs_name = "Random Infection Test",
+                          obs_var_min = 1e-6)
 
 observations=[random_infection_test]
 
