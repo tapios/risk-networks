@@ -184,9 +184,11 @@ class Observation(StateInformedObservation, TestMeasurement):
             max_threshold=1.0,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False):
+            noisy_measurement=False,
+            obs_var_min = 1e-3):
         
         self.name=obs_name
+        self.obs_var_min = obs_var_min
         
         StateInformedObservation.__init__(self,
                                           user_population,
@@ -243,7 +245,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                                                       scale)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance

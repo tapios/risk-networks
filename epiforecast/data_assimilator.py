@@ -345,7 +345,8 @@ class DataAssimilator:
 
             # normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
             for i in free_statuses:
-                ensemble_state[:, i*N+observed_nodes] = (
-                    (1.0 - updated_mass[:,0,:])*(free_states[:,i,:] / free_mass))
-
-
+                no_update_weight = (free_mass == 0)
+                new_ensemble_state = (1.0 - updated_mass[:,0,:])\
+                                   * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
+                ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
+                                                      + (1-no_update_weight) * new_ensemble_state

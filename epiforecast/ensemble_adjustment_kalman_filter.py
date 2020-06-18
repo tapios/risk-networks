@@ -87,10 +87,13 @@ class EnsembleAdjustmentKalmanFilter:
             'EAKF init: truth and cov are not the correct sizes'
 
         # Observation data statistics at the observed nodes
-        cov = (1./np.maximum(truth, 1e-12)/np.maximum(1-truth, 1e-12))**2 * cov
+       
+        cov = np.clip((1./np.maximum(truth, 1e-12)/np.maximum(1-truth, 1e-12)), -5, 5)**2 * cov
         x_t = np.log(np.maximum(truth, 1e-12)/np.maximum(1.-truth, 1e-12))
-      
-        try:
+       
+
+
+try:
             cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
             print('cov not invertible')
