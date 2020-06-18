@@ -67,7 +67,12 @@ def f1_score(data,
              ):
     """
     Score used for highly unbalanced data sets. Harmonic mean of precision and recall.
-            F1 = 2 / ( recall^-1 + precision^-1)
+            F1 = 2 / ( recall^-1 + precision^-1).
+    Glossary:
+        tn : true negative
+        fp : false positive
+        fn : false negative
+        tp : tru positive
     """
     cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
     tn, fp, fn, tp = cm.ravel()
@@ -96,16 +101,27 @@ class PerformanceTracker:
         self.performance_track = None
         self.prevalence_track  = None
 
-    def print(self):
+    def __str__(self):
+        """
+            Prints current metrics.
+        """
         print(" ")
         print("=="*30)
         print("[ Accuracy ]                          : {:.4f},".format(self.performance_track[-1,0]))
         print("[ F1 Score ]                          : {:.4f},".format(self.performance_track[-1,1]))
         print("=="*30)
+        return ""
 
     def eval_metrics(self,
                      data,
                      ensemble_states):
+        """
+        Evaluates each metric in list of metrics.
+        Args:
+        -----
+            data: dictionary with {node : status}
+            ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
+        """
 
         results = [metric(data, ensemble_states, self.statuses, self.threshold) for metric in self.metrics]
         if self.performance_track is None:
@@ -114,6 +130,13 @@ class PerformanceTracker:
             self.performance_track = np.vstack([self.performance_track, results])
 
     def eval_prevalence(self, data):
+        """
+        Evaluates the prevalence of the status of interest in `self.statuses`.
+        If multiple, it combines them as a single status.
+            Args:
+            -----
+                data: dictionary with {node : status}
+        """
 
         status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         population = len(data)
@@ -129,6 +152,16 @@ class PerformanceTracker:
             self.prevalence_track = np.hstack([self.prevalence_track, prevalence])
 
     def update(self, data, ensemble_states):
+        """
+        Evaluates both the prevalence of the status of interest in `self.statuses`,
+        and the performance metrics given a snapshot of the current state of the
+        sytem (`kinetic model`) and the model (ensemble 'master equations').
+            
+            Args:
+            -----
+                data: dictionary with {node : status}
+                ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
+        """
 
         self.eval_metrics(data, ensemble_states)
         self.eval_prevalence(data)
