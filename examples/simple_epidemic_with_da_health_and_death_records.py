@@ -141,7 +141,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
-obs_frac = 0.30
+obs_frac = 0.10
 
 medical_infection_test = Observation(N = population,
                                      obs_frac = obs_frac,
@@ -312,7 +312,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 
 
     model_performance.update(epidemic_simulator.kinetic_model.current_statuses, states_ensemble)
-    model_performance.print()
+    print(model_performance)
 
     #update states/statuses/times for next iteration
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
