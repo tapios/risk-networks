@@ -29,26 +29,6 @@ from epiforecast.measurements import Observation, DataObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 
-
-
-#def deterministic_risk(contact_network, initial_statuses, ensemble_size=1):
-#
-#    population = len(contact_network)
-#    states_ensemble = np.zeros([ensemble_size, 5 * population])
-#
-#    init_catalog = {'S': False, 'I': True}
-#    infected = np.array([init_catalog[status] for status in list(initial_statuses.values())])
-#
-#    for mm in range(ensemble_size):
-#        E, I, H, R, D = np.zeros([5, population])
-#        S = np.ones(population,)
-#        I[infected] = 1.
-#        S[infected] = 0.
-#
-#        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-#
-#    return states_ensemble
-
 def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 
     population = len(contact_network)
@@ -100,8 +80,6 @@ seed_three_random_states(seed)
 #
 
 
-
-
 edges = load_edges(os.path.join('../..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt'))
 node_identifiers = load_node_identifiers(os.path.join('../..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt'))
 
@@ -145,7 +123,7 @@ hour = 60 * minute
 
 mean_contact_lifetime=0.5*minute
 static_contact_interval = 3 * hour
-simulation_length = 30 
+simulation_length = 30   
 
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'])
@@ -160,7 +138,6 @@ epidemic_simulator = EpidemicSimulator(
               day_inception_rate = 22,
             night_inception_rate = 2,
                   health_service = health_service)
-
 
 
 #
@@ -229,8 +206,15 @@ plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, d
 # Reset the world-time to 0, load the initial network
 #
 
+#
+# Set the size of backward and forward DA windows
+# For each cycle, this example performs a backward DA, a forward DA, and then a forward prediction 
+# Current example only works with same size of intervals for backward/forward DA and prediction
+# JW: I will further generalize the implementation
+# 
 backward_DA_interval = 1
-forward_DA_interval = 2
+forward_DA_interval = 1
+forward_prediction_interval = 1
 
 time = backward_DA_interval 
 loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=time)
@@ -333,7 +317,7 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
 
     forward_DA_time = backward_DA_time
     master_eqn_ensemble.set_start_time(forward_DA_time)
-    for j in range(int(backward_DA_interval/static_contact_interval)):
+    for j in range(int(forward_DA_interval/static_contact_interval)):
     
         loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_DA_time)
         user_network = loaded_data.contact_network.subgraph(users)
@@ -362,29 +346,18 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
 
     forward_prediction_time = forward_DA_time
     master_eqn_ensemble.set_start_time(forward_prediction_time)
-    for j in range(int((forward_DA_interval-backward_DA_interval)/static_contact_interval)):
+    for j in range(int(forward_prediction_interval/static_contact_interval)):
     
         loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_prediction_time)
         user_network = loaded_data.contact_network.subgraph(users)
         master_eqn_ensemble.set_contact_network_and_contact_duration(user_network) # contact duration stored on network
         states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
     
-        #(states_ensemble,
-        # transition_rates_ensemble,
-        # community_transmission_rate_ensemble
-        #) = assimilator.update(ensemble_state = states_ensemble,
-        #                                 data = loaded_data.end_statuses,
-        #       full_ensemble_transition_rates = transition_rates_ensemble,
-        #      full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-        #                         user_network = user_network)
-    
         #update model parameters (transition and transmission rates) of the master eqn model
     
         #at the update the time
         forward_prediction_time = forward_prediction_time + static_contact_interval
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
-        #master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-        #                                   new_transmission_rate = community_transmission_rate_ensemble)
 
         states_trace_ensemble[:,:,int(k*backward_DA_interval/static_contact_interval)+j] = states_ensemble
 
@@ -395,4 +368,3 @@ axes = plot_ensemble_states(states_trace_ensemble,
                             a_min = 0.0)
     
 plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, dpi=150)
-
