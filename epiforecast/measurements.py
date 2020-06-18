@@ -165,7 +165,8 @@ class Observation(StateInformedObservation, TestMeasurement):
                  N,
                  obs_frac,
                  obs_status,
-                 obs_name, *,
+                 obs_name,
+                 *,
                  min_threshold=0.0,
                  max_threshold=1.0,
                  reduced_system=True,
@@ -335,14 +336,15 @@ class DataObservation(DataInformedObservation):
         #tolerance,as we cannot set values "equal" to 0 or 1
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
-        Tol = 1e-9 #1e-9
+        MEAN_TOLERANCE     = 1e-9 #1e-9
+        VARIANCE_TOLERANCE = 1e-40
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:
 
-            observed_mean = (1-Tol) * np.ones(self.obs_states.size)
+            observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
             # observed_variance = 1e-40 * np.ones(self.obs_states.size)
-            observed_variance = 1e-5 * np.ones(self.obs_states.size)
+            observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
                 observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
@@ -350,9 +352,9 @@ class DataObservation(DataInformedObservation):
 
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
-            observed_mean = Tol * np.ones(self.obs_states.size)
+            observed_mean = MEAN_TOLERANCE * np.ones(self.obs_states.size)
             # observed_variance = 1e-40 * np.ones(self.obs_states.size)
-            observed_variance = 1e-5 * np.ones(self.obs_states.size)
+            observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
                 observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
@@ -433,15 +435,18 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
                 scale = 'log',
                 noisy_measurement = False):
 
-        observed_mean     = (1-0.05/6) * np.ones(self._obs_states.size)
+        MEAN_TOLERANCE     = 0.05/6
+        VARIANCE_TOLERANCE = 1e-5
+
+        observed_mean     = (1-MEAN_TOLERANCE) * np.ones(self._obs_states.size)
         # observed_variance = 1e-9 * np.ones(self._obs_states.size)
-        observed_variance = 1e-5 * np.ones(self._obs_states.size)
+        observed_variance = VARIANCE_TOLERANCE * np.ones(self._obs_states.size)
 
         if scale == 'log':
             observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
             observed_mean     = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
-        observed_means     = (0.01/6) * np.ones_like(self.states_per_node)
+        observed_means     = (MEAN_TOLERANCE/5) * np.ones_like(self.states_per_node)
         observed_variances = observed_variance[0] * np.ones_like(self.states_per_node)
 
         observed_means[:, self.obs_status_idx] = observed_mean.reshape(-1,1)
