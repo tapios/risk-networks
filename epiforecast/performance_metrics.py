@@ -45,46 +45,68 @@ def confusion_matrix(data,
     return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = status_of_interest)
 
 
-def model_accuracy(data,
-                   ensemble_states,
-                   statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
-                   threshold = 0.5,
-                   combined = False
-                   ):
+class ModelAccuracy:
     """
-    Metric based on overall class assignment.
-            Accuracy = TP + TN / Total cases
+    Container for model accuracy metric. Metric based on overall class assignment.
+                Accuracy = TruePositives + TrueNegatives / TotalCases
     """
 
-    cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+    def __init__(self, name = 'Accuracy'):
+        self.name = name
 
-    return np.diag(cm).sum()/cm.sum()
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 combined = False
+                 ):
+        """
+            Args:
+            -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+                threshold      : used to declare a positive class.
+                combined       : if statuses in `statuses` are to be taken as a single class.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+        return np.diag(cm).sum()/cm.sum()
 
-def f1_score(data,
-             ensemble_states,
-             statuses = ['E', 'I'],
-             threshold = 0.5
-             ):
+class F1Score:
     """
-    Score used for highly unbalanced data sets. Harmonic mean of precision and recall.
+    Container for the F1 score metric. Score used for highly unbalanced data sets.
+    Harmonic mean of precision and recall.
             F1 = 2 / ( recall^-1 + precision^-1).
-    Glossary:
-        tn : true negative
-        fp : false positive
-        fn : false negative
-        tp : tru positive
     """
-    cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
-    tn, fp, fn, tp = cm.ravel()
 
-    return 2 * tp / (2 * tp + fp + fn)
+    def __init__(self, name = 'F1 Score'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['E', 'I'],
+                 threshold = 0.5
+                 ):
+        """
+        Glossary:
+            tn : true negative
+            fp : false positive
+            fn : false negative
+            tp : tru positive
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
+        tn, fp, fn, tp = cm.ravel()
+
+        return 2 * tp / (2 * tp + fp + fn)
 
 class PerformanceTracker:
     """
     Container to track how a classification model behaves over time.
     """
     def __init__(self,
-                  metrics   = [model_accuracy, f1_score],
+                  metrics   = [ModelAccuracy(), F1Score()],
                   statuses  = ['E', 'I'],
                   threshold = 0.5):
         """
@@ -107,8 +129,8 @@ class PerformanceTracker:
         """
         print(" ")
         print("=="*30)
-        print("[ Accuracy ]                          : {:.4f},".format(self.performance_track[-1,0]))
-        print("[ F1 Score ]                          : {:.4f},".format(self.performance_track[-1,1]))
+        for kk, metric in enumerate(self.metrics):
+            print("[ %s ]                          : %.4f,"%(metric.name, self.performance_track[-1,kk]))
         print("=="*30)
         return ""
 
@@ -156,7 +178,7 @@ class PerformanceTracker:
         Evaluates both the prevalence of the status of interest in `self.statuses`,
         and the performance metrics given a snapshot of the current state of the
         sytem (`kinetic model`) and the model (ensemble 'master equations').
-            
+
             Args:
             -----
                 data: dictionary with {node : status}
