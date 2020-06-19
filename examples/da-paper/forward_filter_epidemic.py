@@ -24,7 +24,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.utilities import seed_three_random_states
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.user_base import FullUserBase
-from epiforecast.measurements import Observation, DataObservation
+from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 
@@ -229,7 +229,13 @@ random_infection_test = Observation(N = user_population,
                              obs_name = "Random Infection Test",
                           obs_var_min = 1e-6)
 
-observations=[random_infection_test]
+high_var_infection_test = Observation(N = user_population,
+                                      obs_frac = 1.0,
+                                    obs_status = 'I',
+                                      obs_name = "Random Infection Test",
+                                      obs_var_min = 1e-6)
+
+observations=[high_var_infection_test]
 
 # create the assimilator
 assimilator = DataAssimilator(observations = observations,
