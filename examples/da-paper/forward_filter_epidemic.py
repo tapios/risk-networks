@@ -107,7 +107,7 @@ hour = 60 * minute
 mean_contact_lifetime=0.5*minute
 static_contact_interval = 3 * hour
 simulation_length = 30
-
+print("We simulate an epidemic over a total of ",simulation_length,"days")
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'])
 
@@ -223,25 +223,50 @@ transmission_rate_to_update_flag = False
 # Set up the data assimilator
 #
 
-random_infection_test = Observation(N = user_population,
-                             obs_frac = 1.0,
-                           obs_status = 'I',
-                             obs_name = "Random Infection Test",
-                          obs_var_min = 1e-6)
-
 high_var_infection_test = Observation(N = user_population,
-                                      obs_frac = 1.0,
-                                    obs_status = 'I',
+                                      obs_frac = 0.01,
+                                      obs_status = 'I',
                                       obs_name = "Random Infection Test",
                                       obs_var_min = 1e-6)
 
-observations=[high_var_infection_test]
+imperfect_observations=[high_var_infection_test]
 
-# create the assimilator
-assimilator = DataAssimilator(observations = observations,
-                                    errors = [],
-            transition_rates_to_update_str = transition_rates_to_update_str,
-          transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+
+negative_hospital_records = DataObservation(N = population,
+                                    set_to_one=False,
+                                    obs_status = 'H',
+                                    obs_name = "nohospstate")
+
+negative_death_records = DataObservation(N = population,
+                                    set_to_one=False,
+                                    obs_status = 'D',
+                                    obs_name = "nodeathstate")
+
+positive_hospital_records = DataObservation(N = population,
+                                       set_to_one=True,
+                                       obs_status = 'H',
+                                       obs_name = "hospstate")
+
+positive_death_records = DataObservation(N = population,
+                                    set_to_one=True,
+                                    obs_status = 'D',
+                                    obs_name = "deathstate")
+
+perfect_observations=[positive_death_records,
+                      positive_hospital_records]
+
+# create the assimilators
+assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
+                                                     errors = [],
+                                                     transition_rates_to_update_str = transition_rates_to_update_str,
+                                                     transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+
+assimilator_perfect_observations = DataAssimilator(observations = perfect_observations,
+                                                   errors = [],
+                                                   transition_rates_to_update_str = transition_rates_to_update_str,
+                                                   transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+
+
 
 
 #
@@ -281,11 +306,20 @@ for i in range(int(simulation_length/static_contact_interval)):
     (states_ensemble,
      transition_rates_ensemble,
      community_transmission_rate_ensemble
-    ) = assimilator.update(ensemble_state = states_ensemble,
-                                     data = loaded_data.end_statuses,
-           full_ensemble_transition_rates = transition_rates_ensemble,
-          full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                             user_network = user_network)
+    ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
+                                                  data = loaded_data.end_statuses,
+                                                  full_ensemble_transition_rates = transition_rates_ensemble,
+                                                  full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                  user_network = user_network)
+
+    (states_ensemble,
+     transition_rates_ensemble,
+     community_transmission_rate_ensemble
+    ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
+                                                data = loaded_data.end_statuses,
+                                                full_ensemble_transition_rates = transition_rates_ensemble,
+                                                full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                user_network = user_network)
     
     #update model parameters (transition and transmission rates) of the master eqn model
     
@@ -293,7 +327,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     time = time + static_contact_interval
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
     master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                       new_transmission_rate = community_transmission_rate_ensemble)
+                                        new_transmission_rate = community_transmission_rate_ensemble)
 
     states_trace_ensemble[:,:,i] = states_ensemble
 
