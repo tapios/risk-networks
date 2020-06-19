@@ -41,6 +41,23 @@ np.random.seed(seed)
 random.seed(seed)
 seed_numba_random_state(seed)
 
+def mkdir_p(mypath):
+    '''Creates a directory. equivalent to using mkdir -p on the command line'''
+
+    from errno import EEXIST
+    from os import makedirs,path
+
+    try:
+        makedirs(mypath)
+    except OSError as exc: # Python >2.5
+        if exc.errno == EEXIST and path.isdir(mypath):
+            pass
+        else:
+            raise
+
+mkdir_p('da_obs/performance/')
+mkdir_p('da_obs/epidemic/')
+
 """
 Load an example network ------------------------------------------------------
 """
@@ -141,7 +158,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = contact_netw
 """
 Observations objects ---------------------------------------------------------
 """
-obs_frac = 0.10
+obs_frac = 0.30
 
 medical_infection_test = Observation(N = population,
                                      obs_frac = obs_frac,
@@ -156,25 +173,25 @@ random_infection_test = Observation(N = population,
                                      obs_status = 'I',
                                      obs_name = str(int(obs_frac*100)).zfill(3)+"randinf")
 
-# positive_hospital_records = DataObservation(N = population,
-#                                        set_to_one=True,
-#                                        obs_status = 'H',
-#                                        obs_name = "hospstate")
-#
-# positive_death_records = DataObservation(N = population,
-#                                     set_to_one=True,
-#                                     obs_status = 'D',
-#                                     obs_name = "deathstate")
-
-positive_hospital_records = DataNodeObservation(N = population,
-                                        bool_type = True,
+positive_hospital_records = DataObservation(N = population,
+                                       set_to_one=True,
                                        obs_status = 'H',
-                                         obs_name = "hospnode")
+                                       obs_name = "hospstate")
 
-positive_death_records = DataNodeObservation(N = population,
-                                    bool_type  = True,
+positive_death_records = DataObservation(N = population,
+                                    set_to_one=True,
                                     obs_status = 'D',
-                                    obs_name   = "deathnode")
+                                    obs_name = "deathstate")
+
+# positive_hospital_records = DataNodeObservation(N = population,
+#                                         bool_type = True,
+#                                        obs_status = 'H',
+#                                          obs_name = "hospnode")
+#
+# positive_death_records = DataNodeObservation(N = population,
+#                                     bool_type  = True,
+#                                     obs_status = 'D',
+#                                     obs_name   = "deathnode")
 
 negative_hospital_records = DataObservation(N = population,
                                     set_to_one=False,
@@ -199,6 +216,8 @@ negative_death_records = DataObservation(N = population,
 observations=[random_infection_test,
               positive_death_records,
               positive_hospital_records]
+
+# observations=[random_infection_test]
 
 """
 Initialize the Data Assimilator ------------------------------------------------
@@ -325,7 +344,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     axes = plot_kinetic_model_data(epidemic_simulator.kinetic_model,
                                    axes = axes)
-    plt.savefig('da_obs_imgs/'+plot_name_observations+'.png', rasterized=True, dpi=150)
+    plt.savefig('da_obs/epidemic/'+plot_name_observations+'.png', rasterized=True, dpi=150)
 
 """
 Additional plots: parameters --------------------------------------------------
@@ -352,7 +371,7 @@ axes[1].plot(time_horizon, model_performance.performance_track[:,1])
 
 axes[0].set_title("Accuracy")
 axes[1].set_title("F1-Score")
-plt.savefig('performance_'+plot_name_observations +'.png', rasterized=True, dpi=150)
+plt.savefig('da_obs/performance/performance_'+plot_name_observations +'.png', rasterized=True, dpi=150)
 
 
 print("See figures: " + plot_name_observations)
