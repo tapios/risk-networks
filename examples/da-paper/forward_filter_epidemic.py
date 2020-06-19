@@ -106,7 +106,7 @@ hour = 60 * minute
 
 mean_contact_lifetime=0.5*minute
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 50
 print("We simulate an epidemic over a total of ",simulation_length,"days")
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'])
@@ -253,7 +253,9 @@ positive_death_records = DataObservation(N = population,
                                     obs_name = "deathstate")
 
 perfect_observations=[positive_death_records,
-                      positive_hospital_records]
+                      negative_death_records,
+                      positive_hospital_records,
+                      negative_hospital_records]
 
 # create the assimilators
 assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
