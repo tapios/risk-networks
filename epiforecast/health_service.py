@@ -51,12 +51,11 @@ class HealthService:
     (discharge) Any `patient` with status !='H' (i.e it is now resistant 'R' or deceased 'D') will lose
     the edges to their current `health_worker` neighbours and regain thier original neighbours.
 
-    We perform first (discharge) to empy beds, then (admit) to gain new patients in the function.
+    We perform first (discharge), then (admit) to gain new patients in the function.
 
     For example. Applying this function to the world network above yields the following.
-    1) discharge: There is noone to discharge from beds 1, 2
-    2) admit: `community 3` has status H and so is placed into hospital. They lose their community edges
-               and gain the edges of `hospital bed 1`. We denote them `patient 1`.
+    1) discharge: There is no one to discharge
+    2) admit: `community 3` has status H and so is placed into hospital. They lose their community edges. We denote them `patient 1`.
 
     |---------------------Population network---------------------|
 
@@ -103,9 +102,10 @@ class HealthService:
         Assign health workers to a patient.
         """
         if self.health_workers_per_patient < len(viable_health_workers):
-
+            # binomial degree distribution
+            size = np.random.binomial(len(viable_health_workers), self.health_workers_per_patient/len(viable_health_workers))
             assigned = np.random.choice(list(viable_health_workers),
-                                        size = self.health_workers_per_patient,
+                                        size = size,
                                         replace = False)
 
         else:
@@ -164,7 +164,7 @@ class HealthService:
 
     def admit_patients(self, statuses, population_network):
         """
-        Find unoccupied beds, and admit patients from the community (storing their details).
+        Admit patients from the community (storing their details).
         """
 
         # Set of all hospitalized people
