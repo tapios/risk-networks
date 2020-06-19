@@ -100,7 +100,7 @@ community_transmission_rate = 12.0
 Define time horizon parameters------------------------------------------------
 """
 static_contact_interval = 3 * hour
-simulation_length = 80
+simulation_length = 3
 
 """
 Initalize health service and epidemic simulator ------------------------------
