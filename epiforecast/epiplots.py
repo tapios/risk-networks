@@ -133,6 +133,29 @@ def plot_kinetic_model_data(kinetic_model, axes):
 
     return axes
 
+def plot_epidemic_data(kinetic_model, statuses_list, axes, plot_times):
+    statuses_name   = kinetic_model.return_statuses
+    statuses_colors = ['C0', 'C3', 'C1', 'C2', 'C4', 'C6']
+    colors_dict = dict(zip(statuses_name, statuses_colors))
+
+    Sdata = [statuses_list[i][0] for i in range(len(plot_times))]
+    Edata = [statuses_list[i][1] for i in range(len(plot_times))]
+    Idata = [statuses_list[i][2] for i in range(len(plot_times))]
+    Hdata = [statuses_list[i][3] for i in range(len(plot_times))]
+    Rdata = [statuses_list[i][4] for i in range(len(plot_times))]
+    Ddata = [statuses_list[i][5] for i in range(len(plot_times))]
+    
+    axes[0].scatter(plot_times, Sdata, c = colors_dict['S'], marker = 'x')
+    axes[0].scatter(plot_times, Edata, c = colors_dict['E'], marker = 'x')
+    axes[0].scatter(plot_times, Rdata, c = colors_dict['R'], marker = 'x')
+
+    axes[1].scatter(plot_times, Idata, c = colors_dict['I'], marker = 'x')
+
+    axes[2].scatter(plot_times, Hdata, c = colors_dict['H'], marker = 'x')
+    axes[2].scatter(plot_times, Ddata, c = colors_dict['D'], marker = 'x')
+
+    return axes
+
 def plot_ensemble_transmission_latent_fraction(
         community_transmission_rate_trace,
         latent_periods_trace, time_horizon):
