@@ -135,15 +135,16 @@ def plot_kinetic_model_data(kinetic_model, axes):
 
 def plot_epidemic_data(kinetic_model, statuses_list, axes, plot_times):
     statuses_name   = kinetic_model.return_statuses
+    population = len(kinetic_model.current_statuses)
     statuses_colors = ['C0', 'C3', 'C1', 'C2', 'C4', 'C6']
     colors_dict = dict(zip(statuses_name, statuses_colors))
 
-    Sdata = [statuses_list[i][0] for i in range(len(plot_times))]
-    Edata = [statuses_list[i][1] for i in range(len(plot_times))]
-    Idata = [statuses_list[i][2] for i in range(len(plot_times))]
-    Hdata = [statuses_list[i][3] for i in range(len(plot_times))]
-    Rdata = [statuses_list[i][4] for i in range(len(plot_times))]
-    Ddata = [statuses_list[i][5] for i in range(len(plot_times))]
+    Sdata = [statuses_list[i][0]/population for i in range(len(plot_times))]
+    Edata = [statuses_list[i][1]/population for i in range(len(plot_times))]
+    Idata = [statuses_list[i][2]/population for i in range(len(plot_times))]
+    Hdata = [statuses_list[i][3]/population for i in range(len(plot_times))]
+    Rdata = [statuses_list[i][4]/population for i in range(len(plot_times))]
+    Ddata = [statuses_list[i][5]/population for i in range(len(plot_times))]
     
     axes[0].scatter(plot_times, Sdata, c = colors_dict['S'], marker = 'x')
     axes[0].scatter(plot_times, Edata, c = colors_dict['E'], marker = 'x')
