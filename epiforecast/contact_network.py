@@ -62,7 +62,7 @@ class ContactNetwork:
             filename (str): path to a txt-file with edges
 
         Output:
-            edges (np.array): (K,2) array of edges
+            edges (np.array): (n_edges,2) array of edges
         """
         edges = np.loadtxt(filename, dtype=int, comments='#')
         return edges
@@ -102,7 +102,7 @@ class ContactNetwork:
         Filter out lower-triangular nodes, leaving upper-triangular only
 
         Input:
-            edges (np.array): (K,2) array of edges
+            edges (np.array): (n_edges,2) array of edges
 
         Output:
             edges (np.array): (L,2) array of upper-triangular edges
