@@ -83,6 +83,12 @@ class KineticModel:
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_resistant, name='hospitalized_to_resistant')
         nx.set_node_attributes(self.contact_network, values=transition_rates.hospitalized_to_deceased,  name='hospitalized_to_deceased')
 
+        self.initialize_times_and_statuses(start_time)
+
+    def initialize_times_and_statuses(self, start_time):
+        """
+        Initialize the current time, current status, and timeseries of times and statuses.
+        """
         self.current_time = start_time
         self.current_statuses = None # must be set by set_statuses
 
@@ -110,7 +116,11 @@ class KineticModel:
         nx.set_edge_attributes(self.contact_network, values=weights, name='exposed_by_infected')
         nx.set_edge_attributes(self.contact_network, values=weights, name='exposed_by_hospitalized')
 
-    def set_statuses(self, statuses):
+    def set_statuses(self, statuses, time=None):
+
+        if time is not None: # re-initialize times and data   
+            self.initialize_times_and_statuses(time)
+
         self.current_statuses = statuses
 
     def simulate(self, time_interval, initial_statuses=None):
