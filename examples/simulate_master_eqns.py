@@ -50,7 +50,7 @@ print('Second test: passed -----------------------------------------------------
 np.random.seed(1)
 
 I_perc = 0.01
-y0 = np.zeros([ensemble_size, 5 * population])
+states_ensemble = np.zeros([ensemble_size, 5 * population])
 
 for mm, member in enumerate(master_eqn_ensemble.ensemble):
     infected = np.random.choice(population, replace = False, size = int(population * I_perc))
@@ -59,17 +59,23 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
     I[infected] = 1.
     S[infected] = 0.
 
-    y0[mm, : ] = np.hstack((S, I, H, R, D))
+    states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
+
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+master_eqn_ensemble.set_mean_contact_duration()
+
+res = master_eqn_ensemble.simulate(100, n_steps = 20, closure = None)
 
 master_eqn_ensemble.set_mean_contact_duration()
-master_eqn_ensemble.set_states_ensemble(y0)
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
 res = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
 
 
 master_eqn_ensemble.set_mean_contact_duration()
-master_eqn_ensemble.set_states_ensemble(y0)
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
 res = master_eqn_ensemble.simulate(100, n_steps = 200)
 print('Simulation done!')
+
 
 # fig, axes = plot_master_eqns(res['states'], res['times'])
 

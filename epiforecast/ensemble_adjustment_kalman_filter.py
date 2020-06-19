@@ -6,7 +6,7 @@ class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
-            full_svd = True, 
+            full_svd = True,
             params_cov_noise = 1e-2,
             states_cov_noise = 1e-2,
             params_noise_active = True,
@@ -87,16 +87,9 @@ class EnsembleAdjustmentKalmanFilter:
         x_t = truth
         cov = r**2 * cov
 
-        # print("----------------------------------------------------")
-        # print(x_t[:3])
-        # print(" ")
-        # print(np.diag(cov)[:3])
-        # print("----------------------------------------------------")
-
         #cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
         cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
         x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
-       
 
         try:
             cov_inv = np.linalg.inv(cov)
