@@ -61,7 +61,7 @@ class BetaSampler:
         return np.random.beta(self.b * self.mean / (1 - self.mean), b=self.b)
 
 
-    
+
 class GammaSampler:
     """
     A class representing a parameterized Gamma distribution.
@@ -93,7 +93,7 @@ class GammaSampler:
 class AgeDependentConstant:
     """
     A class representing a constant distribution.
-    It's primary method is `sampler.draw(age) = constants[age]`.
+    Its primary method is `sampler.draw(age) = constants[age]`.
     """
     def __init__(self, constants):
         # input arg is a list of constants for each age category.

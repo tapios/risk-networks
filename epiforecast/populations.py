@@ -1,4 +1,4 @@
-from functools import singledispatch
+from functools import singledispatchmethod
 
 import numpy as np
 import networkx as nx
@@ -41,28 +41,6 @@ def sample_distribution(sampler, ages=None, population=None, minimum=0):
         return minimum + sampler.draw()
 
 
-# For numpy arrays and constants
-@singledispatch
-def on_network(parameter, network):
-    return parameter
-
-@on_network.register(list)
-def list_on_network(parameter, network):
-    return np.array(parameter)
-
-@on_network.register(BetaSampler)
-@on_network.register(GammaSampler)
-def random_sample_on_network(sampler, network):
-    return np.array([sampler.minimum + sampler.draw() for node in network.nodes()])
-
-@on_network.register(AgeDependentBetaSampler)
-def age_dependent_random_sample_on_network(sampler, network):
-    return np.array([sampler.draw(data['age']) for node, data in network.nodes(data=True)])
-
-@on_network.register(AgeDependentConstant)
-def age_dependent_on_network(parameter, network):
-    return np.array([parameter.constants[data['age']] for node, data in network.nodes(data=True)])
-
 class TransitionRates:
     """
     A container for transition rates.
@@ -84,7 +62,7 @@ class TransitionRates:
     * community_mortality_fraction, the mortality rate in the community (d),
 
     * hospital_mortality_fraction, the mortality rate in a hospital setting (d′).
-    
+
     The six transition rates are
 
     1. Exposed -> Infected
@@ -103,104 +81,177 @@ class TransitionRates:
     5. transition_rates.infected_to_deceased
     6. transition_rates.hospitalized_to_deceased
     """
-    def __init__(self,
-                 population_network,
-                 latent_periods,
-                 community_infection_periods,
-                 hospital_infection_periods,
-                 hospitalization_fraction,
-                 community_mortality_fraction,
-                 hospital_mortality_fraction):
-
-        self.population_network = population_network
-        self.population = len(population_network)
-        self.nodes = nx.convert_node_labels_to_integers(population_network, ordering="sorted")
-
-        # Translate user-input to numpy arrays on the network...
-        self.latent_periods               = on_network(latent_periods, population_network)
-        self.community_infection_periods  = on_network(community_infection_periods, population_network)
-        self.hospital_infection_periods   = on_network(hospital_infection_periods, population_network)
-        self.hospitalization_fraction     = on_network(hospitalization_fraction, population_network)
-        self.community_mortality_fraction = on_network(community_mortality_fraction, population_network)
-        self.hospital_mortality_fraction  = on_network(hospital_mortality_fraction, population_network)
-
-        self._calculate_transition_rates()
-
-    def _calculate_transition_rates(self):
+    def __init__(
+            self,
+            population,
+            lp_sampler,
+            cip_sampler,
+            hip_sampler,
+            hf_sampler,
+            cmf_sampler,
+            hmf_sampler):
         """
-        Calculates the transition rates, given the current clinical parameters.
-        If the clinical parameter is only a single value, we apply it to all nodes.
+        Constructor with samplers
+
+        For readability, long names are abbreviated using the following
+        glossary:
+            lp  :   latent period
+            cip :   community infection period
+            hip :   hospital infection period
+            hf  :   hospitalization fraction
+            cmf :   community mortality fraction
+            hmf :   hospital mortality fraction
+
+        Input:
+            population (int): population count
+            *_sampler (int),
+                      (float)   : a constant value for a parameter
+                      (list)    : a list of parameters of length population
+                      (np.array): (population,) array of parameters
+                      (BetaSampler),
+                      (GammaSampler),
+                      (AgeDependentConstant),
+                      (AgeDependentBetaSampler): a sampler to use
+        """
+        # TODO extract clinical parameters into its own class
+        self.population  = population
+        self.lp_sampler  = lp_sampler
+        self.cip_sampler = cip_sampler
+        self.hip_sampler = hip_sampler
+        self.hf_sampler  = hf_sampler
+        self.cmf_sampler = cmf_sampler
+        self.hmf_sampler = hmf_sampler
+
+        self.latent_periods               = None
+        self.community_infection_periods  = None
+        self.hospital_infection_periods   = None
+        self.hospitalization_fraction     = None
+        self.community_mortality_fraction = None
+        self.hospital_mortality_fraction  = None
+
+        self.exposed_to_infected      = None
+        self.infected_to_resistant    = None
+        self.infected_to_hospitalized = None
+        self.infected_to_deceased     = None
+        self.hospitalized_to_resistant= None
+        self.hospitalized_to_deceased = None
+
+    @singledispatchmethod
+    @staticmethod
+    def __draw_using(parameter, distr_parameters):
+        return parameter
+
+    @__draw_using.register(int)
+    @__draw_using.register(float)
+    @staticmethod
+    def __draw_using_list(parameter, distr_parameters):
+        return np.full(distr_parameters.size, parameter)
+
+    @__draw_using.register(list)
+    @staticmethod
+    def __draw_using_list(parameter_list, distr_parameters):
+        return np.array(parameter_list)
+
+    @__draw_using.register(BetaSampler)
+    @__draw_using.register(GammaSampler)
+    @staticmethod
+    def __draw_using_sampler(sampler, distr_parameters):
+        return np.array([sampler.minimum+sampler.draw() for dp in distr_parameters])
+
+    @__draw_using.register(AgeDependentBetaSampler)
+    @staticmethod
+    def __draw_using_age_beta_sampler(sampler, distr_parameters):
+        return np.array([sampler.draw(dp) for dp in distr_parameters])
+
+    @__draw_using.register(AgeDependentConstant)
+    @staticmethod
+    def __draw_using_age_const_sampler(sampler, distr_parameters):
+        return np.array([sampler.constants[dp] for dp in distr_parameters])
+
+    def draw_and_set_clinical_using(
+            self,
+            distr_parameters):
+        """
+        Draw and set clinical parameters using distributional parameters
+
+        Samplers provided in the constructor for clinical parameter (periods and
+        fractions) might be either distributions that depend on certain
+        parameters (say, mean and variance in the Gaussian case), or arrays, or
+        constant values.
+        This method draws from those distributions according to the provided
+        distributional parameters.
+        For arrays, they are left unchanged.
+        For constant values, they are propagated to arrays.
+        In either case, the resulting clinical parameters will be of size
+            distr_parameters.size
+
+        Note that this method is NOT idempotent, i.e. in the following
+            transition_rates.draw_using(dp)
+            transition_rates.draw_using(dp)
+        second call draws new samples (for those clinical parameters which had
+        samplers specified in the constructor).
+        It leaves others unchanged though.
+
+        Input:
+            distr_parameters (np.array): (n,) array of parameters
+
+        Output:
+            None
+        """
+        self.latent_periods               = self.__draw_using(
+                self.lp_sampler,
+                distr_parameters)
+        self.community_infection_periods  = self.__draw_using(
+                self.cip_sampler,
+                distr_parameters)
+        self.hospital_infection_periods   = self.__draw_using(
+                self.hip_sampler,
+                distr_parameters)
+        self.hospitalization_fraction     = self.__draw_using(
+                self.hf_sampler,
+                distr_parameters)
+        self.community_mortality_fraction = self.__draw_using(
+                self.cmf_sampler,
+                distr_parameters)
+        self.hospital_mortality_fraction  = self.__draw_using(
+                self.hmf_sampler,
+                distr_parameters)
+
+    def calculate_from_clinical(self):
+        """
+        Calculate transition rates using the current clinical parameters
+
+        Output:
+            None
         """
         σ = 1 / self.latent_periods
         γ = 1 / self.community_infection_periods
+        γ_prime = 1 / self.hospital_infection_periods
         h = self.hospitalization_fraction
         d = self.community_mortality_fraction
-        γ_prime = 1 / self.hospital_infection_periods
         d_prime = self.hospital_mortality_fraction
 
-        # Broadcast to arrays of size `population`
-        σ *= np.ones(self.population)
-        γ *= np.ones(self.population)
-        h *= np.ones(self.population)
-        d *= np.ones(self.population)
-        γ_prime *= np.ones(self.population)
-        d_prime *= np.ones(self.population)
+        self.exposed_to_infected      = dict(enumerate(σ))
+        self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
+        self.infected_to_hospitalized = dict(enumerate(h * γ))
+        self.infected_to_deceased     = dict(enumerate(d * γ))
+        self.hospitalized_to_resistant= dict(enumerate((1 - d_prime) * γ_prime))
+        self.hospitalized_to_deceased = dict(enumerate(d_prime * γ_prime))
 
-        self.exposed_to_infected       = { node: σ[i]                          for i, node in enumerate(self.nodes) }
-        self.infected_to_resistant     = { node: (1 - h[i] - d[i]) * γ[i]      for i, node in enumerate(self.nodes) }
-        self.infected_to_hospitalized  = { node: h[i] * γ[i]                   for i, node in enumerate(self.nodes) }
-        self.infected_to_deceased      = { node: d[i] * γ[i]                   for i, node in enumerate(self.nodes) }
+    def set_clinical_parameter(
+            self,
+            parameter_name,
+            values):
+        """
+        Set a clinical parameter by its name
 
-        self.hospitalized_to_resistant = { node: (1 - d_prime[i]) * γ_prime[i] for i, node in enumerate(self.nodes) }
-        self.hospitalized_to_deceased  = { node: d_prime[i] * γ_prime[i]       for i, node in enumerate(self.nodes) }
+        Input:
+            parameter_name (str): parameter name, like 'latent_periods'
+            values (np.array): (n,) array of values
 
-    def set_clinical_parameter(self, parameter, values):
-        setattr(self, parameter, values)
-        self._calculate_transition_rates()
-
-
-
-
-def populate_ages(population, distribution):
-    """
-    Returns a numpy array of length `population`, with age categories from
-    0 to len(`distribution`), where the elements of `distribution` specify
-    the probability that an individual's age falls into the corresponding category.
-
-    Args
-    ----
-    population (int): Number of people in the network
-
-    population (int): Number of people in the network
-    """
-    classes = len(distribution)
-
-    ages = [np.random.choice(np.arange(classes), p=distribution) 
-            for person in range(population)]
-
-    return np.array(ages)
+        Output:
+            None
+        """
+        setattr(self, parameter_name, values)
 
 
-
-
-def assign_ages(population_network, distribution):
-    """
-    Assigns ages to the nodes of `population_network` according to `distribution`.
-
-    Args
-    ----
-    population_network (networkx Graph): A graph representing a community and its contacts.
-
-    distribution (list-like): A list of quantiles. Must sum to 1.
-
-    Example
-    -------
-
-    distribution = [0.25, 0.5, 0.25] # a simple age distribution
-    population_network = nx.barabasi_albert_graph(100, 2)
-    assign_ages(population_network, distribution)
-    """    
-    ages = populate_ages(len(population_network), distribution=distribution)
-    nodal_ages = { node: ages[i] for i, node in enumerate(population_network.nodes()) }
-
-    nx.set_node_attributes(population_network, values=nodal_ages, name='age')
