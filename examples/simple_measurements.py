@@ -6,10 +6,9 @@ from epiforecast.populations import populate_ages, sample_distribution, Transiti
 from epiforecast.samplers import GammaSampler, BetaSampler
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler
 
-from epiforecast.observations import FullObservation, HighProbRandomStatusObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.measurements import TestMeasurement
+from epiforecast.measurements import TestMeasurement, DataObservation, Observation
 
 import numpy as np
 import networkx as nx
@@ -73,13 +72,20 @@ def random_state(population):
 
 statuses = random_state(population)
 
+print('\n0th Test: Probs in natural scale ----------------------------')
+
+test = TestMeasurement('I')
+test.update_prevalence(ensemble_model.states_trace[:,:,0], scale = None)
+mean, var = test.take_measurements(statuses, scale = None)
+
+print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
+# print(statuses.values())state
+
+print('\n1st Test: Probs in natural scale ----------------------------')
+
 test = TestMeasurement('I')
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements(statuses, scale = None)
-
-# print(statuses.values())
-
-print('\n1st Test: Probs in natural scale ----------------------------')
 
 print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(var.values())]).T[:5])
 
@@ -129,16 +135,15 @@ mean, var = test.take_measurements({node: 'S' for node in range(population)},
 # print(np.vstack([['S']*population, mean, var]).T[:5])
 print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == negative_test).mean())
 
-
-hospital_records = DataObservation(N = population,
-                                   bool_type=True,
-                                   obs_status = 'H',
-                                   obs_name = "Hospitalized from Data",
-                                   specificity = 0.999,
-                                   sensitivity = 0.999)
-
-
 # print('\n5th Test: Hospitalized --------------------------------------')
+
+random_infection_test = Observation(N = population,
+                                     obs_frac = 0.5,
+                                     obs_status = 'I',
+                                     obs_name = "Random Infection Test")
+
+
+
 # test = TestMeasurement(specificity = 1., sensitivity = 1.)
 # test.update_prevalence(ode_states, scale = 'log', status = 'H')
 # mean, var = test.take_measurements(statuses, scale = 'log')
