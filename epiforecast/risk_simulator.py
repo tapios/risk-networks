@@ -139,6 +139,8 @@ class MasterEquationModelEnsemble:
     def set_contact_network_and_contact_duration(
             self,
             new_contact_network):
+        raise NotImplemented("this method should be refactored")
+
         self.contact_network = new_contact_network
         # Automatically reset the edge weights
         self.set_mean_contact_duration()
