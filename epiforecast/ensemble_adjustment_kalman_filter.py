@@ -93,7 +93,7 @@ class EnsembleAdjustmentKalmanFilter:
        
 
 
-try:
+        try:
             cov_inv = np.linalg.inv(cov)
         except np.linalg.linalg.LinAlgError:
             print('cov not invertible')

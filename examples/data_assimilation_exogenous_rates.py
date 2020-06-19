@@ -129,7 +129,7 @@ community_transmission_rate = 12.0
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 3 * hour
-simulation_length = 10
+simulation_length = 30
 
 print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward and backward")
 health_service = HealthService(static_population_network = contact_network,
@@ -150,7 +150,7 @@ epidemic_simulator = EpidemicSimulator(contact_network = contact_network,
                                         health_service = health_service,
                                             start_time = start_time)
 
-ensemble_size = 20
+ensemble_size = 100
 
 
 #user_base = FullUserBase(contact_network)
@@ -180,14 +180,15 @@ for i in range(ensemble_size):
                                      )
  
 #set transmission_rates
-community_transmission_rate_ensemble = 0.0*community_transmission_rate * np.ones([ensemble_size,1]) 
-exogenous_transmission_rate_ensemble = 0.0*np.random.random(size=[ensemble_size,1])
+community_transmission_rate_ensemble = np.random.normal(0, 0.2, size=[ensemble_size,1])
+#np.log(community_transmission_rate * np.ones([ensemble_size,1]) )
+exogenous_transmission_rate_ensemble = np.random.normal(0, 0.2, size=[ensemble_size,1])
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.contact_network,
                                                  transition_rates = transition_rates_ensemble,
-                                                transmission_rate = community_transmission_rate_ensemble,
+                                                transmission_rate = np.exp(community_transmission_rate_ensemble),
                                   hospital_transmission_reduction = hospital_transmission_reduction,
-                                      exogenous_transmission_rate = exogenous_transmission_rate_ensemble,
+                                      exogenous_transmission_rate = np.exp(exogenous_transmission_rate_ensemble),
                                                     ensemble_size = ensemble_size,
                                                        start_time = start_time)
 
@@ -196,7 +197,10 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.co
 random_infection_test = Observation(user_population = user_population,
                                            obs_frac = 1.0,
                                          obs_status = 'I',
-                                           obs_name = "Random Infection Test")
+                                           obs_name = "Random Infection Test",
+                                    min_threshold = 0.0,
+                                    specificity = 0.999,
+                                    sensitivity = 0.999)
 
 observations=[random_infection_test]
 
@@ -205,7 +209,7 @@ plot_name_observations = "randitest"
 # give the data assimilator which transition rates and transmission rates to assimilate
 transition_rates_to_update_str = []
 transmission_rate_to_update_flag = True
-exogenous_transmission_rate_to_update_flag = True 
+exogenous_transmission_rate_to_update_flag = True
 
 # create the assimilator
 assimilator = DataAssimilator(observations = observations,
@@ -221,10 +225,10 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 time = start_time
 
 statuses = random_epidemic(contact_network, fraction_infected=0.01)
-
-states_ensemble = global_risk(
+user_statuses = {node: statuses[node] for node in user_base.contact_network.nodes}
+states_ensemble = deterministic_risk(
     user_base.contact_network,
-    fraction_infected = 0.01,
+    user_statuses,
     ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
@@ -232,6 +236,7 @@ master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
 time_trace = np.linspace(start=start_time, stop=simulation_length,
                          num=int(simulation_length/static_contact_interval)+1)
+
 Scount=len([node for node in users if statuses[node] == 'S'])
 Ecount=len([node for node in users if statuses[node] == 'E'])
 Icount=len([node for node in users if statuses[node] == 'I'])
@@ -303,17 +308,22 @@ full_ensemble_exogenous_transmission_rate = exogenous_transmission_rate_ensemble
                              user_network = user_network)
     
     #update model parameters (transition and transmission rates) of the master eqn model
+    # adding some noise if necessary
+    if transmission_rate_to_update_flag:
+        community_transmission_rate_ensemble += np.random.normal(0,0.1,size=[ensemble_size,1])
+    if exogenous_transmission_rate_to_update_flag:
+        exogenous_transmission_rate_ensemble += np.random.normal(0,0.1,size=[ensemble_size,1])
+
+    print("mean of exp(users) ", np.mean(np.exp(community_transmission_rate_ensemble)))
+    print("var of exp(users) ",    np.var(np.exp(community_transmission_rate_ensemble)))
+    print("mean of exp(exogenous) ", np.mean(np.exp(exogenous_transmission_rate_ensemble)))
+    print("var of exp(exogenous) ",    np.var(np.exp(exogenous_transmission_rate_ensemble)))
     
     master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                       new_transmission_rate = community_transmission_rate_ensemble,
-                             new_exogenous_transmission_rate = exogenous_transmission_rate_ensemble)
+                                       new_transmission_rate = np.exp(community_transmission_rate_ensemble),
+                             new_exogenous_transmission_rate = np.exp(exogenous_transmission_rate_ensemble))
     
-    exogenous_transmission_rate_ensemble += np.random.normal(0,0.01,size=[ensemble_size,1])
-    exogenous_transmission_rate_ensemble = np.clip(exogenous_transmission_rate_ensemble, 1e-8, None)
-    community_transmission_rate_ensemble += np.random.normal(0,0.01,size=[ensemble_size,1])
-    community_transmission_rate_ensemble = np.clip(community_transmission_rate_ensemble, 1e-8, None)
-    print(np.mean(exogenous_transmission_rate_ensemble))
-    print(np.mean(community_transmission_rate_ensemble))
+   
 
     #at the update the time
     time = time + static_contact_interval

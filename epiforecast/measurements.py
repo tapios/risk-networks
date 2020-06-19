@@ -30,6 +30,7 @@ class TestMeasurement:
             population      = ensemble_states.shape[1]/self.n_status
             ensemble_size   = ensemble_states.shape[0]
             self.prevalence = ensemble_states.reshape(ensemble_size,self.n_status,-1)[:,self.status_catalog[self.status],:].sum(axis = 1)/population
+            self.prevalence = np.maximum(1.0/population*np.ones(ensemble_size), self.prevalence)
         else:
             self.prevalence = fixed_prevalence
 
@@ -239,7 +240,7 @@ class Observation(StateInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = np.array(list(contact_network.nodes))[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-
+ 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale)

@@ -154,7 +154,10 @@ class DataAssimilator:
         ensemble_size = ensemble_state.shape[0]
 
         if len(self.observations) == 0: # no update is performed; return input
-            return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            return (ensemble_state,
+                    full_ensemble_transition_rates,
+                    full_ensemble_transmission_rate,
+                    full_ensemble_exogenous_transmission_rate)
 
         else:
 
@@ -205,12 +208,12 @@ class DataAssimilator:
                     ensemble_state,
                     data,
                     scale = None)
-                
+              
                 cov = np.diag(var)
-                
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
                 
                 # Perform da model update with ensemble_state: states, transition and transmission rates       
+                
                 (ensemble_state[:, obs_states],
                  new_ensemble_transition_rates,
                  new_ensemble_transmission_rate,
@@ -221,11 +224,11 @@ class DataAssimilator:
                                ensemble_exogenous_transmission_rate,
                                truth,
                                cov)
-
-
+                
                 #enforce statuses of an updated node to sum up to 1 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
-              
+               
+                
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 

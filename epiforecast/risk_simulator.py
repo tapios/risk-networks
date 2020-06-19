@@ -128,10 +128,10 @@ class MasterEquationModelEnsemble:
 
         if exogenous_transmission_rate is None:
             self.user_connectivity = np.ones(self.N)
-        else:
-            user_connectivity = nx.get_node_attributes(contact_network, name = 'user_connectivity')
+        else:   
+            user_connectivity = nx.get_node_attributes(self.G, name = 'user_connectivity')
             self.user_connectivity = np.array([user_connectivity[node] for node in self.G.nodes])
-        
+
         if exogenous_transmission_rate is None:
             if isinstance(transition_rates, list):
                 exogenous_transmission_rate = np.zeros(ensemble_size)
