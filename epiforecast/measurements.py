@@ -211,15 +211,12 @@ class HighVarianceStateInformedObservation:
         
             #Candidates for observations are those with a required state >= threshold
             xvar = np.var(state[:,candidate_states],axis=0)
-           
-            inc_sort_vector = np.argsort(xvar)
-            dec_sort_vector = np.flip(inc_sort_vector)
-          
-
+            dec_sort_vector = np.argsort(-xvar)
+            
             self.obs_states=candidate_states[dec_sort_vector[:obs_states_size]]
-         
+           
         elif (self.obs_frac == 1.0):
-            self.obs_states=candidate_states_ens
+            self.obs_states=candidate_states
         else: #The value is too small
             self.obs_states=np.array([],dtype=int)
             print("no observation - increase obs_frac")            
