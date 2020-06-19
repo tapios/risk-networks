@@ -155,8 +155,8 @@ class StateInformedObservation:
         """
         #Candidates for observations are those with a required state >= threshold
         candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
-
         xmean = np.mean(state[:,candidate_states],axis=0)
+    
         candidate_states_ens=candidate_states[(xmean>=self.obs_min_threshold) & \
                                               (xmean<=self.obs_max_threshold)]
 
@@ -171,6 +171,56 @@ class StateInformedObservation:
         else: #The value is too small
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
+
+
+class HighVarianceStateInformedObservation:
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status):
+
+        #number of nodes in the graph
+        self.N = N
+        #number of different states a node can be in
+
+        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.n_status = len(self.status_catalog.keys())
+
+        #array of status to observe
+        self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
+
+        #The fraction of states
+        self.obs_frac = np.clip(obs_frac,0.0,1.0)
+        
+        #default init observation
+        self.obs_states = np.empty(0)
+
+    def find_observation_states(
+            self,
+            contact_network,
+            state,
+            data):
+        """
+        Update the observation model when taking observation
+        """
+        
+        candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
+        obs_states_size=int(self.obs_frac*self.N)
+        
+        if (obs_states_size >= 1) and (self.obs_frac < 1.0) :
+        
+            #Candidates for observations are those with a required state >= threshold
+            xvar = np.var(state[:,candidate_states],axis=0)
+            dec_sort_vector = np.argsort(-xvar)
+            
+            self.obs_states=candidate_states[dec_sort_vector[:obs_states_size]]
+           
+        elif (self.obs_frac == 1.0):
+            self.obs_states=candidate_states
+        else: #The value is too small
+            self.obs_states=np.array([],dtype=int)
+            print("no observation - increase obs_frac")            
 
 #combine them together
 class Observation(StateInformedObservation, TestMeasurement):
@@ -251,6 +301,83 @@ class Observation(StateInformedObservation, TestMeasurement):
         self.mean     = observed_mean
         self.variance = observed_variance
 
+
+
+#combine them together
+class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurement):
+
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status,
+            obs_name,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=False,
+            obs_var_min = 1e-3):
+        
+        self.name=obs_name
+        self.obs_var_min = obs_var_min
+        
+        HighVarianceStateInformedObservation.__init__(self,
+                                                      N,
+                                                      obs_frac,
+                                                      obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
+
+    def find_observation_states(
+            self,
+            contact_network,
+            state,
+            data):
+        """
+        Obtain where one should make an observation based on the current state,
+
+        Inputs:
+            state: np.array of size [self.N * n_status]
+        """
+        HighVarianceStateInformedObservation.find_observation_states(self,
+                                                                     contact_network,
+                                                                     state,
+                                                                     data)
+
+    def observe(
+            self,
+            contact_network,          
+            state,
+            data,
+            scale='log'):
+        """
+        Inputs:
+            data: dictionary {node number : status}; data[i] = contact_network.node(i)
+        """
+
+        #make a measurement of the data
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
+
+        #mean, var np.arrays of size state
+        observed_states = np.remainder(self.obs_states,self.N)
+        #convert from np.array indexing to the node id in the (sub)graph
+        observed_nodes = np.array(list(contact_network.nodes))[observed_states]
+        observed_data = {node : data[node] for node in observed_nodes}
+
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
+
+        observed_mean     = np.array([mean[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+
+        self.mean     = observed_mean
+        self.variance = observed_variance
+
 class DataInformedObservation:
     def __init__(
             self,
@@ -295,8 +422,7 @@ class DataInformedObservation:
         self.obs_states=np.hstack(candidate_states)
 
 
-
-
+        
 class DataObservation(DataInformedObservation):
 
     def __init__(

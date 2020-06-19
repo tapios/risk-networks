@@ -27,7 +27,7 @@ from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.performance_metrics import PerformanceTracker
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
+from epiforecast.measurements import Observation, DataObservation, DataNodeObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 from epiforecast.risk_simulator_initial_conditions import random_risk, uniform_risk, deterministic_risk, prevalence_random_risk, prevalence_deterministic_risk
@@ -100,7 +100,7 @@ community_transmission_rate = 12.0
 Define time horizon parameters------------------------------------------------
 """
 static_contact_interval = 3 * hour
-simulation_length = 3
+simulation_length = 10
 
 """
 Initalize health service and epidemic simulator ------------------------------
@@ -213,9 +213,12 @@ negative_death_records = DataObservation(N = population,
 #               positive_death_records,
 #               positive_hospital_records]
 
-observations=[random_infection_test,
-              positive_death_records,
-              positive_hospital_records]
+high_var_infection_test = HighVarianceObservation(N=population,
+                                      obs_frac = 1/(population-0.01),
+                                      obs_status = 'I',
+                                      obs_name = "High Variance Infection Test")
+
+observations=[high_var_infection_test]
 
 # observations=[random_infection_test]
 
