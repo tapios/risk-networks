@@ -27,7 +27,7 @@ from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
+from epiforecast.measurements import Observation, DataObservation, DataNodeObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 from epiforecast.utilities import seed_numba_random_state
@@ -121,7 +121,7 @@ community_transmission_rate = 12.0
 # Simulate the growth and equilibration of an epidemic
 #
 static_contact_interval = 3 * hour
-simulation_length = 30
+simulation_length = 10
 
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'],
@@ -203,10 +203,12 @@ negative_death_records = DataObservation(N = population,
                                     obs_status = 'D',
                                     obs_name = "Not Deceased (from Data)")
 
-observations=[positive_death_records,
-              negative_death_records,
-              positive_hospital_records,
-              negative_hospital_records]
+high_var_infection_test = HighVarianceObservation(N=population,
+                                      obs_frac = 1/(population-0.01),
+                                      obs_status = 'I',
+                                      obs_name = "High Variance Infection Test")
+
+observations=[high_var_infection_test]
 
 plot_name_observations = "posdrec_negdrec"
 
