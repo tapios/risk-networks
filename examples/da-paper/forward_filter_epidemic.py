@@ -205,7 +205,7 @@ transmission_rate_to_update_flag = False
 #
 
 high_var_infection_test = Observation(N = user_population,
-                                      obs_frac = 0.01,
+                                      obs_frac = 0.01/0.125,
                                       obs_status = 'I',
                                       obs_name = "Random Infection Test",
                                       obs_var_min = 1e-6)
@@ -233,10 +233,10 @@ positive_death_records = DataObservation(N = population,
                                     obs_status = 'D',
                                     obs_name = "deathstate")
 
-perfect_observations=[]#positive_death_records,
-                      #negative_death_records,
-                      #positive_hospital_records,
-                      #negative_hospital_records]
+perfect_observations=[positive_death_records,
+                      negative_death_records,
+                      positive_hospital_records,
+                      negative_hospital_records]
 
 # create the assimilators
 assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
@@ -268,10 +268,10 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_network
 #
 
 time = 0.0
-states_ensemble = random_risk(uniform_netwiork,
-                              fraction_infected = 0.01,
-                              ensemble_size = ensemble_size)
-# states_ensemble = deterministic_risk(user_network,
+states_ensemble,_ = random_risk(user_network,
+                                fraction_infected = 0.01,
+                                ensemble_size = ensemble_size)
+# states_ensemble,_ = deterministic_risk(user_network,
 #                                      initial_statuses,
 #                                      ensemble_size = ensemble_size)
 
