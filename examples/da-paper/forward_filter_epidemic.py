@@ -26,27 +26,8 @@ from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.user_base import FullUserBase
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
+from epiforecast.risk_simulator_initial_conditions import deterministic_risk, uniform_risk, random_risk
 
-
-
-
-def deterministic_risk(contact_network, initial_statuses, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-    init_catalog = {'S': False, 'I': True}
-    infected = np.array([init_catalog[status] for status in list(initial_statuses.values())])
-
-    for mm in range(ensemble_size):
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
 
 #
 # Set random seeds for reproducibility
@@ -106,7 +87,7 @@ hour = 60 * minute
 
 mean_contact_lifetime=0.5*minute
 static_contact_interval = 3 * hour
-simulation_length = 50
+simulation_length = 30
 print("We simulate an epidemic over a total of ",simulation_length,"days")
 health_service = HealthService(static_population_network = contact_network,
                                health_workers = node_identifiers['health_workers'])
@@ -199,7 +180,7 @@ initial_statuses = loaded_data.start_statuses
 # Set up the population priors
 #
 
-ensemble_size = 100 
+ensemble_size = 100
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
@@ -252,10 +233,10 @@ positive_death_records = DataObservation(N = population,
                                     obs_status = 'D',
                                     obs_name = "deathstate")
 
-perfect_observations=[positive_death_records,
-                      negative_death_records,
-                      positive_hospital_records,
-                      negative_hospital_records]
+perfect_observations=[]#positive_death_records,
+                      #negative_death_records,
+                      #positive_hospital_records,
+                      #negative_hospital_records]
 
 # create the assimilators
 assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
@@ -287,10 +268,12 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_network
 #
 
 time = 0.0
-
-states_ensemble = deterministic_risk(user_network,
-                                     initial_statuses,
-                                     ensemble_size = ensemble_size)
+states_ensemble = random_risk(uniform_netwiork,
+                              fraction_infected = 0.01,
+                              ensemble_size = ensemble_size)
+# states_ensemble = deterministic_risk(user_network,
+#                                      initial_statuses,
+#                                      ensemble_size = ensemble_size)
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
