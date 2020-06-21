@@ -25,7 +25,7 @@ from epiforecast.health_service import HealthService
 from epiforecast.utilities import seed_three_random_states
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.user_base import FullUserBase
-from epiforecast.measurements import Observation, DataObservation
+from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 
 
@@ -249,62 +249,73 @@ transmission_rate_to_update_flag = False
 # Set up the data assimilator
 #
 
+# imperfect observations
 random_infection_test = Observation(N = user_population,
                              obs_frac = 1.0,
                            obs_status = 'I',
                              obs_name = "Random Infection Test",
                           obs_var_min = 1e-6)
 
-positive_hospital_records = DataObservation(N = population,
+high_var_infection_test = HighVarianceObservation(N = user_population,
+                                           obs_frac = 0.1,
+                                         obs_status = 'I',
+                                           obs_name = "Test maximal variance infected",
+                                        obs_var_min = 1e-6)
+
+# perfect observations
+positive_hospital_records = DataObservation(N = user_population,
                                        set_to_one=True,
                                        obs_status = 'H',
                                        obs_name = "hospstate")
 
-negative_hospital_records = DataObservation(N = population,
+negative_hospital_records = DataObservation(N = user_population,
                                     set_to_one=False,
                                     obs_status = 'H',
                                     obs_name = "nohospstate")
 
-positive_death_records = DataObservation(N = population,
+positive_death_records = DataObservation(N = user_population,
                                     set_to_one=True,
                                     obs_status = 'D',
                                     obs_name = "deathstate")
 
-negative_death_records = DataObservation(N = population,
+negative_death_records = DataObservation(N = user_population,
                                     set_to_one=False,
                                     obs_status = 'D',
                                     obs_name = "nodeathstate")
 
-observations1=[random_infection_test]
-observations2=[positive_hospital_records,negative_hospital_records,\
-               positive_death_records,negative_death_records]
+imperfect_observations=[random_infection_test]
+
+perfect_observations=[positive_hospital_records,
+                      negative_hospital_records,
+                      positive_death_records,
+                      negative_death_records]
 
 # create the assimilator
-assimilator1 = DataAssimilator(observations = observations1,
-                                    errors = [],
-            transition_rates_to_update_str = transition_rates_to_update_str,
-          transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
+                                                           errors = [],
+                                   transition_rates_to_update_str = transition_rates_to_update_str,
+                                 transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
-assimilator2 = DataAssimilator(observations = observations2,
-                                    errors = [],
-            transition_rates_to_update_str = transition_rates_to_update_str,
-          transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+assimilator_perfect_observations = DataAssimilator(observations = perfect_observations,
+                                                         errors = [],
+                                 transition_rates_to_update_str = transition_rates_to_update_str,
+                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
 
 #
 # Set up the ensemble of master equtions
 #
 
 master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_network,
-                                                  transition_rates = transition_rates_ensemble,
-                                                  transmission_rate = community_transmission_rate_ensemble,
-                                                  hospital_transmission_reduction = hospital_transmission_reduction,
-                                                  ensemble_size = ensemble_size)
+                                                 transition_rates = transition_rates_ensemble,
+                                                transmission_rate = community_transmission_rate_ensemble,
+                                  hospital_transmission_reduction = hospital_transmission_reduction,
+                                                    ensemble_size = ensemble_size)
 
 #
 # Run the master equations on the loaded networks
 #
 
-states_trace_ensemble=np.zeros([ensemble_size,5*population,time_trace.size])
+states_trace_ensemble=np.zeros([ensemble_size,5*user_population,time_trace.size])
 
 states_ensemble = deterministic_risk(user_network,
                                      initial_statuses,
@@ -342,20 +353,20 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator1.update(ensemble_state = states_ensemble,
-                                         data = loaded_data.start_statuses,
-               full_ensemble_transition_rates = transition_rates_ensemble,
-              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                 user_network = user_network)
+        ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
+                                                                data = loaded_data.start_statuses,
+                                      full_ensemble_transition_rates = transition_rates_ensemble,
+                                     full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                        user_network = user_network)
 
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator2.update(ensemble_state = states_ensemble,
-                                         data = loaded_data.start_statuses,
-               full_ensemble_transition_rates = transition_rates_ensemble,
-              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                 user_network = user_network)
+        ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
+                                                              data = loaded_data.start_statuses,
+                                    full_ensemble_transition_rates = transition_rates_ensemble,
+                                   full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                      user_network = user_network)
         
         #update model parameters (transition and transmission rates) of the master eqn model
         
@@ -378,20 +389,20 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator1.update(ensemble_state = states_ensemble,
-                                         data = loaded_data.end_statuses,
-               full_ensemble_transition_rates = transition_rates_ensemble,
-              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                 user_network = user_network)
+        ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
+                                                                data = loaded_data.end_statuses,
+                                      full_ensemble_transition_rates = transition_rates_ensemble,
+                                     full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                        user_network = user_network)
 
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator2.update(ensemble_state = states_ensemble,
-                                         data = loaded_data.end_statuses,
-               full_ensemble_transition_rates = transition_rates_ensemble,
-              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                 user_network = user_network)
+        ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
+                                                              data = loaded_data.end_statuses,
+                                    full_ensemble_transition_rates = transition_rates_ensemble,
+                                   full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                                      user_network = user_network)
     
         #update model parameters (transition and transmission rates) of the master eqn model
     

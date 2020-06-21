@@ -23,7 +23,7 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.utilities import seed_three_random_states
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-from epiforecast.user_base import FullUserBase
+from epiforecast.user_base import FullUserBase, ContiguousUserBase
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk, uniform_risk, random_risk
@@ -57,6 +57,10 @@ population = len(contact_network)
 #
 
 user_base = FullUserBase(contact_network)
+#user_fraction = 0.1 
+#user_base = ContiguousUserBase(contact_network,
+#                               user_fraction=user_fraction)
+
 users = list(user_base.contact_network.nodes)
 user_population=len(user_base.contact_network)
 
@@ -121,12 +125,13 @@ epidemic_simulator.set_statuses(statuses)
 # for use later initializing the master equations
 
 #for graphing against against users
-Scount=len([node for node in users if statuses[node] == 'S'])
-Ecount=len([node for node in users if statuses[node] == 'E'])
-Icount=len([node for node in users if statuses[node] == 'I'])
-Hcount=len([node for node in users if statuses[node] == 'H'])
-Rcount=len([node for node in users if statuses[node] == 'R'])
-Dcount=len([node for node in users if statuses[node] == 'D'])
+user_factor=population/user_population
+Scount=user_factor*len([node for node in users if statuses[node] == 'S'])
+Ecount=user_factor*len([node for node in users if statuses[node] == 'E'])
+Icount=user_factor*len([node for node in users if statuses[node] == 'I'])
+Hcount=user_factor*len([node for node in users if statuses[node] == 'H'])
+Rcount=user_factor*len([node for node in users if statuses[node] == 'R'])
+Dcount=user_factor*len([node for node in users if statuses[node] == 'D'])
 
 time_trace = np.arange(time,simulation_length,static_contact_interval)
 statuses_sum_trace = [[Scount,Ecount,Icount,Hcount,Rcount,Dcount]]
@@ -150,12 +155,12 @@ for i in range(int(simulation_length/static_contact_interval)):
     epidemic_data_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
 
     #statuses of user base (here Full)
-    Scount=len([node for node in users if statuses[node] == 'S'])
-    Ecount=len([node for node in users if statuses[node] == 'E'])
-    Icount=len([node for node in users if statuses[node] == 'I'])
-    Hcount=len([node for node in users if statuses[node] == 'H'])
-    Rcount=len([node for node in users if statuses[node] == 'R'])
-    Dcount=len([node for node in users if statuses[node] == 'D'])
+    Scount=user_factor*len([node for node in users if statuses[node] == 'S'])
+    Ecount=user_factor*len([node for node in users if statuses[node] == 'E'])
+    Icount=user_factor*len([node for node in users if statuses[node] == 'I'])
+    Hcount=user_factor*len([node for node in users if statuses[node] == 'H'])
+    Rcount=user_factor*len([node for node in users if statuses[node] == 'R'])
+    Dcount=user_factor*len([node for node in users if statuses[node] == 'D'])
 
     statuses_sum_trace.append([Scount,Ecount,Icount,Hcount,Rcount,Dcount])
 
@@ -204,31 +209,37 @@ transmission_rate_to_update_flag = False
 # Set up the data assimilator
 #
 
-high_var_infection_test = Observation(N = user_population,
-                                      obs_frac = 0.01/0.125,
-                                      obs_status = 'I',
-                                      obs_name = "Random Infection Test",
-                                      obs_var_min = 1e-6)
+random_infection_test = Observation(N = user_population,
+                             obs_frac = 1.0,
+                           obs_status = 'I',
+                             obs_name = "Random Infection Test",
+                          obs_var_min = 1e-6)
+
+high_var_infection_test = HighVarianceObservation(N = user_population,
+                                           obs_frac = 0.1,
+                                         obs_status = 'I',
+                                           obs_name = "Test maximal variance infected",
+                                        obs_var_min = 1e-6)
 
 imperfect_observations=[high_var_infection_test]
 
 
-negative_hospital_records = DataObservation(N = population,
+negative_hospital_records = DataObservation(N = user_population,
                                     set_to_one=False,
                                     obs_status = 'H',
                                     obs_name = "nohospstate")
 
-negative_death_records = DataObservation(N = population,
+negative_death_records = DataObservation(N = user_population,
                                     set_to_one=False,
                                     obs_status = 'D',
                                     obs_name = "nodeathstate")
 
-positive_hospital_records = DataObservation(N = population,
+positive_hospital_records = DataObservation(N = user_population,
                                        set_to_one=True,
                                        obs_status = 'H',
                                        obs_name = "hospstate")
 
-positive_death_records = DataObservation(N = population,
+positive_death_records = DataObservation(N = user_population,
                                     set_to_one=True,
                                     obs_status = 'D',
                                     obs_name = "deathstate")
@@ -248,7 +259,6 @@ assimilator_perfect_observations = DataAssimilator(observations = perfect_observ
                                                    errors = [],
                                                    transition_rates_to_update_str = transition_rates_to_update_str,
                                                    transmission_rate_to_update_flag = transmission_rate_to_update_flag)
-
 
 
 
@@ -277,7 +287,7 @@ states_ensemble,_ = random_risk(user_network,
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-states_trace_ensemble=np.zeros([ensemble_size,5*population,time_trace.size])
+states_trace_ensemble=np.zeros([ensemble_size,5*user_population,time_trace.size])
 states_trace_ensemble[:,:,0] = states_ensemble
 
 for i in range(int(simulation_length/static_contact_interval)):
