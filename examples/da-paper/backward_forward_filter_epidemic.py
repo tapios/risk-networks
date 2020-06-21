@@ -216,8 +216,8 @@ backward_DA_interval = 1
 forward_DA_interval = 1
 forward_prediction_interval = 1
 
-time = backward_DA_interval 
-loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=time)
+time = 0.0 
+loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=time)
 user_network = loaded_data.contact_network.subgraph(users)
 initial_statuses = loaded_data.start_statuses
 
@@ -255,10 +255,37 @@ random_infection_test = Observation(N = user_population,
                              obs_name = "Random Infection Test",
                           obs_var_min = 1e-6)
 
-observations=[random_infection_test]
+positive_hospital_records = DataObservation(N = population,
+                                       set_to_one=True,
+                                       obs_status = 'H',
+                                       obs_name = "hospstate")
+
+negative_hospital_records = DataObservation(N = population,
+                                    set_to_one=False,
+                                    obs_status = 'H',
+                                    obs_name = "nohospstate")
+
+positive_death_records = DataObservation(N = population,
+                                    set_to_one=True,
+                                    obs_status = 'D',
+                                    obs_name = "deathstate")
+
+negative_death_records = DataObservation(N = population,
+                                    set_to_one=False,
+                                    obs_status = 'D',
+                                    obs_name = "nodeathstate")
+
+observations1=[random_infection_test]
+observations2=[positive_hospital_records,negative_hospital_records,\
+               positive_death_records,negative_death_records]
 
 # create the assimilator
-assimilator = DataAssimilator(observations = observations,
+assimilator1 = DataAssimilator(observations = observations1,
+                                    errors = [],
+            transition_rates_to_update_str = transition_rates_to_update_str,
+          transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+
+assimilator2 = DataAssimilator(observations = observations2,
                                     errors = [],
             transition_rates_to_update_str = transition_rates_to_update_str,
           transmission_rate_to_update_flag = transmission_rate_to_update_flag)
@@ -277,7 +304,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_network
 # Run the master equations on the loaded networks
 #
 
-time = backward_DA_interval 
+states_trace_ensemble=np.zeros([ensemble_size,5*population,time_trace.size])
 
 states_ensemble = deterministic_risk(user_network,
                                      initial_statuses,
@@ -285,8 +312,22 @@ states_ensemble = deterministic_risk(user_network,
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-states_trace_ensemble=np.zeros([ensemble_size,5*population,time_trace.size])
-states_trace_ensemble[:,:,0] = states_ensemble
+forward_run_time = time
+master_eqn_ensemble.set_start_time(time)
+for j in range(int(backward_DA_interval/static_contact_interval)):
+
+    loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_run_time)
+    user_network = loaded_data.contact_network.subgraph(users)
+    master_eqn_ensemble.set_contact_network_and_contact_duration(user_network) # contact duration stored on network
+    states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
+
+    forward_run_time = forward_run_time + static_contact_interval
+    master_eqn_ensemble.set_states_ensemble(states_ensemble)
+    master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
+                                       new_transmission_rate = community_transmission_rate_ensemble)
+    states_trace_ensemble[:,:,j] = states_ensemble
+
+#states_trace_ensemble[:,:,0] = states_ensemble
 
 for k in range(1,int(simulation_length/backward_DA_interval)):
     backward_DA_time = k*backward_DA_interval
@@ -301,7 +342,16 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator.update(ensemble_state = states_ensemble,
+        ) = assimilator1.update(ensemble_state = states_ensemble,
+                                         data = loaded_data.start_statuses,
+               full_ensemble_transition_rates = transition_rates_ensemble,
+              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                 user_network = user_network)
+
+        (states_ensemble,
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+        ) = assimilator2.update(ensemble_state = states_ensemble,
                                          data = loaded_data.start_statuses,
                full_ensemble_transition_rates = transition_rates_ensemble,
               full_ensemble_transmission_rate = community_transmission_rate_ensemble,
@@ -328,7 +378,16 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         (states_ensemble,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
-        ) = assimilator.update(ensemble_state = states_ensemble,
+        ) = assimilator1.update(ensemble_state = states_ensemble,
+                                         data = loaded_data.end_statuses,
+               full_ensemble_transition_rates = transition_rates_ensemble,
+              full_ensemble_transmission_rate = community_transmission_rate_ensemble,
+                                 user_network = user_network)
+
+        (states_ensemble,
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+        ) = assimilator2.update(ensemble_state = states_ensemble,
                                          data = loaded_data.end_statuses,
                full_ensemble_transition_rates = transition_rates_ensemble,
               full_ensemble_transmission_rate = community_transmission_rate_ensemble,
@@ -341,8 +400,6 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
         master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
                                            new_transmission_rate = community_transmission_rate_ensemble)
-        if k == 1:
-            states_trace_ensemble[:,:,j] = states_ensemble
 
     forward_prediction_time = forward_DA_time
     master_eqn_ensemble.set_start_time(forward_prediction_time)
