@@ -245,6 +245,14 @@ class ContactNetwork:
         return (np.fromiter(λ_min_dict.values(), dtype=float),
                 np.fromiter(λ_max_dict.values(), dtype=float))
 
+    # TODO: unfortunately, dispatch works on the first argument only; thus, the
+    # current code can introduce an undesired behavior when
+    #     type(λ_min) == int and type(λ_max) == np.ndarray
+    # Possible solutions (1st one is preferred):
+    #   - not dispatch at the `set_lambdas` level, but instead implement a
+    #     helper method that dispatches on each λ individually;
+    #   - simply have an if inside since there are really only two different
+    #     behaviors: one for int, float, dict, and one for np.array
     @singledispatchmethod
     def set_lambdas(
             self,

@@ -129,12 +129,12 @@ class TransitionRates:
         self.community_mortality_fraction = None
         self.hospital_mortality_fraction  = None
 
-        self.exposed_to_infected      = None
-        self.infected_to_resistant    = None
-        self.infected_to_hospitalized = None
-        self.infected_to_deceased     = None
-        self.hospitalized_to_resistant= None
-        self.hospitalized_to_deceased = None
+        self.exposed_to_infected       = None
+        self.infected_to_resistant     = None
+        self.infected_to_hospitalized  = None
+        self.infected_to_deceased      = None
+        self.hospitalized_to_resistant = None
+        self.hospitalized_to_deceased  = None
 
     @singledispatchmethod
     @staticmethod
@@ -247,11 +247,37 @@ class TransitionRates:
 
         Input:
             parameter_name (str): parameter name, like 'latent_periods'
-            values (np.array): (n,) array of values
-
+            values (int),
+                   (float):    constant value to be broadcasted to array of size
+                               (self.population,)
+                   (np.array): (self.population,) array of values
         Output:
             None
         """
-        setattr(self, parameter_name, values)
+        values_array = self.__convert_to_array(values)
+        setattr(self, parameter_name, values_array)
+
+    # TODO move this into utilities.py or something
+    @singledispatchmethod
+    def __convert_to_array(
+            self,
+            values):
+        raise ValueError(
+                self.__class__.__name__
+                + ": this type of argument is not supported: "
+                + values.__class__.__name__)
+
+    @__convert_to_array.register(int)
+    @__convert_to_array.register(float)
+    def __convert_to_array_const(
+            self,
+            value):
+        return np.full(self.population, value)
+
+    @__convert_to_array.register(np.ndarray)
+    def __convert_to_array_array(
+            self,
+            values):
+        return values
 
 
