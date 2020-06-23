@@ -154,13 +154,11 @@ for i in range(ensemble_size):
             network.get_node_count(),
             np.random.normal(latent_period['mean'],
                              latent_period['variance']),
-            np.random.normal(community_infection_period['mean'],
-                             community_infection_period['variance']),
-            np.random.normal(hospital_infection_period['mean'],
-                             hospital_infection_period['variance']),
+            community_infection_period['mean'],
+            hospital_infection_period['mean'],
             AgeDependentBetaSampler(mean=age_dep_h, b=4),
-            AgeDependentBetaSampler(mean=age_dep_d, b=4),
-            AgeDependentBetaSampler(mean=age_dep_dprime, b=4),
+            AgeDependentConstant(age_dep_d),
+            AgeDependentConstant(age_dep_dprime),
             network.get_age_groups())
     transition_rates_particle.calculate_from_clinical()
 
