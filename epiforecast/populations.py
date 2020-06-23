@@ -139,18 +139,26 @@ class TransitionRates:
     @singledispatchmethod
     @staticmethod
     def __draw_using(parameter, distr_parameters):
-        return parameter
+        raise ValueError(
+                self.__class__.__name__
+                + ": this type of argument is not supported: "
+                + parameter.__class__.__name__)
 
     @__draw_using.register(int)
     @__draw_using.register(float)
     @staticmethod
-    def __draw_using_list(parameter, distr_parameters):
-        return np.full(distr_parameters.size, parameter)
+    def __draw_using_const(parameter, distr_parameters):
+        return parameter
 
     @__draw_using.register(list)
     @staticmethod
     def __draw_using_list(parameter_list, distr_parameters):
         return np.array(parameter_list)
+
+    @__draw_using.register(np.ndarray)
+    @staticmethod
+    def __draw_using_array(parameter_array, distr_parameters):
+        return parameter_array
 
     @__draw_using.register(BetaSampler)
     @__draw_using.register(GammaSampler)
@@ -186,8 +194,8 @@ class TransitionRates:
             distr_parameters.size
 
         Note that this method is NOT idempotent, i.e. in the following
-            transition_rates.draw_using(dp)
-            transition_rates.draw_using(dp)
+            transition_rates.draw_and_set_clinical_using(dp)
+            transition_rates.draw_and_set_clinical_using(dp)
         second call draws new samples (for those clinical parameters which had
         samplers specified in the constructor).
         It leaves others unchanged though.
@@ -224,12 +232,12 @@ class TransitionRates:
         Output:
             None
         """
-        σ = 1 / self.latent_periods
-        γ = 1 / self.community_infection_periods
-        γ_prime = 1 / self.hospital_infection_periods
-        h = self.hospitalization_fraction
-        d = self.community_mortality_fraction
-        d_prime = self.hospital_mortality_fraction
+        σ       = self.__convert_to_array(1 / self.latent_periods)
+        γ       = self.__convert_to_array(1 / self.community_infection_periods)
+        γ_prime = self.__convert_to_array(1 / self.hospital_infection_periods)
+        h       = self.__convert_to_array(self.hospitalization_fraction)
+        d       = self.__convert_to_array(self.community_mortality_fraction)
+        d_prime = self.__convert_to_array(self.hospital_mortality_fraction)
 
         self.exposed_to_infected      = dict(enumerate(σ))
         self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
@@ -248,14 +256,12 @@ class TransitionRates:
         Input:
             parameter_name (str): parameter name, like 'latent_periods'
             values (int),
-                   (float):    constant value to be broadcasted to array of size
-                               (self.population,)
+                   (float):    constant value for a parameter
                    (np.array): (self.population,) array of values
         Output:
             None
         """
-        values_array = self.__convert_to_array(values)
-        setattr(self, parameter_name, values_array)
+        setattr(self, parameter_name, values)
 
     # TODO move this into utilities.py or something
     @singledispatchmethod
