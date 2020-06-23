@@ -40,7 +40,6 @@ class NetworkCompartmentalModel:
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
 
-            # Reduced system with 5 equations ------------------------------
             iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
             self.coeffs = sps.csr_matrix(sps.bmat(
                 [
@@ -55,9 +54,7 @@ class NetworkCompartmentalModel:
             self.offset[iI] = self.sigma
             self.y_dot = np.zeros_like(5 * self.N,)
 
-    def update_transition_rates(
-            self,
-            new_transition_rates):
+    def update_transition_rates(self, new_transition_rates):
         """
         Args:
         -------
@@ -269,7 +266,7 @@ class MasterEquationModelEnsemble:
             n_steps = 100,
             closure = 'independent',
             **kwargs):
-        """    
+        """
         Args:
         -------
         time_window : duration of simulation
@@ -279,10 +276,10 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time - time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        
+
         yt      = np.empty([self.y0.size, t.size])
         yt[:,0] = self.y0.flatten()
-        
+
         for jj, time in tqdm(enumerate(t[:-1]),
                              desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
                              total = t.size - 1):
