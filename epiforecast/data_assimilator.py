@@ -242,9 +242,10 @@ class DataAssimilator:
                                 rate_size=clinical_parameter.size
                                 new_rates=new_member_rates[:rate_size]
                             full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_rates)
-                            full_ensemble_transition_rates[member].calculate_from_clinical()
 
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
+
+                        full_ensemble_transition_rates[member].calculate_from_clinical()
 
                 # Update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
