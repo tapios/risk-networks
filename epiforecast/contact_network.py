@@ -16,13 +16,13 @@ class ContactNetwork:
     HEALTH_WORKERS_INDEX = 1
     COMMUNITY_INDEX      = 2
 
-    # TODO change the string constants
+    # TODO extract into Glossary class
     AGE_GROUP = 'age_group'
-    LAMBDA_MIN = 'night_inception_rate'
-    LAMBDA_MAX = 'day_inception_rate'
 
-    BETA = 'exposed_by_infected'
-    BETA_PRIME = 'exposed_by_hospitalized'
+    LAMBDA_MIN = 'minimum_contact_rate'
+    LAMBDA_MAX = 'maximum_contact_rate'
+
+    WJI = 'edge_weights'
 
     E_TO_I = 'exposed_to_infected'
     I_TO_H = 'infected_to_hospitalized'
@@ -217,7 +217,7 @@ class ContactNetwork:
         Output:
             edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
         """
-        return nx.to_scipy_sparse_matrix(self.graph, weight=ContactNetwork.BETA)
+        return nx.to_scipy_sparse_matrix(self.graph, weight=ContactNetwork.WJI)
 
     def get_age_groups(self):
         """
@@ -380,9 +380,7 @@ class ContactNetwork:
             None
         """
         nx.set_edge_attributes(
-                self.graph, values=edge_weights, name=ContactNetwork.BETA)
-        nx.set_edge_attributes(
-                self.graph, values=edge_weights, name=ContactNetwork.BETA_PRIME)
+                self.graph, values=edge_weights, name=ContactNetwork.WJI)
 
     def add_edges(
             self,
@@ -510,12 +508,12 @@ class ContactNetwork:
                 ('I', 'S'),
                 ('I', 'E'),
                 rate=community_rate,
-                weight_label=ContactNetwork.BETA)
+                weight_label=ContactNetwork.WJI)
         diagram_neigh.add_edge(
                 ('H', 'S'),
                 ('H', 'E'),
                 rate=hospital_rate,
-                weight_label=ContactNetwork.BETA_PRIME)
+                weight_label=ContactNetwork.WJI)
         return diagram_neigh
 
 
