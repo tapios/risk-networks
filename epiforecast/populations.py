@@ -89,7 +89,8 @@ class TransitionRates:
             hip_sampler,
             hf_sampler,
             cmf_sampler,
-            hmf_sampler):
+            hmf_sampler,
+            distributional_parameters):
         """
         Constructor with samplers
 
@@ -112,6 +113,7 @@ class TransitionRates:
                       (GammaSampler),
                       (AgeDependentConstant),
                       (AgeDependentBetaSampler): a sampler to use
+            distributional_parameters (np.array): (self.population,) array
         """
         # TODO extract clinical parameters into its own class
         self.population  = population
@@ -129,6 +131,8 @@ class TransitionRates:
         self.community_mortality_fraction = None
         self.hospital_mortality_fraction  = None
 
+        self.__draw_and_set_clinical_using(distributional_parameters)
+
         self.exposed_to_infected       = None
         self.infected_to_resistant     = None
         self.infected_to_hospitalized  = None
@@ -138,7 +142,7 @@ class TransitionRates:
 
     @singledispatchmethod
     @staticmethod
-    def __draw_using(parameter, distr_parameters):
+    def __draw_using(parameter, distributional_parameters):
         raise ValueError(
                 self.__class__.__name__
                 + ": this type of argument is not supported: "
@@ -146,39 +150,37 @@ class TransitionRates:
 
     @__draw_using.register(int)
     @__draw_using.register(float)
+    @__draw_using.register(np.ndarray)
     @staticmethod
-    def __draw_using_const(parameter, distr_parameters):
+    def __draw_using_const_or_array(parameter, distributional_parameters):
         return parameter
 
     @__draw_using.register(list)
     @staticmethod
-    def __draw_using_list(parameter_list, distr_parameters):
+    def __draw_using_list(parameter_list, distributional_parameters):
         return np.array(parameter_list)
-
-    @__draw_using.register(np.ndarray)
-    @staticmethod
-    def __draw_using_array(parameter_array, distr_parameters):
-        return parameter_array
 
     @__draw_using.register(BetaSampler)
     @__draw_using.register(GammaSampler)
     @staticmethod
-    def __draw_using_sampler(sampler, distr_parameters):
-        return np.array([sampler.minimum+sampler.draw() for dp in distr_parameters])
+    def __draw_using_sampler(sampler, distributional_parameters):
+        return np.array([sampler.minimum + sampler.draw()
+                         for dp in distributional_parameters])
 
     @__draw_using.register(AgeDependentBetaSampler)
     @staticmethod
-    def __draw_using_age_beta_sampler(sampler, distr_parameters):
-        return np.array([sampler.draw(dp) for dp in distr_parameters])
+    def __draw_using_age_beta_sampler(sampler, distributional_parameters):
+        return np.array([sampler.draw(dp) for dp in distributional_parameters])
 
     @__draw_using.register(AgeDependentConstant)
     @staticmethod
-    def __draw_using_age_const_sampler(sampler, distr_parameters):
-        return np.array([sampler.constants[dp] for dp in distr_parameters])
+    def __draw_using_age_const_sampler(sampler, distributional_parameters):
+        return np.array([sampler.constants[dp]
+                         for dp in distributional_parameters])
 
-    def draw_and_set_clinical_using(
+    def __draw_and_set_clinical_using(
             self,
-            distr_parameters):
+            distributional_parameters):
         """
         Draw and set clinical parameters using distributional parameters
 
@@ -186,44 +188,44 @@ class TransitionRates:
         fractions) might be either distributions that depend on certain
         parameters (say, mean and variance in the Gaussian case), or arrays, or
         constant values.
-        This method draws from those distributions according to the provided
-        distributional parameters.
-        For arrays, they are left unchanged.
-        For constant values, they are propagated to arrays.
-        In either case, the resulting clinical parameters will be of size
-            distr_parameters.size
+        This method uses those samplers to draw from distributions according to
+        the provided distributional parameters:
+          - constant values and arrays are left unchanged;
+          - samplers are used to draw an array of size self.population.
 
         Note that this method is NOT idempotent, i.e. in the following
-            transition_rates.draw_and_set_clinical_using(dp)
-            transition_rates.draw_and_set_clinical_using(dp)
+            transition_rates.__draw_and_set_clinical_using(dp)
+            transition_rates.__draw_and_set_clinical_using(dp)
         second call draws new samples (for those clinical parameters which had
         samplers specified in the constructor).
         It leaves others unchanged though.
 
         Input:
-            distr_parameters (np.array): (n,) array of parameters
+            distributional_parameters (np.array): (self.population,) array
 
         Output:
             None
         """
+        assert distributional_parameters.shape == (self.population,)
+
         self.latent_periods               = self.__draw_using(
                 self.lp_sampler,
-                distr_parameters)
+                distributional_parameters)
         self.community_infection_periods  = self.__draw_using(
                 self.cip_sampler,
-                distr_parameters)
+                distributional_parameters)
         self.hospital_infection_periods   = self.__draw_using(
                 self.hip_sampler,
-                distr_parameters)
+                distributional_parameters)
         self.hospitalization_fraction     = self.__draw_using(
                 self.hf_sampler,
-                distr_parameters)
+                distributional_parameters)
         self.community_mortality_fraction = self.__draw_using(
                 self.cmf_sampler,
-                distr_parameters)
+                distributional_parameters)
         self.hospital_mortality_fraction  = self.__draw_using(
                 self.hmf_sampler,
-                distr_parameters)
+                distributional_parameters)
 
     def calculate_from_clinical(self):
         """
@@ -248,20 +250,20 @@ class TransitionRates:
 
     def set_clinical_parameter(
             self,
-            parameter_name,
-            values):
+            name,
+            value):
         """
         Set a clinical parameter by its name
 
         Input:
-            parameter_name (str): parameter name, like 'latent_periods'
-            values (int),
-                   (float):    constant value for a parameter
-                   (np.array): (self.population,) array of values
+            name (str): parameter name, like 'latent_periods'
+            value (int),
+                  (float):    constant value for a parameter
+                  (np.array): (self.population,) array of values
         Output:
             None
         """
-        setattr(self, parameter_name, values)
+        setattr(self, name, value)
 
     # TODO move this into utilities.py or something
     @singledispatchmethod

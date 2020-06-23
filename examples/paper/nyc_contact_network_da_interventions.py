@@ -124,9 +124,9 @@ transition_rates = TransitionRates(
         hospital_infection_period['mean'],
         AgeDependentConstant(age_dep_h),
         AgeDependentConstant(age_dep_d),
-        AgeDependentConstant(age_dep_dprime))
+        AgeDependentConstant(age_dep_dprime),
+        network.get_age_groups())
 
-transition_rates.draw_and_set_clinical_using(network.get_age_groups())
 transition_rates.calculate_from_clinical()
 
 network.set_transition_rates(transition_rates)
@@ -160,8 +160,7 @@ for i in range(ensemble_size):
                              hospital_infection_period['variance']),
             AgeDependentBetaSampler(mean=age_dep_h, b=4),
             AgeDependentBetaSampler(mean=age_dep_d, b=4),
-            AgeDependentBetaSampler(mean=age_dep_dprime, b=4))
-    transition_rates_particle.draw_and_set_clinical_using(
+            AgeDependentBetaSampler(mean=age_dep_dprime, b=4),
             network.get_age_groups())
     transition_rates_particle.calculate_from_clinical()
 
@@ -173,21 +172,21 @@ community_transmission_rate_ensemble = np.random.normal(
         size=(ensemble_size,1))
 
 master_eqn_ensemble = MasterEquationModelEnsemble(
-    network.get_node_count(),
-    transition_rates_ensemble,
-    community_transmission_rate_ensemble,
-    hospital_transmission_reduction,
-    ensemble_size)
+        network.get_node_count(),
+        transition_rates_ensemble,
+        community_transmission_rate_ensemble,
+        hospital_transmission_reduction,
+        ensemble_size)
 
 # assimilator ##################################################################
 # methods for how to choose observed states
 medical_infection_test = Observation(
-    N = network.get_node_count(),
-    obs_frac = 1.0,
-    obs_status = 'I',
-    obs_name = "0.25 < Infected(100%) < 0.5",
-    min_threshold = 0.1,
-    max_threshold = 0.7)
+        N = network.get_node_count(),
+        obs_frac = 1.0,
+        obs_status = 'I',
+        obs_name = "0.25 < Infected(100%) < 0.5",
+        min_threshold = 0.1,
+        max_threshold = 0.7)
 
 observations = [medical_infection_test]
 
@@ -196,18 +195,18 @@ transition_rates_to_update_str   = ['latent_periods','hospitalization_fraction']
 transmission_rate_to_update_flag = True
 
 assimilator = DataAssimilator(
-    observations=observations,
-    errors=[],
-    transition_rates_to_update_str=transition_rates_to_update_str,
-    transmission_rate_to_update_flag=transmission_rate_to_update_flag)
+        observations=observations,
+        errors=[],
+        transition_rates_to_update_str=transition_rates_to_update_str,
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
 # intervention #################################################################
 intervention = Intervention(
-    network.get_node_count(),
-    ensemble_size,
-    compartment_index,
-    E_thr = 0.5,
-    I_thr = 0.5)
+        network.get_node_count(),
+        ensemble_size,
+        compartment_index,
+        E_thr = 0.5,
+        I_thr = 0.5)
 
 # initial conditions ###########################################################
 statuses = random_epidemic(
@@ -262,7 +261,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     sick_nodes = intervention.find_sick(ensemble_states)
     network.isolate(sick_nodes)
     print("Sick nodes: {:d}/{:d}".format(
-        sick_nodes.size, network.get_node_count()))
+            sick_nodes.size, network.get_node_count()))
 
     print("Current time", epidemic_simulator.time)
 
@@ -271,46 +270,45 @@ for i in range(int(simulation_length/static_contact_interval)):
 # save #########################################################################
 ################################################################################
 if SAVE_FLAG:
-  np.savetxt(
-      os.path.join(SIMULATION_PATH, 'NYC_DA_interventions_1e3.txt'),
-      np.c_[
-        kinetic_model.times,
-        kinetic_model.statuses['S'],
-        kinetic_model.statuses['E'],
-        kinetic_model.statuses['I'],
-        kinetic_model.statuses['H'],
-        kinetic_model.statuses['R'],
-        kinetic_model.statuses['D']],
-      header = 'S E I H R D seed: %d'%seed)
+    np.savetxt(
+            os.path.join(SIMULATION_PATH, 'NYC_DA_interventions_1e3.txt'),
+            np.c_[
+                kinetic_model.times,
+                kinetic_model.statuses['S'],
+                kinetic_model.statuses['E'],
+                kinetic_model.statuses['I'],
+                kinetic_model.statuses['H'],
+                kinetic_model.statuses['R'],
+                kinetic_model.statuses['D']],
+            header = 'S E I H R D seed: %d'%seed)
 
 ################################################################################
 # plot #########################################################################
 ################################################################################
 if PLOT_FLAG:
-  # plot all model compartments
-  fig, axs = plt.subplots(nrows=2, sharex=True)
+      # plot all model compartments
+      fig, axs = plt.subplots(nrows=2, sharex=True)
 
-  plt.sca(axs[0])
-  plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
-  plt.ylabel("Total susceptible, $S$")
+      plt.sca(axs[0])
+      plt.plot(kinetic_model.times, kinetic_model.statuses['S'])
+      plt.ylabel("Total susceptible, $S$")
 
-  plt.sca(axs[1])
-  plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
-  plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
-  plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')
-  plt.plot(kinetic_model.times, kinetic_model.statuses['R'], label='Resistant')
-  plt.plot(kinetic_model.times, kinetic_model.statuses['D'], label='Deceased')
+      plt.sca(axs[1])
+      plt.plot(kinetic_model.times, kinetic_model.statuses['E'], label='Exposed')
+      plt.plot(kinetic_model.times, kinetic_model.statuses['I'], label='Infected')
+      plt.plot(kinetic_model.times, kinetic_model.statuses['H'], label='Hospitalized')
+      plt.plot(kinetic_model.times, kinetic_model.statuses['R'], label='Resistant')
+      plt.plot(kinetic_model.times, kinetic_model.statuses['D'], label='Deceased')
 
-  plt.xlabel("Time (days)")
-  plt.ylabel("Total $E, I, H, R, D$")
-  plt.legend()
+      plt.xlabel("Time (days)")
+      plt.ylabel("Total $E, I, H, R, D$")
+      plt.legend()
 
-  image_path = os.path.join(
-      FIGURES_PATH, 'simple_epidemic_with_slow_contact_simulator_',
-      'maxlambda_{:d}.png'.format(contact_simulator.mean_contact_rate.maximum_i))
+      image_path = os.path.join(
+              FIGURES_PATH, 'simple_epidemic_with_slow_contact_simulator_',
+              'maxlambda_{:d}.png'.format(contact_simulator.mean_contact_rate.maximum_i))
 
-  print("Saving a visualization of results at", image_path)
-  plt.savefig(image_path, dpi=480)
-
+      print("Saving a visualization of results at", image_path)
+      plt.savefig(image_path, dpi=480)
 
 
