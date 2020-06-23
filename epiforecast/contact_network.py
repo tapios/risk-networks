@@ -44,10 +44,21 @@ class ContactNetwork:
         """
         edges = self.__load_edges_from(edges_filename)
         upper_tri_edges = self.__only_upper_triangular(edges)
+        nodes = np.unique(upper_tri_edges)
 
+        # in the following, first enforce the ascending order of the nodes,
+        # then add edges, and then weed out missing labels (for example, there
+        # might be no node '0', so every node 'j' gets mapped to 'j-1', and the
+        # edges are remapped accordingly)
+        #
+        # this whole workaround is needed so that we can then simply say that
+        # nodes 0--40, for instance, are health-care workers (instead of dealing
+        # with permutations and such)
         self.graph = nx.Graph()
+        self.graph.add_nodes_from(nodes)
         self.graph.add_edges_from(upper_tri_edges)
-        self.graph = nx.convert_node_labels_to_integers(self.graph)
+        self.graph = nx.convert_node_labels_to_integers(self.graph,
+                                                        ordering='sorted')
         self.__check_correct_format()
 
         self.node_groups = self.__load_node_groups_from(identifiers_filename)
