@@ -20,18 +20,16 @@ write_graphs=True
 #population = len(contact_network)
 
 #2) Or create from file:
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')) 
+edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')
+identifiers_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')
 
-contact_network = nx.Graph()
-contact_network.add_edges_from(edges)
-contact_network = nx.convert_node_labels_to_integers(contact_network)
-population = len(contact_network)
+network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 
 # ----
 
 
 # create a full user base
-full_user_base=FullUserBase(contact_network)
+full_user_base=FullUserBase(network)
 print("User base: Full")
 print("number of nodes:", len(full_user_base.contact_network.nodes))
 print("number of edges:", len(full_user_base.contact_network.edges))
@@ -97,20 +95,20 @@ np.savetxt('../data/networks/clique_indicator_node_list.csv', np.c_[node_indicat
 #plot graph
 if plot_figs:
     pl.figure(1,figsize=(10, 10), dpi=100)
-    nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
+    nx.draw_networkx(network.get_graph(),                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(neighbor_user_base.contact_network,  node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('neighborhood based contact network', fontsize=20)
     pl.savefig('neighbor_network.pdf')
 
     pl.figure(2,figsize=(10, 10), dpi=100)
-    nx.draw_networkx(contact_network,                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
+    nx.draw_networkx(network.get_graph(),                     node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(clique_user_base.contact_network,    node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('clique based contact network',fontsize=20)
     pl.savefig('clique_network.pdf')
 
     
     pl.figure(3,figsize=(10, 10), dpi=100)
-    nx.draw_networkx(contact_network,                      node_color='k', with_labels=False, node_size=10, alpha=0.05)
+    nx.draw_networkx(network.get_graph(),                      node_color='k', with_labels=False, node_size=10, alpha=0.05)
     nx.draw_networkx(fractional_user_base.contact_network, node_color='r', with_labels=False, node_size=10, alpha=0.8)
     pl.title('random subset contact network',fontsize=20)
     pl.savefig('random_network.pdf')
