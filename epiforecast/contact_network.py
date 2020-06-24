@@ -9,12 +9,10 @@ class ContactNetwork:
     Store and mutate a contact network
     """
 
-    HOSPITAL_BEDS_ID  = 'HOSP'
     HEALTH_WORKERS_ID = 'HCW'
     COMMUNITY_ID      = 'CITY'
-    HOSPITAL_BEDS_INDEX  = 0
-    HEALTH_WORKERS_INDEX = 1
-    COMMUNITY_INDEX      = 2
+    HEALTH_WORKERS_INDEX = 0
+    COMMUNITY_INDEX      = 1
 
     # TODO extract into Glossary class
     AGE_GROUP = 'age_group'
@@ -46,7 +44,6 @@ class ContactNetwork:
         """
         edges       = np.array(graph.edges)
         node_groups = {
-                ContactNetwork.HOSPITAL_BEDS_INDEX  : np.array([]),
                 ContactNetwork.HEALTH_WORKERS_INDEX : np.array([]),
                 ContactNetwork.COMMUNITY_INDEX      : np.array(graph.nodes) }
 
@@ -133,12 +130,10 @@ class ContactNetwork:
         nodes       = nodes_and_identifiers[:,0].astype(np.int)
         identifiers = nodes_and_identifiers[:,1]
 
-        hospital_beds  = nodes[identifiers == ContactNetwork.HOSPITAL_BEDS_ID]
         health_workers = nodes[identifiers == ContactNetwork.HEALTH_WORKERS_ID]
         community      = nodes[identifiers == ContactNetwork.COMMUNITY_ID]
 
         node_groups = {
-                ContactNetwork.HOSPITAL_BEDS_INDEX  : hospital_beds,
                 ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
                 ContactNetwork.COMMUNITY_INDEX      : community }
 
