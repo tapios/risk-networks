@@ -294,15 +294,6 @@ class ContactNetwork:
         return (np.fromiter(λ_min_dict.values(), dtype=float),
                 np.fromiter(λ_max_dict.values(), dtype=float))
 
-    # TODO: unfortunately, dispatch works on the first argument only; thus, the
-    # current code can introduce an undesired behavior when
-    #     type(λ_min) == int and type(λ_max) == np.ndarray
-    # Possible solutions (1st one is preferred):
-    #   - not dispatch at the `set_lambdas` level, but instead implement a
-    #     helper method that dispatches on each λ individually;
-    #   - simply have an if inside since there are really only two different
-    #     behaviors: one for int, float, dict, and one for np.array
-    @singledispatchmethod
     def set_lambdas(
             self,
             λ_min,
@@ -323,57 +314,104 @@ class ContactNetwork:
         Output:
             None
         """
-        raise ValueError(
-                self.__class__.__name__
-                + ": this type of argument is not supported: "
-                + λ_min.__class__.__name__
-                + ", "
-                + λ_max.__class__.__name__)
+        self.set_lambda_min(λ_min)
+        self.set_lambda_max(λ_max)
 
-    @set_lambdas.register(int)
-    @set_lambdas.register(float)
-    @set_lambdas.register(dict)
-    def set_lambdas_const_dict(
+    def set_lambda_min(
             self,
-            λ_min,
-            λ_max):
+            λ_min):
         """
-        Set λ_min and λ_max attributes to the nodes
+        Set λ_min attribute to the nodes
 
         Input:
             λ_min (int),
                   (float): constant value to be assigned to all nodes
                   (dict): a mapping node -> value
+                  (np.array): (n_nodes,) array of values
+
+        Output:
+            None
+        """
+        self.__set_node_attributes(λ_min, ContactNetwork.LAMBDA_MIN)
+
+    def set_lambda_max(
+            self,
+            λ_max):
+        """
+        Set λ_max attribute to the nodes
+
+        Input:
             λ_max (int),
                   (float): constant value to be assigned to all nodes
                   (dict): a mapping node -> value
+                  (np.array): (n_nodes,) array of values
 
         Output:
             None
         """
-        nx.set_node_attributes(
-                self.graph, values=λ_min, name=ContactNetwork.LAMBDA_MIN)
-        nx.set_node_attributes(
-                self.graph, values=λ_max, name=ContactNetwork.LAMBDA_MAX)
+        self.__set_node_attributes(λ_max, ContactNetwork.LAMBDA_MAX)
 
-    @set_lambdas.register(np.ndarray)
-    def set_lambdas_array(
+    @singledispatchmethod
+    def __set_node_attributes(
             self,
-            λ_min,
-            λ_max):
+            values,
+            name):
         """
-        Set λ_min and λ_max attributes to the nodes
+        Set node attributes of the graph by name
 
         Input:
-            λ_min (np.array): (n_nodes,) array of values
-            λ_max (np.array): (n_nodes,) array of values
+            values (int),
+                   (float): constant value to be assigned to all nodes
+                   (dict): a mapping node -> value
+                   (np.array): (n_nodes,) array of values
+            name (str): name of the attributes
 
         Output:
             None
         """
-        λ_min_dict = self.__convert_array_to_dict(λ_min)
-        λ_max_dict = self.__convert_array_to_dict(λ_max)
-        self.set_lambdas_const_dict(λ_min_dict, λ_max_dict)
+        raise ValueError(
+                self.__class__.__name__
+                + ": this type of argument is not supported: "
+                + values.__class__.__name__)
+
+    @__set_node_attributes.register(int)
+    @__set_node_attributes.register(float)
+    @__set_node_attributes.register(dict)
+    def __set_node_attributes_const_dict(
+            self,
+            values,
+            name):
+        """
+        Set node attributes of the graph by name
+
+        Input:
+            values (int),
+                   (float): constant value to be assigned to all nodes
+                   (dict): a mapping node -> value
+            name (str): name of the attributes
+
+        Output:
+            None
+        """
+        nx.set_node_attributes(self.graph, values=values, name=name)
+
+    @__set_node_attributes.register(np.ndarray)
+    def __set_node_attributes_array(
+            self,
+            values,
+            name):
+        """
+        Set node attributes of the graph by name
+
+        Input:
+            values (np.array): (n_nodes,) array of values
+            name (str): name of the attributes
+
+        Output:
+            None
+        """
+        values_dict = self.__convert_array_to_dict(values)
+        self.__set_node_attributes_const_dict(values_dict, name)
 
     def set_transition_rates(
             self,
@@ -392,30 +430,24 @@ class ContactNetwork:
         Output:
             None
         """
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.exposed_to_infected,
-                name=ContactNetwork.E_TO_I)
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.infected_to_hospitalized,
-                name=ContactNetwork.I_TO_H)
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.infected_to_resistant,
-                name=ContactNetwork.I_TO_R)
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.infected_to_deceased,
-                name=ContactNetwork.I_TO_D)
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.hospitalized_to_resistant,
-                name=ContactNetwork.H_TO_R)
-        nx.set_node_attributes(
-                self.graph,
-                values=transition_rates.hospitalized_to_deceased,
-                name=ContactNetwork.H_TO_D)
+        self.__set_node_attributes(
+                transition_rates.exposed_to_infected,
+                ContactNetwork.E_TO_I)
+        self.__set_node_attributes(
+                transition_rates.infected_to_hospitalized,
+                ContactNetwork.I_TO_H)
+        self.__set_node_attributes(
+                transition_rates.infected_to_resistant,
+                ContactNetwork.I_TO_R)
+        self.__set_node_attributes(
+                transition_rates.infected_to_deceased,
+                ContactNetwork.I_TO_D)
+        self.__set_node_attributes(
+                transition_rates.hospitalized_to_resistant,
+                ContactNetwork.H_TO_R)
+        self.__set_node_attributes(
+                transition_rates.hospitalized_to_deceased,
+                ContactNetwork.H_TO_D)
 
     def set_edge_weights(
             self,
@@ -487,11 +519,8 @@ class ContactNetwork:
         Output:
             None
         """
-        age_groups_array = self.__draw_from(distribution)
-        age_groups_dict  = self.__convert_array_to_dict(age_groups_array)
-
-        nx.set_node_attributes(
-            self.graph, values=age_groups_dict, name=ContactNetwork.AGE_GROUP)
+        age_groups = self.__draw_from(distribution)
+        self.__set_node_attributes(age_groups, ContactNetwork.AGE_GROUP)
 
     def isolate(
             self,
