@@ -155,7 +155,7 @@ epidemic_simulator = EpidemicSimulator(
         day_inception_rate = λ_max,
         night_inception_rate = λ_min,
         health_service = health_service,
-        start_time = 1)
+        start_time = epidemic_simulator.time)
 
 epidemic_simulator.set_statuses(statuses)
 
@@ -190,7 +190,7 @@ epidemic_simulator = EpidemicSimulator(
         day_inception_rate = λ_max,
         night_inception_rate = λ_min,
         health_service = health_service,
-        start_time = 1)
+        start_time = epidemic_simulator.time)
 
 epidemic_simulator.set_statuses(statuses)
 
