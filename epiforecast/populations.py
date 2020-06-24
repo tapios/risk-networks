@@ -1,5 +1,3 @@
-from functools import singledispatchmethod
-
 import numpy as np
 import networkx as nx
 
@@ -140,41 +138,70 @@ class TransitionRates:
         self.hospitalized_to_resistant = None
         self.hospitalized_to_deceased  = None
 
-    @singledispatchmethod
+    # TODO _maybe_ move this into utilities.py or something
     @staticmethod
-    def __draw_using(parameter, distributional_parameters):
-        raise ValueError(
-                self.__class__.__name__
-                + ": this type of argument is not supported: "
-                + parameter.__class__.__name__)
+    def __draw_using(
+            sampler,
+            distributional_parameters):
+        """
+        Draw samples using sampler and its distributional parameters
 
-    @__draw_using.register(int)
-    @__draw_using.register(float)
-    @__draw_using.register(np.ndarray)
+        Input:
+            sampler (int),
+                    (float),
+                    (np.array): value(s) that are returned unchanged
+                    (list): values; transformed into np.array
+                    (BetaSampler),
+                    (GammaSampler),
+                    (AgeDependentBetaSampler),
+                    (AgeDependentConstant): samplers to use for drawing
+            distributional_parameters (iterable):
+                an object used for sampling; redundant in (int), (float),
+                (np.array), (list) cases
+        Output:
+            samples (int),
+                    (float): same as `sampler` for (int), (float) cases
+                    (np.array): array of samples
+        """
+        if isinstance(sampler, (int, float, np.ndarray)):
+            return self.__draw_using_const_array(sampler,
+                                                 distributional_parameters)
+        elif isinstance(sampler, list):
+            return self.__draw_using_list(sampler, distributional_parameters)
+        elif isinstance(sampler, (BetaSampler, GammaSampler)):
+            return self.__draw_using_sampler(sampler,
+                                             distributional_parameters)
+        elif isinstance(sampler, AgeDependentBetaSampler):
+            return self.__draw_using_age_beta_sampler(sampler,
+                                                      distributional_parameters)
+        elif isinstance(sampler, AgeDependentConstant):
+            return self.__draw_using_age_const(sampler,
+                                               distributional_parameters)
+        else:
+            raise ValueError(
+                    self.__class__.__name__
+                    + ": this type of argument is not supported: "
+                    + sampler.__class__.__name__)
+
     @staticmethod
-    def __draw_using_const_or_array(parameter, distributional_parameters):
+    def __draw_using_const_array(parameter, distributional_parameters):
         return parameter
 
-    @__draw_using.register(list)
     @staticmethod
     def __draw_using_list(parameter_list, distributional_parameters):
         return np.array(parameter_list)
 
-    @__draw_using.register(BetaSampler)
-    @__draw_using.register(GammaSampler)
     @staticmethod
     def __draw_using_sampler(sampler, distributional_parameters):
         return np.array([sampler.minimum + sampler.draw()
                          for dp in distributional_parameters])
 
-    @__draw_using.register(AgeDependentBetaSampler)
     @staticmethod
     def __draw_using_age_beta_sampler(sampler, distributional_parameters):
         return np.array([sampler.draw(dp) for dp in distributional_parameters])
 
-    @__draw_using.register(AgeDependentConstant)
     @staticmethod
-    def __draw_using_age_const_sampler(sampler, distributional_parameters):
+    def __draw_using_age_const(sampler, distributional_parameters):
         return np.array([sampler.constants[dp]
                          for dp in distributional_parameters])
 
@@ -234,12 +261,12 @@ class TransitionRates:
         Output:
             None
         """
-        σ       = self.__convert_to_array(1 / self.latent_periods)
-        γ       = self.__convert_to_array(1 / self.community_infection_periods)
-        γ_prime = self.__convert_to_array(1 / self.hospital_infection_periods)
-        h       = self.__convert_to_array(self.hospitalization_fraction)
-        d       = self.__convert_to_array(self.community_mortality_fraction)
-        d_prime = self.__convert_to_array(self.hospital_mortality_fraction)
+        σ      = self.__broadcast_to_array(1 / self.latent_periods)
+        γ      = self.__broadcast_to_array(1 / self.community_infection_periods)
+        γ_prime= self.__broadcast_to_array(1 / self.hospital_infection_periods)
+        h      = self.__broadcast_to_array(self.hospitalization_fraction)
+        d      = self.__broadcast_to_array(self.community_mortality_fraction)
+        d_prime= self.__broadcast_to_array(self.hospital_mortality_fraction)
 
         self.exposed_to_infected      = dict(enumerate(σ))
         self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
@@ -265,25 +292,37 @@ class TransitionRates:
         """
         setattr(self, name, value)
 
-    # TODO move this into utilities.py or something
-    @singledispatchmethod
-    def __convert_to_array(
+    # TODO _maybe_ move this into utilities.py or something
+    def __broadcast_to_array(
             self,
             values):
-        raise ValueError(
-                self.__class__.__name__
-                + ": this type of argument is not supported: "
-                + values.__class__.__name__)
+        """
+        Broadcast values to numpy array if they are not already
 
-    @__convert_to_array.register(int)
-    @__convert_to_array.register(float)
-    def __convert_to_array_const(
+        Input:
+            values (int),
+                   (float): constant value to be broadcasted
+                   (np.array): (population,) array of values
+
+        Output:
+            values_array (np.array): (population,) array of values
+        """
+        if isinstance(values, (int, float)):
+            return self.__broadcast_to_array_const(values)
+        elif isinstance(values, np.ndarray):
+            return self.__broadcast_to_array_array(values)
+        else:
+            raise ValueError(
+                    self.__class__.__name__
+                    + ": this type of argument is not supported: "
+                    + values.__class__.__name__)
+
+    def __broadcast_to_array_const(
             self,
             value):
         return np.full(self.population, value)
 
-    @__convert_to_array.register(np.ndarray)
-    def __convert_to_array_array(
+    def __broadcast_to_array_array(
             self,
             values):
         return values

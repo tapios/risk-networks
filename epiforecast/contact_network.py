@@ -1,5 +1,3 @@
-from functools import singledispatchmethod
-
 import numpy as np
 import scipy.sparse as scspa
 import networkx as nx
@@ -346,7 +344,6 @@ class ContactNetwork:
         """
         self.__set_node_attributes(λ_max, ContactNetwork.LAMBDA_MAX)
 
-    @singledispatchmethod
     def __set_node_attributes(
             self,
             values,
@@ -364,14 +361,16 @@ class ContactNetwork:
         Output:
             None
         """
-        raise ValueError(
-                self.__class__.__name__
-                + ": this type of argument is not supported: "
-                + values.__class__.__name__)
+        if isinstance(values, (int, float, dict)):
+            self.__set_node_attributes_const_dict(values, name)
+        elif isinstance(values, np.ndarray):
+            self.__set_node_attributes_array(values, name)
+        else:
+            raise ValueError(
+                    self.__class__.__name__
+                    + ": this type of argument is not supported: "
+                    + values.__class__.__name__)
 
-    @__set_node_attributes.register(int)
-    @__set_node_attributes.register(float)
-    @__set_node_attributes.register(dict)
     def __set_node_attributes_const_dict(
             self,
             values,
@@ -390,7 +389,6 @@ class ContactNetwork:
         """
         nx.set_node_attributes(self.graph, values=values, name=name)
 
-    @__set_node_attributes.register(np.ndarray)
     def __set_node_attributes_array(
             self,
             values,
