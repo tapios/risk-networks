@@ -16,7 +16,7 @@ class Intervention:
         find_sick
 
     Example:
-        network = ContactNetwork(edges_filename, identifiers_filename)
+        network = ContactNetwork.from_files(edges_filename, identifiers_filename)
         N = network.get_count_node()
         M = ensemble_size
         intervention = Intervention(N, M, compartment_index, E_thr=0.7, I_thr=0.5)

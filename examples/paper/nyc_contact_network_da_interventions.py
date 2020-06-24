@@ -71,8 +71,8 @@ community_transmission_rate = {
         'variance' : 1.0}
 hospital_transmission_reduction = 0.1
 
-λ_max = 22 # day inception rate
-λ_min = 2  # night inception rate
+λ_min = 2  # minimum contact rate
+λ_max = 22 # maximum contact rate
 
 static_contact_interval = 3 * hour
 mean_contact_lifetime = 0.5 * minute
@@ -108,7 +108,7 @@ edges_filename = os.path.join(NETWORKS_PATH, 'edge_list_SBM_1e3_nobeds.txt')
 identifiers_filename = os.path.join(
         NETWORKS_PATH, 'node_identifier_SBM_1e3_nobeds.txt')
 
-network = ContactNetwork(edges_filename, identifiers_filename)
+network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 
 network.draw_and_set_age_groups(age_distribution)
 network.set_lambdas(λ_min, λ_max)

@@ -31,18 +31,58 @@ class ContactNetwork:
     H_TO_R = 'hospitalized_to_resistant'
     H_TO_D = 'hospitalized_to_deceased'
 
-    def __init__(
-            self,
+    @classmethod
+    def from_networkx_graph(
+            cls,
+            graph):
+        """
+        Create an object from a nx.Graph object
+
+        Input:
+            graph (nx.Graph): an object to use as a contact network graph
+
+        Output:
+            contact_network (ContactNetwork): initialized object
+        """
+        edges       = np.array(graph.edges)
+        node_groups = {
+                ContactNetwork.HOSPITAL_BEDS_INDEX  : np.array([]),
+                ContactNetwork.HEALTH_WORKERS_INDEX : np.array([]),
+                ContactNetwork.COMMUNITY_INDEX      : np.array(graph.nodes) }
+
+        return cls(edges, node_groups)
+
+    @classmethod
+    def from_files(
+            cls,
             edges_filename,
             identifiers_filename):
         """
-        Constructor
+        Create an object from files that contain edges and identifiers
 
         Input:
             edges_filename (str): path to a txt-file with edges
             identifiers_filename (str): path to a txt-file with node identifiers
+
+        Output:
+            contact_network (ContactNetwork): initialized object
         """
-        edges = self.__load_edges_from(edges_filename)
+        edges       = cls.__load_edges_from(edges_filename)
+        node_groups = cls.__load_node_groups_from(identifiers_filename)
+
+        return cls(edges, node_groups)
+
+    def __init__(
+            self,
+            edges,
+            node_groups):
+        """
+        Constructor
+
+        Input:
+            edges (np.array): (n_edges,2) array of edges
+            node_groups (dict): a map from identifier indices to arrays of nodes
+        """
         upper_tri_edges = self.__only_upper_triangular(edges)
         nodes = np.unique(upper_tri_edges)
 
@@ -61,11 +101,10 @@ class ContactNetwork:
                                                         ordering='sorted')
         self.__check_correct_format()
 
-        self.node_groups = self.__load_node_groups_from(identifiers_filename)
+        self.node_groups = node_groups
 
-    def __load_edges_from(
-            self,
-            filename):
+    @staticmethod
+    def __load_edges_from(filename):
         """
         Load edges from a txt-file
 
@@ -78,9 +117,8 @@ class ContactNetwork:
         edges = np.loadtxt(filename, dtype=int, comments='#')
         return edges
 
-    def __load_node_groups_from(
-            self,
-            filename):
+    @staticmethod
+    def __load_node_groups_from(filename):
         """
         Load node groups from a txt-file
 
