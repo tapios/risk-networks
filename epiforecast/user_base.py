@@ -11,6 +11,15 @@ class FullUserBase:
 
         self.contact_network=full_contact_network
 
+    def get_edge_weights(self):
+        """
+        Get edge weights of the graph as a scipy.sparse matrix
+
+        Output:
+            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
+        """
+        return nx.to_scipy_sparse_matrix(self.contact_network, weight='edge_weights')
+
 
         
     
@@ -34,8 +43,17 @@ class FractionalUserBase:
             scale_factor*=1.1
             
         self.contact_network = full_contact_network.subgraph(user_base)
-        
 
+    def get_edge_weights(self):
+        """
+        Get edge weights of the graph as a scipy.sparse matrix
+
+        Output:
+            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
+        """
+        return nx.to_scipy_sparse_matrix(self.contact_network, weight='edge_weights')
+
+    
 class ContiguousUserBase:
     """
     A class to store which subset of the population are being modeled by the Master Equations
@@ -77,6 +95,16 @@ class ContiguousUserBase:
             raise ValueError("unknown method, choose from: neighbor, clique")    
         self.contact_network = full_contact_network.subgraph(users)
 
+    def get_edge_weights(self):
+        """
+        Get edge weights of the graph as a scipy.sparse matrix
+
+        Output:
+            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
+        """
+        return nx.to_scipy_sparse_matrix(self.contact_network, weight='edge_weights')
+
+
 
                     
 def contiguous_indicators(graph, subgraph):
@@ -111,3 +139,5 @@ def contiguous_indicators(graph, subgraph):
     mean_neighbors_exterior=exterior_neighbor_count / boundary_nodes
                     
     return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list
+
+
