@@ -45,11 +45,11 @@ contact_durations = np.zeros((steps, n_contacts))
 mean_contact_durations = np.zeros(steps)
 measurement_times = np.arange(start=0.0, stop=(steps+1)*dt, step=dt)
 
-(λ_min, λ_max) = network.get_lambdas()
+(λ_min_nodal, λ_max_nodal) = network.get_lambdas()
 simulator.run(stop_time = 0.0,
               current_edges = network.get_edges(),
-              nodal_day_inception_rate = λ_max,
-              nodal_night_inception_rate = λ_min)
+              nodal_day_inception_rate = λ_max_nodal,
+              nodal_night_inception_rate = λ_min_nodal)
 
 edge_weights = simulator.compute_edge_weights()
 network.set_edge_weights(edge_weights)
@@ -68,11 +68,11 @@ for i in tqdm(range(steps), desc = 'Simulation', total = steps):
         # you can instead directly pass 5 as 'nodal_day_inception_rate' below
         network.set_lambda_max(5)
 
-    (λ_min, λ_max) = network.get_lambdas()
+    (λ_min_nodal, λ_max_nodal) = network.get_lambdas()
     simulator.run(stop_time = stop_time,
                   current_edges = network.get_edges(),
-                  nodal_day_inception_rate = λ_max,
-                  nodal_night_inception_rate = λ_min)
+                  nodal_day_inception_rate = λ_max_nodal,
+                  nodal_night_inception_rate = λ_min_nodal)
 
     edge_weights = simulator.compute_edge_weights()
     network.set_edge_weights(edge_weights)

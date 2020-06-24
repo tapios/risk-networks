@@ -153,6 +153,7 @@ class ContactSimulator:
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
 
+    # TODO implement conversion from int/float to array for nodal rates
     def run(
             self,
             stop_time,
