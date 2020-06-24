@@ -139,8 +139,9 @@ class TransitionRates:
         self.hospitalized_to_deceased  = None
 
     # TODO _maybe_ move this into utilities.py or something
-    @staticmethod
+    @classmethod
     def __draw_using(
+            cls,
             sampler,
             distributional_parameters):
         """
@@ -163,23 +164,20 @@ class TransitionRates:
                     (float): same as `sampler` for (int), (float) cases
                     (np.array): array of samples
         """
+        dp = distributional_parameters
         if isinstance(sampler, (int, float, np.ndarray)):
-            return self.__draw_using_const_array(sampler,
-                                                 distributional_parameters)
+            return cls.__draw_using_const_array(sampler, dp)
         elif isinstance(sampler, list):
-            return self.__draw_using_list(sampler, distributional_parameters)
+            return cls.__draw_using_list(sampler, dp)
         elif isinstance(sampler, (BetaSampler, GammaSampler)):
-            return self.__draw_using_sampler(sampler,
-                                             distributional_parameters)
+            return cls.__draw_using_sampler(sampler, dp)
         elif isinstance(sampler, AgeDependentBetaSampler):
-            return self.__draw_using_age_beta_sampler(sampler,
-                                                      distributional_parameters)
+            return cls.__draw_using_age_beta_sampler(sampler, dp)
         elif isinstance(sampler, AgeDependentConstant):
-            return self.__draw_using_age_const(sampler,
-                                               distributional_parameters)
+            return cls.__draw_using_age_const(sampler, dp)
         else:
             raise ValueError(
-                    self.__class__.__name__
+                    cls.__class__.__name__
                     + ": this type of argument is not supported: "
                     + sampler.__class__.__name__)
 
@@ -194,16 +192,17 @@ class TransitionRates:
     @staticmethod
     def __draw_using_sampler(sampler, distributional_parameters):
         return np.array([sampler.minimum + sampler.draw()
-                         for dp in distributional_parameters])
+                         for param in distributional_parameters])
 
     @staticmethod
     def __draw_using_age_beta_sampler(sampler, distributional_parameters):
-        return np.array([sampler.draw(dp) for dp in distributional_parameters])
+        return np.array([sampler.draw(param)
+                         for param in distributional_parameters])
 
     @staticmethod
     def __draw_using_age_const(sampler, distributional_parameters):
-        return np.array([sampler.constants[dp]
-                         for dp in distributional_parameters])
+        return np.array([sampler.constants[param]
+                         for param in distributional_parameters])
 
     def __draw_and_set_clinical_using(
             self,
