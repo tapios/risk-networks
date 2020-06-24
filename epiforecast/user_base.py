@@ -8,18 +8,8 @@ class FullUserBase:
     """
     def __init__(self,
                  full_contact_network):
-        
-        self.contact_network=full_contact_network.get_graph()
-        self.edge_weights_name=full_contact_network.WJI
 
-    def get_edge_weights(self):
-        """
-        Get edge weights of the graph as a scipy.sparse matrix
-
-        Output:
-            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
-        """
-        return nx.to_scipy_sparse_matrix(self.contact_network, weight=self.edge_weights_name)
+        self.contact_network=full_contact_network
 
 
         
@@ -36,27 +26,16 @@ class FractionalUserBase:
         
         user_base=[]
         scale_factor=1.0
-        full_graph = full_contact_network.get_graph()
-        while len(user_base)< 0.9*user_fraction*len(full_graph):
-            nodes_size= min(int(scale_factor*user_fraction*len(full_graph.nodes)),len(full_graph.nodes))
-            users = np.random.choice(list(full_graph.nodes),nodes_size, replace=False) 
-            user_base_fractured=full_graph.subgraph(users)
+        while len(user_base)< 0.9*user_fraction*len(full_contact_network):
+            nodes_size= min(int(scale_factor*user_fraction*len(full_contact_network.nodes)),len(full_contact_network.nodes))
+            users = np.random.choice(list(full_contact_network.nodes),nodes_size, replace=False) 
+            user_base_fractured=full_contact_network.subgraph(users)
             user_base=max(nx.connected_components(user_base_fractured),key=len)
             scale_factor*=1.1
             
-        self.contact_network = full_graph.subgraph(user_base)
-        self.edge_weights_name=contact_network.WJI
+        self.contact_network = full_contact_network.subgraph(user_base)
         
-    def get_edge_weights(self):
-        """
-        Get edge weights of the graph as a scipy.sparse matrix
 
-        Output:
-            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
-        """
-        return nx.to_scipy_sparse_matrix(self.contact_network, weight=self.edge_weights_name)
-
-    
 class ContiguousUserBase:
     """
     A class to store which subset of the population are being modeled by the Master Equations
@@ -71,17 +50,16 @@ class ContiguousUserBase:
                  method="neighbor",
                  seed_user=None):
 
-        full_graph = full_contact_network.get_graph()
         if seed_user is None:
-            seed_user = np.random.choice(list(full_graph.nodes), replace=False) 
+            seed_user = np.random.choice(list(full_contact_network.nodes), replace=False) 
 
-        user_population = int(user_fraction * len(full_graph.nodes))
+        user_population = int(user_fraction * len(full_contact_network.nodes))
         users = [seed_user]
         idx=0
         # method to build graph based on neighbours [recommended]
         if method == "neighbor":
             while len(users) < user_population and idx<len(users): 
-                new_users = full_graph.neighbors(users[idx])
+                new_users = full_contact_network.neighbors(users[idx])
                 new_users = [user for user in filter(lambda u: u not in users, new_users)]
                 users.extend(new_users)
                 idx=idx+1
@@ -89,7 +67,7 @@ class ContiguousUserBase:
         # method to build graph based on cliques
         elif method == "clique": # can be very slow.
             #get cliques about users (maximal complete graphs)
-            node_clique=list(nx.find_cliques(full_graph))
+            node_clique=list(nx.find_cliques(full_contact_network))
             while len(users) < user_population and idx<len(users):
                 new_users = node_clique[users[idx]]
                 new_users = [user for user in filter(lambda u: u not in users, new_users)]
@@ -97,18 +75,7 @@ class ContiguousUserBase:
                 idx=idx+1
         else:
             raise ValueError("unknown method, choose from: neighbor, clique")    
-        self.contact_network = full_graph.subgraph(users)
-        self.edge_weights_name=contact_network.WJI
-        
-    def get_edge_weights(self):
-        """
-        Get edge weights of the graph as a scipy.sparse matrix
-
-        Output:
-            edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
-        """
-        return nx.to_scipy_sparse_matrix(self.contact_network, weight=self.edge_weights_name)
-
+        self.contact_network = full_contact_network.subgraph(users)
 
 
                     
@@ -144,5 +111,3 @@ def contiguous_indicators(graph, subgraph):
     mean_neighbors_exterior=exterior_neighbor_count / boundary_nodes
                     
     return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list
-
-
