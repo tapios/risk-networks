@@ -7,25 +7,25 @@ class ContactNetwork:
     Store and mutate a contact network
     """
 
-    HEALTH_WORKERS_ID = 'HCW'
-    COMMUNITY_ID      = 'CITY'
-    HEALTH_WORKERS_INDEX = 0
-    COMMUNITY_INDEX      = 1
+    health_workers_id = 'HCW'
+    community_id      = 'CITY'
+    health_workers_index = 0
+    community_index      = 1
 
     # TODO extract into Glossary class
-    AGE_GROUP = 'age_group'
+    age_group = 'age_group'
 
-    LAMBDA_MIN = 'minimum_contact_rate'
-    LAMBDA_MAX = 'maximum_contact_rate'
+    lambda_min = 'minimum_contact_rate'
+    lambda_max = 'maximum_contact_rate'
 
     WJI = 'edge_weights'
 
-    E_TO_I = 'exposed_to_infected'
-    I_TO_H = 'infected_to_hospitalized'
-    I_TO_R = 'infected_to_resistant'
-    I_TO_D = 'infected_to_deceased'
-    H_TO_R = 'hospitalized_to_resistant'
-    H_TO_D = 'hospitalized_to_deceased'
+    e_to_i = 'exposed_to_infected'
+    i_to_h = 'infected_to_hospitalized'
+    i_to_r = 'infected_to_resistant'
+    i_to_d = 'infected_to_deceased'
+    h_to_r = 'hospitalized_to_resistant'
+    h_to_d = 'hospitalized_to_deceased'
 
     @classmethod
     def from_networkx_graph(
@@ -42,8 +42,8 @@ class ContactNetwork:
         """
         edges       = np.array(graph.edges)
         node_groups = {
-                ContactNetwork.HEALTH_WORKERS_INDEX : np.array([]),
-                ContactNetwork.COMMUNITY_INDEX      : np.array(graph.nodes) }
+                ContactNetwork.health_workers_index : np.array([]),
+                ContactNetwork.community_index      : np.array(graph.nodes) }
 
         return cls(edges, node_groups)
 
@@ -128,12 +128,12 @@ class ContactNetwork:
         nodes       = nodes_and_identifiers[:,0].astype(np.int)
         identifiers = nodes_and_identifiers[:,1]
 
-        health_workers = nodes[identifiers == ContactNetwork.HEALTH_WORKERS_ID]
-        community      = nodes[identifiers == ContactNetwork.COMMUNITY_ID]
+        health_workers = nodes[identifiers == ContactNetwork.health_workers_id]
+        community      = nodes[identifiers == ContactNetwork.community_id]
 
         node_groups = {
-                ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
-                ContactNetwork.COMMUNITY_INDEX      : community }
+                ContactNetwork.health_workers_index : health_workers,
+                ContactNetwork.community_index      : community }
 
         return node_groups
 
@@ -191,7 +191,16 @@ class ContactNetwork:
         Output:
             health_workers (np.array): (K,) array of node indices
         """
-        return self.node_groups[ContactNetwork.HEALTH_WORKERS_INDEX]
+        return self.node_groups[ContactNetwork.health_workers_index]
+
+    def get_community(self):
+        """
+        Get community nodes
+
+        Output:
+            community (np.array): (K,) array of node indices
+        """
+        return self.node_groups[ContactNetwork.community_index]
 
     def get_node_count(self):
         """
@@ -270,7 +279,7 @@ class ContactNetwork:
             age_groups (np.array): (n_nodes,) array of age groups
         """
         age_groups_dict = nx.get_node_attributes(
-            self.graph, name=ContactNetwork.AGE_GROUP)
+            self.graph, name=ContactNetwork.age_group)
         return np.fromiter(age_groups_dict.values(), dtype=int)
 
     def get_lambdas(self):
@@ -282,9 +291,9 @@ class ContactNetwork:
             λ_max (np.array): (n_nodes,) array of values
         """
         λ_min_dict = nx.get_node_attributes(
-            self.graph, name=ContactNetwork.LAMBDA_MIN)
+            self.graph, name=ContactNetwork.lambda_min)
         λ_max_dict = nx.get_node_attributes(
-            self.graph, name=ContactNetwork.LAMBDA_MAX)
+            self.graph, name=ContactNetwork.lambda_max)
         return (np.fromiter(λ_min_dict.values(), dtype=float),
                 np.fromiter(λ_max_dict.values(), dtype=float))
 
@@ -326,7 +335,7 @@ class ContactNetwork:
         Output:
             None
         """
-        self.__set_node_attributes(λ_min, ContactNetwork.LAMBDA_MIN)
+        self.__set_node_attributes(λ_min, ContactNetwork.lambda_min)
 
     def set_lambda_max(
             self,
@@ -343,7 +352,7 @@ class ContactNetwork:
         Output:
             None
         """
-        self.__set_node_attributes(λ_max, ContactNetwork.LAMBDA_MAX)
+        self.__set_node_attributes(λ_max, ContactNetwork.lambda_max)
 
     def __set_node_attributes(
             self,
@@ -426,22 +435,22 @@ class ContactNetwork:
         """
         self.__set_node_attributes(
                 transition_rates.exposed_to_infected,
-                ContactNetwork.E_TO_I)
+                ContactNetwork.e_to_i)
         self.__set_node_attributes(
                 transition_rates.infected_to_hospitalized,
-                ContactNetwork.I_TO_H)
+                ContactNetwork.i_to_h)
         self.__set_node_attributes(
                 transition_rates.infected_to_resistant,
-                ContactNetwork.I_TO_R)
+                ContactNetwork.i_to_r)
         self.__set_node_attributes(
                 transition_rates.infected_to_deceased,
-                ContactNetwork.I_TO_D)
+                ContactNetwork.i_to_d)
         self.__set_node_attributes(
                 transition_rates.hospitalized_to_resistant,
-                ContactNetwork.H_TO_R)
+                ContactNetwork.h_to_r)
         self.__set_node_attributes(
                 transition_rates.hospitalized_to_deceased,
-                ContactNetwork.H_TO_D)
+                ContactNetwork.h_to_d)
 
     def set_edge_weights(
             self,
@@ -514,7 +523,7 @@ class ContactNetwork:
             None
         """
         age_groups = self.__draw_from(distribution)
-        self.__set_node_attributes(age_groups, ContactNetwork.AGE_GROUP)
+        self.__set_node_attributes(age_groups, ContactNetwork.age_group)
 
     def isolate(
             self,
@@ -562,17 +571,17 @@ class ContactNetwork:
         diagram_indep = nx.DiGraph()
         diagram_indep.add_node('S')
         diagram_indep.add_edge(
-                'E', 'I', rate=1, weight_label=ContactNetwork.E_TO_I)
+                'E', 'I', rate=1, weight_label=ContactNetwork.e_to_i)
         diagram_indep.add_edge(
-                'I', 'H', rate=1, weight_label=ContactNetwork.I_TO_H)
+                'I', 'H', rate=1, weight_label=ContactNetwork.i_to_h)
         diagram_indep.add_edge(
-                'I', 'R', rate=1, weight_label=ContactNetwork.I_TO_R)
+                'I', 'R', rate=1, weight_label=ContactNetwork.i_to_r)
         diagram_indep.add_edge(
-                'I', 'D', rate=1, weight_label=ContactNetwork.I_TO_D)
+                'I', 'D', rate=1, weight_label=ContactNetwork.i_to_d)
         diagram_indep.add_edge(
-                'H', 'R', rate=1, weight_label=ContactNetwork.H_TO_R)
+                'H', 'R', rate=1, weight_label=ContactNetwork.h_to_r)
         diagram_indep.add_edge(
-                'H', 'D', rate=1, weight_label=ContactNetwork.H_TO_D)
+                'H', 'D', rate=1, weight_label=ContactNetwork.h_to_d)
         return diagram_indep
 
     # TODO extract into a separate class
