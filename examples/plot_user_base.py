@@ -20,12 +20,12 @@ write_files = False
 ################################################################################
 # create contact network #######################################################
 ################################################################################
-#1) from nx function:
+# 1) from nx function:
 
 #contact_graph = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
 #network = ContactNetwork.from_networkx_graph(contact_graph)
 
-#2) Or create from file:
+# 2) Or create from file:
 edges_filename = os.path.join('..', 'data', 'networks',
                               'edge_list_SBM_1e3_nobeds.txt')
 identifiers_filename = os.path.join('..', 'data', 'networks',
@@ -33,11 +33,16 @@ identifiers_filename = os.path.join('..', 'data', 'networks',
 
 network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 
+print("Network loaded from files:")
+print("edges:".ljust(17)       + edges_filename)
+print("identifiers:".ljust(17) + identifiers_filename)
+
 ################################################################################
 # create a full user network ###################################################
 ################################################################################
 full_user_network = network.build_user_network_using(FullUserGraphBuilder())
 
+print("")
 print("User base: Full")
 print("number of nodes:", full_user_network.get_node_count())
 print("number of edges:", full_user_network.get_edge_count())
@@ -57,7 +62,7 @@ fractional_user_network = network.build_user_network_using(
         FractionalUserGraphBuilder(user_fraction))
 
 print("")
-print("User base: ", user_fraction, " fraction of nodes, randomly chosen")
+print("User base:", user_fraction, "fraction of nodes, randomly chosen")
 print("number of nodes:", fractional_user_network.get_node_count())
 print("number of edges:", fractional_user_network.get_edge_count())
 
