@@ -18,7 +18,7 @@ class ContactNetwork:
     lambda_min = 'minimum_contact_rate'
     lambda_max = 'maximum_contact_rate'
 
-    WJI = 'edge_weights'
+    wji = 'edge_weights'
 
     e_to_i = 'exposed_to_infected'
     i_to_h = 'infected_to_hospitalized'
@@ -269,7 +269,7 @@ class ContactNetwork:
         Output:
             edge_weights (scipy.sparse.csr.csr_matrix): adjacency matrix
         """
-        return nx.to_scipy_sparse_matrix(self.graph, weight=ContactNetwork.WJI)
+        return nx.to_scipy_sparse_matrix(self.graph, weight=ContactNetwork.wji)
 
     def get_age_groups(self):
         """
@@ -464,7 +464,7 @@ class ContactNetwork:
             None
         """
         nx.set_edge_attributes(
-                self.graph, values=edge_weights, name=ContactNetwork.WJI)
+                self.graph, values=edge_weights, name=ContactNetwork.wji)
 
     def add_edges(
             self,
@@ -604,12 +604,12 @@ class ContactNetwork:
                 ('I', 'S'),
                 ('I', 'E'),
                 rate=community_rate,
-                weight_label=ContactNetwork.WJI)
+                weight_label=ContactNetwork.wji)
         diagram_neigh.add_edge(
                 ('H', 'S'),
                 ('H', 'E'),
                 rate=hospital_rate,
-                weight_label=ContactNetwork.WJI)
+                weight_label=ContactNetwork.wji)
         return diagram_neigh
 
 
