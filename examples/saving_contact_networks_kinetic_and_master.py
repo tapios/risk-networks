@@ -76,7 +76,7 @@ populace = network.get_nodes()
 start_time =0.0
 minute = 1 / 60 / 24
 hour = 60 * minute
-simulation_length = 2
+simulation_length = 1
 print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward for this time")
 #
 
@@ -161,13 +161,12 @@ statuses_sum_trace = [[population-int(0.01*population), 0, int(0.01*population),
 
 for i in range(int(simulation_length/static_contact_interval)):
 
+    network = epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval,
+                                     current_network = network)
     #save the start time network and statuses
     epidemic_data_storage.save_network_by_start_time(contact_network=network, start_time=time)
     epidemic_data_storage.save_start_statuses_to_network(start_time=time, start_statuses=statuses)
-
-    network = epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval,
-                                     current_network = network)
-
+    
     #update the statuses and time
     statuses = epidemic_simulator.kinetic_model.current_statuses
     time=epidemic_simulator.time
@@ -220,10 +219,13 @@ master_eqn_ensemble = MasterEquationModelEnsemble(population = population,
 loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = time)
 statuses = loaded_data.start_statuses
 
+
 states_ensemble = deterministic_risk(population,
                                      statuses,
                                      ensemble_size = ensemble_size)[0]
 
+print(sum(states_ensemble[0,0:population]))
+print(sum(states_ensemble[0,population:2*population]))
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
@@ -237,12 +239,13 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=time)
     master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights()) # contact duration stored on network
+ 
     states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
     
     #at the update the time
     time = time + static_contact_interval
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
-
+    
     states_trace_ensemble[:,:,i] = states_ensemble
 
 axes = plot_ensemble_states(states_trace_ensemble,
