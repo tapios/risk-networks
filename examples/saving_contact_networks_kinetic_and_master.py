@@ -15,14 +15,13 @@ from numba import set_num_threads
 
 set_num_threads(1)
 
-from epiforecast.populations import assign_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
+from epiforecast.populations import TransitionRates
+from epiforecast.samplers import AgeDependentConstant
 
-from epiforecast.scenarios import load_edges, random_epidemic
+from epiforecast.scenarios import  random_epidemic
 
 from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters, plot_epidemic_data
-
-from epiforecast.node_identifier_helper import load_node_identifiers
+from epiforecast.contact_network import ContactNetwork
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
@@ -30,23 +29,23 @@ from epiforecast.measurements import Observation, DataObservation, DataNodeObser
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.utilities import seed_numba_random_state
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-
-def deterministic_risk(population, initial_states, ensemble_size=1):
+from epiforecast.risk_simulator_initial_conditions import deterministic_risk
+# def deterministic_risk(population, initial_states, ensemble_size=1):
     
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
+#     states_ensemble = np.zeros([ensemble_size, 5 * population])
 
-    init_catalog = {'S': False, 'I': True}
-    infected = np.array([init_catalog[status] for status in list(initial_states.values())])
+#     init_catalog = {'S': False, 'I': True}
+#     infected = np.array([init_catalog[status] for status in list(initial_states.values())])
 
-    for mm in range(ensemble_size):
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
+#     for mm in range(ensemble_size):
+#         E, I, H, R, D = np.zeros([5, population])
+#         S = np.ones(population,)
+#         I[infected] = 1.
+#         S[infected] = 0.
 
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
+#         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 
-    return states_ensemble
+#     return states_ensemble
 
 #
 # Set random seeds for reproducibility
@@ -69,8 +68,8 @@ seed_numba_random_state(seed)
 edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')
 identifiers_filename = os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt')
 
-network = ContactNetwork.from_file(edges_filename,identifiers_filename)
-population = network.get_num_nodes()
+network = ContactNetwork.from_files(edges_filename,identifiers_filename)
+population = network.get_node_count()
 populace = network.get_nodes()
 
 
@@ -88,14 +87,14 @@ age_distribution =[0.21, 0.4, 0.25, 0.08, 0.06]
 network.draw_and_set_age_groups(age_distribution)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
-latent_periods = 3.7,
-community_infection_periods = 3.2,
-hospital_infection_periods = 5.0,
-hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.076,  0.16]),
-community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015]),
-hospital_mortality_fraction = AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512]),
+latent_periods = 3.7
+community_infection_periods = 3.2
+hospital_infection_periods = 5.0
+hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.076,  0.16])
+community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015])
+hospital_mortality_fraction = AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512])
 
-transition_rates = TransitionRates(population = population,
+transition_rates = TransitionRates(population = network.get_node_count(),
                                    lp_sampler = latent_periods,
                                   cip_sampler = community_infection_periods,
                                   hip_sampler = hospital_infection_periods,
@@ -104,6 +103,7 @@ transition_rates = TransitionRates(population = population,
                                   hmf_sampler = hospital_mortality_fraction,
                     distributional_parameters = network.get_age_groups()
 )
+
 transition_rates.calculate_from_clinical() 
 
 network.set_transition_rates(transition_rates)
@@ -147,9 +147,6 @@ statuses = random_epidemic(population,
                            populace,
                            fraction_infected=0.01)
 
-states_ensemble = deterministic_risk(population,
-                                     statuses,
-                                     ensemble_size = ensemble_size)
 
 epidemic_simulator.set_statuses(statuses)
 
@@ -180,11 +177,11 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     
     statuses_sum_trace.append([epidemic_simulator.kinetic_model.statuses['S'][-1],
-                           epidemic_simulator.kinetic_model.statuses['E'][-1],
-                           epidemic_simulator.kinetic_model.statuses['I'][-1],
-                           epidemic_simulator.kinetic_model.statuses['H'][-1],
-                           epidemic_simulator.kinetic_model.statuses['R'][-1],
-                           epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
+                               epidemic_simulator.kinetic_model.statuses['E'][-1],
+                               epidemic_simulator.kinetic_model.statuses['I'][-1],
+                               epidemic_simulator.kinetic_model.statuses['H'][-1],
+                               epidemic_simulator.kinetic_model.statuses['R'][-1],
+                               epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
 
 axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
                           statuses_list = statuses_sum_trace,
@@ -208,7 +205,6 @@ ensemble_size = 1
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_ensemble.append(transition_rates)
-    transition_rates.calculate_from_clinical() #calculate transition_rates from clinical parameters
 
 #set transmission_rates
 community_transmission_rate_ensemble = community_transmission_rate*np.ones([ensemble_size,1]) 
@@ -223,9 +219,11 @@ master_eqn_ensemble = MasterEquationModelEnsemble(population = population,
 
 loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = time)
 statuses = loaded_data.start_statuses
+
 states_ensemble = deterministic_risk(population,
                                      statuses,
-                                     ensemble_size = ensemble_size)
+                                     ensemble_size = ensemble_size)[0]
+
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
@@ -250,7 +248,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 axes = plot_ensemble_states(states_trace_ensemble,
                             time_trace,
                             axes = axes,
-                            xlims = (-0.1, simulation_length),
+                            xlims = (0.0, simulation_length),
                             a_min = 0.0)
     
 plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)

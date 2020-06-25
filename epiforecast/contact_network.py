@@ -420,7 +420,7 @@ class ContactNetwork:
             self,
             transition_rates):
         """
-        Set transitions rates (E->I etc.) as attributes of the nodes
+        Set transitions rates (exposed to infected etc.) as attributes of the nodes
 
         Input:
             transition_rates (TransitionRates): object with instance variables:
