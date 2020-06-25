@@ -211,6 +211,7 @@ class ContactNetwork:
         """
         return self.graph.number_of_edges()
 
+    # TODO hide implementation, expose interfaces (i.e. delete get_graph)
     def get_graph(self):
         """
         Get the graph
@@ -534,6 +535,21 @@ class ContactNetwork:
         λ_max[sick_nodes] = λ_isolation
 
         self.set_lambdas(λ_min, λ_max)
+
+    def build_user_network_using(
+            self,
+            user_graph_builder):
+        """
+        Build user network using provided builder
+
+        Input:
+            user_graph_builder (callable): an object to build user_graph
+
+        Output:
+            user_network (ContactNetwork): built user network
+        """
+        user_graph = user_graph_builder(self.graph)
+        return ContactNetwork.from_networkx_graph(user_graph)
 
     # TODO extract into a separate class
     def generate_diagram_indep(self):
