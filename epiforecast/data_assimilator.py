@@ -87,7 +87,7 @@ class DataAssimilator:
 
     def find_observation_states(
             self,
-            user_network,
+            user_nodes,
             ensemble_state,
             data):
         """
@@ -98,7 +98,9 @@ class DataAssimilator:
         print("Observation type : Number of Observed states")
         observed_states = []
         for observation in self.observations:
-            observation.find_observation_states(user_network, ensemble_state, data)
+            observation.find_observation_states(user_nodes,
+                                                ensemble_state,
+                                                data)
             print(observation.name,":",len(observation.obs_states))
             if observation.obs_states.size > 0:
                 observed_states.extend(observation.obs_states)
@@ -108,7 +110,7 @@ class DataAssimilator:
 
     def observe(
             self,
-            contact_network,
+            user_nodes,
             state,
             data,
             scale='log',
@@ -118,7 +120,7 @@ class DataAssimilator:
         observed_variances = []
         for observation in self.observations:
             if (observation.obs_states.size >0):
-                observation.observe(contact_network,
+                observation.observe(user_nodes,
                                     state,
                                     data,
                                     scale)
@@ -143,7 +145,7 @@ class DataAssimilator:
             data,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            user_network):
+            user_nodes):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -179,16 +181,17 @@ class DataAssimilator:
             else: # set to column of empties
                 ensemble_transmission_rate = np.empty((ensemble_size, 0), dtype=float)
 
-            om = self.observations
             dam = self.damethod
 
-            obs_states = self.find_observation_states(user_network, ensemble_state, data) # Generate states to observe
+            # Generate states to observe
+            obs_states = self.find_observation_states(user_nodes,
+                                                      ensemble_state,
+                                                      data)
             if (obs_states.size > 0):
-
                 print("Total states to be assimilated: ", obs_states.size)
-                # Get the truth indices, for the observation(s)
 
-                truth,var = self.observe(user_network,
+                # Get the truth indices, for the observation(s)
+                truth,var = self.observe(user_nodes,
                                          ensemble_state,
                                          data,
                                          scale = None)
@@ -208,19 +211,7 @@ class DataAssimilator:
                                truth,
                                cov)
 
-
-                # print states > 1
-                #tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                #sum_states = np.sum(tmp,axis=1)
-                # print(sum_states[sum_states > 1 + 1e-2])
-
-
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
-
-                # print same states after the sum_to_one()
-                # tmp = ensemble_state.reshape(ensemble_state.shape[0],5,om[0].N)
-                # sum_states_after = np.sum(tmp,axis=1)
-                # print(sum_states_after[sum_states > 1 + 1e-2]) #see what the sum_to_one did to them
 
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
