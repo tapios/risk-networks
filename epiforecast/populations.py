@@ -88,7 +88,7 @@ class TransitionRates:
             hf_sampler,
             cmf_sampler,
             hmf_sampler,
-            distributional_parameters):
+            distributional_parameters=None):
         """
         Constructor with samplers
 
@@ -112,6 +112,8 @@ class TransitionRates:
                       (AgeDependentConstant),
                       (AgeDependentBetaSampler): a sampler to use
             distributional_parameters (np.array): (self.population,) array
+                                      (None), default: np.ones(self.population)
+                                                       is used in this case
         """
         # TODO extract clinical parameters into its own class
         self.population  = population
@@ -121,6 +123,8 @@ class TransitionRates:
         self.hf_sampler  = hf_sampler
         self.cmf_sampler = cmf_sampler
         self.hmf_sampler = hmf_sampler
+        if distributional_parameters is None:
+            distributional_parameters = np.ones(self.population)
 
         self.latent_periods               = None
         self.community_infection_periods  = None
