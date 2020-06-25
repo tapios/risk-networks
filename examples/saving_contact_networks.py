@@ -34,7 +34,7 @@ simulation_length = 1
 
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 
-population = network.get_number_of_nodes()
+population = network.get_node_count()
 populace = network.get_nodes()
 statuses = random_epidemic(population,
                            populace,
@@ -52,7 +52,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     #pretend we 'simulate' forward, by creating a new network.
     contact_graph = nx.barabasi_albert_graph(1000, 10)
     network = ContactNetwork.from_networkx_graph(contact_graph)
-    population = network.get_number_of_nodes()
+    population = network.get_node_count()
     populace = network.get_nodes()
     statuses = random_epidemic(population,
                                populace,
@@ -68,16 +68,14 @@ print(" ")
 print("loading the networks backwards by end time")
 for i in range(int(simulation_length/static_contact_interval)):
     load_data = epidemic_data_storage.get_network_from_end_time(end_time=time)
-    net = load_data.contact_network
-    current_infected = [node for node in net.get_nodes() if net.end_statuses[node] == 'I']
-    print("infected at time", net.end_time, current_infected)
+    current_infected = [node for node in load_data.contact_network.get_nodes() if load_data.end_statuses[node] == 'I']
+    print("infected at time", load_data.end_time, current_infected)
     time = time - static_contact_interval
                         
 print(" ")
 print("loading the networks forwards by start time")
 for i in range(int(simulation_length/static_contact_interval)):
     load_data = epidemic_data_storage.get_network_from_start_time(start_time=time)
-    net = load_data.contact_network
-    current_infected = [node for node in net.get_nodes() if net.start_statuses[node] == 'I']
-    print("infected at time", net.start_time, current_infected)
+    current_infected = [node for node in load_data.contact_network.get_nodes() if load_data.start_statuses[node] == 'I']
+    print("infected at time", load_data.start_time, current_infected)
     time = time + static_contact_interval
