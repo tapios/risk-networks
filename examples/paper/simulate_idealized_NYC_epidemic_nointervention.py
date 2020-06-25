@@ -65,7 +65,7 @@ assert sum(age_distribution) == 1.0
 ################################################################################
 # numba
 set_num_threads(1)
-      
+
 # Set random seeds for reproducibility
 seed = 942395
 seed_three_random_states(seed)
@@ -96,7 +96,7 @@ transition_rates = TransitionRates(
 
 transition_rates.calculate_from_clinical()
 
-network.set_transition_rates(transition_rates)
+network.set_transition_rates_for_kinetic_model(transition_rates)
 
 health_service = HealthService(
         network,

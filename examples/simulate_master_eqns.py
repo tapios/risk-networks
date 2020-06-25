@@ -34,14 +34,14 @@ for i in range(ensemble_size):
                                       hf_sampler = hospitalization_fraction,
                                       cmf_sampler = community_mortality_fraction,
                                       hmf_sampler = hospital_mortality_fraction,
-                                      distributional_parameters = no_age_categories)   
-    transition_rates.calculate_from_clinical() 
+                                      distributional_parameters = no_age_categories)
+    transition_rates.calculate_from_clinical()
     transition_rates_ensemble.append(transition_rates)
 
 transmission_rate = 10*np.ones([ensemble_size,1])
 
 # WARNING: Do not call the following line, it is only for the kinetic model simulator.
-#network.set_transition_rates(transition_rates) 
+#network.set_transition_rates_for_kinetic_model(transition_rates)
 
 
 # ------------------------------------------------------------------------------

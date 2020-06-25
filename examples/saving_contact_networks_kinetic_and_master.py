@@ -106,7 +106,7 @@ transition_rates = TransitionRates(population = network.get_node_count(),
 
 transition_rates.calculate_from_clinical() 
 
-network.set_transition_rates(transition_rates)
+network.set_transition_rates_for_kinetic_model(transition_rates)
 
 community_transmission_rate = 12.0
 

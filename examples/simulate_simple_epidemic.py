@@ -94,7 +94,7 @@ transition_rates = TransitionRates(
 
 transition_rates.calculate_from_clinical()
 
-network.set_transition_rates(transition_rates)
+network.set_transition_rates_for_kinetic_model(transition_rates)
 
 health_service = HealthService(
         network,

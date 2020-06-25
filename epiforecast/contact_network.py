@@ -416,11 +416,15 @@ class ContactNetwork:
         values_dict = self.__convert_array_to_dict(values)
         self.__set_node_attributes_const_dict(values_dict, name)
 
-    def set_transition_rates(
+    def set_transition_rates_for_kinetic_model(
             self,
             transition_rates):
         """
-        Set transitions rates (exposed to infected etc.) as attributes of the nodes
+        Set transition rates (exposed to infected etc.) as node attributes
+
+        Note: these transition rates are only intended to be used by
+        KineticModel; hence, this method does not really belong here, and should
+        be implemented in KineticModel instead
 
         Input:
             transition_rates (TransitionRates): object with instance variables:
@@ -561,7 +565,8 @@ class ContactNetwork:
         return ContactNetwork.from_networkx_graph(user_graph)
 
     # TODO extract into a separate class
-    def generate_diagram_indep(self):
+    @staticmethod
+    def generate_diagram_indep():
         """
         Generate diagram with independent transition rates
 
@@ -585,8 +590,8 @@ class ContactNetwork:
         return diagram_indep
 
     # TODO extract into a separate class
+    @staticmethod
     def generate_diagram_neigh(
-            self,
             community_rate,
             hospital_rate):
         """
