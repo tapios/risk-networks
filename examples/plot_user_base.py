@@ -17,15 +17,19 @@ plot_figs = True
 write_graphs = False
 write_files = False
 
-# ---- Create network
+################################################################################
+# create contact network #######################################################
+################################################################################
 #1) from nx function:
 
 #contact_graph = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
 #network = ContactNetwork.from_networkx_graph(contact_graph)
 
 #2) Or create from file:
-edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')
-identifiers_filename = os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.txt')
+edges_filename = os.path.join('..', 'data', 'networks',
+                              'edge_list_SBM_1e3_nobeds.txt')
+identifiers_filename = os.path.join('..', 'data', 'networks',
+                                    'node_identifier_SBM_1e3_nobeds.txt')
 
 network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 
