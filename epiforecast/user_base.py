@@ -78,7 +78,7 @@ class FractionalUserGraphBuilder(UserGraphBuilder):
                                key=len)            
             scale_factor *= 1.1
             
-        return full_graph.subgraph(users)
+        return full_graph.subgraph(users_pruned)
 
 class ContiguousUserGraphBuilder(UserGraphBuilder):
     """
