@@ -24,7 +24,6 @@ hospitalization_fraction = 0.01
 community_mortality_fraction = 0.001
 hospital_mortality_fraction = 0.01
 no_age_categories = np.ones(population)
-print(no_age_categories)
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates =TransitionRates(population = population,
