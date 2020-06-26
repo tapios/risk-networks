@@ -159,8 +159,7 @@ class TransitionRates:
 
     @staticmethod
     def __draw_using_sampler(sampler, distributional_parameters):
-        return np.array([sampler.minimum + sampler.draw()
-                         for param in distributional_parameters])
+        return np.array([sampler.draw() for param in distributional_parameters])
 
     @staticmethod
     def __draw_using_age_beta_sampler(sampler, distributional_parameters):
