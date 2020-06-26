@@ -1,6 +1,7 @@
 import os, sys; sys.path.append(os.path.join(".."))
 
 
+from epiforecast.contact_network import ContactNetwork
 from epiforecast.health_service import HealthService
 from epiforecast.kinetic_model_simulator import print_statuses
 
@@ -19,24 +20,29 @@ def random_hospitalization(population, initial_hospitalized):
     for i in initial_hospitalized_nodes:
         statuses[i] = 'H'
 
-    return statuses, initial_hospitalized_nodes
+    return statuses
 
 
 np.random.seed(91210)
 
 population = 1000
 attachment = 2
-network = nx.barabasi_albert_graph(population, attachment)
-statuses, initial_hospitalized_nodes = random_hospitalization(population,50)
+
+contact_graph = nx.barabasi_albert_graph(population, attachment)
+network = ContactNetwork.from_networkx_graph(contact_graph)
+
+statuses = random_hospitalization(population, 50)
 
 print("Initial statuses")
 print_statuses(statuses)
-patient_capacity = 15
 health_worker_population = 10
 
 health_service = HealthService(network, health_worker_population)
 
-health_service.discharge_and_admit_patients(statuses, network)
+(discharged_patients,
+ admitted_patients,
+ contacts_to_add,
+ contacts_to_remove) = health_service.discharge_and_admit_patients(statuses)
 
 print("Statuses after discharge and admittance")
 print_statuses(statuses)
@@ -47,7 +53,11 @@ statuses.update({node: 'R' for node in recovered_patients})
 
 print("Statuses after events")
 print_statuses(statuses)
-health_service.discharge_and_admit_patients(statuses,network)
+
+(discharged_patients,
+ admitted_patients,
+ contacts_to_add,
+ contacts_to_remove) = health_service.discharge_and_admit_patients(statuses)
 
 print("Statuses after discharge and admittance")
 print_statuses(statuses)

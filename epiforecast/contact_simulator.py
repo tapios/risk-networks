@@ -61,7 +61,7 @@ def calculate_inception_rates(day_inception_rate, night_inception_rate,
         night_inception_rate[i] = np.minimum(nodal_night_inception_rate[edge[0]],
                                              nodal_night_inception_rate[edge[1]])
 
-def generate_edge_state(contact_network):
+def generate_edge_state(edges):
     """
     Generate an empty edge state (ordered) numba dictionary corresponding to the current
     contact network.
@@ -69,7 +69,7 @@ def generate_edge_state(contact_network):
     edge_state = Dict.empty(key_type = types.Tuple((types.int64, types.int64)),
                             value_type = types.Tuple((types.boolean, types.float64, types.float64)))
 
-    edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, contact_network.edges()) })
+    edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, edges) })
 
     return edge_state
 
@@ -79,14 +79,16 @@ class ContactSimulator:
     using a birth/death process given a mean contact rate, and a mean contact duration.
     """
 
-    def __init__(self, contact_network,
-                       initialize_contacts = True,
-                        day_inception_rate = None,
-                      night_inception_rate = None,
-                       mean_event_lifetime = None,
-                                start_time = 0.0,
-                             buffer_margin = 1,
-                   rate_integral_increment = 0.05):
+    def __init__(
+            self,
+            original_edges,
+            initialize_contacts = True,
+            day_inception_rate = None,
+            night_inception_rate = None,
+            mean_event_lifetime = None,
+            start_time = 0.0,
+            buffer_margin = 1,
+            rate_integral_increment = 0.05):
         """
         Args
         ----
@@ -111,23 +113,16 @@ class ContactSimulator:
                                          diurnally. The default 0.05 is barely large enough to resolve
                                          diurnal variation.
         """
+        # TODO implement Edges and use original_edges.get_count()
+        n_contacts = len(original_edges)
 
-        # Number of possible edges during an epidemic simulation
-        n_contacts = nx.number_of_edges(contact_network)
         self.buffer_margin = buffer_margin
         self.buffer = int(np.round(n_contacts * self.buffer_margin))
 
-        self.contact_network = contact_network
-        self.edge_state = generate_edge_state(contact_network)
+        self.edge_state = generate_edge_state(original_edges)
         self.time = start_time
         self.mean_event_lifetime = mean_event_lifetime
         self.rate_integral_increment = rate_integral_increment
-
-        if day_inception_rate is not None: # set day inception rates on the contact network nodes
-            nx.set_node_attributes(contact_network, values=day_inception_rate, name="day_inception_rate")
-
-        if night_inception_rate is not None: # set night inception rates contact network nodes
-            nx.set_node_attributes(contact_network, values=night_inception_rate, name="night_inception_rate")
 
         # Initialize the active contacts
         self.active_contacts = np.zeros(self.buffer, dtype=bool)
@@ -151,13 +146,22 @@ class ContactSimulator:
         self.overshoot_duration = np.zeros(self.buffer)
         self.event_time = np.zeros(self.buffer)
 
+        # TODO this will crash if day/night_inception_rate is None
         self.day_inception_rate = day_inception_rate * np.ones(self.buffer)
         self.night_inception_rate = night_inception_rate * np.ones(self.buffer)
 
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
 
-    def run(self, stop_time, edges_to_remove=set(), edges_to_add=set()):
+    # TODO implement conversion from int/float to array for nodal rates
+    def run(
+            self,
+            stop_time,
+            current_edges,
+            nodal_day_inception_rate,
+            nodal_night_inception_rate,
+            edges_to_remove=set(),
+            edges_to_add=set()):
         """
         Simulate time-dependent contacts with a birth/death process.
         """
@@ -165,8 +169,8 @@ class ContactSimulator:
         if stop_time <= self.interval_stop_time:
             raise ValueError("Stop time is not greater than previous interval stop time!")
 
-        # Determine the number of contacts on the current contact network
-        n_contacts = nx.number_of_edges(self.contact_network)
+        # TODO implement Edges
+        n_contacts = len(current_edges)
 
         # Fiddle with the contact state if edges have been added or deleted
         if len(edges_to_add) > 0 or len(edges_to_remove) > 0:
@@ -199,12 +203,6 @@ class ContactSimulator:
             initialize_state(self.active_contacts, self.event_time, self.overshoot_duration, self.edge_state)
 
         # Re-estimate day_inception_rate and night_inception_rate. This is relatively expensive.
-        nodal_day_inception_rate = np.array(
-            [ data['day_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
-
-        nodal_night_inception_rate = np.array(
-            [ data['night_inception_rate'] for node, data in self.contact_network.nodes(data=True) ])
-
         calculate_inception_rates(self.day_inception_rate, self.night_inception_rate,
                                   nodal_day_inception_rate, nodal_night_inception_rate,
                                   self.edge_state)
@@ -228,20 +226,18 @@ class ContactSimulator:
         self.interval_start_time = self.interval_stop_time
         self.interval_stop_time = stop_time
 
-    def run_and_set_edge_weights(self, stop_time, **kwargs):
+    def compute_edge_weights(self):
         """
-        Run the ContactSimulator, and then set edge weights on `contact_network`.
+        Compute and return edge weights using simulation results
+
+        Output:
+            edge_weights (dict): mapping edge -> weight
         """
-
-        self.run(stop_time, **kwargs)
-
         time_interval = self.interval_stop_time - self.interval_start_time
-
         edge_weights = { edge: self.contact_duration[i] / time_interval
                          for i, edge in enumerate(self.edge_state) }
 
-        nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_infected')
-        nx.set_edge_attributes(self.contact_network, values=edge_weights, name='exposed_by_hospitalized')
+        return edge_weights
 
     def reset(self, time):
         """
