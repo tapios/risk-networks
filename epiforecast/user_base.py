@@ -78,13 +78,7 @@ class FractionalUserGraphBuilder(UserGraphBuilder):
                                key=len)            
             scale_factor *= 1.1
             
-        tmpgraph = full_graph.subgraph(users_pruned)
-        print(np.array(tmpgraph.nodes))
-        print(np.array(tmpgraph.edges))
-        print(len(tmpgraph.nodes))
-        print(len(tmpgraph.edges))
-        
-        return tmpgraph
+        return full_graph.subgraph(users)
 
 class ContiguousUserGraphBuilder(UserGraphBuilder):
     """

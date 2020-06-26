@@ -15,7 +15,7 @@ np.random.seed(123)
 #plot graphs? NB plotting is very slow for >1000 nodes
 plot_figs = True
 write_graphs = False
-write_files = False
+write_files = True
 
 ################################################################################
 # create contact network #######################################################
@@ -60,9 +60,6 @@ if write_graphs:
 user_fraction = 0.05
 fractional_user_network = network.build_user_network_using(
         FractionalUserGraphBuilder(user_fraction))
-
-print(fractional_user_network.get_edges())
-print(fractional_user_network.get_nodes())
 
 print("")
 print("User base:", user_fraction, "fraction of nodes, randomly chosen")
