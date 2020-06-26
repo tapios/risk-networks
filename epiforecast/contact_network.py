@@ -78,9 +78,8 @@ class ContactNetwork:
             edges (np.array): (n_edges,2) array of edges
             node_groups (dict): a map from identifier indices to arrays of nodes
         """
-        upper_tri_edges = self.__only_upper_triangular(edges)
-        nodes = np.unique(upper_tri_edges)
-
+        nodes = np.unique(edges)
+        
         # in the following, first enforce the ascending order of the nodes,
         # then add edges, and then weed out missing labels (for example, there
         # might be no node '0', so every node 'j' gets mapped to 'j-1', and the
@@ -91,7 +90,7 @@ class ContactNetwork:
         # with permutations and such)
         self.graph = nx.Graph()
         self.graph.add_nodes_from(nodes)
-        self.graph.add_edges_from(upper_tri_edges)
+        self.graph.add_edges_from(edges)
         self.graph = nx.convert_node_labels_to_integers(self.graph,
                                                         ordering='sorted')
         self.__check_correct_format()
@@ -141,21 +140,6 @@ class ContactNetwork:
                 ContactNetwork.COMMUNITY_INDEX      : community }
 
         return node_groups
-
-    def __only_upper_triangular(
-            self,
-            edges):
-        """
-        Filter out lower-triangular nodes, leaving upper-triangular only
-
-        Input:
-            edges (np.array): (n_edges,2) array of edges
-
-        Output:
-            edges (np.array): (L,2) array of upper-triangular edges
-        """
-        upper_tri_edges_mask = edges[:,0] < edges[:,1] # a boolean array
-        return edges[upper_tri_edges_mask]
 
     def __check_correct_format(self):
         """

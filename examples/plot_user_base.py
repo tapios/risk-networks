@@ -61,6 +61,9 @@ user_fraction = 0.05
 fractional_user_network = network.build_user_network_using(
         FractionalUserGraphBuilder(user_fraction))
 
+print(fractional_user_network.get_edges())
+print(fractional_user_network.get_nodes())
+
 print("")
 print("User base:", user_fraction, "fraction of nodes, randomly chosen")
 print("number of nodes:", fractional_user_network.get_node_count())
