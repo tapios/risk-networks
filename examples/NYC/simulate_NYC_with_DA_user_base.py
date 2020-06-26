@@ -92,26 +92,7 @@ hour = 60 * minute
 # Clinical parameters of an age-distributed population
 #
 
-# age distribution of population
-
-distribution=[0.21, # 0-17 years
-              0.4,  # 18-44 years
-              0.25, # 45-64 years
-              0.08, # 65-75 years
-              0.06  # > 75 years
-             ]
-
-# age distribution of health workers
-
-distribution_HCW=np.asarray([0.0,  # 0-17 years
-                             0.4,  # 18-44 years
-                             0.25, # 45-64 years
-                             0.0,  # 65-75 years
-                             0.0   # > 75 years
-                 ])
-distribution_HCW /= sum(distribution_HCW)
-
-assign_ages(contact_network, distribution, distribution_HCW, node_identifiers)
+assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(contact_network,
@@ -133,8 +114,10 @@ hospital_transmission_reduction = 0.1
 #
 static_contact_interval = 3 * hour
 
-health_service = HealthService(static_population_network = contact_network,
-                               health_workers = np.arange(node_identifiers['health_workers'].size))
+health_service = HealthService(patient_capacity = int(0.05 * len(contact_network)),
+                               health_worker_population = len(node_identifiers['health_workers']),
+                               static_population_network = contact_network)
+
 
 mean_contact_lifetime=0.5*minute
 

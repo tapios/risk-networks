@@ -183,7 +183,7 @@ def populate_ages(population, distribution):
 
 
 
-def assign_ages(population_network, distribution, distribution_HCW, node_identifiers):
+def assign_ages(population_network, distribution):
     """
     Assigns ages to the nodes of `population_network` according to `distribution`.
 
@@ -191,32 +191,16 @@ def assign_ages(population_network, distribution, distribution_HCW, node_identif
     ----
     population_network (networkx Graph): A graph representing a community and its contacts.
 
-    distribution (list-like): A list of quantiles (for community). Must sum to 1.
-    
-    distribution_HCW (list-like): A list of quantiles (for health workers). Must sum to 1.
-    
-    node_identifiers (dictionary): A dictionary that contains node identifiers of
-                                   health worker and community nodes.
+    distribution (list-like): A list of quantiles. Must sum to 1.
 
     Example
     -------
 
     distribution = [0.25, 0.5, 0.25] # a simple age distribution
-    distribution_HCW = [0, 1, 0] # a simple age distribution for health workers
     population_network = nx.barabasi_albert_graph(100, 2)
-    node_identifiers = load_node_identifiers(...)
-    assign_ages(population_network, distribution, distribution_HCW, node_identifiers)
+    assign_ages(population_network, distribution)
     """    
-    health_workers = node_identifiers['health_workers'].size
-    community = node_identifiers['community'].size
-
-    ages_HCW = populate_ages(health_workers, distribution=distribution_HCW)
-    ages_community = populate_ages(community, distribution=distribution)
-    
-    nodes_HCW = range(health_workers)
-    nodes_community = range(health_workers, community+health_workers)
-
-    nodal_ages = { node: ages_HCW[i] for i, node in enumerate(nodes_HCW) }
-    nodal_ages.update( {node: ages_community[i] for i, node in enumerate(nodes_community)} )
+    ages = populate_ages(len(population_network), distribution=distribution)
+    nodal_ages = { node: ages[i] for i, node in enumerate(population_network.nodes()) }
 
     nx.set_node_attributes(population_network, values=nodal_ages, name='age')

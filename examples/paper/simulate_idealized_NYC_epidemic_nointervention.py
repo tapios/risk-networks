@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join("..", ".."))
+import os, sys; sys.path.append(os.path.join(".."))
 
 from timeit import default_timer as timer
 
@@ -47,26 +47,7 @@ population = len(contact_network)
 # Clinical parameters of an age-distributed population
 #
 
-# age distribution of population
-
-distribution=[0.207, # 0-17 years
-              0.400, # 18-44 years
-              0.245, # 45-64 years
-              0.083, # 65-75 years
-              0.065  # > 75 years
-             ]
-
-# age distribution of health workers
-
-distribution_HCW=np.asarray([0.0,    # 0-17 years
-                             0.400,  # 18-44 years
-                             0.245,  # 45-64 years
-                             0.0,    # 65-75 years
-                             0.0     # > 75 years
-                 ])
-distribution_HCW /= sum(distribution_HCW)
-
-assign_ages(contact_network, distribution, distribution_HCW, node_identifiers)
+assign_ages(contact_network, distribution=[0.21, 0.4, 0.25, 0.08, 0.06])
                        
 # We process the clinical data to determine transition rates between each epidemiological state,
 transition_rates = TransitionRates(contact_network,
@@ -92,7 +73,7 @@ hour = 60 * minute
 
 # Run the simulation
 
-health_service = HealthService(health_workers = np.arange(node_identifiers['health_workers'].size),
+health_service = HealthService(health_workers = len(node_identifiers['health_workers']),
                                static_population_network = contact_network)
 
 epidemic_simulator = EpidemicSimulator(contact_network,            
