@@ -3,42 +3,6 @@ import networkx as nx
 
 from .samplers import AgeDependentBetaSampler, AgeDependentConstant, BetaSampler, GammaSampler
 
-def sample_distribution(sampler, ages=None, population=None, minimum=0):
-    """
-    Generate clinical parameters by sampling from a distribution.
-
-    Use cases
-    --------
-
-    1. `ages` is not `None`: assume `population = len(ages)`; return an array of size `len(ages)`
-       of clinical parameter samples using `minimum + sampler.draw(age)`.
-
-    2. `ages` is None, `population` is not `None`: return an array of size `population` of
-       clinical parameter samples using `mininum + sampler.draw()`.
-
-    3. Both `ages` and `population` are `None`: return a single `minimum + sampler.draw()`.
-
-    Args
-    ----
-
-    ages (list-like): a list of age categories for the population
-
-    minimum: the minimum value of the statistic (note that this assumes 
-             `sampler.draw(age) is always greater than 0.)
-             
-    sampler: a 'sampler' with a function `sampler.draw(age)` that draws a random
-             sample from a distribution, depending on `age`. Samplers that are
-             age-independent must still support the syntax `sampler.draw(age)`. 
-    """
-
-    if ages is not None:
-        return np.array([minimum + sampler.draw(age) for age in ages])
-    elif population is not None:
-        return np.array([minimum + sampler.draw() for i in range(population)])
-    else:
-        return minimum + sampler.draw()
-
-
 class TransitionRates:
     """
     A container for transition rates.

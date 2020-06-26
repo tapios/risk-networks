@@ -2,7 +2,7 @@ import numpy as np
 import contextlib
 
 from .samplers import AgeDependentBetaSampler, GammaSampler
-from .populations import sample_distribution, TransitionRates
+from .populations import TransitionRates
 
 n_states = 5
 

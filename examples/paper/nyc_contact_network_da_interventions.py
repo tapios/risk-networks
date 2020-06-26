@@ -12,9 +12,8 @@ from timeit import default_timer as timer
 from numba import set_num_threads
 
 from epiforecast.contact_network import ContactNetwork
-from epiforecast.populations import sample_distribution, TransitionRates
+from epiforecast.populations import TransitionRates
 from epiforecast.samplers import GammaSampler, AgeDependentBetaSampler, AgeDependentConstant
-from epiforecast.node_identifier_helper import load_node_identifiers
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
@@ -128,7 +127,6 @@ transition_rates = TransitionRates(
         network.get_age_groups())
 
 transition_rates.calculate_from_clinical()
-
 network.set_transition_rates_for_kinetic_model(transition_rates)
 
 health_service = HealthService(
