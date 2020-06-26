@@ -79,7 +79,7 @@ class ContactNetwork:
             node_groups (dict): a map from identifier indices to arrays of nodes
         """
         nodes = np.unique(edges)
-        
+
         # in the following, first enforce the ascending order of the nodes,
         # then add edges, and then weed out missing labels (for example, there
         # might be no node '0', so every node 'j' gets mapped to 'j-1', and the
@@ -97,10 +97,9 @@ class ContactNetwork:
 
         self.node_groups = node_groups
 
-
         #Set default attributes in the case of a static network, where contact_simulator is not called
         #(otherwise they are `implicitly` set) (explicitly set to 1.0)
-        nx.set_edge_attributes(self.graph, values=1.0, name=ContactNetwork.WJI)
+        self.set_edge_weights(1.0)
 
     @staticmethod
     def __load_edges_from(filename):
@@ -452,7 +451,9 @@ class ContactNetwork:
         Set edge weights of the graph
 
         Input:
-            edge_weights (dict): a mapping edge -> weight
+            edge_weights (int),
+                         (float): constant value to be assigned to all edges
+                         (dict): a mapping edge -> weight
         Output:
             None
         """

@@ -75,10 +75,11 @@ class FractionalUserGraphBuilder(UserGraphBuilder):
             users = np.random.choice(nodes, n_users, replace=False)
             user_graph_fractured = full_graph.subgraph(users)
             users_pruned = max(nx.connected_components(user_graph_fractured),
-                               key=len)            
+                               key=len)
             scale_factor *= 1.1
-            
+
         return full_graph.subgraph(users_pruned)
+
 
 class ContiguousUserGraphBuilder(UserGraphBuilder):
     """
