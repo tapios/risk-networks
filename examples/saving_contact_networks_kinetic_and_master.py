@@ -76,7 +76,7 @@ populace = network.get_nodes()
 start_time =0.0
 minute = 1 / 60 / 24
 hour = 60 * minute
-simulation_length = 1
+simulation_length = 30
 print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward for this time")
 #
 
@@ -224,8 +224,6 @@ states_ensemble = deterministic_risk(population,
                                      statuses,
                                      ensemble_size = ensemble_size)[0]
 
-print(sum(states_ensemble[0,0:population]))
-print(sum(states_ensemble[0,population:2*population]))
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
