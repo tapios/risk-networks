@@ -1,6 +1,6 @@
 #!python3 --
 
-import os, sys; sys.path.append(os.path.join("..", ".."))
+import os, sys; sys.path.append(os.path.join(".."))
 
 
 import random
@@ -44,9 +44,9 @@ def random_risk(population, fraction_infected=0.01, ensemble_size=1):
 ################################################################################
 SAVE_FLAG = False
 PLOT_FLAG = False
-NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
-SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
-FIGURES_PATH = os.path.join('..', '..', 'figs')
+NETWORKS_PATH = os.path.join('..', 'data', 'networks')
+SIMULATION_PATH = os.path.join('..', 'data', 'simulation_data')
+FIGURES_PATH = os.path.join('..', 'figs')
 
 minute = 1 / 60 / 24
 hour = 60 * minute
