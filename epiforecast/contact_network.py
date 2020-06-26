@@ -30,12 +30,14 @@ class ContactNetwork:
     @classmethod
     def from_networkx_graph(
             cls,
-            graph):
+            graph,
+            convert_labels_to_0N=True):
         """
         Create an object from a nx.Graph object
 
         Input:
             graph (nx.Graph): an object to use as a contact network graph
+            convert_labels_to_0N (boolean): convert node labels to 0..N-1
 
         Output:
             contact_network (ContactNetwork): initialized object
@@ -45,19 +47,21 @@ class ContactNetwork:
                 ContactNetwork.HEALTH_WORKERS_INDEX : np.array([]),
                 ContactNetwork.COMMUNITY_INDEX      : np.array(graph.nodes) }
 
-        return cls(edges, node_groups)
+        return cls(edges, node_groups, convert_labels_to_0N)
 
     @classmethod
     def from_files(
             cls,
             edges_filename,
-            identifiers_filename):
+            identifiers_filename,
+            convert_labels_to_0N=True):
         """
         Create an object from files that contain edges and identifiers
 
         Input:
             edges_filename (str): path to a txt-file with edges
             identifiers_filename (str): path to a txt-file with node identifiers
+            convert_labels_to_0N (boolean): convert node labels to 0..N-1
 
         Output:
             contact_network (ContactNetwork): initialized object
@@ -65,40 +69,43 @@ class ContactNetwork:
         edges       = cls.__load_edges_from(edges_filename)
         node_groups = cls.__load_node_groups_from(identifiers_filename)
 
-        return cls(edges, node_groups)
+        return cls(edges, node_groups, convert_labels_to_0N)
 
     def __init__(
             self,
             edges,
-            node_groups):
+            node_groups,
+            convert_labels_to_0N):
         """
         Constructor
 
         Input:
             edges (np.array): (n_edges,2) array of edges
             node_groups (dict): a map from identifier indices to arrays of nodes
+            convert_labels_to_0N (boolean): convert node labels to 0..N-1
         """
         nodes = np.unique(edges)
 
         # in the following, first enforce the ascending order of the nodes,
-        # then add edges, and then weed out missing labels (for example, there
-        # might be no node '0', so every node 'j' gets mapped to 'j-1', and the
-        # edges are remapped accordingly)
+        # then add edges, and then (possibly) weed out missing labels (for
+        # example, there might be no node '0', so every node 'j' gets mapped to
+        # 'j-1', and the edges are remapped accordingly)
         #
         # this whole workaround is needed so that we can then simply say that
-        # nodes 0--40, for instance, are health-care workers (instead of dealing
+        # nodes 0..40, for instance, are health-care workers (instead of dealing
         # with permutations and such)
         self.graph = nx.Graph()
         self.graph.add_nodes_from(nodes)
         self.graph.add_edges_from(edges)
-        self.graph = nx.convert_node_labels_to_integers(self.graph,
-                                                        ordering='sorted')
-        self.__check_correct_format()
+        if convert_labels_to_0N:
+            self.graph = nx.convert_node_labels_to_integers(self.graph,
+                                                            ordering='sorted')
+        self.__check_correct_format(convert_labels_to_0N)
 
         self.node_groups = node_groups
 
-        #Set default attributes in the case of a static network, where contact_simulator is not called
-        #(otherwise they are `implicitly` set) (explicitly set to 1.0)
+        # set default attributes to 1.0 in the case of a static network, where
+        # contact_simulator is not called (otherwise they are implicitly set)
         self.set_edge_weights(1.0)
 
     @staticmethod
@@ -140,20 +147,35 @@ class ContactNetwork:
 
         return node_groups
 
-    def __check_correct_format(self):
+    def __check_correct_format(
+            self,
+            check_labels_are_0N):
         """
         Check whether the graph is in the correct format
 
         The following is checked:
-            - all nodes are integers in the range 0..(n-1)
             - nodes are sorted in ascending order
+        If `check_labels_are_0N` is true then also check
+            - all nodes are integers in the range 0..N-1
+
+        Input:
+            check_labels_are_0N (boolean): check that node labels are 0..N-1
 
         Output:
             None
         """
-        nodes = self.graph.nodes
-        node_count = self.get_node_count()
-        if not np.array_equal(nodes, np.arange(node_count)):
+        correct_format = True
+
+        nodes = self.get_nodes()
+        if not np.all(nodes[:-1] <= nodes[1:]): # if not "ascending order"
+            correct_format = False
+
+        if check_labels_are_0N:
+            node_count = self.get_node_count()
+            if not np.array_equal(nodes, np.arange(node_count)):
+                correct_format = False
+
+        if not correct_format:
             raise ValueError(
                     self.__class__.__name__
                     + ": graph format is incorrect")
@@ -225,7 +247,7 @@ class ContactNetwork:
         Output:
             nodes (np.array): (n_nodes,) array of node indices
         """
-        return np.arange(self.get_node_count())
+        return np.array(self.graph.nodes)
 
     def get_edges(self):
         """
@@ -552,7 +574,7 @@ class ContactNetwork:
             user_network (ContactNetwork): built user network
         """
         user_graph = user_graph_builder(self.graph)
-        return ContactNetwork.from_networkx_graph(user_graph)
+        return ContactNetwork.from_networkx_graph(user_graph, False)
 
     # TODO extract into a separate class
     @staticmethod

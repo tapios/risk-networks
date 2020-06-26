@@ -15,7 +15,7 @@ np.random.seed(123)
 #plot graphs? NB plotting is very slow for >1000 nodes
 plot_figs = True
 write_graphs = False
-write_files = True
+write_files = False
 
 ################################################################################
 # create contact network #######################################################
