@@ -5,11 +5,12 @@ class TestMeasurement:
             self,
             status,
             sensitivity=0.80,
-            specificity=0.99):
+            specificity=0.99,
+            noisy_measurement=False):
 
         self.sensitivity = sensitivity
         self.specificity = specificity
-
+        self.noisy_measurement=noisy_measurement
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
 
         self.status = status
@@ -87,8 +88,7 @@ class TestMeasurement:
     def take_measurements(
             self,
             nodes_state_dict,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
         population with a certain prevelance (computed from an ensemble of master equations).
@@ -105,10 +105,10 @@ class TestMeasurement:
         for node in nodes_state_dict.keys():
             if nodes_state_dict[node] == self.status:
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test = not (noisy_measurement and (np.random.random() > self.sensitivity)))
+                                   positive_test = not (self.noisy_measurement and (np.random.random() > self.sensitivity)))
             else:
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test =     (noisy_measurement and (np.random.random() < 1 - self.specificity)))
+                                   positive_test =     (self.noisy_measurement and (np.random.random() < 1 - self.specificity)))
 
         return measurements, uncertainty
 
@@ -132,6 +132,7 @@ class StateInformedObservation:
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         self.n_status = len(self.status_catalog.keys())
 
+
         #array of status to observe
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
 
@@ -146,7 +147,7 @@ class StateInformedObservation:
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
@@ -154,13 +155,13 @@ class StateInformedObservation:
         """
         #Candidates for observations are those with a required state >= threshold
         candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
-
         xmean = np.mean(state[:,candidate_states],axis=0)
+
         candidate_states_ens=candidate_states[(xmean>=self.obs_min_threshold) & \
-                                                  (xmean<=self.obs_max_threshold)]
+                                              (xmean<=self.obs_max_threshold)]
 
         M=candidate_states_ens.size
-        if (int(self.obs_frac*M)>=1)&(self.obs_frac < 1.0) :
+        if (int(self.obs_frac*M)>=1) and (self.obs_frac < 1.0) :
             # If there is at least one state to sample (...)>=1.0
             # and if we don't sample every state
             choice=np.random.choice(np.arange(M), size=int(self.obs_frac*M), replace=False)
@@ -171,9 +172,56 @@ class StateInformedObservation:
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
 
+
+class HighVarianceStateInformedObservation:
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status):
+
+        #number of nodes in the graph
+        self.N = N
+        #number of different states a node can be in
+
+        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.n_status = len(self.status_catalog.keys())
+
+        #array of status to observe
+        self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
+
+        #The fraction of states
+        self.obs_frac = np.clip(obs_frac,0.0,1.0)
+
+        #default init observation
+        self.obs_states = np.empty(0)
+
+    def find_observation_states(
+            self,
+            nodes,
+            state,
+            data):
+        """
+        Update the observation model when taking observation
+        """
+        candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
+        obs_states_size=int(self.obs_frac*self.N)
+
+        if (obs_states_size >= 1) and (self.obs_frac < 1.0) :
+            #Candidates for observations are those with a required state >= threshold
+            xvar = np.var(state[:,candidate_states],axis=0)
+            dec_sort_vector = np.argsort(-xvar)
+
+            self.obs_states=candidate_states[dec_sort_vector[:obs_states_size]]
+
+        elif (self.obs_frac == 1.0):
+            self.obs_states=candidate_states
+        else: #The value is too small
+            self.obs_states=np.array([],dtype=int)
+            print("no observation - increase obs_frac")
+
 #combine them together
 class Observation(StateInformedObservation, TestMeasurement):
-
     def __init__(
             self,
             N,
@@ -183,58 +231,148 @@ class Observation(StateInformedObservation, TestMeasurement):
             min_threshold=0.0,
             max_threshold=1.0,
             sensitivity=0.80,
-            specificity=0.99):
+            specificity=0.99,
+            noisy_measurement=False,
+            obs_var_min = 1e-3):
 
         self.name=obs_name
-        
-        StateInformedObservation.__init__(self, N, obs_frac, obs_status,
-                                          min_threshold, max_threshold)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        self.obs_var_min = obs_var_min
+
+        StateInformedObservation.__init__(self,
+                                          N,
+                                          obs_frac,
+                                          obs_status,
+                                          min_threshold,
+                                          max_threshold)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
         Obtain where one should make an observation based on the current state,
-        and the contact network
 
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        StateInformedObservation.find_observation_states(self, contact_network,
-                                                         state, data)
+        StateInformedObservation.find_observation_states(self,
+                                                         nodes,
+                                                         state,
+                                                         data)
 
     def observe(
             self,
-            contact_network,
+            nodes,
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
         """
 
         #make a measurement of the data
-        TestMeasurement.update_prevalence(self, state, scale)
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
 
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
-        observed_nodes = np.array(list(contact_network.nodes))[observed_states]
+        observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean, var = TestMeasurement.take_measurements(self, observed_data,
-                scale, noisy_measurement)
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], 1e-3) for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance
+
+
+#combine them together
+class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurement):
+    def __init__(
+            self,
+            N,
+            obs_frac,
+            obs_status,
+            obs_name,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=False,
+            obs_var_min = 1e-3):
+
+        self.name=obs_name
+        self.obs_var_min = obs_var_min
+
+        HighVarianceStateInformedObservation.__init__(self,
+                                                      N,
+                                                      obs_frac,
+                                                      obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
+
+    def find_observation_states(
+            self,
+            nodes,
+            state,
+            data):
+        """
+        Obtain where one should make an observation based on the current state,
+
+        Inputs:
+            state: np.array of size [self.N * n_status]
+        """
+        HighVarianceStateInformedObservation.find_observation_states(self,
+                                                                     nodes,
+                                                                     state,
+                                                                     data)
+
+    def observe(
+            self,
+            nodes,
+            state,
+            data,
+            scale='log'):
+        """
+        Inputs:
+            data: dictionary {node number : status}; data[i] = contact_network.node(i)
+        """
+
+        #make a measurement of the data
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
+
+        #mean, var np.arrays of size state
+        observed_states = np.remainder(self.obs_states,self.N)
+        #convert from np.array indexing to the node id in the (sub)graph
+        observed_nodes = nodes[observed_states]
+        observed_data = {node : data[node] for node in observed_nodes}
+
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
+
+        observed_mean     = np.array([mean[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+
+        self.mean     = observed_mean
+        self.variance = observed_variance
+
 
 class DataInformedObservation:
     def __init__(
@@ -255,14 +393,14 @@ class DataInformedObservation:
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
         Update the observation model when taking observation
         """
         # Obtain relevant data entries
-        user_nodes = np.array(list(contact_network.nodes))
+        user_nodes = nodes
         user_data = {node : data[node] for node in user_nodes}
 
         candidate_nodes = []
@@ -280,10 +418,7 @@ class DataInformedObservation:
         self.obs_states=np.hstack(candidate_states)
 
 
-
-
 class DataObservation(DataInformedObservation):
-
     def __init__(
             self,
             N,
@@ -306,11 +441,14 @@ class DataObservation(DataInformedObservation):
         self.name=obs_name
         self.set_to_one = set_to_one
 
-        DataInformedObservation.__init__(self, N, set_to_one, obs_status)
+        DataInformedObservation.__init__(self,
+                                         N,
+                                         set_to_one,
+                                         obs_status)
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
@@ -320,16 +458,17 @@ class DataObservation(DataInformedObservation):
         Inputs:
             state: np.array of size [self.N * n_status]
         """
-        DataInformedObservation.find_observation_states(self, contact_network,
-                                                        state, data)
+        DataInformedObservation.find_observation_states(self,
+                                                        nodes,
+                                                        state,
+                                                        data)
 
     def observe(
             self,
-            contact_network,
+            nodes,
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -338,13 +477,14 @@ class DataObservation(DataInformedObservation):
         #tolerance,as we cannot set values "equal" to 0 or 1
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
-        tol = 1e-10
+        MEAN_TOLERANCE     = 1e-9
+        VARIANCE_TOLERANCE = 1e-40
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:
-          
-            observed_mean = (1-tol) * np.ones(self.obs_states.size)
-            observed_variance = 1e-40 * np.ones(self.obs_states.size)
+
+            observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
+            observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
                 observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
@@ -352,8 +492,8 @@ class DataObservation(DataInformedObservation):
 
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
-            observed_mean = tol * np.ones(self.obs_states.size)
-            observed_variance = 1e-40 * np.ones(self.obs_states.size)
+            observed_mean = MEAN_TOLERANCE * np.ones(self.obs_states.size)
+            observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
                 observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
@@ -362,7 +502,7 @@ class DataObservation(DataInformedObservation):
         self.mean     = observed_mean
         self.variance = observed_variance
 
-# ==============================================================================
+
 class DataNodeInformedObservation(DataInformedObservation):
     """
     This class makes perfect observations for statuses like `H` or `D`.
@@ -376,19 +516,26 @@ class DataNodeInformedObservation(DataInformedObservation):
             N,
             bool_type,
             obs_status):
-        DataInformedObservation.__init__(self, N, bool_type, obs_status)
+
+        DataInformedObservation.__init__(self,
+                                         N,
+                                         bool_type,
+                                         obs_status)
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
         Update the observation model when taking observation
         """
-        DataInformedObservation.find_observation_states(self, contact_network, state, data)
-        self.obs_nodes       = self.obs_states % len(contact_network)
-        self.states_per_node = np.asarray([ node + len(contact_network) * np.arange(5) for node in self.obs_nodes])
+        DataInformedObservation.find_observation_states(self,
+                                                        nodes,
+                                                        state,
+                                                        data)
+        self.obs_nodes       = self.obs_states % self.N
+        self.states_per_node = np.asarray([ node + self.N * np.arange(5) for node in self.obs_nodes])
         self._obs_states     = np.copy(self.obs_states)
         self.obs_states      = self.states_per_node.flatten()
 
@@ -406,12 +553,18 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
         self.name = obs_name
 
-        DataNodeInformedObservation.__init__(self, N, bool_type, obs_status)
-        TestMeasurement.__init__(self, obs_status, sensitivity, specificity)
+        DataNodeInformedObservation.__init__(self,
+                                             N,
+                                             bool_type,
+                                             obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity)
 
     def find_observation_states(
             self,
-            contact_network,
+            nodes,
             state,
             data):
         """
@@ -422,33 +575,34 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         DataNodeInformedObservation.find_observation_states(self,
-                contact_network, state, data)
+                                                            nodes,
+                                                            state,
+                                                            data)
 
     def observe(
             self,
-            contact_network,
+            nodes,
             state,
             data,
-            scale='log',
-            noisy_measurement=False):
+            scale='log'):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
         """
+        MEAN_TOLERANCE     = 0.05/6
+        VARIANCE_TOLERANCE = 1e-5
 
-        observed_mean     = (1-0.05/6) * np.ones(self._obs_states.size)
-        observed_variance = 1e-5 * np.ones(self._obs_states.size)
+        observed_mean     = (1-MEAN_TOLERANCE) * np.ones(self._obs_states.size)
+        observed_variance = VARIANCE_TOLERANCE * np.ones(self._obs_states.size)
 
         if scale == 'log':
             observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
             observed_mean     = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
-        observed_means     = (0.01/6) * np.ones_like(self.states_per_node)
+        observed_means     = (MEAN_TOLERANCE/5) * np.ones_like(self.states_per_node)
         observed_variances = observed_variance[0] * np.ones_like(self.states_per_node)
 
         observed_means[:, self.obs_status_idx] = observed_mean.reshape(-1,1)
 
         self.mean     = observed_means.flatten()
         self.variance = observed_variances.flatten()
-
-

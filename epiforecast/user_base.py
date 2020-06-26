@@ -1,100 +1,194 @@
+from abc import ABC, abstractmethod
+
 import networkx as nx
 import numpy as np
 
-class FullUserBase:
+class UserGraphBuilder(ABC):
+    """
+    Abstract class for a user graph builder
+    """
+    @abstractmethod
+    def __call__(self):
+        pass
+
+class FullUserGraphBuilder(UserGraphBuilder):
     """
     A class to store which subset of the population are being modeled by the Master Equations
-    FullUserBase is just the `full_contact_network`.
+    FullUserGraphBuilder is just the `full_graph`.
     """
-    def __init__(self,
-                 full_contact_network):
+    def __call__(
+            self,
+            full_graph):
+        """
+        Build user subgraph from the full contact graph
 
-        self.contact_network=full_contact_network
+        Input:
+            full_graph (networkx.Graph): full contact graph
+
+        Output:
+            user_graph (networkx.Graph): users (sub)graph
+        """
+        return full_graph
 
 
-        
-    
-class FractionalUserBase:
+class FractionalUserGraphBuilder(UserGraphBuilder):
+    """
+    A class to store which subset of the population are being modeled by the
+    Master Equations FractionalUserGraphBuilder takes a random subset of the
+    population and contructs a subgraph of the largest component within this
+    fraction.
+    """
+    def __init__(
+            self,
+            user_fraction):
+        """
+        Constructor
+
+        Input:
+            user_fraction (float): value in (0,1] to specify fraction
+        """
+        self.user_fraction = user_fraction
+
+    def __call__(
+            self,
+            full_graph):
+        """
+        Build user subgraph from the full contact graph
+
+        Input:
+            full_graph (networkx.Graph): full contact graph
+
+        Output:
+            user_graph (networkx.Graph): users (sub)graph
+        """
+        scale_factor = 1.0
+        magic_number = 0.9
+
+        n_nodes = full_graph.number_of_nodes()
+        n_users_pruned_limit = magic_number * self.user_fraction * n_nodes
+        nodes = full_graph.nodes()
+
+        users_pruned = set()
+        while len(users_pruned) < n_users_pruned_limit:
+            n_users = min(int(scale_factor * self.user_fraction * n_nodes),
+                          n_nodes)
+            users = np.random.choice(nodes, n_users, replace=False)
+            user_graph_fractured = full_graph.subgraph(users)
+            users_pruned = max(nx.connected_components(user_graph_fractured),
+                               key=len)
+            scale_factor *= 1.1
+
+        return full_graph.subgraph(users_pruned)
+
+
+class ContiguousUserGraphBuilder(UserGraphBuilder):
     """
     A class to store which subset of the population are being modeled by the Master Equations
-    FractionalUserBase takes a random subset of the population and contructs a subgraph of the largest
-    component within this fraction. 
-    """
-    def __init__(self,
-                 full_contact_network,
-                 user_fraction):
-        
-        user_base=[]
-        scale_factor=1.0
-        while len(user_base)< 0.9*user_fraction*len(full_contact_network):
-            nodes_size= min(int(scale_factor*user_fraction*len(full_contact_network.nodes)),len(full_contact_network.nodes))
-            users = np.random.choice(list(full_contact_network.nodes),nodes_size, replace=False) 
-            user_base_fractured=full_contact_network.subgraph(users)
-            user_base=max(nx.connected_components(user_base_fractured),key=len)
-            scale_factor*=1.1
-            
-        self.contact_network = full_contact_network.subgraph(user_base)
-        
-
-class ContiguousUserBase:
-    """
-    A class to store which subset of the population are being modeled by the Master Equations
-    ContiguousUserBase takes a given sized population of the user base and tries to form an island of users
+    ContiguousUserGraphBuilder takes a given sized population of the user base and tries to form an island of users
     around a seed user by iteration, in each iteration we add nodes to our subgraph by either
     1) "neighbor" - [recommended] adds the neighborhood about the seed user and moving to a new user as a seed
     2) "clique" - adds the maximal clique about the seed user and  moving to a new user as a seed 
     """
-    def __init__(self,
-                 full_contact_network,
-                 user_fraction,
-                 method="neighbor",
-                 seed_user=None):
+    def __init__(
+            self,
+            user_fraction,
+            method='neighbor',
+            seed_user=None):
+        """
+        Constructor
 
-        if seed_user is None:
-            seed_user = np.random.choice(list(full_contact_network.nodes), replace=False) 
+        Input:
+            user_fraction (float): value in (0,1] to specify fraction
+        """
+        self.user_fraction = user_fraction
+        self.method = method
+        self.seed_user = seed_user
 
-        user_population = int(user_fraction * len(full_contact_network.nodes))
-        users = [seed_user]
-        idx=0
-        # method to build graph based on neighbours [recommended]
-        if method == "neighbor":
-            while len(users) < user_population and idx<len(users): 
-                new_users = full_contact_network.neighbors(users[idx])
-                new_users = [user for user in filter(lambda u: u not in users, new_users)]
-                users.extend(new_users)
-                idx=idx+1
-                
-        # method to build graph based on cliques
-        elif method == "clique": # can be very slow.
-            #get cliques about users (maximal complete graphs)
-            node_clique=list(nx.find_cliques(full_contact_network))
-            while len(users) < user_population and idx<len(users):
-                new_users = node_clique[users[idx]]
-                new_users = [user for user in filter(lambda u: u not in users, new_users)]
-                users.extend(new_users)
-                idx=idx+1
+    def __call__(
+            self,
+            full_graph):
+        """
+        Build user subgraph from the full contact graph
+
+        Input:
+            full_graph (networkx.Graph): full contact graph
+
+        Output:
+            user_graph (networkx.Graph): users (sub)graph
+        """
+        if self.seed_user is None:
+            self.seed_user = np.random.choice(full_graph.nodes())
+
+        if self.method == 'neighbor':
+            new_users_generator = self.__neighbor_generator(full_graph)
+        elif self.method == 'clique':
+            new_users_generator = self.__clique_generator(full_graph)
         else:
-            raise ValueError("unknown method, choose from: neighbor, clique")    
-        self.contact_network = full_contact_network.subgraph(users)
+            raise ValueError("unknown method, choose from: neighbor, clique")
+        new_users_generator.send(None) # generator initialization, no workaround
+
+        users = self.__choose_users_via(new_users_generator, full_graph)
+
+        return full_graph.subgraph(users)
+
+    def __choose_users_via(
+            self,
+            new_users_generator,
+            full_graph):
+        """
+        Choose users from the full graph via provided generator of new users
+
+        Input:
+            new_users_generator (generator): generator that chooses new users
+                                             based on a specified user
+            full_graph (networkx.Graph): full contact graph
+
+        Output:
+            users (list): users chosen
+        """
+        idx = 0
+        users = [self.seed_user]
+        n_users_limit = int(self.user_fraction * full_graph.number_of_nodes())
+
+        while len(users) < n_users_limit and idx<len(users):
+            new_users = new_users_generator.send(users[idx])
+            new_users = [user for user in filter(lambda u: u not in users, new_users)]
+            users.extend(new_users)
+            idx += 1
+
+        return users
+
+    @staticmethod
+    def __neighbor_generator(full_graph):
+        user = yield
+        while True:
+            user = (yield full_graph.neighbors(user))
+
+    @staticmethod
+    def __clique_generator(full_graph):
+        node_cliques = list(nx.find_cliques(full_graph))
+
+        user = yield
+        while True:
+            user = (yield node_cliques[user])
 
 
-                    
 def contiguous_indicators(graph, subgraph):
     """
     A function that returns user base subgraph indicators and corresponding edge/node
     lists with attributes "exterior" and "interior".
     """
-    edge_indicator_dict = {edge: "interior" if edge in subgraph.edges() else "exterior" for edge in graph.edges()}    
-    node_indicator_dict = {node: "interior" if node in subgraph.nodes() else "exterior" for node in graph.nodes()}    
+    edge_indicator_dict = {edge: "interior" if edge in subgraph.edges() else "exterior" for edge in graph.edges()}
+    node_indicator_dict = {node: "interior" if node in subgraph.nodes() else "exterior" for node in graph.nodes()}
 
     edge_indicator_list = []
     for key, value in  zip(edge_indicator_dict.keys(), edge_indicator_dict.values()):
         edge_indicator_list.append([key[0], key[1], value])
-    
+
     node_indicator_list = []
     for key, value in  zip(node_indicator_dict.keys(), node_indicator_dict.values()):
         node_indicator_list.append([key, value])
-        
+
     interior_nodes=0
     boundary_nodes=0
     exterior_neighbor_count=0
