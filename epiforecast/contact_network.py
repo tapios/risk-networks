@@ -98,6 +98,11 @@ class ContactNetwork:
 
         self.node_groups = node_groups
 
+
+        #Set default attributes in the case of a static network, where contact_simulator is not called
+        #(otherwise they are `implicitly` set) (explicitly set to 1.0)
+        nx.set_edge_attributes(self.graph, values=1.0, name=ContactNetwork.WJI)
+
     @staticmethod
     def __load_edges_from(filename):
         """
