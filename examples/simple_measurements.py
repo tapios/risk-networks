@@ -126,11 +126,10 @@ print(np.vstack([np.array(list(statuses.values())), list(mean.values()), list(va
 
 print('\n4th Test: Noisy measurements for positive cases -------------')
 
-test = TestMeasurement('I')
+test = TestMeasurement('I',noisy_measurement=True)
 test.update_prevalence(ode_states, scale = None)
 mean, var = test.take_measurements({node: 'I' for node in range(population)},
-                                    scale = None,
-                                    noisy_measurement = True)
+                                    scale = None)
 
 positive_test, _ = test.take_measurements({0:'I'}, scale = None)
 negative_test, _ = test.take_measurements({0:'S'}, scale = None)
@@ -141,9 +140,9 @@ negative_test = list(negative_test.values())[0]
 print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == positive_test).mean())
 
 print('\n5th Test: Noisy measurements for negative cases -------------')
+
 mean, var = test.take_measurements({node: 'S' for node in range(population)},
-                                    scale = None,
-                                    noisy_measurement = True)
+                                    scale = None)
 
 print('Fraction of correct testing: %2.2f'%(np.array(list(mean.values())) == negative_test).mean())
 
