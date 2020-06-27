@@ -84,7 +84,9 @@ print("We first create an epidemic for",simulation_length,"days, then we solve t
 #
 
 age_distribution =[0.21, 0.4, 0.25, 0.08, 0.06]
-network.draw_and_set_age_groups(age_distribution)
+health_workers_subset = [1, 2] # which age groups to draw from for h-workers
+assert sum(age_distribution) == 1.0
+network.draw_and_set_age_groups(age_distribution, health_workers_subset)
 
 # We process the clinical data to determine transition rates between each epidemiological state,
 latent_periods = 3.7

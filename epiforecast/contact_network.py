@@ -2,6 +2,8 @@ import numpy as np
 import scipy.sparse as scspa
 import networkx as nx
 
+from epiforecast.utilities import complement_mask
+
 class ContactNetwork:
     """
     Store and mutate a contact network
@@ -508,37 +510,100 @@ class ContactNetwork:
         """
         self.graph.remove_edges_from(edges)
 
+    @staticmethod
     def __draw_from(
+            distribution,
+            size):
+        """
+        Draw from `distribution` an array of numbers 0..k of size `size`
+
+        Input:
+            distribution (list),
+                         (np.array): (k,) discrete distribution (must sum to 1)
+            size (int): number of samples to draw
+
+        Output:
+            samples (np.array): (size,) array of samples
+        """
+        n_groups = len(distribution)
+        samples = np.random.choice(n_groups, p=distribution, size=size)
+
+        return samples
+
+    def __draw_community_from(
             self,
             distribution):
         """
-        Draw from distribution an array of length equal to the node count
+        Draw from distribution an array of numbers 0..k of size n_community
 
         Input:
-            distribution (np.array): discrete distribution (should sum to 1)
+            distribution (list),
+                         (np.array): (k,) discrete distribution (must sum to 1)
 
         Output:
-            age_groups (np.array): (n_nodes,) array of age groups
+            samples (np.array): (n_community,) array of samples
         """
-        n_nodes = self.get_node_count()
-        n_groups = len(distribution)
-        age_groups = np.random.choice(n_groups, p=distribution, size=n_nodes)
+        n_community = self.get_community().size
 
-        return age_groups
+        return self.__draw_from(distribution, n_community)
+
+    def __draw_health_workers_from(
+            self,
+            distribution,
+            health_workers_subset):
+        """
+        Draw from (normalized with a specified subset) distribution numbers 0..k
+
+        Input:
+            distribution (list),
+                         (np.array): (k,) discrete distribution
+            health_workers_subset (list),
+                                  (np.array): subset of age groups (e.g. [1,2])
+
+        Output:
+            samples (np.array): (n_health_workers,) array of samples
+        """
+        complement_subset = complement_mask(health_workers_subset,
+                                            len(distribution))
+
+        # create a distribution and make it sum to one
+        distribution_health_workers = np.copy(distribution)
+        distribution_health_workers[complement_subset] = 0.0
+        distribution_health_workers /= distribution_health_workers.sum()
+
+        n_health_workers = self.get_health_workers().size
+
+        return self.__draw_from(distribution_health_workers, n_health_workers)
 
     def draw_and_set_age_groups(
             self,
-            distribution):
+            distribution,
+            health_workers_subset):
         """
         Draw from `distribution` and set age groups to the nodes
 
         Input:
-            distribution (np.array): discrete distribution (should sum to 1)
+            distribution (list),
+                         (np.array): discrete distribution (should sum to 1)
+            health_workers_subset (list),
+                                  (np.array): subset of age groups (e.g. [1,2])
 
         Output:
             None
         """
-        age_groups = self.__draw_from(distribution)
+        age_groups_community      = self.__draw_community_from(distribution)
+        age_groups_health_workers = self.__draw_health_workers_from(
+                distribution,
+                health_workers_subset)
+
+        n_nodes        = self.get_node_count()
+        health_workers = self.get_health_workers()
+        community      = self.get_community()
+
+        age_groups = np.empty(n_nodes)
+        age_groups[health_workers] = age_groups_health_workers
+        age_groups[community]      = age_groups_community
+
         self.__set_node_attributes(age_groups, ContactNetwork.AGE_GROUP)
 
     def isolate(
