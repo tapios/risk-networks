@@ -69,7 +69,8 @@ class ContactNetwork:
             contact_network (ContactNetwork): initialized object
         """
         edges       = cls.__load_edges_from(edges_filename)
-        node_groups = cls.__load_node_groups_from(identifiers_filename)
+        node_groups = cls.__load_node_groups_from(identifiers_filename, 
+                                                  convert_labels_to_0N)
 
         return cls(edges, node_groups, convert_labels_to_0N)
 
@@ -125,13 +126,15 @@ class ContactNetwork:
         return edges
 
     @staticmethod
-    def __load_node_groups_from(filename):
+    def __load_node_groups_from(
+            filename, 
+            convert_labels_to_0N):
         """
         Load node groups from a txt-file
 
         Input:
             filename (str): path to a txt-file with a node-to-identifier map
-
+            convert_labels_to_0N (boolean): convert node labels to 0..N-1
         Output:
             node_groups (dict): a map from identifier indices to arrays of nodes
         """
@@ -142,10 +145,18 @@ class ContactNetwork:
 
         health_workers = nodes[identifiers == ContactNetwork.HEALTH_WORKERS_ID]
         community      = nodes[identifiers == ContactNetwork.COMMUNITY_ID]
+        
+        if convert_labels_to_0N:
+           health_workers = np.arange(health_workers.size)
+           community = np.arange(community.size)
 
-        node_groups = {
-                ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
-                ContactNetwork.COMMUNITY_INDEX      : community }
+           node_groups = {
+                   ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
+                   ContactNetwork.COMMUNITY_INDEX      : community}
+        else:
+           node_groups = {
+                   ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
+                   ContactNetwork.COMMUNITY_INDEX      : community }
 
         return node_groups
 
