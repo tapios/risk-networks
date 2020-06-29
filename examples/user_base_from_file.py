@@ -3,37 +3,69 @@ import os, sys; sys.path.append(os.path.join(".."))
 import networkx as nx
 import numpy as np
 
-from epiforecast.user_base import FullUserBase, FractionalUserBase, ContiguousUserBase
-from epiforecase.scenarios import load_edges
-
+from epiforecast.user_base import (FullUserGraphBuilder,
+                                   FractionalUserGraphBuilder,
+                                   ContiguousUserGraphBuilder)
+from epiforecast.contact_network import ContactNetwork
 
 np.random.seed(123)
 
-#Create network from nx function:
-contact_network = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
-population = len(contact_network)
+################################################################################
+# create contact network #######################################################
+################################################################################
+# 1) from nx function:
 
+#contact_graph = nx.watts_strogatz_graph(100000, 12, 0.1, 1)
+#network = ContactNetwork.from_networkx_graph(contact_graph)
 
-# Or create from file:
-edges = load_edges(os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e4_nobeds.txt')) 
+# 2) Or create from file:
+edges_filename = os.path.join('..', 'data', 'networks',
+                              'edge_list_SBM_1e4_nobeds.txt')
+groups_filename = os.path.join('..', 'data', 'networks',
+                               'node_groups_SBM_1e4_nobeds.json')
 
-contact_network = nx.Graph()
-contact_network.add_edges_from(edges)
-contact_network = nx.convert_node_labels_to_integers(contact_network)
-population = len(contact_network)
+network = ContactNetwork.from_files(edges_filename, groups_filename)
 
+print("Network loaded from files:")
+print("edges:".ljust(17)       + edges_filename)
+print("node groups:".ljust(17) + groups_filename)
 
-# create a full user base
-full_user_base=FullUserBase(contact_network)
-print(len(full_user_base.contact_network.nodes))
+################################################################################
+# create a full user network ###################################################
+################################################################################
+full_user_network = network.build_user_network_using(FullUserGraphBuilder())
 
-# create a user base from a random fraction of the population
+print("")
+print("User base: Full")
+print("number of nodes:", full_user_network.get_node_count())
+print("number of edges:", full_user_network.get_edge_count())
+
+################################################################################
+# create a user base from a random fraction of the population ##################
+################################################################################
 user_fraction = 0.01
-the_one_percent = FractionalUserBase(contact_network,user_fraction)
-print(len(the_one_percent.contact_network.nodes))
+the_one_percent = network.build_user_network_using(
+        FractionalUserGraphBuilder(user_fraction))
 
+print("")
+print("User base:", user_fraction, "fraction of nodes, randomly chosen")
+print("number of nodes:", the_one_percent.get_node_count())
+print("number of edges:", the_one_percent.get_edge_count())
 
-# create a user base from a Contiguous region about a random seed user (or a specified one)
+################################################################################
+# create a user base from a Contiguous region (neighbor method) ################
+################################################################################
 user_fraction = 0.01
-contiguous_one_percent = ContiguousUserBase(contact_network,user_fraction, seed_user=None)
-print(len(contiguous_one_percent.contact_network.nodes))
+contiguous_one_percent = network.build_user_network_using(
+        ContiguousUserGraphBuilder(user_fraction,
+                                   method="neighbor",
+                                   seed_user=None))
+
+print("")
+print("User base:",
+      user_fraction,
+      "fraction of nodes, chosen using neighbor method")
+print("number of nodes:", contiguous_one_percent.get_node_count())
+print("number of edges:", contiguous_one_percent.get_edge_count())
+
+

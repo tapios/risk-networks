@@ -1,8 +1,6 @@
 import numpy as np
 
-def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
+def random_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
     for mm in range(ensemble_size):
         infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
@@ -15,9 +13,7 @@ def random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
 
     return states_ensemble, 'rrisk'+str(int(fraction_infected*100)).zfill(3)
 
-def uniform_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
+def uniform_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
     for mm in range(ensemble_size):
         S, E, I, H, R, D = np.zeros([6, population])
@@ -28,9 +24,7 @@ def uniform_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
 
     return states_ensemble, 'urisk'+str(int(fraction_infected*100)).zfill(3)
 
-def deterministic_risk(contact_network, initial_states, ensemble_size=1):
-
-    population = len(contact_network)
+def deterministic_risk(population, initial_states, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
 
     init_catalog = {'S': False, 'I': True}
@@ -47,9 +41,7 @@ def deterministic_risk(contact_network, initial_states, ensemble_size=1):
 
     return states_ensemble, 'drisk'+str(int(fraction_infected*100)).zfill(3)
 
-def prevalence_deterministic_risk(contact_network, initial_states, ensemble_size=1):
-
-    population = len(contact_network)
+def prevalence_deterministic_risk(population, initial_states, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
 
     init_catalog = {'S': False, 'I': True}
@@ -69,9 +61,7 @@ def prevalence_deterministic_risk(contact_network, initial_states, ensemble_size
 
         return states_ensemble, 'pdrisk'+str(int(fraction_infected*100)).zfill(3)
 
-def prevalence_random_risk(contact_network, fraction_infected = 0.01, ensemble_size=1):
-
-    population = len(contact_network)
+def prevalence_random_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
     for mm in range(ensemble_size):
         infected = np.random.choice(population, replace = False, size = int(population * fraction_infected))
@@ -87,3 +77,5 @@ def prevalence_random_risk(contact_network, fraction_infected = 0.01, ensemble_s
         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 
     return states_ensemble, 'prrisk'+str(int(fraction_infected*100)).zfill(3)
+
+

@@ -94,7 +94,7 @@ class F1Score:
             tn : true negative
             fp : false positive
             fn : false negative
-            tp : tru positive
+            tp : true positive
         """
         cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
         tn, fp, fn, tp = cm.ravel()
@@ -184,6 +184,7 @@ class PerformanceTracker:
                 data: dictionary with {node : status}
                 ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
         """
-
         self.eval_metrics(data, ensemble_states)
         self.eval_prevalence(data)
+
+

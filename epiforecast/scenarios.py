@@ -2,7 +2,7 @@ import numpy as np
 import contextlib
 
 from .samplers import AgeDependentBetaSampler, GammaSampler
-from .populations import assign_ages, sample_distribution, TransitionRates
+from .populations import TransitionRates
 
 n_states = 5
 
@@ -46,19 +46,15 @@ def temporary_seed(seed):
         np.random.set_state(state)
 
 
-def random_epidemic(population_network, fraction_infected, fraction_exposed=0):
+def random_epidemic(population, nodes, fraction_infected, fraction_exposed=0):
     """
     Returns a status dictionary associated with a random infection
     within a population associated with node_identifiers.
     """
-
-    population = len(population_network)
-
     n_initial_infected = int(np.round(fraction_infected * population))
     n_initial_exposed = int(np.round(fraction_exposed * population))
 
-    statuses = {node: 'S' for node in population_network.nodes()}
-    nodes = list(population_network.nodes())
+    statuses = {node: 'S' for node in nodes}
 
     initial_infected = np.random.choice(nodes, size=n_initial_infected, replace=False)
 
@@ -210,21 +206,4 @@ def randomly_infected_ensemble(ensemble_size, population, percent_infected, rand
 
     return states
 
-
-
-
-
-def load_edges(filename):
-    """
-    Return a list of unique edges
-    Args
-    ----
-    filename (str): path to text file with a list of edges
-    """
-    edges = np.loadtxt(filename, dtype=int, comments='#')
-
-    # Remove non-unique edges, when they are included in `filename`
-    unique_edges = edges[:, 0] < edges[:, 1]
-
-    return edges[unique_edges]
 

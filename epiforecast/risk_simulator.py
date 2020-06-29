@@ -77,24 +77,22 @@ class NetworkCompartmentalModel:
 class MasterEquationModelEnsemble:
     def __init__(
             self,
-            contact_network,
+            population,
             transition_rates,
             transmission_rate,
-            ensemble_size=1,
-            hospital_transmission_reduction=0.25,
-            start_time=0.0):
+            hospital_transmission_reduction = 0.25,
+            ensemble_size = 1,
+            start_time = 0.0):
         """
         Args:
         -------
             ensemble_size : `int`
-          contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
          transition_rates : `list` or single instance of `TransitionRate` container
         transmission_rate : `list`
         """
 
-        self.G = self.contact_network = contact_network
-        self.M = self.ensemble_size = ensemble_size
-        self.N = len(self.G)
+        self.M = ensemble_size
+        self.N = population
         self.start_time = start_time
 
         self.ensemble = []
@@ -125,29 +123,21 @@ class MasterEquationModelEnsemble:
 
     def set_mean_contact_duration(
             self,
-            new_mean_contact_duration=None):
+            mean_contact_duration):
         """
-        For update purposes
+        Set mean contact duration a.k.a. L matrix
+
+        Input:
+            mean_contact_duration (scipy.sparse.csr.csr_matrix):
+                adjacency matrix
         """
-        if new_mean_contact_duration is not None:
-            self.weight = {tuple(edge): new_mean_contact_duration[i]
-                           for i, edge in enumerate(nx.edges(self.contact_network))}
-            nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
-
-        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
-
-    def set_contact_network_and_contact_duration(
-            self,
-            new_contact_network):
-        self.contact_network = new_contact_network
-        # Automatically reset the edge weights
-        self.set_mean_contact_duration()
+        self.L = mean_contact_duration
 
     def update_transmission_rate(
             self,
             new_transmission_rate):
         """
-        new_transmission_rate : `np.array` of length `ensemble_size`
+        new_transmission_rate : `np.array` of length `M`
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transmission_rate(new_transmission_rate[mm])
