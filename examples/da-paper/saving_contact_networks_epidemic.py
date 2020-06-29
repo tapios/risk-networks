@@ -23,27 +23,8 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.utilities import seed_three_random_states
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
+from epiforecast.risk_simulator_initial_conditions import deterministic_risk
 
-
-
-
-def deterministic_risk(contact_network, initial_statuses, ensemble_size=1):
-
-    population = len(contact_network)
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-    init_catalog = {'S': False, 'I': True}
-    infected = np.array([init_catalog[status] for status in list(initial_statuses.values())])
-
-    for mm in range(ensemble_size):
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
 
 #
 # Set random seeds for reproducibility
