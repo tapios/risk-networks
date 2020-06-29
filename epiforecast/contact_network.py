@@ -1,14 +1,15 @@
 import numpy as np
+import json
 import scipy.sparse as scspa
 import networkx as nx
+
+from epiforecast.utilities import complement_mask
 
 class ContactNetwork:
     """
     Store and mutate a contact network
     """
 
-    HEALTH_WORKERS_ID = 'HCW'
-    COMMUNITY_ID      = 'CITY'
     HEALTH_WORKERS_INDEX = 0
     COMMUNITY_INDEX      = 1
 
@@ -53,21 +54,21 @@ class ContactNetwork:
     def from_files(
             cls,
             edges_filename,
-            identifiers_filename,
+            groups_filename,
             convert_labels_to_0N=True):
         """
-        Create an object from files that contain edges and identifiers
+        Create an object from files that contain edges and groups
 
         Input:
             edges_filename (str): path to a txt-file with edges
-            identifiers_filename (str): path to a txt-file with node identifiers
+            groups_filename (str): path to a json-file with node groups
             convert_labels_to_0N (boolean): convert node labels to 0..N-1
 
         Output:
             contact_network (ContactNetwork): initialized object
         """
         edges       = cls.__load_edges_from(edges_filename)
-        node_groups = cls.__load_node_groups_from(identifiers_filename)
+        node_groups = cls.__load_node_groups_from(groups_filename)
 
         return cls(edges, node_groups, convert_labels_to_0N)
 
@@ -81,32 +82,32 @@ class ContactNetwork:
 
         Input:
             edges (np.array): (n_edges,2) array of edges
-            node_groups (dict): a map from identifier indices to arrays of nodes
+            node_groups (dict): a mapping group_id -> arrays_of_nodes
             convert_labels_to_0N (boolean): convert node labels to 0..N-1
         """
         nodes = np.unique(edges)
 
-        # in the following, first enforce the ascending order of the nodes,
-        # then add edges, and then (possibly) weed out missing labels (for
+        # in the following, (1) enforce the ascending order of the nodes,
+        # (2) add edges, and (3) (possibly) weed out missing labels (for
         # example, there might be no node '0', so every node 'j' gets mapped to
         # 'j-1', and the edges are remapped accordingly)
         #
         # this whole workaround is needed so that we can then simply say that
-        # nodes 0..40, for instance, are health-care workers (instead of dealing
-        # with permutations and such)
+        # nodes 0..44, for instance, are health workers (instead of dealing with
+        # permutations and such)
         self.graph = nx.Graph()
-        self.graph.add_nodes_from(nodes)
-        self.graph.add_edges_from(edges)
-        if convert_labels_to_0N:
+        self.graph.add_nodes_from(nodes) # (1)
+        self.graph.add_edges_from(edges) # (2)
+        if convert_labels_to_0N:         # (3)
             self.graph = nx.convert_node_labels_to_integers(self.graph,
                                                             ordering='sorted')
-        self.__check_correct_format(convert_labels_to_0N)
-
         self.node_groups = node_groups
 
         # set default attributes to 1.0 in the case of a static network, where
         # contact_simulator is not called (otherwise they are implicitly set)
         self.set_edge_weights(1.0)
+
+        self.__check_correct_format(convert_labels_to_0N)
 
     @staticmethod
     def __load_edges_from(filename):
@@ -125,21 +126,22 @@ class ContactNetwork:
     @staticmethod
     def __load_node_groups_from(filename):
         """
-        Load node groups from a txt-file
+        Load node groups from a json-file
 
         Input:
-            filename (str): path to a txt-file with a node-to-identifier map
-
+            filename (str): path to a json-file with total number of nodes in
+                            each group
         Output:
-            node_groups (dict): a map from identifier indices to arrays of nodes
+            node_groups (dict): a mapping group_id -> arrays_of_nodes
         """
-        nodes_and_identifiers = np.loadtxt(filename, dtype=str)
+        with open(filename) as f:
+            node_group_numbers = json.load(f)
 
-        nodes       = nodes_and_identifiers[:,0].astype(np.int)
-        identifiers = nodes_and_identifiers[:,1]
+        n_health_workers = node_group_numbers['n_health_workers']
+        n_community      = node_group_numbers['n_community']
 
-        health_workers = nodes[identifiers == ContactNetwork.HEALTH_WORKERS_ID]
-        community      = nodes[identifiers == ContactNetwork.COMMUNITY_ID]
+        health_workers = np.arange(n_health_workers)
+        community = np.arange(n_health_workers, n_health_workers + n_community)
 
         node_groups = {
                 ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
@@ -154,9 +156,10 @@ class ContactNetwork:
         Check whether the graph is in the correct format
 
         The following is checked:
-            - nodes are sorted in ascending order
+            1. nodes are sorted in ascending order
+            2. total number of nodes is equal to "community + health workers"
         If `check_labels_are_0N` is true then also check
-            - all nodes are integers in the range 0..N-1
+            3. all nodes are integers in the range 0..N-1
 
         Input:
             check_labels_are_0N (boolean): check that node labels are 0..N-1
@@ -164,21 +167,32 @@ class ContactNetwork:
         Output:
             None
         """
-        correct_format = True
-
+        n_checks = 3
+        correct_format = np.ones(n_checks, dtype=bool)
         nodes = self.get_nodes()
+        n_nodes = self.get_node_count()
+
+        # 1. check
         if not np.all(nodes[:-1] <= nodes[1:]): # if not "ascending order"
-            correct_format = False
+            correct_format[0] = False
 
+        # 2. check
+        n_health_workers = self.get_health_workers().size
+        n_community = self.get_community().size
+        if n_health_workers + n_community != n_nodes:
+            correct_format[1] = False
+
+        # 3. check
         if check_labels_are_0N:
-            node_count = self.get_node_count()
-            if not np.array_equal(nodes, np.arange(node_count)):
-                correct_format = False
+            if not np.array_equal(nodes, np.arange(n_nodes)):
+                correct_format[2] = False
 
-        if not correct_format:
+        if not correct_format.all():
             raise ValueError(
                     self.__class__.__name__
-                    + ": graph format is incorrect")
+                    + ": graph format is incorrect; "
+                    + "checks are: "
+                    + str(correct_format))
 
     def __convert_array_to_dict(
             self,
@@ -508,37 +522,100 @@ class ContactNetwork:
         """
         self.graph.remove_edges_from(edges)
 
+    @staticmethod
     def __draw_from(
+            distribution,
+            size):
+        """
+        Draw from `distribution` an array of numbers 0..k of size `size`
+
+        Input:
+            distribution (list),
+                         (np.array): (k,) discrete distribution (must sum to 1)
+            size (int): number of samples to draw
+
+        Output:
+            samples (np.array): (size,) array of samples
+        """
+        n_groups = len(distribution)
+        samples = np.random.choice(n_groups, p=distribution, size=size)
+
+        return samples
+
+    def __draw_community_from(
             self,
             distribution):
         """
-        Draw from distribution an array of length equal to the node count
+        Draw from distribution an array of numbers 0..k of size n_community
 
         Input:
-            distribution (np.array): discrete distribution (should sum to 1)
+            distribution (list),
+                         (np.array): (k,) discrete distribution (must sum to 1)
 
         Output:
-            age_groups (np.array): (n_nodes,) array of age groups
+            samples (np.array): (n_community,) array of samples
         """
-        n_nodes = self.get_node_count()
-        n_groups = len(distribution)
-        age_groups = np.random.choice(n_groups, p=distribution, size=n_nodes)
+        n_community = self.get_community().size
 
-        return age_groups
+        return self.__draw_from(distribution, n_community)
+
+    def __draw_health_workers_from(
+            self,
+            distribution,
+            health_workers_subset):
+        """
+        Draw from (normalized with a specified subset) distribution numbers 0..k
+
+        Input:
+            distribution (list),
+                         (np.array): (k,) discrete distribution
+            health_workers_subset (list),
+                                  (np.array): subset of age groups (e.g. [1,2])
+
+        Output:
+            samples (np.array): (n_health_workers,) array of samples
+        """
+        complement_subset = complement_mask(health_workers_subset,
+                                            len(distribution))
+
+        # create a distribution and make it sum to one
+        distribution_health_workers = np.copy(distribution)
+        distribution_health_workers[complement_subset] = 0.0
+        distribution_health_workers /= distribution_health_workers.sum()
+
+        n_health_workers = self.get_health_workers().size
+
+        return self.__draw_from(distribution_health_workers, n_health_workers)
 
     def draw_and_set_age_groups(
             self,
-            distribution):
+            distribution,
+            health_workers_subset):
         """
         Draw from `distribution` and set age groups to the nodes
 
         Input:
-            distribution (np.array): discrete distribution (should sum to 1)
+            distribution (list),
+                         (np.array): discrete distribution (should sum to 1)
+            health_workers_subset (list),
+                                  (np.array): subset of age groups (e.g. [1,2])
 
         Output:
             None
         """
-        age_groups = self.__draw_from(distribution)
+        age_groups_community      = self.__draw_community_from(distribution)
+        age_groups_health_workers = self.__draw_health_workers_from(
+                distribution,
+                health_workers_subset)
+
+        n_nodes        = self.get_node_count()
+        health_workers = self.get_health_workers()
+        community      = self.get_community()
+
+        age_groups = np.empty(n_nodes)
+        age_groups[health_workers] = age_groups_health_workers
+        age_groups[community]      = age_groups_community
+
         self.__set_node_attributes(age_groups, ContactNetwork.AGE_GROUP)
 
     def isolate(

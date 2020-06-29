@@ -31,3 +31,23 @@ def normalize(edge):
     if m > n: # switch
         n, m = m, n
     return n, m
+
+def complement_mask(
+        indices,
+        array_size):
+    """
+    Get mask of complement `indices` in 0..(array_size-1)
+
+    Input:
+        indices (list),
+                (np.array): either of the two:
+            - boolean array of size `array_size`
+            - array with indices, each of which is in 0..(array_size-1)
+    Output:
+        mask (np.array): boolean array of complement indices
+    """
+    mask = np.ones(array_size, dtype=bool)
+    mask[indices] = False
+    return mask
+
+

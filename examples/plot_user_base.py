@@ -28,14 +28,14 @@ write_files = False
 # 2) Or create from file:
 edges_filename = os.path.join('..', 'data', 'networks',
                               'edge_list_SBM_1e3_nobeds.txt')
-identifiers_filename = os.path.join('..', 'data', 'networks',
-                                    'node_identifier_SBM_1e3_nobeds.txt')
+groups_filename = os.path.join('..', 'data', 'networks',
+                               'node_groups_SBM_1e3_nobeds.json')
 
-network = ContactNetwork.from_files(edges_filename, identifiers_filename)
+network = ContactNetwork.from_files(edges_filename, groups_filename)
 
 print("Network loaded from files:")
 print("edges:".ljust(17)       + edges_filename)
-print("identifiers:".ljust(17) + identifiers_filename)
+print("node groups:".ljust(17) + groups_filename)
 
 ################################################################################
 # create a full user network ###################################################

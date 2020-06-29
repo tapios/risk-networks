@@ -53,6 +53,7 @@ mean_contact_lifetime = 0.5 * minute
 
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
 age_distribution = [0.207, 0.400, 0.245, 0.083, 0.065]
+health_workers_subset = [1, 2] # which age groups to draw from for h-workers
 age_dep_h      = [0.002   ,  0.010  ,  0.040,  0.076,  0.160]
 age_dep_d      = [0.000001,  0.00001,  0.001,  0.007,  0.015]
 age_dep_dprime = [0.019   ,  0.073  ,  0.193,  0.327,  0.512]
@@ -71,12 +72,11 @@ seed_three_random_states(seed)
 
 # contact network ##############################################################
 edges_filename = os.path.join(NETWORKS_PATH, 'edge_list_SBM_1e5_nobeds.txt')
-identifiers_filename = os.path.join(
-        NETWORKS_PATH, 'node_identifier_SBM_1e5_nobeds.txt')
+groups_filename = os.path.join(NETWORKS_PATH, 'node_groups_SBM_1e5_nobeds.json')
 
-network = ContactNetwork.from_files(edges_filename, identifiers_filename)
+network = ContactNetwork.from_files(edges_filename, groups_filename)
 
-network.draw_and_set_age_groups(age_distribution)
+network.draw_and_set_age_groups(age_distribution, health_workers_subset)
 network.set_lambdas(λ_min, λ_max)
                        
 # stochastic model #############################################################
