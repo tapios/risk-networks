@@ -25,27 +25,9 @@ from epiforecast.contact_network import ContactNetwork
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
-from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
-from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.utilities import seed_numba_random_state
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk
-# def deterministic_risk(population, initial_states, ensemble_size=1):
-    
-#     states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-#     init_catalog = {'S': False, 'I': True}
-#     infected = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-#     for mm in range(ensemble_size):
-#         E, I, H, R, D = np.zeros([5, population])
-#         S = np.ones(population,)
-#         I[infected] = 1.
-#         S[infected] = 0.
-
-#         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-#     return states_ensemble
 
 #
 # Set random seeds for reproducibility
@@ -73,13 +55,13 @@ population = network.get_node_count()
 populace = network.get_nodes()
 
 
-start_time =0.0
+start_time = 0.0
 minute = 1 / 60 / 24
 hour = 60 * minute
 simulation_length = 30
 print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward for this time")
-#
 
+#
 # Clinical parameters of an age-distributed population
 #
 
