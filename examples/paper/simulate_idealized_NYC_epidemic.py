@@ -72,10 +72,9 @@ seed_three_random_states(seed)
 
 # contact network ##############################################################
 edges_filename = os.path.join(NETWORKS_PATH, 'edge_list_SBM_1e5_nobeds.txt')
-identifiers_filename = os.path.join(
-        NETWORKS_PATH, 'node_identifier_SBM_1e5_nobeds.json')
+groups_filename = os.path.join(NETWORKS_PATH, 'node_groups_SBM_1e5_nobeds.json')
 
-network = ContactNetwork.from_files(edges_filename, identifiers_filename)
+network = ContactNetwork.from_files(edges_filename, groups_filename)
 
 network.draw_and_set_age_groups(age_distribution, health_workers_subset)
 network.set_lambdas(λ_min, λ_max)

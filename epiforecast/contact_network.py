@@ -54,21 +54,21 @@ class ContactNetwork:
     def from_files(
             cls,
             edges_filename,
-            identifiers_filename,
+            groups_filename,
             convert_labels_to_0N=True):
         """
-        Create an object from files that contain edges and identifiers
+        Create an object from files that contain edges and groups
 
         Input:
             edges_filename (str): path to a txt-file with edges
-            identifiers_filename (str): path to a txt-file with node identifiers
+            groups_filename (str): path to a json-file with node groups
             convert_labels_to_0N (boolean): convert node labels to 0..N-1
 
         Output:
             contact_network (ContactNetwork): initialized object
         """
         edges       = cls.__load_edges_from(edges_filename)
-        node_groups = cls.__load_node_groups_from(identifiers_filename)
+        node_groups = cls.__load_node_groups_from(groups_filename)
 
         return cls(edges, node_groups, convert_labels_to_0N)
 
@@ -82,32 +82,32 @@ class ContactNetwork:
 
         Input:
             edges (np.array): (n_edges,2) array of edges
-            node_groups (dict): a map from identifier indices to arrays of nodes
+            node_groups (dict): a mapping group_id -> arrays_of_nodes
             convert_labels_to_0N (boolean): convert node labels to 0..N-1
         """
         nodes = np.unique(edges)
 
-        # in the following, first enforce the ascending order of the nodes,
-        # then add edges, and then (possibly) weed out missing labels (for
+        # in the following, (1) enforce the ascending order of the nodes,
+        # (2) add edges, and (3) (possibly) weed out missing labels (for
         # example, there might be no node '0', so every node 'j' gets mapped to
         # 'j-1', and the edges are remapped accordingly)
         #
         # this whole workaround is needed so that we can then simply say that
-        # nodes 0..40, for instance, are health-care workers (instead of dealing
-        # with permutations and such)
+        # nodes 0..44, for instance, are health workers (instead of dealing with
+        # permutations and such)
         self.graph = nx.Graph()
-        self.graph.add_nodes_from(nodes)
-        self.graph.add_edges_from(edges)
-        if convert_labels_to_0N:
+        self.graph.add_nodes_from(nodes) # (1)
+        self.graph.add_edges_from(edges) # (2)
+        if convert_labels_to_0N:         # (3)
             self.graph = nx.convert_node_labels_to_integers(self.graph,
                                                             ordering='sorted')
-        self.__check_correct_format(convert_labels_to_0N)
-
         self.node_groups = node_groups
 
         # set default attributes to 1.0 in the case of a static network, where
         # contact_simulator is not called (otherwise they are implicitly set)
         self.set_edge_weights(1.0)
+
+        self.__check_correct_format(convert_labels_to_0N)
 
     @staticmethod
     def __load_edges_from(filename):
@@ -126,22 +126,22 @@ class ContactNetwork:
     @staticmethod
     def __load_node_groups_from(filename):
         """
-        Load node groups from a txt-file
+        Load node groups from a json-file
 
         Input:
-            filename (str): path to a txt-file with a node-to-identifier map
+            filename (str): path to a json-file with total number of nodes in
+                            each group
         Output:
-            node_groups (dict): a map from identifier indices to arrays of nodes
+            node_groups (dict): a mapping group_id -> arrays_of_nodes
         """
-        
         with open(filename) as f:
-           node_group_numbers = json.load(f)
+            node_group_numbers = json.load(f)
 
         n_health_workers = node_group_numbers['n_health_workers']
         n_community      = node_group_numbers['n_community']
-        
+
         health_workers = np.arange(n_health_workers)
-        community = np.arange(n_community)
+        community = np.arange(n_health_workers, n_health_workers + n_community)
 
         node_groups = {
                 ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
@@ -156,9 +156,10 @@ class ContactNetwork:
         Check whether the graph is in the correct format
 
         The following is checked:
-            - nodes are sorted in ascending order
+            1. nodes are sorted in ascending order
+            2. total number of nodes is equal to "community + health workers"
         If `check_labels_are_0N` is true then also check
-            - all nodes are integers in the range 0..N-1
+            3. all nodes are integers in the range 0..N-1
 
         Input:
             check_labels_are_0N (boolean): check that node labels are 0..N-1
@@ -166,21 +167,32 @@ class ContactNetwork:
         Output:
             None
         """
-        correct_format = True
-
+        n_checks = 3
+        correct_format = np.ones(n_checks, dtype=bool)
         nodes = self.get_nodes()
+        n_nodes = self.get_node_count()
+
+        # 1. check
         if not np.all(nodes[:-1] <= nodes[1:]): # if not "ascending order"
-            correct_format = False
+            correct_format[0] = False
 
+        # 2. check
+        n_health_workers = self.get_health_workers().size
+        n_community = self.get_community().size
+        if n_health_workers + n_community != n_nodes:
+            correct_format[1] = False
+
+        # 3. check
         if check_labels_are_0N:
-            node_count = self.get_node_count()
-            if not np.array_equal(nodes, np.arange(node_count)):
-                correct_format = False
+            if not np.array_equal(nodes, np.arange(n_nodes)):
+                correct_format[2] = False
 
-        if not correct_format:
+        if not correct_format.all():
             raise ValueError(
                     self.__class__.__name__
-                    + ": graph format is incorrect")
+                    + ": graph format is incorrect; "
+                    + "checks are: "
+                    + str(correct_format))
 
     def __convert_array_to_dict(
             self,

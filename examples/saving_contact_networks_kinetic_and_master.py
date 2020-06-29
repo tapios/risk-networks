@@ -65,20 +65,23 @@ seed_numba_random_state(seed)
 # Load and construct an example network
 #
 
-edges_filename = os.path.join('..', 'data', 'networks', 'edge_list_SBM_1e3_nobeds.txt')
-identifiers_filename = os.path.join('..', 'data', 'networks', 'node_identifier_SBM_1e3_nobeds.json')
+edges_filename = os.path.join('..', 'data', 'networks',
+                              'edge_list_SBM_1e3_nobeds.txt')
+groups_filename = os.path.join('..', 'data', 'networks',
+                               'node_groups_SBM_1e3_nobeds.json')
 
-network = ContactNetwork.from_files(edges_filename,identifiers_filename)
+network = ContactNetwork.from_files(edges_filename, groups_filename)
 population = network.get_node_count()
 populace = network.get_nodes()
 
 
-start_time =0.0
+start_time = 0.0
 minute = 1 / 60 / 24
 hour = 60 * minute
 simulation_length = 30
-print("We first create an epidemic for",simulation_length,"days, then we solve the master equations forward for this time")
-#
+print("We first create an epidemic for",
+      simulation_length,
+      "days, then we solve the master equations forward for this time")
 
 # Clinical parameters of an age-distributed population
 #
