@@ -109,26 +109,8 @@ initial_statuses = loaded_data.start_statuses
 
 ensemble_size = 100
 
-
-latent_periods = 3.7
-community_infection_periods = 3.2
-hospital_infection_periods = 5.0
-hospitalization_fraction = 0.04      #AgeDependentConstant[0.002,  0.01,   0.04, 0.076,  0.16])
-community_mortality_fraction = 0.001 #AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015])
-hospital_mortality_fraction = 0.193  #AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512])
-
 transition_rates_ensemble = []
-for i in range(ensemble_size):
-
-    transition_rates = TransitionRates(population = user_network.get_node_count(),
-                                       lp_sampler = latent_periods,
-                                       cip_sampler = community_infection_periods,
-                                       hip_sampler = hospital_infection_periods,
-                                       hf_sampler = hospitalization_fraction,
-                                       cmf_sampler = community_mortality_fraction,
-                                       hmf_sampler = hospital_mortality_fraction)
-    
-    transition_rates.calculate_from_clinical() 
+for i in range(ensemble_size):  
     transition_rates_ensemble.append(transition_rates)
  
 #set transmission_rates
