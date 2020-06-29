@@ -160,7 +160,7 @@ users = list(user_base.contact_network.nodes)
 user_population=len(user_base.contact_network)
 
 # we assign a score [0, 1] of how many inner and outer connections the users have.
-assign_user_connectivity_to_contact_network(contact_network, user_base.contact_network)
+user_connectivity_score = calc_user_connectivity_score(contact_network, user_base.contact_network)
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
@@ -183,6 +183,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(contact_network = user_base.co
                                                   transmission_rate = community_transmission_rate_ensemble,
                                                   hospital_transmission_reduction = hospital_transmission_reduction,
                                                   exogenous_transmission_rate = exogenous_transmission_rate_ensemble,
+                                                  user_connectivity_score = user_connectivity_score
                                                   ensemble_size = ensemble_size,
                                                   start_time = start_time)
 

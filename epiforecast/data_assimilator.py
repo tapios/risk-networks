@@ -92,7 +92,7 @@ class DataAssimilator:
 
     def find_observation_states(
             self,
-            user_network,
+            user_nodes,
             ensemble_state,
             data):
         """
@@ -103,7 +103,9 @@ class DataAssimilator:
         print("Observation type : Number of Observed states")
         observed_states = []
         for observation in self.observations:
-            observation.find_observation_states(user_network, ensemble_state, data)
+            observation.find_observation_states(user_nodes,
+                                                ensemble_state,
+                                                data)
             print(observation.name,":",len(observation.obs_states))
             if observation.obs_states.size > 0:
                 observed_states.extend(observation.obs_states)
@@ -113,7 +115,7 @@ class DataAssimilator:
 
     def observe(
             self,
-            contact_network,
+            user_nodes,
             state,
             data,
             scale='log',
@@ -123,7 +125,7 @@ class DataAssimilator:
         observed_variances = []
         for observation in self.observations:
             if (observation.obs_states.size >0):
-                observation.observe(contact_network,
+                observation.observe(user_nodes,
                                     state,
                                     data,
                                     scale)
@@ -149,7 +151,7 @@ class DataAssimilator:
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
             full_ensemble_exogenous_transmission_rate,
-            user_network):
+            user_nodes):
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -194,26 +196,27 @@ class DataAssimilator:
             else: # set to column of empties
                 ensemble_exogenous_transmission_rate = np.empty((ensemble_size, 0), dtype=float)
 
-            om = self.observations
             dam = self.damethod
 
-            obs_states = self.find_observation_states(user_network, ensemble_state, data) # Generate states to observe
+            # Generate states to observe
+            obs_states = self.find_observation_states(user_nodes,
+                                                      ensemble_state,
+                                                      data)
             if (obs_states.size > 0):
-
                 print("Total states to be assimilated: ", obs_states.size)
-                # Get the truth indices, for the observation(s)
 
-                truth,var = self.observe(
-                    user_network,
-                    ensemble_state,
-                    data,
-                    scale = None)
-              
+                # Get the truth indices, for the observation(s)
+                truth,var = self.observe(user_nodes,
+                                         ensemble_state,
+                                         data,
+                                         scale = None)
                 cov = np.diag(var)
+
+                # Get the covariances for the observation(s), with the minimum returned if two overlap
+                #cov = self.get_observation_cov()
+                # Perform da model update with ensemble_state: states, transition and transmission rates
+
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
-                
-                # Perform da model update with ensemble_state: states, transition and transmission rates       
-                
                 (ensemble_state[:, obs_states],
                  new_ensemble_transition_rates,
                  new_ensemble_transmission_rate,
@@ -224,11 +227,9 @@ class DataAssimilator:
                                ensemble_exogenous_transmission_rate,
                                truth,
                                cov)
-                
-                #enforce statuses of an updated node to sum up to 1 
+
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
-               
-                
+
                 # Update the new transition rates if required
                 if len(self.transition_rates_to_update_str) > 0:
 
@@ -250,6 +251,8 @@ class DataAssimilator:
                             full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_rates)
 
                             new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
+
+                        full_ensemble_transition_rates[member].calculate_from_clinical()
 
                 # Update the transmission_rate if required
                 if self.transmission_rate_to_update_flag is True:
@@ -297,8 +300,6 @@ class DataAssimilator:
         # take error
         actual_infected= em.obs_states
 
-        #print(truth[actual_infected])
-
         different_states=np.zeros(em.n_status*em.N)
         different_states[predicted_infected]=1.0
         different_states[actual_infected] = different_states[actual_infected]-1.0
@@ -314,7 +315,7 @@ class DataAssimilator:
             self,
             prev_ensemble_state,
             ensemble_state):
-        
+
         N = self.observations[0].N
 
         # First obtain the mass contained in category "E"

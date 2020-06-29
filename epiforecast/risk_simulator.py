@@ -13,7 +13,7 @@ class NetworkCompartmentalModel:
             N,
             user_connectivity,
             hospital_transmission_reduction = 0.25):
-
+        
         self.hospital_transmission_reduction = hospital_transmission_reduction
         self.user_connectivity = user_connectivity
         self.N = N
@@ -47,7 +47,6 @@ class NetworkCompartmentalModel:
             self.gamma  = self.theta  + self.mu  + self.delta
             self.gammap = self.thetap + self.mup
 
-            # Reduced system with 5 equations ------------------------------
             iS, iI, iH = [range(jj * self.N, (jj + 1) * self.N) for jj in range(3)]
             self.coeffs = sps.csr_matrix(sps.bmat(
                 [
@@ -62,9 +61,7 @@ class NetworkCompartmentalModel:
             self.offset[iI] = self.sigma
             self.y_dot = np.zeros_like(5 * self.N,)
 
-    def update_transition_rates(
-            self,
-            new_transition_rates):
+    def update_transition_rates(self, new_transition_rates):
         """
         Args:
         -------
@@ -102,35 +99,32 @@ class NetworkCompartmentalModel:
 class MasterEquationModelEnsemble:
     def __init__(
             self,
-            contact_network,
+            population,
             transition_rates,
             transmission_rate,
-            ensemble_size = 1,
             exogenous_transmission_rate = None,
+            user_connectivity_score = None,
             hospital_transmission_reduction = 0.25,
+            ensemble_size = 1,
             start_time = 0.0):
         """
         Args:
         -------
             ensemble_size : `int`
-          contact_network : `networkx.graph.Graph` or Weighted adjacency matrix `scipy.sparse.csr_matrix`
          transition_rates : `list` or single instance of `TransitionRate` container
         transmission_rate : `np.array` length ensemble size
         exogenous_transmission_rate    : `np.array` length ensemble size  (defined for when user network smaller than contact network)
+        user_connectivity_score        : `np.array` length user base containing [0,1] values
         """
 
-       
-        
-        self.G = self.contact_network = contact_network
-        self.M = self.ensemble_size = ensemble_size
-        self.N = len(self.G)
+        self.M = ensemble_size
+        self.N = population
         self.start_time = start_time
 
-        if exogenous_transmission_rate is None:
+        if user_connectivity_score is None:
             self.user_connectivity = np.ones(self.N)
-        else:   
-            user_connectivity = nx.get_node_attributes(self.G, name = 'user_connectivity')
-            self.user_connectivity = np.array([user_connectivity[node] for node in self.G.nodes])
+        else:
+            self.user_connectivity = user_connectivity_score
 
         if exogenous_transmission_rate is None:
             if isinstance(transition_rates, list):
@@ -167,29 +161,21 @@ class MasterEquationModelEnsemble:
 
     def set_mean_contact_duration(
             self,
-            new_mean_contact_duration=None):
+            mean_contact_duration):
         """
-        For update purposes
+        Set mean contact duration a.k.a. L matrix
+
+        Input:
+            mean_contact_duration (scipy.sparse.csr.csr_matrix):
+                adjacency matrix
         """
-        if new_mean_contact_duration is not None:
-            self.weight = {tuple(edge): new_mean_contact_duration[i]
-                           for i, edge in enumerate(nx.edges(self.contact_network))}
-            nx.set_edge_attributes(self.contact_network, values=self.weight, name='exposed_by_infected')
-
-        self.L = nx.to_scipy_sparse_matrix(self.contact_network, weight = 'exposed_by_infected')
-
-    def set_contact_network_and_contact_duration(
-            self,
-            new_contact_network):
-        self.contact_network = new_contact_network
-        # Automatically reset the edge weights
-        self.set_mean_contact_duration()
+        self.L = mean_contact_duration
 
     def update_transmission_rate(
             self,
             new_transmission_rate):
         """
-        new_transmission_rate : `np.array` of length `ensemble_size`
+        new_transmission_rate : `np.array` of length `M`
         """
         for mm, member in enumerate(self.ensemble):
             member.update_transmission_rate(new_transmission_rate[mm])
@@ -323,7 +309,7 @@ class MasterEquationModelEnsemble:
             n_steps = 100,
             closure = 'independent',
             **kwargs):
-        """    
+        """
         Args:
         -------
         time_window : duration of simulation
@@ -333,10 +319,10 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time - time_window
         t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
         self.dt = np.diff(t).min()
-        
+
         yt      = np.empty([self.y0.size, t.size])
         yt[:,0] = self.y0.flatten()
-        
+
         for jj, time in tqdm(enumerate(t[:-1]),
                              desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
                              total = t.size - 1):

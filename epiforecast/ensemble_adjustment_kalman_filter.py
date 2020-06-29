@@ -6,9 +6,9 @@ class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
-            full_svd = True, 
-            params_cov_noise = 1e-6,
-            states_cov_noise = 1e-6, 
+            full_svd = True,
+            params_cov_noise = 1e-2,
+            states_cov_noise = 1e-2,
             params_noise_active = True,
             states_noise_active = True):
         '''
@@ -87,10 +87,12 @@ class EnsembleAdjustmentKalmanFilter:
             'EAKF init: truth and cov are not the correct sizes'
 
         # Observation data statistics at the observed nodes
-       
-        cov = np.clip((1./np.maximum(truth, 1e-12)/np.maximum(1-truth, 1e-12)), -5, 5)**2 * cov
-        x_t = np.log(np.maximum(truth, 1e-12)/np.maximum(1.-truth, 1e-12))
-       
+        x_t = truth
+        cov = r**2 * cov
+
+        #cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
+        cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
+        x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
 
         try:

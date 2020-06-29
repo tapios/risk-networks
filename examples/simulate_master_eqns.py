@@ -1,56 +1,65 @@
 import os, sys; sys.path.append(os.path.join(".."))
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.populations import populate_ages, sample_distribution, TransitionRates
-from epiforecast.samplers import GammaSampler, BetaSampler
+from epiforecast.populations import TransitionRates
 from epiforecast.epiplots import plot_master_eqns
+from epiforecast.contact_network import ContactNetwork
 
 import numpy as np
 import networkx as nx
 
-population = 1000
-# define the contact network [networkx.graph] - haven't done this yet
-contact_network = nx.watts_strogatz_graph(population, 12, 0.1, 1)
 
+# define the contact network [networkx.graph] - haven't done this yet
+contact_graph = nx.watts_strogatz_graph(1000, 12, 0.1, 1)
+network = ContactNetwork.from_networkx_graph(contact_graph)
+population = network.get_node_count()
 # give the ensemble size (is this required)
 ensemble_size = 10
 
 # ------------------------------------------------------------------------------
-# Third test: create transition rates and populate the ensemble
+#  create transition rates and populate the ensemble
+latent_periods = 3.0
+community_infection_periods = 3.0
+hospital_infection_periods = 5.0
+hospitalization_fraction = 0.01 
+community_mortality_fraction = 0.001
+hospital_mortality_fraction = 0.01
+no_age_categories = np.ones(population)
+transition_rates_ensemble = []
+for i in range(ensemble_size):
+    transition_rates =TransitionRates(population = population,
+                                      lp_sampler = latent_periods,
+                                      cip_sampler = community_infection_periods,
+                                      hip_sampler = hospital_infection_periods,
+                                      hf_sampler = hospitalization_fraction,
+                                      cmf_sampler = community_mortality_fraction,
+                                      hmf_sampler = hospital_mortality_fraction,
+                                      distributional_parameters = no_age_categories)
+    transition_rates.calculate_from_clinical()
+    transition_rates_ensemble.append(transition_rates)
 
-latent_periods              = sample_distribution(GammaSampler(k=1.7, theta=2.0), population=population, minimum=2)
-community_infection_periods = sample_distribution(GammaSampler(k=1.5, theta=2.0), population=population, minimum=1)
-hospital_infection_periods  = sample_distribution(GammaSampler(k=1.5, theta=3.0), population=population, minimum=1)
+transmission_rate = 10*np.ones([ensemble_size,1])
 
-hospitalization_fraction     = sample_distribution(BetaSampler(mean=0.25, b=4), population=population)
-community_mortality_fraction = sample_distribution(BetaSampler(mean=0.02, b=4), population=population)
-hospital_mortality_fraction  = sample_distribution(BetaSampler(mean=0.04, b=4), population=population)
+# WARNING: Do not call the following line, it is only for the kinetic model simulator.
+#network.set_transition_rates_for_kinetic_model(transition_rates)
 
-transition_rates = TransitionRates(contact_network,
-                                   latent_periods,
-                                   community_infection_periods,
-                                   hospital_infection_periods,
-                                   hospitalization_fraction,
-                                   community_mortality_fraction,
-                                   hospital_mortality_fraction)
 
-transmission_rate = 0.06*np.ones(ensemble_size)
-
-print('First test: passed ------------------------------------------------------')
 # ------------------------------------------------------------------------------
-# Fourth test: create object with all parameters at once
-master_eqn_ensemble = MasterEquationModelEnsemble(
-                        contact_network,
-                        [transition_rates]*ensemble_size,
-                        transmission_rate,
-                        ensemble_size = ensemble_size)
-print('Second test: passed -----------------------------------------------------')
+# create object with all parameters at once
+start_time=0.0
+master_eqn_ensemble = MasterEquationModelEnsemble(population = population,
+                                                  transition_rates = transition_rates_ensemble,
+                                                  transmission_rate = transmission_rate,
+                                                  hospital_transmission_reduction = 1.0,
+                                                  ensemble_size = ensemble_size,
+                                                  start_time = start_time)
+print('Created master equations object  -----------------------------------------------------')
 
 # ------------------------------------------------------------------------------
 # Fifth test: simulate the epidemic through the master equations
 np.random.seed(1)
 
 I_perc = 0.01
-y0 = np.zeros([ensemble_size, 5 * population])
+states_ensemble = np.zeros([ensemble_size, 5 * population])
 
 for mm, member in enumerate(master_eqn_ensemble.ensemble):
     infected = np.random.choice(population, replace = False, size = int(population * I_perc))
@@ -59,34 +68,26 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
     I[infected] = 1.
     S[infected] = 0.
 
-    y0[mm, : ] = np.hstack((S, I, H, R, D))
+    states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
 
-master_eqn_ensemble.set_mean_contact_duration()
-master_eqn_ensemble.set_states_ensemble(y0)
-res = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
+#simulate without closure
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
+res1 = master_eqn_ensemble.simulate(100, n_steps = 20, closure = None)
+#simulate on coarse mesh without closure
+master_eqn_ensemble.set_start_time(start_time)
+master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+res2 = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
 
+#simulate on fine mesh with closure
 
-master_eqn_ensemble.set_mean_contact_duration()
-master_eqn_ensemble.set_states_ensemble(y0)
-res = master_eqn_ensemble.simulate(100, n_steps = 200)
+master_eqn_ensemble.set_start_time(start_time)
+master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
+master_eqn_ensemble.set_states_ensemble(states_ensemble)
+res3 = master_eqn_ensemble.simulate(100, n_steps = 200)
 print('Simulation done!')
 
-# fig, axes = plot_master_eqns(res['states'], res['times'])
-
-# current_state = np.random.uniform(0.01, 0.2, size=(ensemble_size,5*population))
-# static_network_interval=0.25
-# new_state = master_eqn_ensemble.simulate(current_state, static_network_interval)
-#can optionally
-#n_steps=number of steps(=100), t_0=initial_time(=0), and closure(='independent')
-
-
-# in practice when we update we will always update rates and network at the same time:
-# new_contact_network = nx.watts_strogatz_graph(population, 12, 0.1, 2)
-# new_transmission_rate = 0.08*np.ones(ensemble_size)
-# master_eqn_ensemble.update_ensemble(new_contact_network=new_contact_network,
-#                                     new_transition_rates=new_transition_rates,
-#                                     new_transmission_rate=new_transmission_rate)
 
 
 
-#verification test?

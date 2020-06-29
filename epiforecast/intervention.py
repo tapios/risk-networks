@@ -7,24 +7,24 @@ class Intervention:
 
     Currently can only do a simple strategy with thresholds for E(xposed) and
     I(infected) in a "binary or" fashion:
-      apply intervention to node[i] if (E[i] > E_thr) or (I[i] > I_thr)
+        apply intervention to node[i] if (E[i] > E_thr) or (I[i] > I_thr)
 
     The class is aware of ensemble members, i.e. E[i] and I[i] in the above are
     computed as ensemble means of respective E[i]'s and I[i]'s
 
     Methods:
-      find_sick
-      apply_intervention
+        find_sick
 
     Example:
-      N = len(contact_network)
-      M = ensemble_size
-      intervention = Intervention(N, M, compartment_index, E_thr=0.7, I_thr=0.5)
+        network = ContactNetwork.from_files(edges_filename, identifiers_filename)
+        N = network.get_count_node()
+        M = ensemble_size
+        intervention = Intervention(N, M, compartment_index, E_thr=0.7, I_thr=0.5)
 
-      for k in range(time_steps):
-        # kinetic, master, DA
-        sick_nodes = intervention.find_sick(ensemble_states)
-        intervention.apply_intervention(contact_network, sick_nodes)
+        for k in range(time_steps):
+            # kinetic, master, DA
+            sick_nodes = intervention.find_sick(ensemble_states)
+            network.isolate(sick_nodes)
   """
 
   def __init__(self, N, M, compartment_index, E_thr=0.5, I_thr=0.5):
@@ -101,22 +101,5 @@ class Intervention:
     return np.where(
         (E_ensemble_mean > self.E_thr) | (I_ensemble_mean > self.I_thr)
         )[0]
-
-  def apply_intervention(self, contact_network, sick_nodes, λ_isolation=1.0):
-    """
-      Isolate sick by setting λ's of sick nodes to λ_isolation
-    """
-
-    λ_min = nx.get_node_attributes(contact_network, name='night_inception_rate')
-    λ_max = nx.get_node_attributes(contact_network, name='day_inception_rate')
-
-    for j in sick_nodes:
-      λ_min[j] = λ_isolation
-      λ_max[j] = λ_isolation
-
-    nx.set_node_attributes(contact_network, values=λ_min,
-        name='night_inception_rate')
-    nx.set_node_attributes(contact_network, values=λ_max,
-        name='day_inception_rate')
 
 
