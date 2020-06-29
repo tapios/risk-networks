@@ -73,7 +73,7 @@ seed_three_random_states(seed)
 # contact network ##############################################################
 edges_filename = os.path.join(NETWORKS_PATH, 'edge_list_SBM_1e5_nobeds.txt')
 identifiers_filename = os.path.join(
-        NETWORKS_PATH, 'node_identifier_SBM_1e5_nobeds.txt')
+        NETWORKS_PATH, 'node_identifier_SBM_1e5_nobeds.json')
 
 network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 

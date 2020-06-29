@@ -22,7 +22,7 @@ np.random.seed(123)
 edges_filename = os.path.join('..', 'data', 'networks',
                               'edge_list_SBM_1e4_nobeds.txt')
 identifiers_filename = os.path.join('..', 'data', 'networks',
-                                    'node_identifier_SBM_1e4_nobeds.txt')
+                                    'node_identifier_SBM_1e4_nobeds.json')
 
 network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 

@@ -29,7 +29,7 @@ write_files = False
 edges_filename = os.path.join('..', 'data', 'networks',
                               'edge_list_SBM_1e3_nobeds.txt')
 identifiers_filename = os.path.join('..', 'data', 'networks',
-                                    'node_identifier_SBM_1e3_nobeds.txt')
+                                    'node_identifier_SBM_1e3_nobeds.json')
 
 network = ContactNetwork.from_files(edges_filename, identifiers_filename)
 

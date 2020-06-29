@@ -1,4 +1,5 @@
 import numpy as np
+import json
 import scipy.sparse as scspa
 import networkx as nx
 
@@ -9,8 +10,6 @@ class ContactNetwork:
     Store and mutate a contact network
     """
 
-    HEALTH_WORKERS_ID = 'HCW'
-    COMMUNITY_ID      = 'CITY'
     HEALTH_WORKERS_INDEX = 0
     COMMUNITY_INDEX      = 1
 
@@ -69,8 +68,7 @@ class ContactNetwork:
             contact_network (ContactNetwork): initialized object
         """
         edges       = cls.__load_edges_from(edges_filename)
-        node_groups = cls.__load_node_groups_from(identifiers_filename, 
-                                                  convert_labels_to_0N)
+        node_groups = cls.__load_node_groups_from(identifiers_filename)
 
         return cls(edges, node_groups, convert_labels_to_0N)
 
@@ -126,37 +124,28 @@ class ContactNetwork:
         return edges
 
     @staticmethod
-    def __load_node_groups_from(
-            filename, 
-            convert_labels_to_0N):
+    def __load_node_groups_from(filename):
         """
         Load node groups from a txt-file
 
         Input:
             filename (str): path to a txt-file with a node-to-identifier map
-            convert_labels_to_0N (boolean): convert node labels to 0..N-1
         Output:
             node_groups (dict): a map from identifier indices to arrays of nodes
         """
-        nodes_and_identifiers = np.loadtxt(filename, dtype=str)
-
-        nodes       = nodes_and_identifiers[:,0].astype(np.int)
-        identifiers = nodes_and_identifiers[:,1]
-
-        health_workers = nodes[identifiers == ContactNetwork.HEALTH_WORKERS_ID]
-        community      = nodes[identifiers == ContactNetwork.COMMUNITY_ID]
         
-        if convert_labels_to_0N:
-           health_workers = np.arange(health_workers.size)
-           community = np.arange(community.size)
+        with open(filename) as f:
+           node_group_numbers = json.load(f)
 
-           node_groups = {
-                   ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
-                   ContactNetwork.COMMUNITY_INDEX      : community}
-        else:
-           node_groups = {
-                   ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
-                   ContactNetwork.COMMUNITY_INDEX      : community }
+        n_health_workers = node_group_numbers['n_health_workers']
+        n_community      = node_group_numbers['n_community']
+        
+        health_workers = np.arange(n_health_workers)
+        community = np.arange(n_community)
+
+        node_groups = {
+                ContactNetwork.HEALTH_WORKERS_INDEX : health_workers,
+                ContactNetwork.COMMUNITY_INDEX      : community }
 
         return node_groups
 
