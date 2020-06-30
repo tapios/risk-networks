@@ -32,23 +32,27 @@ class ContactNetwork:
     def from_networkx_graph(
             cls,
             graph,
-            convert_labels_to_0N=True):
+            check_labels_are_0N=True):
         """
         Create an object from a nx.Graph object
 
         Input:
             graph (nx.Graph): an object to use as a contact network graph
-            convert_labels_to_0N (boolean): convert node labels to 0..N-1
+            check_labels_are_0N (boolean): check that node labels are 0..N-1
 
         Output:
             contact_network (ContactNetwork): initialized object
         """
-        edges       = np.array(graph.edges)
+        # sorted_graph is identical to graph, but with nodes in ascending order
+        sorted_graph = cls.__create_sorted_networkx_graph_from(graph.nodes)
+        sorted_graph.update(graph)
+
+        nodes = sorted_graph.nodes
         node_groups = {
                 ContactNetwork.HEALTH_WORKERS_INDEX : np.array([]),
-                ContactNetwork.COMMUNITY_INDEX      : np.array(graph.nodes) }
+                ContactNetwork.COMMUNITY_INDEX      : np.array(nodes) }
 
-        return cls(edges, node_groups, convert_labels_to_0N)
+        return cls(sorted_graph, node_groups, check_labels_are_0N)
 
     @classmethod
     def from_files(
@@ -70,23 +74,6 @@ class ContactNetwork:
         edges       = cls.__load_edges_from(edges_filename)
         node_groups = cls.__load_node_groups_from(groups_filename)
 
-        return cls(edges, node_groups, convert_labels_to_0N)
-
-    def __init__(
-            self,
-            edges,
-            node_groups,
-            convert_labels_to_0N):
-        """
-        Constructor
-
-        Input:
-            edges (np.array): (n_edges,2) array of edges
-            node_groups (dict): a mapping group_id -> arrays_of_nodes
-            convert_labels_to_0N (boolean): convert node labels to 0..N-1
-        """
-        nodes = np.unique(edges)
-
         # in the following, (1) enforce the ascending order of the nodes,
         # (2) add edges, and (3) (possibly) weed out missing labels (for
         # example, there might be no node '0', so every node 'j' gets mapped to
@@ -95,19 +82,51 @@ class ContactNetwork:
         # this whole workaround is needed so that we can then simply say that
         # nodes 0..44, for instance, are health workers (instead of dealing with
         # permutations and such)
-        self.graph = nx.Graph()
-        self.graph.add_nodes_from(nodes) # (1)
-        self.graph.add_edges_from(edges) # (2)
-        if convert_labels_to_0N:         # (3)
-            self.graph = nx.convert_node_labels_to_integers(self.graph,
-                                                            ordering='sorted')
+        graph = cls.__create_sorted_networkx_graph_from(edges) # (1)
+        graph.add_edges_from(edges)                            # (2)
+        if convert_labels_to_0N:                               # (3)
+            graph = nx.convert_node_labels_to_integers(graph, ordering='sorted')
+
+        contact_network = cls(graph, node_groups, convert_labels_to_0N)
+        contact_network.set_edge_weights(1.0) # this is done by networkx anyway
+
+        return contact_network
+
+    def __init__(
+            self,
+            graph,
+            node_groups,
+            check_labels_are_0N):
+        """
+        Constructor
+
+        Input:
+            graph (nx.Graph): graph object with node and edge attributes
+            node_groups (dict): a mapping group_id -> arrays_of_nodes
+            check_labels_are_0N (boolean): check that node labels are 0..N-1
+        """
+        self.graph = graph
         self.node_groups = node_groups
 
-        # set default attributes to 1.0 in the case of a static network, where
-        # contact_simulator is not called (otherwise they are implicitly set)
-        self.set_edge_weights(1.0)
+        self.__check_correct_format(check_labels_are_0N)
 
-        self.__check_correct_format(convert_labels_to_0N)
+    @staticmethod
+    def __create_sorted_networkx_graph_from(nodes_or_edges):
+        """
+        Create a nx.Graph object with nodes in ascending order
+
+        Input:
+            nodes_or_edges (iterable): a list of nodes or edges
+
+        Output:
+            sorted_graph (nx.Graph): an object with nodes in ascending order
+        """
+        nodes = np.unique(nodes_or_edges)
+
+        sorted_graph = nx.Graph()
+        sorted_graph.add_nodes_from(nodes)
+
+        return sorted_graph
 
     @staticmethod
     def __load_edges_from(filename):
@@ -652,6 +671,29 @@ class ContactNetwork:
         """
         user_graph = user_graph_builder(self.graph)
         return ContactNetwork.from_networkx_graph(user_graph, False)
+
+    def update_from(
+            self,
+            contact_network):
+        """
+        Update the graph from another object whose graph is a supergraph
+
+        The contact_network.graph should have at least the same nodes as
+        self.graph, plus maybe additional ones.
+
+        Input:
+            contact_network (ContactNetwork): object to update from
+
+        Output:
+            None
+        """
+        nodes = self.get_nodes()
+        contact_graph = contact_network.get_graph()
+        contact_sugraph = contact_graph.subgraph(nodes)
+
+        # nx.Graph.update does not delete edges; hence this workaround
+        self.graph = self.__create_sorted_networkx_graph_from(nodes)
+        self.graph.update(contact_subgraph)
 
     # TODO extract into a separate class
     @staticmethod
