@@ -50,4 +50,20 @@ def complement_mask(
     mask[indices] = False
     return mask
 
+def mask_by_compartment(
+        states,
+        compartment):
+    """
+    Get mask of indices for which state is equal to `compartment`
+
+    Input:
+        states (dict): a mapping node -> state
+        compartment (char): which compartment to return mask for
+    Output:
+        mask (np.array): boolean array of indices
+    """
+    states_array = np.fromiter(states.values(), dtype='<U1')
+    mask = (states_array == compartment)
+    return mask
+
 
