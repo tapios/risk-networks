@@ -87,7 +87,10 @@ class ContactNetwork:
         if convert_labels_to_0N:                               # (3)
             graph = nx.convert_node_labels_to_integers(graph, ordering='sorted')
 
-        return cls(graph, node_groups, convert_labels_to_0N)
+        contact_network = cls(graph, node_groups, convert_labels_to_0N)
+        contact_network.set_edge_weights(1.0) # this is done by networkx anyway
+
+        return contact_network
 
     def __init__(
             self,
