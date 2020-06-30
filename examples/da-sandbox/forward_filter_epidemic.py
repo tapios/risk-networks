@@ -7,6 +7,7 @@ from epiforecast.user_base import FullUserGraphBuilder, ContiguousUserGraphBuild
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
+from epiforecast.scenarios import random_epidemic
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk, uniform_risk, random_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
 
