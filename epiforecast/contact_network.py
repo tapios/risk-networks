@@ -669,6 +669,23 @@ class ContactNetwork:
         user_graph = user_graph_builder(self.graph)
         return ContactNetwork.from_networkx_graph(user_graph, False)
 
+    def update_from(
+            self,
+            contact_network):
+        """
+        Update the graph from another object
+
+        Input:
+            contact_network (ContactNetwork): object to update from
+
+        Output:
+            None
+        """
+        contact_graph = contact_network.get_graph()
+        contact_sugraph = contact_graph.subgraph(self.get_nodes())
+
+        self.graph.update(contact_subgraph)
+
     # TODO extract into a separate class
     @staticmethod
     def generate_diagram_indep():
