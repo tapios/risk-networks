@@ -686,7 +686,7 @@ class ContactNetwork:
         contact_sugraph = contact_graph.subgraph(nodes)
 
         # nx.Graph.update does not delete edges; hence this workaround
-        self.graph = cls.__create_sorted_networkx_graph_from(nodes)
+        self.graph = self.__create_sorted_networkx_graph_from(nodes)
         self.graph.update(contact_subgraph)
 
     # TODO extract into a separate class
