@@ -3,24 +3,20 @@ from _epidemic_initializer import *
 
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-from epiforecast.user_base import FullUserGraphBuilder, ContiguousUserGraphBuilder
+from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
-from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.scenarios import random_epidemic
-from epiforecast.risk_simulator_initial_conditions import deterministic_risk, uniform_risk, random_risk
+from epiforecast.risk_simulator_initial_conditions import random_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
-
 
 #
 # create the  user_network (we do this here for plotting the epidemic)
 #
 user_network = network.build_user_network_using(FullUserGraphBuilder())
-#user_fraction = 0.1
-#user_network= network.build_user_network_using(FractionalUserGraphBuilder(user_fraction))
 
 user_nodes = user_network.get_nodes()
-user_population=user_network.get_node_count()
+user_population = user_network.get_node_count()
 
 
 #
