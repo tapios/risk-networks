@@ -3,61 +3,20 @@ from _epidemic_initializer import *
 
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-from epiforecast.user_base import FullUserGraphBuilder, ContiguousUserGraphBuilder
+from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
-from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.scenarios import random_epidemic
-from epiforecast.risk_simulator_initial_conditions import deterministic_risk, uniform_risk, random_risk
+from epiforecast.risk_simulator_initial_conditions import deterministic_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
 
 #
 # create the  user_network (we do this here for plotting the epidemic)
 #
 user_network = network.build_user_network_using(FullUserGraphBuilder())
-#user_fraction = 0.1
-#user_network= network.build_user_network_using(FractionalUserGraphBuilder(user_fraction))
 
 user_nodes = user_network.get_nodes()
-user_population=user_network.get_node_count()
-
-
-def deterministic_risk(population, initial_states, ensemble_size=1):
-
-    states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-    init_catalog = {'S': False, 'E': False, 'I': True, 'R': False, 'H': False, 'D': False}
-    infected = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    init_catalog = {'S': False, 'E': True, 'I': False, 'R': False, 'H': False, 'D': False}
-    exposed = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    init_catalog = {'S': False, 'E': False, 'I': False, 'R': True, 'H': False, 'D': False}
-    resistant = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    init_catalog = {'S': False, 'E': False, 'I': False, 'R': False, 'H': True, 'D': False}
-    hospitalized = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    init_catalog = {'S': False, 'E': False, 'I': False, 'R': False, 'H': False, 'D': True}
-    dead = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-    for mm in range(ensemble_size):
-        E, I, H, R, D = np.zeros([5, population])
-        S = np.ones(population,)
-        I[infected] = 1.
-        S[infected] = 0.
-        E[exposed] = 1.
-        S[exposed] = 0.
-        R[resistant] = 1.
-        S[resistant] = 0.
-        H[hospitalized] = 1.
-        S[hospitalized] = 0.
-        D[dead] = 1.
-        S[dead] = 0.
-
-        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-    return states_ensemble
+user_population = user_network.get_node_count()
 
 
 #
