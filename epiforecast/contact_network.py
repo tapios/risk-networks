@@ -676,7 +676,10 @@ class ContactNetwork:
             self,
             contact_network):
         """
-        Update the graph from another object
+        Update the graph from another object whose graph is a supergraph
+
+        The contact_network.graph should have at least the same nodes as
+        self.graph, plus maybe additional ones.
 
         Input:
             contact_network (ContactNetwork): object to update from
