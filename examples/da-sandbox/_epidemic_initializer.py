@@ -14,6 +14,7 @@ from epiforecast.populations import TransitionRates
 from epiforecast.contact_network import ContactNetwork
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
+from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.utilities import seed_three_random_states
 
 
@@ -39,7 +40,6 @@ groups_filename = os.path.join(NETWORKS_PATH, 'node_groups_SBM_1e3_nobeds.json')
 network = ContactNetwork.from_files(edges_filename, groups_filename)
 network.draw_and_set_age_groups(age_distribution, health_workers_subset)
 network.set_lambdas(min_contact_rate, max_contact_rate)
-
 
 population = network.get_node_count()
 populace = network.get_nodes()
@@ -74,5 +74,7 @@ epidemic_simulator = EpidemicSimulator(
             night_inception_rate = min_contact_rate,
                   health_service = health_service
 )
+
+epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 
 

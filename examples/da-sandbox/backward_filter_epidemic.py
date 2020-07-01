@@ -2,13 +2,13 @@
 from _epidemic_initializer import *
 
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
-from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.scenarios import random_epidemic
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
+from epiforecast.utilities import compartments_count
 
 #
 # create the  user_network (we do this here for plotting the epidemic)
@@ -18,45 +18,29 @@ user_network = network.build_user_network_using(FullUserGraphBuilder())
 user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()
 
-
-#
-# Run the epidemic simulation and store the results
-#
 start_time = epidemic_simulator.time
-time = start_time
-simulation_length = 30 
+simulation_length = 30
 print("We first create an epidemic for",
       simulation_length,
       "days, then we solve the master equations forward for this time")
 
-# Create storage for networks and data
-epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
-
 # set up the initial conditions
-fraction_infected=0.01
 statuses = random_epidemic(population,
                            populace,
                            fraction_infected=0.01)
 
 epidemic_simulator.set_statuses(statuses)
-# for use later initializing the master equations
 
 #for graphing against against users
-Scount=len([node for node in user_nodes if statuses[node] == 'S'])
-Ecount=len([node for node in user_nodes if statuses[node] == 'E'])
-Icount=len([node for node in user_nodes if statuses[node] == 'I'])
-Hcount=len([node for node in user_nodes if statuses[node] == 'H'])
-Rcount=len([node for node in user_nodes if statuses[node] == 'R'])
-Dcount=len([node for node in user_nodes if statuses[node] == 'D'])
+user_statuses = { node : statuses[node] for node in user_nodes }
+n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_statuses)
+statuses_sum_trace = [[n_S, n_E, n_I, n_H, n_R, n_D]]
 
+time = start_time
 time_trace = np.arange(time,simulation_length,static_contact_interval)
-statuses_sum_trace = [[Scount,Ecount,Icount,Hcount,Rcount,Dcount]]
 
-
-fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-# First we run and save the epidemic
+# Run the epidemic simulation and store the results
 for i in range(int(simulation_length/static_contact_interval)):
-    
     network = epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval,
                                      current_network = network)
 
@@ -71,16 +55,12 @@ for i in range(int(simulation_length/static_contact_interval)):
     #save the statuses at the new time
     epidemic_data_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
 
-    #statuses of user base (here Full)
-    Scount=len([node for node in user_nodes if statuses[node] == 'S'])
-    Ecount=len([node for node in user_nodes if statuses[node] == 'E'])
-    Icount=len([node for node in user_nodes if statuses[node] == 'I'])
-    Hcount=len([node for node in user_nodes if statuses[node] == 'H'])
-    Rcount=len([node for node in user_nodes if statuses[node] == 'R'])
-    Dcount=len([node for node in user_nodes if statuses[node] == 'D'])
+    #statuses of user base
+    user_statuses = { node : statuses[node] for node in user_nodes }
+    n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_statuses)
+    statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
-    statuses_sum_trace.append([Scount,Ecount,Icount,Hcount,Rcount,Dcount])
-
+fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
                           statuses_list = statuses_sum_trace,
                                    axes = axes,
