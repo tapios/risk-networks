@@ -39,6 +39,8 @@ statuses_sum_trace = [[n_S, n_E, n_I, n_H, n_R, n_D]]
 time = start_time
 time_trace = np.arange(time,simulation_length,static_contact_interval)
 
+statuses_all = []
+
 # Run the epidemic simulation and store the results
 for i in range(int(simulation_length/static_contact_interval)):
     network = epidemic_simulator.run(stop_time = epidemic_simulator.time + static_contact_interval,
@@ -54,6 +56,7 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     #save the statuses at the new time
     epidemic_data_storage.save_end_statuses_to_network(end_time=time, end_statuses=statuses)
+    statuses_all.append(statuses)
 
     #statuses of user base
     user_statuses = { node : statuses[node] for node in user_nodes }
@@ -66,8 +69,11 @@ axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
                                    axes = axes,
                              plot_times = time_trace)
 
-plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, dpi=150)
+if not os.path.exists('data'):
+    os.makedirs('data')
 
+pickle.dump(statuses_all, open('data/epidemic_statuses_all.pkl', 'wb'))
+plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, dpi=150)
 
 #
 # Reset the world-time to 0, load the initial network
@@ -293,6 +299,8 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
 
         states_trace_ensemble[:,:,int(k*backward_DA_interval/static_contact_interval)+j] = states_ensemble
 
+pickle.dump(states_trace_ensemble, open('data/states_trace_ensemble.pkl', 'wb'))
+pickle.dump(time_trace, open('data/time_trace.pkl', 'wb'))
 axes = plot_ensemble_states(states_trace_ensemble,
                             time_trace,
                             axes = axes,
