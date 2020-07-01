@@ -299,7 +299,7 @@ class DataAssimilator:
         # First obtain the mass contained in category "E"
         prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, N)
         Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
-
+        Emass = np.clip(Emass,0,1)
         # for each observation we get the observed status e.g 'I' and fix it
         # (as # it was updated); we then normalize the other states e.g
         # (S,'E',H,R,D) over the difference 1-I
@@ -324,12 +324,6 @@ class DataAssimilator:
                     [free_states.shape[0], 1, free_states.shape[2]])
 
             free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
-
-            ## normalize the free values e.g for S: set S = (1-I) * S/(S+E+H+R+D)
-            #for i in free_statuses:
-            #    ensemble_state[:, i*N+observed_nodes] = (
-            #        (1.0 - updated_mass[:,0,:])*(free_states[:,i,:] / free_mass)
-            #            )
 
             for i in free_statuses:
                 #no_update_weight = (free_mass < 0.001)
