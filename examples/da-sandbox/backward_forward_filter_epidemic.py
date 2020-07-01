@@ -85,8 +85,8 @@ plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, d
 # Current example only works with same size of intervals for backward/forward DA and prediction
 # JW: I will further generalize the implementation
 # 
-backward_DA_interval = 1
-forward_DA_interval = 1
+backward_DA_interval = 5
+forward_DA_interval = 5
 forward_prediction_interval = 1
 
 time = 0.0 
@@ -122,7 +122,7 @@ random_infection_test = Observation(N = user_population,
                           obs_var_min = 1e-6)
 
 high_var_infection_test = HighVarianceObservation(N = user_population,
-                                           obs_frac = 0.1,
+                                           obs_frac = 0.002,
                                          obs_status = 'I',
                                            obs_name = "Test maximal variance infected",
                                         obs_var_min = 1e-6)
@@ -148,7 +148,7 @@ negative_death_records = DataObservation(N = user_population,
                                     obs_status = 'D',
                                     obs_name = "nodeathstate")
 
-imperfect_observations=[random_infection_test]
+imperfect_observations=[high_var_infection_test]
 
 perfect_observations=[positive_hospital_records,
                       negative_hospital_records,
@@ -208,7 +208,7 @@ for j in range(int(backward_DA_interval/static_contact_interval)):
 #states_trace_ensemble[:,:,0] = states_ensemble
 
 for k in range(1,int(simulation_length/backward_DA_interval)):
-    backward_DA_time = k*backward_DA_interval
+    backward_DA_time = backward_DA_interval+(k-1)*forward_prediction_interval
     master_eqn_ensemble.set_start_time(backward_DA_time)
     for i in range(int(backward_DA_interval/static_contact_interval)):
         loaded_data=epidemic_data_storage.get_network_from_end_time(end_time=backward_DA_time)
