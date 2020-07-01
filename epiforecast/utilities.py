@@ -66,4 +66,22 @@ def mask_by_compartment(
     mask = (states_array == compartment)
     return mask
 
+def compartments_count(states):
+    """
+    Get number of nodes in each compartment
+
+    Input:
+        states (dict): a mapping node -> state
+    Output:
+        counts (np.array): (6,) array of integers
+    """
+    n_S = np.count_nonzero(mask_by_compartment(states, 'S'))
+    n_E = np.count_nonzero(mask_by_compartment(states, 'E'))
+    n_I = np.count_nonzero(mask_by_compartment(states, 'I'))
+    n_H = np.count_nonzero(mask_by_compartment(states, 'H'))
+    n_R = np.count_nonzero(mask_by_compartment(states, 'R'))
+    n_D = np.count_nonzero(mask_by_compartment(states, 'D'))
+
+    return np.array((n_S, n_E, n_I, n_H, n_R, n_D))
+
 
