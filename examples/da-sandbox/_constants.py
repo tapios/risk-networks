@@ -28,9 +28,9 @@ assert sum(age_distribution) == 1.0
 min_contact_rate = 2
 max_contact_rate = 22
 
-latent_period                = 3.7 # == 1/σ
-community_infection_period   = 3.2 # == 1/γ
-hospital_infection_period    = 5.0 # == 1/γ_prime
+latent_periods                = 3.7 # == 1/σ
+community_infection_periods   = 3.2 # == 1/γ
+hospital_infection_periods    = 5.0 # == 1/γ_prime
 hospitalization_fraction     = AgeDependentConstant(age_dep_h)
 community_mortality_fraction = AgeDependentConstant(age_dep_d)
 hospital_mortality_fraction  = AgeDependentConstant(age_dep_dprime)

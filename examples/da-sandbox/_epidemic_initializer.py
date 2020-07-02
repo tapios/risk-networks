@@ -49,9 +49,9 @@ populace = network.get_nodes()
 # constructor takes clinical parameter samplers which are then used to draw real
 # clinical parameters, and those are used to calculate transition rates
 transition_rates = TransitionRates(population = network.get_node_count(),
-                                   lp_sampler = latent_period,
-                                  cip_sampler = community_infection_period,
-                                  hip_sampler = hospital_infection_period,
+                                   lp_sampler = latent_periods,
+                                  cip_sampler = community_infection_periods,
+                                  hip_sampler = hospital_infection_periods,
                                    hf_sampler = hospitalization_fraction,
                                   cmf_sampler = community_mortality_fraction,
                                   hmf_sampler = hospital_mortality_fraction,
