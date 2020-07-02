@@ -98,7 +98,7 @@ initial_statuses = loaded_data.start_statuses
 # Set up the population priors
 #
 
-ensemble_size = 100 
+ensemble_size = 100
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
@@ -151,8 +151,8 @@ negative_death_records = DataObservation(N = user_population,
 imperfect_observations=[high_var_infection_test]
 
 perfect_observations=[positive_hospital_records,
-                      negative_hospital_records,
                       positive_death_records,
+                      negative_hospital_records,
                       negative_death_records]
 
 # create the assimilator
@@ -207,7 +207,7 @@ for j in range(int(backward_DA_interval/static_contact_interval)):
 
 #states_trace_ensemble[:,:,0] = states_ensemble
 
-for k in range(1,int(simulation_length/backward_DA_interval)):
+for k in range(1,int((simulation_length-backward_DA_interval)/forward_prediction_interval+1)):
     backward_DA_time = backward_DA_interval+(k-1)*forward_prediction_interval
     master_eqn_ensemble.set_start_time(backward_DA_time)
     for i in range(int(backward_DA_interval/static_contact_interval)):
@@ -297,7 +297,7 @@ for k in range(1,int(simulation_length/backward_DA_interval)):
         forward_prediction_time = forward_prediction_time + static_contact_interval
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-        states_trace_ensemble[:,:,int(k*backward_DA_interval/static_contact_interval)+j] = states_ensemble
+        states_trace_ensemble[:,:,int((backward_DA_interval+(k-1)*forward_prediction_interval)/static_contact_interval)+j] = states_ensemble
 
 pickle.dump(states_trace_ensemble, open('data/states_trace_ensemble.pkl', 'wb'))
 pickle.dump(time_trace, open('data/time_trace.pkl', 'wb'))
