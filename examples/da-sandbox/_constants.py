@@ -1,19 +1,33 @@
 import os
+from datetime import datetime
+import numpy as np
 
 from epiforecast.samplers import AgeDependentConstant
 
+from _utilities import print_start_of, print_end_of
+
+
+print_start_of(__name__)
+################################################################################
 # paths, flags etc #############################################################
 NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
 SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
 FIGURES_PATH = os.path.join('..', '..', 'figs')
+OUTPUT_PATH = os.path.join('output', datetime.now().strftime('%y%m%d-%H-%M'))
 
-# time intervals ###############################################################
+# time & intervals #############################################################
 minute = 1 / 60 / 24
 hour = 60 * minute
 day = 1.0
 
 static_contact_interval = 3 * hour
 mean_contact_lifetime = 0.5 * minute
+
+start_time = 0.0   # the ultimate start time, i.e. when the simulation starts
+end_time   =  2.0  # the ultimate end time
+total_time = end_time - start_time
+
+time_span = np.arange(start_time, total_time, static_contact_interval)
 
 # model parameters #############################################################
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
@@ -35,7 +49,10 @@ hospitalization_fraction     = AgeDependentConstant(age_dep_h)
 community_mortality_fraction = AgeDependentConstant(age_dep_d)
 hospital_mortality_fraction  = AgeDependentConstant(age_dep_dprime)
 
-community_transmission_rate = 12.0
-hospital_transmission_reduction = 0.1
+community_transmission_rate = 12.0    # == β
+hospital_transmission_reduction = 0.1 # == α
+
+################################################################################
+print_end_of(__name__)
 
 
