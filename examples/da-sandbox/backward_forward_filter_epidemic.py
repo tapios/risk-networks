@@ -6,7 +6,8 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.measurements import Observation, DataObservation, HighVarianceObservation
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.scenarios import random_epidemic
-from epiforecast.risk_simulator_initial_conditions import deterministic_risk
+
+from epiforecast.risk_simulator_initial_conditions import random_risk,deterministic_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
 from epiforecast.utilities import compartments_count
 
@@ -19,7 +20,8 @@ user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()
 
 start_time = epidemic_simulator.time
-simulation_length = 30 
+simulation_length = 2 
+
 print("We first create an epidemic for",
       simulation_length,
       "days, then we solve the master equations forward for this time")
@@ -85,7 +87,7 @@ plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, d
 # 
 backward_DA_interval = 5
 forward_DA_interval = 5
-forward_prediction_interval = 1
+forward_prediction_interval = 2
 
 time = 0.0 
 loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=time)
@@ -99,14 +101,43 @@ initial_statuses = loaded_data.start_statuses
 ensemble_size = 100
 
 transition_rates_ensemble = []
-for i in range(ensemble_size):
-    transition_rates_ensemble.append(transition_rates)
 
+#all parameters should be positive, so we apply lognormal transform
+for i in range(ensemble_size):
+    transition_rates_member =  TransitionRates(population = user_network.get_node_count(),
+                                              lp_sampler = np.random.normal(0,1),
+                                             cip_sampler = np.random.normal(0,1),
+                                             hip_sampler = np.random.normal(0,1),
+                                              hf_sampler = hospitalization_fraction,
+                                             cmf_sampler = community_mortality_fraction,
+                                             hmf_sampler = hospital_mortality_fraction,                           
+                               distributional_parameters = user_network.get_age_groups(),
+                                            lp_transform = 'log',
+                                           cip_transform = 'log',
+                                           hip_transform = 'log')
+    transition_rates_member.calculate_from_clinical()
+    
+    transition_rates_ensemble.append(transition_rates_member)
+
+
+lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
+cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
+hip = np.array([rate.hospital_infection_periods for rate in transition_rates_ensemble])
+print("latent_periods             : mean", np.mean(np.exp(lp)),  "var", np.var(np.exp(lp)))
+print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
+print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
 #set transmission_rates
 community_transmission_rate_ensemble = community_transmission_rate * np.ones([ensemble_size,1])
 
-transition_rates_to_update_str = []
-transmission_rate_to_update_flag = False 
+transition_rates_to_update_imperf_str = ['latent_periods',
+                                  'community_infection_periods',
+                                  'hospital_infection_periods']
+rates_inflations = [0.1 ,0.1, 0.1] #sd of noise to inflate parameter with
+transmission_rate_to_update_imperf_flag = False
+
+transition_rates_to_update_perf_str = []
+transmission_rate_to_update_perf_flag = False 
+
 
 #
 # Set up the data assimilator
@@ -156,13 +187,14 @@ perfect_observations=[positive_hospital_records,
 # create the assimilator
 assimilator_imperfect_observations = DataAssimilator(observations = imperfect_observations,
                                                            errors = [],
-                                   transition_rates_to_update_str = transition_rates_to_update_str,
-                                 transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+                                   transition_rates_to_update_str = transition_rates_to_update_imperf_str,
+                                 transmission_rate_to_update_flag = transmission_rate_to_update_imperf_flag)
 
 assimilator_perfect_observations = DataAssimilator(observations = perfect_observations,
                                                          errors = [],
-                                 transition_rates_to_update_str = transition_rates_to_update_str,
-                               transmission_rate_to_update_flag = transmission_rate_to_update_flag)
+                                 transition_rates_to_update_str = transition_rates_to_update_perf_str,
+                               transmission_rate_to_update_flag = transmission_rate_to_update_perf_flag)
+
 
 #
 # Set up the ensemble of master equtions
@@ -181,9 +213,11 @@ master_eqn_ensemble = MasterEquationModelEnsemble(population = user_population,
 
 states_trace_ensemble=np.zeros([ensemble_size,5*user_population,time_trace.size])
 
-states_ensemble = deterministic_risk(population,
-                                     initial_statuses,
-                                     ensemble_size = ensemble_size)
+
+states_ensemble = random_risk(population,
+                              fraction_infected=0.01,
+                              ensemble_size = ensemble_size)[0]
+
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
@@ -194,6 +228,7 @@ print('Run forward prediction for time window [%2.3f, %2.3f]' \
       %(forward_run_time, forward_run_time+forward_prediction_interval))
 print('#'*60)
 for j in range(int(forward_prediction_interval/static_contact_interval)):
+
 
     loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_run_time)
     user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
@@ -222,6 +257,18 @@ for j in range(int(forward_prediction_interval/static_contact_interval)):
                                    full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                                         user_nodes = user_nodes)
 
+
+    for rate in transition_rates_ensemble:
+        rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
+                                              inflations)
+        
+    lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
+    cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
+    hip = np.array([rate.hospital_infection_periods for rate in transition_rates_ensemble])
+    print("latent_periods             : mean", np.mean(np.exp(lp)),  "var", np.var(np.exp(lp)))
+    print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
+    print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
+
     forward_run_time = forward_run_time + static_contact_interval
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
     master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
@@ -229,6 +276,7 @@ for j in range(int(forward_prediction_interval/static_contact_interval)):
     states_trace_ensemble[:,:,j] = states_ensemble
 
 for k in range(1,int(simulation_length/forward_prediction_interval)):
+
     backward_DA_time = k*forward_prediction_interval
     backward_DA_interval_effective = np.minimum(backward_DA_interval, k*forward_prediction_interval)
     master_eqn_ensemble.set_start_time(backward_DA_time)
@@ -264,8 +312,13 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
                                         full_ensemble_transition_rates = transition_rates_ensemble,
                                        full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                                             user_nodes = user_nodes)
-        
+
+
+        for rate in transition_rates_ensemble:
+            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
+                                                  inflations)
         #update model parameters (transition and transmission rates) of the master eqn model
+
         #at the update the time
         backward_DA_time = backward_DA_time - static_contact_interval
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -308,7 +361,12 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
                                         full_ensemble_transition_rates = transition_rates_ensemble,
                                        full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                                             user_nodes = user_nodes)
-    
+
+
+        for rate in transition_rates_ensemble:
+            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
+                                                  inflations)
+
         #update model parameters (transition and transmission rates) of the master eqn model
         #at the update the time
         forward_DA_time = forward_DA_time + static_contact_interval
@@ -350,7 +408,19 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
                                         full_ensemble_transition_rates = transition_rates_ensemble,
                                        full_ensemble_transmission_rate = community_transmission_rate_ensemble,
                                                             user_nodes = user_nodes)
- 
+
+
+        for rate in transition_rates_ensemble:
+            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
+                                                  inflations)
+
+            
+        lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
+        cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
+        hip = np.array([rate.hospital_infection_periods for rate in transition_rates_ensemble])
+        print("latent_periods             : mean", np.mean(np.exp(lp)),  "var", np.var(np.exp(lp)))
+        print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
+        print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
     
         #update model parameters (transition and transmission rates) of the master eqn model
         #at the update the time
