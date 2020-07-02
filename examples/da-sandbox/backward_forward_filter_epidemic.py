@@ -20,7 +20,7 @@ user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()
 
 start_time = epidemic_simulator.time
-simulation_length = 2 
+simulation_length = 10
 
 print("We first create an epidemic for",
       simulation_length,
@@ -132,7 +132,7 @@ community_transmission_rate_ensemble = community_transmission_rate * np.ones([en
 transition_rates_to_update_imperf_str = ['latent_periods',
                                   'community_infection_periods',
                                   'hospital_infection_periods']
-rates_inflations = [0.1 ,0.1, 0.1] #sd of noise to inflate parameter with
+rates_inflation = [0.1 ,0.1, 0.1] #sd of noise to inflate parameter with
 transmission_rate_to_update_imperf_flag = False
 
 transition_rates_to_update_perf_str = []
@@ -260,7 +260,7 @@ for j in range(int(forward_prediction_interval/static_contact_interval)):
 
     for rate in transition_rates_ensemble:
         rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                              inflations)
+                                              rates_inflation)
         
     lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
     cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
@@ -316,7 +316,7 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
 
         for rate in transition_rates_ensemble:
             rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  inflations)
+                                                  rates_inflation)
         #update model parameters (transition and transmission rates) of the master eqn model
 
         #at the update the time
@@ -365,7 +365,7 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
 
         for rate in transition_rates_ensemble:
             rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  inflations)
+                                                  rates_inflation)
 
         #update model parameters (transition and transmission rates) of the master eqn model
         #at the update the time
@@ -412,7 +412,7 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
 
         for rate in transition_rates_ensemble:
             rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  inflations)
+                                                  rates_inflation)
 
             
         lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
