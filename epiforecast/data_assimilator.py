@@ -89,21 +89,33 @@ class DataAssimilator:
             self,
             user_nodes,
             ensemble_state,
-            data):
+            data,
+            verbose=False):
         """
         Make all the observations in the list self.observations.
 
         This sets observation.obs_states.
+
+        Input:
+            ...
+            verbose (bool): whether to print observation name and states
         """
-        print("Observation type : Number of Observed states")
+        if verbose:
+            print("[ Data assimilator ]",
+                  "Observation type : Number of Observed states")
+
         observed_states = []
         for observation in self.observations:
             observation.find_observation_states(user_nodes,
                                                 ensemble_state,
                                                 data)
-            print(observation.name,":",len(observation.obs_states))
             if observation.obs_states.size > 0:
                 observed_states.extend(observation.obs_states)
+            if verbose:
+                print("[ Data assimilator ]",
+                      observation.name,
+                      ":",
+                      len(observation.obs_states))
 
        # observed_states = np.hstack([observation.obs_states for observation in self.observations])
         return np.array(observed_states)
@@ -145,7 +157,13 @@ class DataAssimilator:
             data,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            user_nodes):
+            user_nodes,
+            verbose=False):
+        """
+        Input:
+            ...
+            verbose (bool): whether to print info about each observation
+        """
 
         ensemble_size = ensemble_state.shape[0]
 
@@ -186,9 +204,11 @@ class DataAssimilator:
             # Generate states to observe
             obs_states = self.find_observation_states(user_nodes,
                                                       ensemble_state,
-                                                      data)
+                                                      data,
+                                                      verbose)
             if (obs_states.size > 0):
-                print("Total states to be assimilated: ", obs_states.size)
+                print("[ Data assimilator ] Total states to be assimilated: ",
+                      obs_states.size)
 
                 # Get the truth indices, for the observation(s)
                 truth,var = self.observe(user_nodes,
@@ -242,9 +262,9 @@ class DataAssimilator:
                     full_ensemble_transmission_rate=new_ensemble_transmission_rate
 
 
-                print("EAKF error:", dam.error[-1])
+                print("[ Data assimilator ] EAKF error:", dam.error[-1])
             else:
-                print("No assimilation required")
+                print("[ Data assimilator ] No assimilation required")
 
             # Error to truth
             if len(self.online_emodel)>0:
@@ -283,7 +303,8 @@ class DataAssimilator:
 
         number_different=np.maximum(different_states,0.0)-np.minimum(different_states,0.0)
 
-        print("Differences between predicted and true I>0.5:",np.sum(number_different).astype(int))
+        print("[ Data assimilator ] Differences between predicted and true I>0.5:",
+              np.sum(number_different).astype(int))
 
 
     #as we measure a subset of states, we may need to enforce other states to sum to one
