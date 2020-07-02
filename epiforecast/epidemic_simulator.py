@@ -90,7 +90,8 @@ class EpidemicSimulator:
     def run(
             self,
             stop_time,
-            current_network):
+            current_network,
+            verbose=False):
         """
         Run forward for t in [self.time, stop_time]
 
@@ -102,6 +103,7 @@ class EpidemicSimulator:
         Input:
             stop_time (float): time to run the simulation until
             current_network (ContactNetwork): current network to run on
+            verbose (bool): whether to print info every step of the simulation
 
         Output:
             next_network (ContactNetwork): updated network
@@ -120,8 +122,9 @@ class EpidemicSimulator:
 
             interval_stop_time = interval_stop_times[i]
 
-            print("")
-            print("")
+            if verbose:
+                print("")
+                print("")
             print("                               *** Day: {:.3f}".format(interval_stop_time))
             print("")
 
@@ -137,7 +140,8 @@ class EpidemicSimulator:
                  contacts_to_add,
                  contacts_to_remove) = (
                         self.health_service.discharge_and_admit_patients(
-                            self.kinetic_model.current_statuses))
+                            self.kinetic_model.current_statuses,
+                            verbose))
 
                 # TODO why are we filtering edges in what follows but not here?
                 next_network.add_edges(contacts_to_add)
@@ -204,17 +208,18 @@ class EpidemicSimulator:
 
 
 
-            n_contacts = next_network.get_edge_count()
-            health_service_walltime = (
-                    end_health_service - start_health_service)
-            contact_simulator_walltime = (
-                    end_contact_simulation - start_contact_simulation)
-            kinetic_model_walltime = (
-                    end_kinetic_simulation - start_kinetic_simulation)
-            self.print_status_report(n_contacts)
-            self.print_walltimes(health_service_walltime,
-                                 contact_simulator_walltime,
-                                 kinetic_model_walltime)
+            if verbose:
+                n_contacts = next_network.get_edge_count()
+                health_service_walltime = (
+                        end_health_service - start_health_service)
+                contact_simulator_walltime = (
+                        end_contact_simulation - start_contact_simulation)
+                kinetic_model_walltime = (
+                        end_kinetic_simulation - start_kinetic_simulation)
+                self.print_status_report(n_contacts)
+                self.print_walltimes(health_service_walltime,
+                                     contact_simulator_walltime,
+                                     kinetic_model_walltime)
 
         if self.time < stop_time: # take a final ragged stop to catch up with stop_time
 
