@@ -52,15 +52,22 @@ class TransitionRates:
             hf_sampler,
             cmf_sampler,
             hmf_sampler,
-            distributional_parameters=None):
+            distributional_parameters=None,
+            lp_transform='None',
+            cip_transform='None',
+            hip_transform='None',
+            hf_transform='None',
+            cmf_transform='None',
+            hmf_transform='None',
+            ):
         """
         Constructor with samplers
 
         For readability, long names are abbreviated using the following
         glossary:
-            lp  :   latent period
-            cip :   community infection period
-            hip :   hospital infection period
+            lp  :   latent periods
+            cip :   community infection periods
+            hip :   hospital infection periods
             hf  :   hospitalization fraction
             cmf :   community mortality fraction
             hmf :   hospital mortality fraction
@@ -87,6 +94,8 @@ class TransitionRates:
         self.hf_sampler  = hf_sampler
         self.cmf_sampler = cmf_sampler
         self.hmf_sampler = hmf_sampler
+
+        
         if distributional_parameters is None:
             distributional_parameters = np.ones(self.population)
 
@@ -98,6 +107,14 @@ class TransitionRates:
         self.hospital_mortality_fraction  = None
 
         self.__draw_and_set_clinical_using(distributional_parameters)
+
+        #do we transform the clinical parameters when calculating parameters
+        self.lp_transform  = lp_transform
+        self.cip_transform = cip_transform
+        self.hip_transform = hip_transform
+        self.hf_transform  = hf_transform
+        self.cmf_transform = cmf_transform
+        self.hmf_transform = hmf_transform
 
         self.exposed_to_infected       = None
         self.infected_to_resistant     = None
@@ -220,6 +237,48 @@ class TransitionRates:
                 self.hmf_sampler,
                 distributional_parameters)
 
+
+    def transform_clinical_parameter(
+            self,
+            clinical_parameter,
+            transform_type):
+        """
+        Transforms the clinical parameter by the transform type and returns the output
+
+        Args
+        ----
+        clinical_parameter(np.array): saved clinical parameter
+        transform_type    (string): a string defining the transform implemented :
+         - 'None' = no transform required
+         - 'log'  = clinical parameter is the logarithm of the desired object, so we exponentiate.
+        """
+
+        if transform_type == 'None':
+            return clinical_parameter
+
+        elif transform_type == 'log':
+            return np.exp(clinical_parameter)
+
+        else:
+            raise ValueError("transform_type not recognised, choose from 'None' (default) or 'log' ")
+
+    def add_noise_to_clinical_parameters(
+            self,
+            parameter_str,
+            noise_level):
+        """
+        Adds Gaussian Noise to the stored clinical_parameter (elementwise)
+
+        Args
+        ----
+        noise_level (list of Floats): Size of standard deviation of the noise
+        parameter_string (list of strings): the parameters to add noise too
+        """
+        for (lvl,par_str) in zip(noise_level,parameter_str):
+            clinical_parameter = getattr(self,par_str)
+            noise = np.random.normal(0,lvl,clinical_parameter.shape)
+            setattr(self, par_str, clinical_parameter + noise)
+        
     def calculate_from_clinical(self):
         """
         Calculate transition rates using the current clinical parameters
@@ -227,13 +286,22 @@ class TransitionRates:
         Output:
             None
         """
-        σ      = self.__broadcast_to_array(1 / self.latent_periods)
-        γ      = self.__broadcast_to_array(1 / self.community_infection_periods)
-        γ_prime= self.__broadcast_to_array(1 / self.hospital_infection_periods)
-        h      = self.__broadcast_to_array(self.hospitalization_fraction)
-        d      = self.__broadcast_to_array(self.community_mortality_fraction)
-        d_prime= self.__broadcast_to_array(self.hospital_mortality_fraction)
-
+        #apply relevant transforms
+        lp  = self.transform_clinical_parameter(self.latent_periods,              self.lp_transform)
+        cif = self.transform_clinical_parameter(self.community_infection_periods, self.cip_transform)
+        hip = self.transform_clinical_parameter(self.hospital_infection_periods,  self.hip_transform)
+        hf  = self.transform_clinical_parameter(self.hospitalization_fraction,    self.hf_transform)
+        cmf = self.transform_clinical_parameter(self.community_mortality_fraction,self.cmf_transform)
+        hmf = self.transform_clinical_parameter(self.hospital_mortality_fraction, self.hmf_transform)
+        
+        σ      = self.__broadcast_to_array(1 / lp)
+        γ      = self.__broadcast_to_array(1 / cif)
+        γ_prime= self.__broadcast_to_array(1 / hip)
+        h      = self.__broadcast_to_array(hf)
+        d      = self.__broadcast_to_array(cmf)
+        d_prime= self.__broadcast_to_array(hmf)
+        
+            
         self.exposed_to_infected      = dict(enumerate(σ))
         self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
         self.infected_to_hospitalized = dict(enumerate(h * γ))
