@@ -112,12 +112,14 @@ class HealthService:
 
     def discharge_and_admit_patients(
             self,
-            statuses):
+            statuses,
+            verbose=False):
         """
         Discharge and admit patients according to statuses
 
         Input:
             statuses (dict): mapping node -> status
+            verbose (bool): whether to print info
 
         Output:
             discharged_patients (list): list of Patients
@@ -138,7 +140,8 @@ class HealthService:
         contacts_to_remove = (admitted_community_contacts
                               + discharged_hospital_contacts)
 
-        self.print_manifest(statuses, discharged_patients, admitted_patients)
+        if verbose:
+            self.print_manifest(statuses, discharged_patients, admitted_patients)
 
         return (discharged_patients,
                 admitted_patients,
