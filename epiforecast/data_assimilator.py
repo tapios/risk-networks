@@ -188,7 +188,6 @@ class DataAssimilator:
             ...
             verbose (bool): whether to print info about each observation
         """
-        print(self.stored_observed_states)
         ensemble_size = ensemble_state.shape[0]
 
         if len(self.observations) == 0: # no update is performed; return input
