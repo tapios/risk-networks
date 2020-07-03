@@ -245,7 +245,8 @@ for i in range(int(simulation_length/static_contact_interval)):
              epidemic_simulator.kinetic_model.current_statuses,
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
-             network.get_nodes())
+             network.get_nodes(),
+             epidemic_simulator.time)
 
     # update master equation ensemble
     master_eqn_ensemble.update_transition_rates(transition_rates_ensemble)
