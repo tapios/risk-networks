@@ -26,7 +26,6 @@ from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.health_service import HealthService
 from epiforecast.measurements import Observation, DataObservation, DataNodeObservation
-from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.utilities import seed_numba_random_state
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk
