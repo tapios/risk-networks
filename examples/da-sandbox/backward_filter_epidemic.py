@@ -207,6 +207,8 @@ for i in range(int(simulation_length/static_contact_interval)):
     master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights())
     states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 25)
 
+    time = time - static_contact_interval
+    
     (states_ensemble,
      transition_rates_ensemble,
      community_transmission_rate_ensemble
@@ -214,7 +216,8 @@ for i in range(int(simulation_length/static_contact_interval)):
                                                             data = loaded_data.start_statuses,
                                   full_ensemble_transition_rates = transition_rates_ensemble,
                                  full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                      user_nodes = user_nodes)
+                                                      user_nodes = user_nodes,
+                                                            time = time)
 
     (states_ensemble,
      transition_rates_ensemble,
@@ -223,12 +226,13 @@ for i in range(int(simulation_length/static_contact_interval)):
                                                           data = loaded_data.start_statuses,
                                 full_ensemble_transition_rates = transition_rates_ensemble,
                                full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                      user_nodes = user_nodes)
+                                                    user_nodes = user_nodes,
+                                                          time = time)
 
     #update model parameters (transition and transmission rates) of the master eqn model
 
     #at the update the time
-    time = time - static_contact_interval
+    
     master_eqn_ensemble.set_states_ensemble(states_ensemble)
     master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
                                        new_transmission_rate = community_transmission_rate_ensemble)

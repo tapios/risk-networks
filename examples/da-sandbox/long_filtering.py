@@ -159,7 +159,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 static_contact_interval,
                 n_steps=n_backward_steps)
 
-
+        backward_DA_time -= static_contact_interval
         # data assimilation
         (ensemble_state,
          transition_rates_ensemble,
@@ -169,7 +169,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 loaded_data.start_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
-                user_nodes)
+                user_nodes,
+                backward_DA_time)
 
         (ensemble_state,
          transition_rates_ensemble,
@@ -179,7 +180,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 loaded_data.start_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
-                user_nodes)
+                user_nodes,
+                backward_DA_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
@@ -187,7 +189,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
 
-        backward_DA_time -= static_contact_interval
+       
 
 
     # forward run with data assimilation
@@ -208,7 +210,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 static_contact_interval,
                 n_steps=n_forward_steps)
 
-
+        forward_DA_time += static_contact_interval
+        
         # data assimilation
         (ensemble_state,
          transition_rates_ensemble,
@@ -218,7 +221,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 loaded_data.end_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
-                user_nodes)
+                user_nodes,
+                forward_DA_time)
 
         (ensemble_state,
          transition_rates_ensemble,
@@ -228,7 +232,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 loaded_data.end_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
-                user_nodes)
+                user_nodes,
+                forward_DA_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
@@ -236,7 +241,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
 
-        forward_DA_time += static_contact_interval
+        
 
 
     # forward run w/o data assimilation; prediction

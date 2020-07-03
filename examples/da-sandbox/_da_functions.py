@@ -39,7 +39,9 @@ def forward_DA(forward_start_time,
         master_eqn_ensemble.set_mean_contact_duration(
                 user_network.get_edge_weights())
         states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
-    
+
+        forward_end_time = forward_start_time + static_contact_interval
+
         print('Assimilating infection data:')
         (states_ensemble,
          transition_rates_ensemble,
@@ -48,7 +50,9 @@ def forward_DA(forward_start_time,
                                                                 data = loaded_data.end_statuses,
                                       full_ensemble_transition_rates = transition_rates_ensemble,
                                      full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                        user_nodes = user_nodes)
+                                                        user_nodes = user_nodes,
+                                                              time = forward_end_time)
+
     
         if (j+1)%int(day/static_contact_interval) == 0:
             print('Assimilating hospital and death records:')
@@ -59,8 +63,9 @@ def forward_DA(forward_start_time,
                                                                   data = loaded_data.end_statuses,
                                         full_ensemble_transition_rates = transition_rates_ensemble,
                                        full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                            user_nodes = user_nodes)
-    
+                                                            user_nodes = user_nodes,
+                                                                  time = forward_end_time)
+
         for rate in transition_rates_ensemble:
             rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
                                                   rates_inflation)
@@ -72,7 +77,7 @@ def forward_DA(forward_start_time,
         print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
         print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
     
-        forward_start_time = forward_start_time + static_contact_interval
+        forward_start_time = forward_end_time
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
         master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
                                            new_transmission_rate = community_transmission_rate_ensemble)
@@ -113,7 +118,9 @@ def backward_DA(backward_start_time,
                 user_network.get_edge_weights())
         states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 25)
         
-    
+        #at the update the time
+        backward_end_time = backward_start_time - static_contact_interval
+        
         print('Assimilating infection data:')
         (states_ensemble,
          transition_rates_ensemble,
@@ -122,7 +129,8 @@ def backward_DA(backward_start_time,
                                                                 data = loaded_data.start_statuses,
                                       full_ensemble_transition_rates = transition_rates_ensemble,
                                      full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                          user_nodes = user_nodes)
+                                                          user_nodes = user_nodes,
+                                                                time = backward_end_time)
 
         if (i+1)%int(day/static_contact_interval) == 0:
             print('Assimilating hospital and death records:')
@@ -133,8 +141,8 @@ def backward_DA(backward_start_time,
                                                                   data = loaded_data.start_statuses,
                                         full_ensemble_transition_rates = transition_rates_ensemble,
                                        full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                            user_nodes = user_nodes)
-
+                                                            user_nodes = user_nodes,
+                                                                  time = backward_end_time)
 
         for rate in transition_rates_ensemble:
             rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
@@ -142,7 +150,7 @@ def backward_DA(backward_start_time,
         #update model parameters (transition and transmission rates) of the master eqn model
 
         #at the update the time
-        backward_start_time = backward_start_time - static_contact_interval
+        backward_start_time = backward_end_time
         master_eqn_ensemble.set_states_ensemble(states_ensemble)
         master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
                                            new_transmission_rate = community_transmission_rate_ensemble)

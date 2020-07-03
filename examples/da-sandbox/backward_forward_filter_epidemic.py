@@ -20,11 +20,11 @@ user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()
 
 start_time = epidemic_simulator.time
-simulation_length = 30 
+simulation_length = 10 
 
 print("We first create an epidemic for",
       simulation_length,
-      "days, then we solve the master equations forward for this time")
+      "days")
 
 # set up the initial conditions
 statuses = random_epidemic(population,
@@ -85,8 +85,8 @@ plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, d
 # Set the size of backward and forward DA windows
 # For each cycle, this example performs a backward DA, a forward DA, and then a forward prediction 
 # 
-backward_DA_interval = 7
-forward_DA_interval = 7
+backward_DA_interval = 3
+forward_DA_interval = 3
 forward_prediction_interval = 1
 
 start_time = 0.0 
@@ -105,9 +105,9 @@ transition_rates_ensemble = []
 #all parameters should be positive, so we apply lognormal transform
 for i in range(ensemble_size):
     transition_rates_member =  TransitionRates(population = user_network.get_node_count(),
-                                              lp_sampler = np.random.normal(0,1),
-                                             cip_sampler = np.random.normal(0,1),
-                                             hip_sampler = np.random.normal(0,1),
+                                               lp_sampler = np.random.normal(0,1,user_network.get_node_count()),
+                                             cip_sampler = np.random.normal(0,1,user_network.get_node_count()),
+                                             hip_sampler = np.random.normal(0,1,user_network.get_node_count()),
                                               hf_sampler = hospitalization_fraction,
                                              cmf_sampler = community_mortality_fraction,
                                              hmf_sampler = hospital_mortality_fraction,                           
@@ -132,7 +132,7 @@ community_transmission_rate_ensemble = community_transmission_rate * np.ones([en
 transition_rates_to_update_imperf_str = ['latent_periods',
                                   'community_infection_periods',
                                   'hospital_infection_periods']
-rates_inflation = [0.1 ,0.1, 0.1] #sd of noise to inflate parameter with
+rates_inflation = [0.0 ,0.0, 0.0] #sd of noise to inflate parameter with
 transmission_rate_to_update_imperf_flag = False
 
 transition_rates_to_update_perf_str = []
@@ -151,7 +151,7 @@ random_infection_test = Observation(N = user_population,
                           obs_var_min = 1e-6)
 
 high_var_infection_test = HighVarianceObservation(N = user_population,
-                                           obs_frac = 0.002,
+                                           obs_frac = 0.02,
                                          obs_status = 'I',
                                            obs_name = "Test maximal variance infected",
                                         obs_var_min = 1e-6)
