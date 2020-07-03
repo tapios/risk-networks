@@ -1,13 +1,28 @@
 import numpy as np
 
-def forward_DA(forward_start_time, forward_interval, 
-               day, static_contact_interval,
+from _utilities import print_start_of, print_end_of
+
+
+print_start_of(__name__)
+################################################################################
+def forward_DA(forward_start_time,
+               forward_interval,
+               day,
+               static_contact_interval,
                states_ensemble,
                master_eqn_ensemble,
-               epidemic_data_storage, user_network, user_nodes,
-               assimilator_imperfect_observations, assimilator_perfect_observations,
-               transition_rates_to_update_imperf_str, rates_inflation,
-               transition_rates_ensemble, community_transmission_rate_ensemble):
+               epidemic_data_storage,
+               user_network,
+               user_nodes,
+               assimilator_imperfect_observations,
+               assimilator_perfect_observations,
+               transition_rates_to_update_imperf_str,
+               rates_inflation,
+               transition_rates_ensemble,
+               community_transmission_rate_ensemble):
+    """
+    Perform one sweep of forward data assimilation
+    """
     states_ensemble_all = np.zeros([states_ensemble.shape[0],
                                     states_ensemble.shape[1],
                                     int(forward_interval/static_contact_interval)])
@@ -70,13 +85,22 @@ def forward_DA(forward_start_time, forward_interval,
             master_eqn_ensemble,
             transition_rates_ensemble, community_transmission_rate_ensemble) 
 
-def backward_DA(backward_start_time, backward_interval_effective,
+def backward_DA(backward_start_time,
+                backward_interval_effective,
                 day, static_contact_interval,
-                master_eqn_ensemble, 
-                epidemic_data_storage, user_network, user_nodes,
-                assimilator_imperfect_observations, assimilator_perfect_observations,
-                transition_rates_to_update_imperf_str, rates_inflation,
-                transition_rates_ensemble, community_transmission_rate_ensemble):
+                master_eqn_ensemble,
+                epidemic_data_storage,
+                user_network,
+                user_nodes,
+                assimilator_imperfect_observations,
+                assimilator_perfect_observations,
+                transition_rates_to_update_imperf_str,
+                rates_inflation,
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble):
+    """
+    Perform one sweep of backward data assimilation
+    """
     master_eqn_ensemble.set_start_time(backward_start_time)
     print('#'*60)
     print('Run backward DA for time window [%2.3f, %2.3f]' \
@@ -127,3 +151,7 @@ def backward_DA(backward_start_time, backward_interval_effective,
            states_ensemble,
            master_eqn_ensemble,
            transition_rates_ensemble, community_transmission_rate_ensemble)
+
+################################################################################
+print_end_of(__name__)
+
