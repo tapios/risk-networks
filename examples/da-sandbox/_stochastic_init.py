@@ -4,9 +4,9 @@ from epiforecast.epidemic_simulator import EpidemicSimulator
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.scenarios import random_epidemic
 
-from _constants import (latent_period,
-                        community_infection_period,
-                        hospital_infection_period,
+from _constants import (latent_periods,
+                        community_infection_periods,
+                        hospital_infection_periods,
                         hospitalization_fraction,
                         community_mortality_fraction,
                         hospital_mortality_fraction,
@@ -27,9 +27,9 @@ print_start_of(__name__)
 # constructor takes clinical parameter samplers which are then used to draw real
 # clinical parameters, and those are used to calculate transition rates
 transition_rates = TransitionRates(population = network.get_node_count(),
-                                   lp_sampler = latent_period,
-                                  cip_sampler = community_infection_period,
-                                  hip_sampler = hospital_infection_period,
+                                   lp_sampler = latent_periods,
+                                  cip_sampler = community_infection_periods,
+                                  hip_sampler = hospital_infection_periods,
                                    hf_sampler = hospitalization_fraction,
                                   cmf_sampler = community_mortality_fraction,
                                   hmf_sampler = hospital_mortality_fraction,
