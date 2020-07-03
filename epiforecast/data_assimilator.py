@@ -85,11 +85,18 @@ class DataAssimilator:
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
 
+        # storage for observations time : obj 
+        self.stored_observed_states = {}
+        self.stored_observed_means = {}
+        self.stored_observed_variances = {}
+ 
+
     def find_observation_states(
             self,
             user_nodes,
             ensemble_state,
             data,
+            time,
             verbose=False):
         """
         Make all the observations in the list self.observations.
@@ -104,47 +111,62 @@ class DataAssimilator:
             print("[ Data assimilator ]",
                   "Observation type : Number of Observed states")
 
-        observed_states = []
-        for observation in self.observations:
-            observation.find_observation_states(user_nodes,
-                                                ensemble_state,
-                                                data)
-            if observation.obs_states.size > 0:
-                observed_states.extend(observation.obs_states)
-            if verbose:
-                print("[ Data assimilator ]",
-                      observation.name,
-                      ":",
-                      len(observation.obs_states))
+        if time in self.stored_observed_states:
+            observed_states = self.stored_observed_states[time]
+            observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
+            return observed_states, observed_nodes
+        
+        else:
+            observed_states = []
+            for observation in self.observations:
+                observation.find_observation_states(user_nodes,
+                                                    ensemble_state,
+                                                    data)
+                if observation.obs_states.size > 0:
+                    observed_states.extend(observation.obs_states)
+                    if verbose:
+                        print("[ Data assimilator ]",
+                              observation.name,
+                              ":",
+                              len(observation.obs_states))
 
-        observed_states = np.array(observed_states)
-        observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
-        return observed_states, observed_nodes
+            observed_states = np.array(observed_states)
+            self.stored_observed_states[time] = observed_states
+            observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
+            return observed_states, observed_nodes
 
     def observe(
             self,
             user_nodes,
             state,
             data,
+            time,
             scale='log',
             noisy_measurement=False):
 
-        observed_means = []
-        observed_variances = []
-        for observation in self.observations:
-            if (observation.obs_states.size >0):
-                observation.observe(user_nodes,
-                                    state,
-                                    data,
-                                    scale)
+        if time in self.stored_observed_means:
+            observed_means = self.stored_observed_means[time]
+            observed_variances = self.stored_observed_variances[time]
+            return observed_means, observed_variances
+        
+        else:
+            observed_means = []
+            observed_variances = []
+            for observation in self.observations:
+                if (observation.obs_states.size >0):
+                    observation.observe(user_nodes,
+                                        state,
+                                        data,
+                                        scale)
 
-                observed_means.extend(observation.mean)
-                observed_variances.extend(observation.variance)
+                    observed_means.extend(observation.mean)
+                    observed_variances.extend(observation.variance)
 
-        #observed_means = np.hstack([observation.mean for observation in self.observations])
-        #observed_variances= np.hstack([observation.variance for observation in self.observations])
-
-        return np.array(observed_means), np.array(observed_variances)
+            observed_means = np.array(observed_means)
+            observed_variances = np.array(observed_variances)
+            self.stored_observed_means[time] = observed_means
+            self.stored_observed_variances[time] = observed_variances
+            return observed_means, observed_variances
 
 
     # ensemble_state np.array([ensemble size, num status * num nodes]
@@ -159,13 +181,14 @@ class DataAssimilator:
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
             user_nodes,
+            time,
             verbose=False):
         """
         Input:
             ...
             verbose (bool): whether to print info about each observation
         """
-
+        print(self.stored_observed_states)
         ensemble_size = ensemble_state.shape[0]
 
         if len(self.observations) == 0: # no update is performed; return input
@@ -179,6 +202,7 @@ class DataAssimilator:
             obs_states,obs_nodes = self.find_observation_states(user_nodes,
                                                                 ensemble_state,
                                                                 data,
+                                                                time,
                                                                 verbose)
             if (obs_states.size > 0):
                 print("[ Data assimilator ] Total states to be assimilated: ",
@@ -198,6 +222,7 @@ class DataAssimilator:
                 truth,var = self.observe(user_nodes,
                                          ensemble_state,
                                          data,
+                                         time,
                                          scale = None)
                 cov = np.diag(var)
 
