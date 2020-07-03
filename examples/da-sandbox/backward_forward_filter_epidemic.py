@@ -20,7 +20,7 @@ user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()
 
 start_time = epidemic_simulator.time
-simulation_length = 10
+simulation_length = 30 
 
 print("We first create an epidemic for",
       simulation_length,
@@ -85,12 +85,12 @@ plt.savefig('backward_forward_filter_on_loaded_epidemic.png', rasterized=True, d
 # Set the size of backward and forward DA windows
 # For each cycle, this example performs a backward DA, a forward DA, and then a forward prediction 
 # 
-backward_DA_interval = 5
-forward_DA_interval = 5
-forward_prediction_interval = 2
+backward_DA_interval = 7
+forward_DA_interval = 7
+forward_prediction_interval = 1
 
-time = 0.0 
-loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=time)
+start_time = 0.0 
+loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=start_time)
 user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
 initial_statuses = loaded_data.start_statuses
 
@@ -221,215 +221,79 @@ states_ensemble = random_risk(population,
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
-forward_run_time = time
-master_eqn_ensemble.set_start_time(time)
-print('#'*60)
-print('Run forward prediction for time window [%2.3f, %2.3f]' \
-      %(forward_run_time, forward_run_time+forward_prediction_interval))
-print('#'*60)
-for j in range(int(forward_prediction_interval/static_contact_interval)):
+#
+# Run backward/forward DA 
+#
+from _da_functions import *
 
+(forward_run_end_time, 
+states_ensemble,
+states_ensemble_all,
+master_eqn_ensemble, 
+transition_rates_ensemble, community_transmission_rate_ensemble
+) = forward_DA(start_time, forward_prediction_interval, 
+                  day, static_contact_interval,
+                  states_ensemble,
+                  master_eqn_ensemble, 
+                  epidemic_data_storage, user_network, user_nodes,
+                  assimilator_imperfect_observations, assimilator_perfect_observations,
+                  transition_rates_to_update_imperf_str, rates_inflation,
+                  transition_rates_ensemble, community_transmission_rate_ensemble)
 
-    loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_run_time)
-    user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
-    user_nodes = user_network.get_nodes()
-    master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights())
-    states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
-
-    print('Assimilating infection data:')
-    (states_ensemble,
-     transition_rates_ensemble,
-     community_transmission_rate_ensemble
-    ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
-                                                            data = loaded_data.end_statuses,
-                                  full_ensemble_transition_rates = transition_rates_ensemble,
-                                 full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                    user_nodes = user_nodes)
-
-    if (j+1)%int(day/static_contact_interval) == 0:
-        print('Assimilating hospital and death records:')
-        (states_ensemble,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
-                                                              data = loaded_data.end_statuses,
-                                    full_ensemble_transition_rates = transition_rates_ensemble,
-                                   full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                        user_nodes = user_nodes)
-
-
-    for rate in transition_rates_ensemble:
-        rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                              rates_inflation)
-        
-    lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
-    cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
-    hip = np.array([rate.hospital_infection_periods for rate in transition_rates_ensemble])
-    print("latent_periods             : mean", np.mean(np.exp(lp)),  "var", np.var(np.exp(lp)))
-    print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
-    print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
-
-    forward_run_time = forward_run_time + static_contact_interval
-    master_eqn_ensemble.set_states_ensemble(states_ensemble)
-    master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                       new_transmission_rate = community_transmission_rate_ensemble)
-    states_trace_ensemble[:,:,j] = states_ensemble
+states_trace_ensemble[:,:,:int(forward_prediction_interval/static_contact_interval)] \
+= states_ensemble_all
 
 for k in range(1,int(simulation_length/forward_prediction_interval)):
 
-    backward_DA_time = k*forward_prediction_interval
-    backward_DA_interval_effective = np.minimum(backward_DA_interval, k*forward_prediction_interval)
-    master_eqn_ensemble.set_start_time(backward_DA_time)
-    print('#'*60)
-    print('Run backward DA for time window [%2.3f, %2.3f]' \
-          %(backward_DA_time, backward_DA_time-backward_DA_interval_effective))
-    print('#'*60)
-    for i in range(int(backward_DA_interval_effective/static_contact_interval)):
-        loaded_data=epidemic_data_storage.get_network_from_end_time(end_time=backward_DA_time)
-        user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
-        user_nodes = user_network.get_nodes()
-        master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights())
-        states_ensemble = master_eqn_ensemble.simulate_backwards(static_contact_interval, n_steps = 25)
-        
-    
-        print('Assimilating infection data:')
-        (states_ensemble,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
-                                                                data = loaded_data.start_statuses,
-                                      full_ensemble_transition_rates = transition_rates_ensemble,
-                                     full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                          user_nodes = user_nodes)
+    backward_start_time = k*forward_prediction_interval
+    backward_interval_effective = np.minimum(backward_DA_interval, k*forward_prediction_interval)
+    (backward_end_time, 
+     states_ensemble,
+     master_eqn_ensemble, 
+     transition_rates_ensemble, community_transmission_rate_ensemble) \
+    = backward_DA(backward_start_time, backward_interval_effective,
+                                    day, static_contact_interval,
+                                    master_eqn_ensemble, 
+                                    epidemic_data_storage, user_network, user_nodes,
+                                    assimilator_imperfect_observations, assimilator_perfect_observations,
+                                    transition_rates_to_update_imperf_str, rates_inflation,
+                                    transition_rates_ensemble, community_transmission_rate_ensemble)
 
-        if (i+1)%int(day/static_contact_interval) == 0:
-            print('Assimilating hospital and death records:')
-            (states_ensemble,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
-                                                                  data = loaded_data.start_statuses,
-                                        full_ensemble_transition_rates = transition_rates_ensemble,
-                                       full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                            user_nodes = user_nodes)
-
-
-        for rate in transition_rates_ensemble:
-            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  rates_inflation)
-        #update model parameters (transition and transmission rates) of the master eqn model
-
-        #at the update the time
-        backward_DA_time = backward_DA_time - static_contact_interval
-        master_eqn_ensemble.set_states_ensemble(states_ensemble)
-        master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                           new_transmission_rate = community_transmission_rate_ensemble)
-
-    forward_DA_time = backward_DA_time
-    master_eqn_ensemble.set_start_time(forward_DA_time)
+    forward_DA_start_time = backward_end_time
     forward_DA_interval_effective = np.minimum(forward_DA_interval, k*forward_prediction_interval)
-    print('#'*60)
-    print('Run forward DA for time window [%2.3f, %2.3f]' \
-          %(forward_DA_time, forward_DA_time+forward_DA_interval_effective))
-    print('#'*60)
-    for j in range(int(forward_DA_interval_effective/static_contact_interval)):
-    
-        loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_DA_time)
-        user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
-        user_nodes = user_network.get_nodes()
-        master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights())
-        states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
-    
-    
-        print('Assimilating infection data:')
-        (states_ensemble,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
-                                                                data = loaded_data.end_statuses,
-                                      full_ensemble_transition_rates = transition_rates_ensemble,
-                                     full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                        user_nodes = user_nodes)
+    (forward_DA_end_time,
+     states_ensemble,
+     states_ensemble_all,
+     master_eqn_ensemble, 
+     transition_rates_ensemble, community_transmission_rate_ensemble) \
+    = forward_DA(forward_DA_start_time, forward_DA_interval_effective, 
+                                    day, static_contact_interval,
+                                    states_ensemble,
+                                    master_eqn_ensemble, 
+                                    epidemic_data_storage, user_network, user_nodes,
+                                    assimilator_imperfect_observations, assimilator_perfect_observations,
+                                    transition_rates_to_update_imperf_str, rates_inflation,
+                                    transition_rates_ensemble, community_transmission_rate_ensemble)
 
-        if (j+1)%int(day/static_contact_interval) == 0:
-            print('Assimilating hospital and death records:')
-            (states_ensemble,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
-                                                                  data = loaded_data.end_statuses,
-                                        full_ensemble_transition_rates = transition_rates_ensemble,
-                                       full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                            user_nodes = user_nodes)
+    forward_run_start_time = forward_DA_end_time
+    (forward_run_end_time,
+     states_ensemble,
+     states_ensemble_all,
+     master_eqn_ensemble, 
+     transition_rates_ensemble, community_transmission_rate_ensemble) \
+    = forward_DA(forward_run_start_time, forward_prediction_interval, 
+                                    day, static_contact_interval,
+                                    states_ensemble,
+                                    master_eqn_ensemble, 
+                                    epidemic_data_storage, user_network, user_nodes,
+                                    assimilator_imperfect_observations, assimilator_perfect_observations,
+                                    transition_rates_to_update_imperf_str, rates_inflation,
+                                    transition_rates_ensemble, community_transmission_rate_ensemble)
 
-
-        for rate in transition_rates_ensemble:
-            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  rates_inflation)
-
-        #update model parameters (transition and transmission rates) of the master eqn model
-        #at the update the time
-        forward_DA_time = forward_DA_time + static_contact_interval
-        master_eqn_ensemble.set_states_ensemble(states_ensemble)
-        master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                           new_transmission_rate = community_transmission_rate_ensemble)
-
-    forward_prediction_time = forward_DA_time
-    master_eqn_ensemble.set_start_time(forward_prediction_time)
-    print('#'*60)
-    print('Run forward prediction for time window [%2.3f, %2.3f]' \
-          %(forward_prediction_time, forward_prediction_time+forward_prediction_interval))
-    print('#'*60)
-    for j in range(int(forward_prediction_interval/static_contact_interval)):
-    
-        loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=forward_prediction_time)
-        user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
-        user_nodes = user_network.get_nodes()
-        master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights())
-        states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
-
-        print('Assimilating infection data:')
-        (states_ensemble,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_imperfect_observations.update(ensemble_state = states_ensemble,
-                                                                data = loaded_data.end_statuses,
-                                      full_ensemble_transition_rates = transition_rates_ensemble,
-                                     full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                        user_nodes = user_nodes)
-
-        if (j+1)%int(day/static_contact_interval) == 0:
-            print('Assimilating hospital and death records:')
-            (states_ensemble,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = assimilator_perfect_observations.update(ensemble_state = states_ensemble,
-                                                                  data = loaded_data.end_statuses,
-                                        full_ensemble_transition_rates = transition_rates_ensemble,
-                                       full_ensemble_transmission_rate = community_transmission_rate_ensemble,
-                                                            user_nodes = user_nodes)
-
-
-        for rate in transition_rates_ensemble:
-            rate.add_noise_to_clinical_parameters(transition_rates_to_update_imperf_str,
-                                                  rates_inflation)
-
-            
-        lp = np.array([rate.latent_periods for rate in transition_rates_ensemble])
-        cip = np.array([rate.community_infection_periods for rate in transition_rates_ensemble])
-        hip = np.array([rate.hospital_infection_periods for rate in transition_rates_ensemble])
-        print("latent_periods             : mean", np.mean(np.exp(lp)),  "var", np.var(np.exp(lp)))
-        print("community_infection_periods: mean", np.mean(np.exp(cip)), "var", np.var(np.exp(cip)))
-        print("hospital_infection_periods : mean", np.mean(np.exp(hip)), "var", np.var(np.exp(hip)))
-    
-        #update model parameters (transition and transmission rates) of the master eqn model
-        #at the update the time
-        forward_prediction_time = forward_prediction_time + static_contact_interval
-        master_eqn_ensemble.set_states_ensemble(states_ensemble)
-        master_eqn_ensemble.update_ensemble(new_transition_rates = transition_rates_ensemble,
-                                           new_transmission_rate = community_transmission_rate_ensemble)
-
-        states_trace_ensemble[:,:,int(k*forward_prediction_interval/static_contact_interval)+j] = states_ensemble
+    states_trace_ensemble[:,:, \
+                          int(k*forward_prediction_interval/static_contact_interval): \
+                          int((k+1)*forward_prediction_interval/static_contact_interval)] \
+                        = states_ensemble_all
 
 pickle.dump(states_trace_ensemble, open('data/states_trace_ensemble.pkl', 'wb'))
 pickle.dump(time_trace, open('data/time_trace.pkl', 'wb'))
