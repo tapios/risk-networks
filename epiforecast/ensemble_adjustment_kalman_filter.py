@@ -28,6 +28,7 @@ class EnsembleAdjustmentKalmanFilter:
         # Error
         self.error = np.empty(0)
         self.full_svd = full_svd
+        self.assemble_Sigma = assemble_Sigma
         self.params_cov_noise = params_cov_noise
         self.states_cov_noise = states_cov_noise
         self.params_noise_active = params_noise_active
