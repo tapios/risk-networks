@@ -188,8 +188,6 @@ class DataAssimilator:
             ...
             verbose (bool): whether to print info about each observation
         """
-        ensemble_size = ensemble_state.shape[0]
-
         if len(self.observations) == 0: # no update is performed; return input
             return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
@@ -209,10 +207,11 @@ class DataAssimilator:
 
                 # extract only those rates which we wish to update with DA
                 (ensemble_transition_rates,
-                 ensemble_transmission_rate,
-                ) = self.get_model_parameters_to_update(full_ensemble_transition_rates,
-                                                        full_ensemble_transmission_rate,
-                                                        obs_nodes)
+                 ensemble_transmission_rate
+                ) = self.extract_model_parameters_to_update(
+                        full_ensemble_transition_rates,
+                        full_ensemble_transmission_rate,
+                        obs_nodes)
                
                 print("[ Data assimilator ] Total parameters to be assimilated: ",np.hstack([ensemble_transition_rates,ensemble_transmission_rate]).shape[1])
 
@@ -244,12 +243,13 @@ class DataAssimilator:
                 # set the updated rates in the TransitionRates object and
                 # return the full rates.
                 (full_ensemble_transition_rates,
-                 full_ensemble_transmission_rate,
-                ) = self.set_updated_model_parameters(new_ensemble_transition_rates,
-                                                      new_ensemble_transmission_rate,
-                                                      full_ensemble_transition_rates,
-                                                      full_ensemble_transmission_rate,
-                                                      obs_nodes)
+                 full_ensemble_transmission_rate
+                ) = self.assign_updated_model_parameters(
+                        new_ensemble_transition_rates,
+                        new_ensemble_transmission_rate,
+                        full_ensemble_transition_rates,
+                        full_ensemble_transmission_rate,
+                        obs_nodes)
 
                 print("[ Data assimilator ] EAKF error:", dam.error[-1])
             else:
@@ -343,86 +343,119 @@ class DataAssimilator:
                 ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
 
-    def get_model_parameters_to_update(
+    def extract_model_parameters_to_update(
             self,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
             obs_nodes):
+        """
+        Extract model parameters for update from lists into np.arrays
+
+        Input:
+            full_ensemble_transition_rates (list): list of TransitionRates from
+                                                   which to extract rates for
+                                                   update
+            full_ensemble_transmission_rate (list): list of floats/ints
+            obs_nodes (np.array): (m,) array of node indices
+
+        Output:
+            ensemble_transition_rates (np.array): (n_ensemble,k) array of values
+            ensemble_transmission_rate (np.array): (n_ensemble,) array of values
+        """
         #full_ensemble is a list
-        ensemble_size = len(full_ensemble_transition_rates)
-        
+        n_ensemble = len(full_ensemble_transition_rates)
+
         # We extract only the transition rates we wish to be updated
         # stored as an [ensemble size x transition rates (to be updated)] np.array
         if len(self.transition_rates_to_update_str) > 0:
-            ensemble_transition_rates = np.array([])
-            for member in range(ensemble_size):
-                rates_member=[]
-                for rate_type in self.transition_rates_to_update_str:
-                    #the attribute will be a float or an np.array of the size of the network.
-                    rates_tmp = np.array(getattr(full_ensemble_transition_rates[member], rate_type))
-                    if rates_tmp.size > 1: # only extract the observed values
-                        rates_tmp =rates_tmp[obs_nodes]
-                        # Have to create here as rates_tmp unknown in advance
-                    rates_member.append(rates_tmp)
+            for i, transition_rates in full_ensemble_transition_rates:
+                rates_member = []
+                for rate_name in self.transition_rates_to_update_str:
+                    # clinical_parameter is either a float or (n_user_nodes,) np.array
+                    clinical_parameter = (
+                            transition_rates.get_clinical_parameter(rate_name))
+
+                    if isinstance(clinical_parameter, np.ndarray):
+                        # only extract the observed values
+                        clinical_parameter = clinical_parameter[obs_nodes]
+
+                    rates_member.append(clinical_parameter)
 
                 rates_member = np.hstack(rates_member)
-            
-                if member == 0: ensemble_transition_rates = np.empty((0, rates_member.size), dtype=float)
 
-                ensemble_transition_rates = np.append(ensemble_transition_rates, [rates_member], axis=0)
+                if i == 0:
+                    ensemble_transition_rates = np.empty((0, rates_member.size),
+                                                         dtype=float)
+                ensemble_transition_rates = np.append(ensemble_transition_rates,
+                                                      [rates_member],
+                                                      axis=0)
 
             ensemble_transition_rates = np.vstack(ensemble_transition_rates)
-                    
-        else: # set to column of empties
-            ensemble_transition_rates =  np.empty((ensemble_size, 0), dtype=float)
 
-        #obtain the transmission_rate
-        if self.transmission_rate_to_update_flag is True:
+        else: # set to column of empties
+            ensemble_transition_rates = np.empty((n_ensemble, 0), dtype=float)
+
+        if self.transmission_rate_to_update_flag:
             ensemble_transmission_rate = full_ensemble_transmission_rate
-            
         else: # set to column of empties
-            ensemble_transmission_rate = np.empty((ensemble_size, 0), dtype=float)
+            ensemble_transmission_rate = np.empty((n_ensemble, 0), dtype=float)
 
-        return  ensemble_transition_rates,  ensemble_transmission_rate
+        return ensemble_transition_rates, ensemble_transmission_rate
 
-
-    def set_updated_model_parameters(
+    def assign_updated_model_parameters(
             self,
             new_ensemble_transition_rates,
             new_ensemble_transmission_rate,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
             obs_nodes):
+        """
+        Assign updated model parameters from np.arrays into corresponding lists
 
-        #full_ensemble is a list
-        ensemble_size = len(full_ensemble_transition_rates)
+        Input:
+            new_ensemble_transition_rates (np.array): (n_ensemble,k) array of
+                                                      values
+            new_ensemble_transmission_rate (np.array): (n_ensemble,) array of
+                                                       values
+            full_ensemble_transition_rates (list): list of TransitionRates, to
+                                                   be updated
+            full_ensemble_transmission_rate (list): list of floats/ints, to be
+                                                    updated
+            obs_nodes (np.array): (m,) array of node indices
 
-        # Update the new transition rates if required
+        Output:
+            full_ensemble_transition_rates (list): same object as in input
+            full_ensemble_transmission_rate (list): same object as in input
+        """
         if len(self.transition_rates_to_update_str) > 0:
-            for member in range(ensemble_size):
-                new_member_rates = new_ensemble_transition_rates[member,:]
-                for rate_type in self.transition_rates_to_update_str:
+            for transition_rates_from, transition_rates_to in zip(
+                    new_ensemble_transition_rates,
+                    full_ensemble_transition_rates):
+                for rate_name in self.transition_rates_to_update_str:
                     # Need to go back from numpy array to setting rates
                     # We obtain the size, then update the corresponding transition rate
                     # Then delete this an move onto the next rate
-                    clinical_parameter = getattr(full_ensemble_transition_rates[member], rate_type)
-                    if not isinstance(clinical_parameter, np.ndarray):
-                        rate_size = 1 #np.array(clinical_parameter).size
-                        new_rates = new_member_rates[0]
+                    clinical_parameter = (
+                            transition_rates_to.get_clinical_parameter(
+                                rate_name))
+                    if isinstance(clinical_parameter, np.ndarray):
+                        rate_size = obs_nodes.size
+                        new_rates = clinical_parameter
+                        new_rates[obs_nodes] = transition_rates_from[:rate_size]
                     else:
-                        rate_size=obs_nodes.size
-                        #set the updated rates into the loaded clinical parameter
-                        new_rates=clinical_parameter
-                        new_rates[obs_nodes]=new_member_rates[:rate_size]
+                        rate_size = 1
+                        new_rates = transition_rates_from[0]
 
-                    full_ensemble_transition_rates[member].set_clinical_parameter(rate_type, new_rates)
+                    transition_rates_to.set_clinical_parameter(rate_name,
+                                                               new_rates)
+                    transition_rates_from = np.delete(transition_rates_from,
+                                                      np.s_[:rate_size])
 
-                    new_member_rates = np.delete(new_member_rates, np.arange(rate_size))
-                    
-                full_ensemble_transition_rates[member].calculate_from_clinical()
+                transition_rates_to.calculate_from_clinical()
 
-        # Update the transmission_rate if required
-        if self.transmission_rate_to_update_flag is True:
+        if self.transmission_rate_to_update_flag:
             full_ensemble_transmission_rate = new_ensemble_transmission_rate
 
         return full_ensemble_transition_rates, full_ensemble_transmission_rate
+
+
