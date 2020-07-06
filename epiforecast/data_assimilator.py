@@ -367,7 +367,7 @@ class DataAssimilator:
         # We extract only the transition rates we wish to be updated
         # stored as an [ensemble size x transition rates (to be updated)] np.array
         if len(self.transition_rates_to_update_str) > 0:
-            for i, transition_rates in full_ensemble_transition_rates:
+            for i, transition_rates in enumerate(full_ensemble_transition_rates):
                 rates_member = []
                 for rate_name in self.transition_rates_to_update_str:
                     # clinical_parameter is either a float or (n_user_nodes,) np.array
