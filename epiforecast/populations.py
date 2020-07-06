@@ -43,6 +43,16 @@ class TransitionRates:
     5. transition_rates.infected_to_deceased
     6. transition_rates.hospitalized_to_deceased
     """
+
+    CLINICAL_PARAMETER_NAMES = {
+            'latent_periods':               0,
+            'community_infection_periods':  1,
+            'hospital_infection_periods':   2,
+            'hospitalization_fraction':     3,
+            'community_mortality_fraction': 4,
+            'hospital_mortality_fraction':  5
+    }
+
     def __init__(
             self,
             population,
@@ -95,7 +105,6 @@ class TransitionRates:
         self.cmf_sampler = cmf_sampler
         self.hmf_sampler = hmf_sampler
 
-        
         if distributional_parameters is None:
             distributional_parameters = np.ones(self.population)
 
@@ -108,7 +117,6 @@ class TransitionRates:
 
         self.__draw_and_set_clinical_using(distributional_parameters)
 
-        #do we transform the clinical parameters when calculating parameters
         self.lp_transform  = lp_transform
         self.cip_transform = cip_transform
         self.hip_transform = hip_transform
@@ -237,7 +245,6 @@ class TransitionRates:
                 self.hmf_sampler,
                 distributional_parameters)
 
-
     def transform_clinical_parameter(
             self,
             clinical_parameter,
@@ -275,10 +282,10 @@ class TransitionRates:
         parameter_string (list of strings): the parameters to add noise too
         """
         for (lvl,par_str) in zip(noise_level,parameter_str):
-            clinical_parameter = getattr(self,par_str)
+            clinical_parameter = self.get_clinical_parameter(par_str)
             noise = np.random.normal(0,lvl,clinical_parameter.shape)
             setattr(self, par_str, clinical_parameter + noise)
-        
+
     def calculate_from_clinical(self):
         """
         Calculate transition rates using the current clinical parameters
@@ -293,21 +300,121 @@ class TransitionRates:
         hf  = self.transform_clinical_parameter(self.hospitalization_fraction,    self.hf_transform)
         cmf = self.transform_clinical_parameter(self.community_mortality_fraction,self.cmf_transform)
         hmf = self.transform_clinical_parameter(self.hospital_mortality_fraction, self.hmf_transform)
-        
+
         σ      = self.__broadcast_to_array(1 / lp)
         γ      = self.__broadcast_to_array(1 / cif)
         γ_prime= self.__broadcast_to_array(1 / hip)
         h      = self.__broadcast_to_array(hf)
         d      = self.__broadcast_to_array(cmf)
         d_prime= self.__broadcast_to_array(hmf)
-        
-            
+
         self.exposed_to_infected      = dict(enumerate(σ))
         self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
         self.infected_to_hospitalized = dict(enumerate(h * γ))
         self.infected_to_deceased     = dict(enumerate(d * γ))
         self.hospitalized_to_resistant= dict(enumerate((1 - d_prime) * γ_prime))
         self.hospitalized_to_deceased = dict(enumerate(d_prime * γ_prime))
+
+    def get_clinical_parameters_total_count(self):
+        """
+        Get the total number of values of all clinical parameters
+
+        Output:
+            n_parameters (int): total number of clinical parameters values
+        """
+        n_parameters = 0
+        for name in self.CLINICAL_PARAMETER_NAMES:
+            n_parameters += self.get_clinical_parameter_count(name)
+
+        return n_parameters
+
+    def get_clinical_parameter_count(
+            self,
+            name):
+        """
+        Get the total number of values of a clinical parameter by its name
+
+        Input:
+            name (str): parameter name, like 'latent_periods'
+        Output:
+            n_parameter (int): total number of the clinical parameter values
+        """
+        parameter = self.get_clinical_parameter(name)
+        if isinstance(parameter, (int, float)):
+            return 1
+        elif isinstance(parameter, np.ndarray):
+            return parameter.size
+        else:
+            raise ValueError(
+                    self.__class__.__name__
+                    + ": cannot infer the number of values of parameter: "
+                    + name
+                    + "; it is of the type: "
+                    + values.__class__.__name__)
+
+    def get_clinical_parameters_as_array(self):
+        """
+        Get values of all clinical parameters as np.array
+
+        The order is the same as specified in CLINICAL_PARAMETER_NAMES.
+
+        Output:
+            clinical_parameters (np.array): (n_parameters,) array of values
+        """
+        clinical_parameters_list = []
+        for name in self.CLINICAL_PARAMETER_NAMES:
+            clinical_parameters_list.append(self.get_clinical_parameter(name))
+
+        clinical_parameters = np.hstack(clinical_parameters_list)
+        return clinical_parameters
+
+    def get_clinical_parameter_indices(
+            self,
+            name):
+        """
+        Get indices of a clinical parameter by its name in concatenated array
+
+        The indices are consistent with 'get_clinical_parameters_as_array'
+        method, i.e. can be used to get slices of a particular parameter:
+            clinical_array = transition_rates.get_clinical_parameters_as_array()
+            lp_indices = transition_rates.get_clinical_parameter_indices(
+                    'latent_periods')
+            latent_periods = clinical_array[lp_indices]
+
+        It is identical to calling:
+            latent_periods = transition_rates.get_clinical_parameter(
+                    'latent_periods')
+        but provides more flexibility (e.g. when storing and accessing
+        parameters as arrays)
+
+        Input:
+            name (str): parameter name, like 'latent_periods'
+        Output:
+            indices (np.array): (k,) array of indices
+        """
+        start_index = 0
+        for iteration_name in self.CLINICAL_PARAMETER_NAMES:
+            if iteration_name == name:
+                break
+            start_index += self.get_clinical_parameter_count(iteration_name)
+
+        end_index = start_index + self.get_clinical_parameter_count(name)
+        return np.r_[start_index : end_index]
+
+    def get_clinical_parameter(
+            self,
+            name):
+        """
+        Get a clinical parameter by its name
+
+        Input:
+            name (str): parameter name, like 'latent_periods'
+        Output:
+            clinical_parameter (int),
+                               (float):    constant value of a parameter
+                               (np.array): (self.population,) array of values
+        """
+        return getattr(self, name)
 
     def set_clinical_parameter(
             self,
