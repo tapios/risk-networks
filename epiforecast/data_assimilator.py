@@ -362,7 +362,6 @@ class DataAssimilator:
             ensemble_transition_rates (np.array): (n_ensemble,k) array of values
             ensemble_transmission_rate (np.array): (n_ensemble,) array of values
         """
-        #full_ensemble is a list
         n_ensemble = len(full_ensemble_transition_rates)
 
         # We extract only the transition rates we wish to be updated
