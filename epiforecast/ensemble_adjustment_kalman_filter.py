@@ -236,7 +236,7 @@ class EnsembleAdjustmentKalmanFilter:
                 Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
                 #Sigma_u = np.linalg.multi_dot([A, F_full, Dp, F_full.T, A.T])
 
-                if np.linalg.matrix_rank(Sigma_u) < Sigma_u.shape[0]:
+                if zp.shape[0] < zp.shape[1]:
                     ## Adding noises to Sigma_u
                     zu_tmp = np.dot(A,  1./np.sqrt(J-1) * (zp-np.mean(zp,0)).T)
                     F_u_full, _, _ = la.svd(zu_tmp, full_matrices=True)
