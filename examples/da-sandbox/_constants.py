@@ -4,6 +4,7 @@ import numpy as np
 
 from epiforecast.samplers import AgeDependentConstant
 
+from _argparse_init import arguments
 from _utilities import print_start_of, print_end_of
 
 
@@ -13,7 +14,13 @@ print_start_of(__name__)
 NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
 SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
 FIGURES_PATH = os.path.join('..', '..', 'figs')
-OUTPUT_PATH = os.path.join('output', datetime.now().strftime('%y%m%d-%H-%M'))
+
+if len(arguments.constants_output_directory) > 0:
+    output_directory = arguments.constants_output_directory
+else:
+    output_directory = datetime.now().strftime('%y%m%d-%H-%M')
+
+OUTPUT_PATH = os.path.join('output', output_directory)
 
 # time & intervals #############################################################
 minute = 1 / 60 / 24
