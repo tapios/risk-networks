@@ -42,6 +42,22 @@ def print_info(
     print(" " * LEFT_PAD + str(module_name) + ": ", end='')
     print(*args, **kwargs)
 
+def print_warning(
+        module_name,
+        *args,
+        **kwargs):
+    """
+    Print warning in a module
+
+    Input:
+        module_name (str): name of the module
+        *args, **kwargs: to be passed to the 'print' function
+    Output:
+        None
+    """
+    print("!" + " " * (LEFT_PAD - 1) + str(module_name) + ": ", end='')
+    print(*args, **kwargs)
+
 def list_of_transition_rates_to_array(list_of_rates):
     """
     Convert a list of TransitionRates into np.array
