@@ -161,7 +161,6 @@ class EnsembleAdjustmentKalmanFilter:
                 Dp_vec_full[:J-1] = Dp_vec
                 Dp_vec_full = Dp_vec_full**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
-                Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
             
             else:
                 
@@ -170,9 +169,10 @@ class EnsembleAdjustmentKalmanFilter:
                 Dp_vec = 1./np.sqrt(J-1) * Dp_vec
                 Dp_vec_full = Dp_vec**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
-                Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
 
-
+            # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
+            Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
+            
         # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
         if not self.observation_svd_reduced:
             start = time.perf_counter()
@@ -180,16 +180,16 @@ class EnsembleAdjustmentKalmanFilter:
             # Performing the second SVD of EAKF in the full space
             G = np.diag(np.sqrt(Dp_vec_full))
             G_inv = np.diag(1./np.sqrt(Dp_vec_full))
-            U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F_full.T, H.T, np.sqrt(cov_inv)]), \
+            # computation of multidot([G.T, F_full.T, H.T, np.sqrt(cov_inv)])
+            U, D_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G)).T, np.mulitply(H.T, np.sqrt(np.diag(cov_inv)))]), \
                                  full_matrices=True)
             D_vec = D_vec**2
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            A = np.linalg.multi_dot([F_full, \
-                                     G.T, \
-                                     U, \
-                                     B.T, \
-                                     G_inv, \
-                                     F_full.T])
+
+
+
+            #Computation of multi_dot([F_full, G.T,U,B.T,G_inv,F_full.T])            
+            A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv)).T])
             Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
                
             end = time.perf_counter()
@@ -208,19 +208,19 @@ class EnsembleAdjustmentKalmanFilter:
             start = time.perf_counter()
 
             #J-1 is too small
-            trunc_size = min(2*J,cov_inv.shape[0])
+            trunc_size = min(2*(J-1),cov_inv.shape[0])
            
-
-            Urect, rtD_vec , _ = randomized_svd(np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]), 
+            #np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
+            Urect, rtD_vec , _ = randomized_svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), 
                                               n_components=trunc_size,
                                               n_iter=5,
                                               random_state=None)
 
             #to get the full U we perform another svd on U*D_vec_red
             #
-            U, _, _ = la.svd(Urect.dot(np.diag(rtD_vec))) #4000 x 99
+            U, _, _ = la.svd(np.multiply(Urect,rtD_vec)) #4000 x 99
             
-            print(rtD_vec*rtD_vec)
+            #print(rtD_vec*rtD_vec)
             end = time.perf_counter()
             print("Time for (truncate + padded) SVD: ", end-start)
           
@@ -230,15 +230,12 @@ class EnsembleAdjustmentKalmanFilter:
             D_vec[:trunc_size] = sing_val_sq  
 
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            A = np.linalg.multi_dot([F_full, \
-                                     G_full.T, \
-                                     U, \
-                                     B.T, \
-                                     G_inv_full, \
-                                     F_full.T])
+
+            #Computation of multi_dot([F_full, G_full.T,U,B.T,G_inv_full,F_full.T])            
+            A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G_full)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv_full)).T])
             
-            Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
             Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
+            
             
             # ## previous implementation
             # U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
@@ -269,10 +266,11 @@ class EnsembleAdjustmentKalmanFilter:
             #     Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
 
             
-
-        Sigma_inv = np.linalg.multi_dot([F_full, np.linalg.inv(Dp), F_full.T])
+        # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
+        Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
+        
         zu_bar = np.dot(Sigma_u, \
-                           (np.dot(Sigma_inv, zp_bar) + np.linalg.multi_dot([H.T, cov_inv, x_t])))
+                           (np.dot(Sigma_inv, zp_bar) + np.linalg.multi_dot([ np.multiply(H.T,np.diag(cov_inv)), x_t])))
 
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar
