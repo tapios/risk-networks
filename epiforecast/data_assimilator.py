@@ -76,8 +76,8 @@ class DataAssimilator:
         self.observations = observations
 
         # the data assimilation models (One for each observation model)
-        self.damethod = EnsembleAdjustmentKalmanFilter(first_svd_full=False, \
-                                                       second_svd_full=True)
+        self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=True, \
+                                                       observation_svd_reduced=False)
 
         # online evaluations of errors, one needs an observation class to check differences in data
         self.online_emodel= errors
