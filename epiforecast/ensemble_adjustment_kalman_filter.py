@@ -51,7 +51,7 @@ class EnsembleAdjustmentKalmanFilter:
             transmission_rates,
             truth,
             cov,
-            compute_error=True,
+            print_error=False,
             r=1.0):
 
         '''
@@ -135,7 +135,7 @@ class EnsembleAdjustmentKalmanFilter:
                 Sigma=Sigma[np.newaxis]
                 
             # Add noise directly to the sample covariance for ill-conditioned Sigma
-            Sigma = Sigma + np.identity(pqs+xs) * self.joint_cov_noise
+            Sigma = Sigma + np.diag(np.full(pqs+xs, self.joint_cov_noise))
 
             # Perform SVD on Sigma
             F, Dp_vec, _ = la.svd(Sigma)
@@ -225,7 +225,7 @@ class EnsembleAdjustmentKalmanFilter:
 
         Sigma_inv = np.linalg.multi_dot([F_full, np.linalg.inv(Dp), F_full.T])
         zu_bar = np.dot(Sigma_u, \
-                           (np.dot(Sigma_inv, zp_bar) + np.dot(np.dot(H.T, cov_inv), x_t)))
+                           (np.dot(Sigma_inv, zp_bar) + np.linalg.multi_dot([H.T, cov_inv, x_t])))
 
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar
@@ -248,7 +248,7 @@ class EnsembleAdjustmentKalmanFilter:
             new_ensemble_state=new_ensemble_state.squeeze()
 
         # Compute error
-        if compute_error:
+        if print_error:
             self.compute_error(x_logit,x_t,cov)
 
         #print("new_clinical_statistics", new_clinical_statistics)

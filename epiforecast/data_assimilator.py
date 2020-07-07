@@ -183,7 +183,8 @@ class DataAssimilator:
             full_ensemble_transmission_rate,
             user_nodes,
             time,
-            verbose=False):
+            verbose=False,
+            print_error=False):
         """
         Input:
             ...
@@ -237,7 +238,8 @@ class DataAssimilator:
                                ensemble_transition_rates,
                                ensemble_transmission_rate,
                                truth,
-                               cov)
+                               cov,
+                               print_error=print_error)
 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
@@ -252,7 +254,8 @@ class DataAssimilator:
                         full_ensemble_transmission_rate,
                         obs_nodes)
 
-                print("[ Data assimilator ] EAKF error:", dam.error[-1])
+                if print_error:
+                    print("[ Data assimilator ] EAKF error:", dam.error[-1])
             else:
                 print("[ Data assimilator ] No assimilation required")
 
