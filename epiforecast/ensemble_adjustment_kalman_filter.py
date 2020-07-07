@@ -1,7 +1,8 @@
 import numpy as np
 import scipy.linalg as la
 import time
-
+from sklearn.decomposition import TruncatedSVD
+ 
 class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
@@ -189,12 +190,24 @@ class EnsembleAdjustmentKalmanFilter:
             print("Time for second SVD: ", end-start)
 
         else:
+
             start = time.perf_counter()
+
             Dp_vec = Dp_vec**2 + self.joint_cov_noise 
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
-            U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
-            D_vec = D_vec**2
+
+            # first obtain the singular vectors
+            U, _, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]),)
+
+            #
+            trunc_size = min(J-1,cov_inv.shape[0])
+            trunc_svd = TruncatedSVD(n_components=trunc_size, random_state=42)
+            trunc_svd.fit(np.linalg.multi_dot([G.T, F_full.T, H.T, np.sqrt(cov_inv)]))
+            sing_val = trunc_svd.singular_values_
+            min_sing_val_sq = np.min(sing_val)**2
+            D_vec = min_sing_val * np.ones(F_full.shape[0])
+            D_vec[:trunc_size] = sing_val*sing_val  
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
             A = np.linalg.multi_dot([F, \
                                      G.T, \
@@ -205,20 +218,34 @@ class EnsembleAdjustmentKalmanFilter:
             
             Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
             Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
+            
+            # ## previous implementation
+            # U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            # D_vec = D_vec**2
+            # B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+            # A = np.linalg.multi_dot([F, \
+            #                          G.T, \
+            #                          U, \
+            #                          B.T, \
+            #                          G_inv, \
+            #                          F.T])
+            
+            # Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
+            # Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
                
 
-            if zp.shape[0] < zp.shape[1]:
-                ## Adding noises to Sigma_u
-                zu_tmp = np.dot(A,  1./np.sqrt(J-1) * (zp-np.mean(zp,0)).T)
-                F_u_full, _, _ = la.svd(zu_tmp, full_matrices=True)
-                from sklearn.decomposition import TruncatedSVD
-                svd1 = TruncatedSVD(n_components=J-1, random_state=42)
-                svd1.fit(Sigma_u)
-                Dp_u_vec = svd1.singular_values_
-                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
-                Dp_u_vec_full[:J-1] = Dp_u_vec
-                Dp_u = np.diag(Dp_u_vec_full)
-                Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
+            # if zp.shape[0] < zp.shape[1]:
+            #     ## Adding noises to Sigma_u
+            #     zu_tmp = np.dot(A,  1./np.sqrt(J-1) * (zp-np.mean(zp,0)).T)
+            #     F_u_full, _, _ = la.svd(zu_tmp, full_matrices=True)
+               
+            #     svd1 = TruncatedSVD(n_components=J-1, random_state=42)
+            #     svd1.fit(Sigma_u)
+            #     Dp_u_vec = svd1.singular_values_
+            #     Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
+            #     Dp_u_vec_full[:J-1] = Dp_u_vec
+            #     Dp_u = np.diag(Dp_u_vec_full)
+            #     Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
 
             end = time.perf_counter()
             print("Time for second SVD: ", end-start)
