@@ -83,7 +83,6 @@ class EnsembleAdjustmentKalmanFilter:
         x_t = truth
         cov = r**2 * cov
 
-        #cov = (1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12))**2 * cov
         cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
         x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
@@ -152,7 +151,7 @@ class EnsembleAdjustmentKalmanFilter:
                 F = F_full[:,:J-1]
                 Dp_vec = Dp_vec[:-1]
                 Dp_vec = 1./np.sqrt(J-1) * Dp_vec
-                Dp_vec_full = np.zeros(Sigma.shape[0])
+                Dp_vec_full = np.zeros(zp.shape[1])
                 Dp_vec_full[:J-1] = Dp_vec
                 Dp_vec_full = Dp_vec_full**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
@@ -212,7 +211,6 @@ class EnsembleAdjustmentKalmanFilter:
                 ## Adding noises to Sigma_u
                 zu_tmp = np.dot(A,  1./np.sqrt(J-1) * (zp-np.mean(zp,0)).T)
                 F_u_full, _, _ = la.svd(zu_tmp, full_matrices=True)
-                ## JW: I'm trying to get rid of this truncated SVD
                 from sklearn.decomposition import TruncatedSVD
                 svd1 = TruncatedSVD(n_components=J-1, random_state=42)
                 svd1.fit(Sigma_u)
@@ -224,24 +222,6 @@ class EnsembleAdjustmentKalmanFilter:
 
             end = time.perf_counter()
             print("Time for second SVD: ", end-start)
-
-            ## Ongoing attempt to pass the noises in Sigma to Sigma_u 
-            #Sigma_inv = np.linalg.multi_dot([F_full, np.linalg.inv(Dp), F_full.T])
-            #G = np.diag(np.sqrt(Dp_vec_full))
-            #G_inv = np.diag(1./np.sqrt(Dp_vec_full))
-            #U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F_full.T, H.T, np.sqrt(cov_inv[:,:J])]), \
-            #                     full_matrices=True)
-            #D_vec_full = np.ones(U.shape[0]) * D_vec[J-1]
-            #D_vec_full[:J-1] = D_vec[:-1]
-            #D_vec_full = D_vec_full**2
-            #B = np.diag((1.0 + D_vec_full) ** (-1.0 / 2.0))
-            #A = np.linalg.multi_dot([F_full, \
-            #                         G.T, \
-            #                         U, \
-            #                         B.T, \
-            #                         G_inv, \
-            #                         F_full.T])
-            #Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
 
         Sigma_inv = np.linalg.multi_dot([F_full, np.linalg.inv(Dp), F_full.T])
         zu_bar = np.dot(Sigma_u, \
