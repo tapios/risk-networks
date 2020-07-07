@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
+from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk
 from epiforecast.epiplots import plot_ensemble_states
 
@@ -17,9 +18,13 @@ from epiforecast.epiplots import plot_ensemble_states
 # constants ####################################################################
 from _constants import (static_contact_interval,
                         start_time,
+                        end_time,
                         total_time,
                         time_span,
                         OUTPUT_PATH)
+
+# utilities ####################################################################
+from _utilities import list_of_transition_rates_to_array
 
 # general init #################################################################
 import _general_init
@@ -92,14 +97,25 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation #########################################
 ################################################################################
 # constants ####################################################################
-backward_DA_interval = 1
-forward_DA_interval = 1
-forward_prediction_interval = 1
+n_intervals_skipped  = 2
+backward_da_interval = 1.0
+forward_da_interval  = 1.0
+prediction_interval  = 1.0
+
+n_intervals = int(total_time/backward_da_interval)
+steps_per_backward_interval  = int(backward_da_interval/static_contact_interval)
+steps_per_forward_interval   = int(forward_da_interval/static_contact_interval)
+steps_per_prediction_interval= int(prediction_interval/static_contact_interval)
 
 # storing ######################################################################
 states_trace_ensemble = np.zeros([ensemble_size,
                                   5 * user_population,
                                   time_span.size])
+
+n_parameters= transition_rates_ensemble[0].get_clinical_parameters_total_count()
+n_β         = 1
+rates_timeseries = EnsembleTimeSeries(ensemble_size, n_parameters, n_intervals)
+β_timeseries     = EnsembleTimeSeries(ensemble_size,          n_β, n_intervals)
 
 # initialization ###############################################################
 loaded_data = epidemic_data_storage.get_network_from_start_time(
@@ -116,12 +132,13 @@ ensemble_ic = deterministic_risk(user_population,
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
 
-# forward run w/o data assimilation ############################################
-forward_run_time = start_time
+# spin-up w/o data assimilation ################################################
+current_time = start_time
+spin_up_steps = n_intervals_skipped * steps_per_backward_interval
 
-for j in range(int(backward_DA_interval/static_contact_interval)):
+for j in range(spin_up_steps):
     loaded_data = epidemic_data_storage.get_network_from_start_time(
-            start_time=forward_run_time)
+            start_time=current_time)
 
     # XXX please check: the following three lines changed
     user_network.update_from(loaded_data.contact_network)
@@ -134,20 +151,26 @@ for j in range(int(backward_DA_interval/static_contact_interval)):
 
     master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
-    forward_run_time += static_contact_interval
-    states_trace_ensemble[:,:,j] = ensemble_state
+    current_time += static_contact_interval
 
+    # storing
+    states_trace_ensemble[:,:,j] = ensemble_state
+    if j % steps_per_backward_interval == 0:
+        rates_timeseries.push_back(
+                list_of_transition_rates_to_array(transition_rates_ensemble))
+        β_timeseries.push_back(community_transmission_rate_ensemble)
 
 
 # main loop: backward/forward/data assimilation ################################
-for k in range(1, int(total_time/backward_DA_interval)):
-    # backward run with data assimilation
-    backward_DA_time = k * backward_DA_interval
-    master_eqn_ensemble.set_start_time(backward_DA_time)
+for k in range(n_intervals_skipped, n_intervals):
+    current_time = k * backward_da_interval
 
-    for j in range(int(backward_DA_interval/static_contact_interval)):
+    # backward run with data assimilation
+    master_eqn_ensemble.set_start_time(current_time)
+
+    for j in range(steps_per_backward_interval):
         loaded_data = epidemic_data_storage.get_network_from_end_time(
-                end_time=backward_DA_time)
+                end_time=current_time)
 
         # XXX please check: the following three lines changed
         user_network.update_from(loaded_data.contact_network)
@@ -159,7 +182,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 static_contact_interval,
                 n_steps=n_backward_steps)
 
-        backward_DA_time -= static_contact_interval
+        current_time -= static_contact_interval
         # data assimilation
         (ensemble_state,
          transition_rates_ensemble,
@@ -170,7 +193,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
                 user_nodes,
-                backward_DA_time)
+                current_time)
 
         (ensemble_state,
          transition_rates_ensemble,
@@ -181,7 +204,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
                 user_nodes,
-                backward_DA_time)
+                current_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
@@ -189,16 +212,18 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
 
-       
 
+    # store parameters
+    rates_timeseries.push_back(
+            list_of_transition_rates_to_array(transition_rates_ensemble))
+    β_timeseries.push_back(community_transmission_rate_ensemble)
 
     # forward run with data assimilation
-    forward_DA_time = backward_DA_time
-    master_eqn_ensemble.set_start_time(forward_DA_time)
+    master_eqn_ensemble.set_start_time(current_time)
 
-    for j in range(int(forward_DA_interval/static_contact_interval)):
+    for j in range(steps_per_forward_interval):
         loaded_data = epidemic_data_storage.get_network_from_start_time(
-                start_time=forward_DA_time)
+                start_time=current_time)
 
         # XXX please check: the following three lines changed
         user_network.update_from(loaded_data.contact_network)
@@ -210,8 +235,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 static_contact_interval,
                 n_steps=n_forward_steps)
 
-        forward_DA_time += static_contact_interval
-        
+        current_time += static_contact_interval
+
         # data assimilation
         (ensemble_state,
          transition_rates_ensemble,
@@ -222,7 +247,7 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
                 user_nodes,
-                forward_DA_time)
+                current_time)
 
         (ensemble_state,
          transition_rates_ensemble,
@@ -233,24 +258,21 @@ for k in range(1, int(total_time/backward_DA_interval)):
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
                 user_nodes,
-                forward_DA_time)
+                current_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
         master_eqn_ensemble.update_ensemble(
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
-
-        
 
 
     # forward run w/o data assimilation; prediction
-    forward_prediction_time = forward_DA_time
-    master_eqn_ensemble.set_start_time(forward_prediction_time)
+    master_eqn_ensemble.set_start_time(current_time)
 
-    for j in range(int(forward_prediction_interval/static_contact_interval)):
+    for j in range(steps_per_prediction_interval):
         loaded_data = epidemic_data_storage.get_network_from_start_time(
-                start_time=forward_prediction_time)
+                start_time=current_time)
 
         # XXX please check: the following three lines changed
         user_network.update_from(loaded_data.contact_network)
@@ -264,8 +286,8 @@ for k in range(1, int(total_time/backward_DA_interval)):
 
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
-        forward_prediction_time += static_contact_interval
-        current_step = int(k*backward_DA_interval/static_contact_interval) + j
+        current_time += static_contact_interval
+        current_step = k * steps_per_backward_interval + j
         states_trace_ensemble[:,:,current_step] = ensemble_state
 
 
@@ -275,12 +297,32 @@ pickle.dump(states_trace_ensemble,
 pickle.dump(time_span,
             open(os.path.join(OUTPUT_PATH, 'time_span.pkl'), 'wb'))
 
+# plot trajectories
 axes = plot_ensemble_states(states_trace_ensemble,
                             time_span,
                             axes=axes,
                             xlims=(-0.1, total_time),
                             a_min=0.0)
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+            rasterized=True,
+            dpi=150)
+
+# plot parameters
+fig2, axes2 = plt.subplots(1, 1, figsize = (16, 4))
+
+rates_timeseries_mean = rates_timeseries.get_mean()
+β_timeseries_mean     = β_timeseries.get_mean()
+da_time_span = np.linspace(start_time, end_time, n_intervals)
+
+for name in transition_rates_to_update_str:
+    clinical_indices = (
+            transition_rates_ensemble[0].get_clinical_parameter_indices(name))
+    for i in clinical_indices:
+        plt.plot(da_time_span, rates_timeseries_mean[i])
+
+plt.plot(da_time_span, np.squeeze(β_timeseries_mean))
+
+plt.savefig(os.path.join(OUTPUT_PATH, 'model_parameters.png'),
             rasterized=True,
             dpi=150)
 
