@@ -226,34 +226,39 @@ class EnsembleAdjustmentKalmanFilter:
         Sigma_u = np.linalg.multi_dot([np.multiply(AnoFt,np.diag(Dp)),AnoFt.T])
         # so overall Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
             
-            # ## previous implementation
-            # U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
-            # D_vec = D_vec**2
-            # B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            # A = np.linalg.multi_dot([F, \
-            #                          G.T, \
-            #                          U, \
-            #                          B.T, \
-            #                          G_inv, \
-            #                          F.T])
-            
-            # Sigma = np.linalg.multi_dot([F_full, Dp, F_full.T])
-            # Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-               
+            ### previous implementation
+            #start = time.perf_counter()
+            #Dp_vec = Dp_vec**2 + self.joint_cov_noise 
+            #G = np.diag(np.sqrt(Dp_vec))
+            #G_inv = np.diag(1./np.sqrt(Dp_vec))
+            #U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            #D_vec = D_vec**2
+            #B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+            #A = np.linalg.multi_dot([F, 
+            #                         G.T, 
+            #                         U, 
+            #                         B.T, 
+            #                         G_inv, 
+            #                         F.T])
+            #
+            #Sigma_u = np.linalg.multi_dot([F, G.T, U, B.T, G_inv,
+            #                               np.diag(Dp_vec),
+            #                               G_inv, B, U.T, G, F.T])
 
-            # if zp.shape[0] < zp.shape[1]:
-            #     ## Adding noises to Sigma_u
-            #     zu_tmp = np.dot(A,  1./np.sqrt(J-1) * (zp-np.mean(zp,0)).T)
-            #     F_u_full, _, _ = la.svd(zu_tmp, full_matrices=True)
-               
-            #     svd1 = TruncatedSVD(n_components=J-1, random_state=42)
-            #     svd1.fit(Sigma_u)
-            #     Dp_u_vec = svd1.singular_values_
-            #     Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
-            #     Dp_u_vec_full[:J-1] = Dp_u_vec
-            #     Dp_u = np.diag(Dp_u_vec_full)
-            #     Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
+            #if zp.shape[0] < zp.shape[1]:
+            #    F_u, Dp_u_vec , _ = randomized_svd(Sigma_u,
+            #                                            n_components=J-1,
+            #                                            n_iter=5,
+            #                                            random_state=None)
 
+            #    F_u_full, _, _ = la.svd(np.multiply(F_u, Dp_u_vec))
+
+            #    Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
+            #    Dp_u_vec_full[:J-1] = Dp_u_vec
+            #    Dp_u = np.diag(Dp_u_vec_full)
+            #    Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
+            #end = time.perf_counter()
+            #print("Time for second SVD: ", end-start)
             
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
