@@ -116,7 +116,7 @@ network.set_lambdas(λ_min, λ_max)
 # transition rates a.k.a. independent rates (σ, γ etc.)
 # constructor takes clinical parameter samplers which are then used to draw real
 # clinical parameters, and those are used to calculate transition rates
-transition_rates = TransitionRates(
+transition_rates = TransitionRates.from_samplers(
         network.get_node_count(),
         latent_period['mean'],
         community_infection_period['mean'],
@@ -148,7 +148,7 @@ epidemic_simulator = EpidemicSimulator(
 transition_rates_ensemble = []
 
 for i in range(ensemble_size):
-    transition_rates_particle = TransitionRates(
+    transition_rates_particle = TransitionRates.from_samplers(
             network.get_node_count(),
             np.random.normal(latent_period['mean'],
                              latent_period['variance']),

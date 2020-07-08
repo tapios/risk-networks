@@ -82,15 +82,15 @@ hospitalization_fraction = AgeDependentConstant([0.002,  0.01,   0.04, 0.076,  0
 community_mortality_fraction = AgeDependentConstant([ 1e-4,  1e-3,  0.001,  0.07,  0.015])
 hospital_mortality_fraction = AgeDependentConstant([0.019, 0.073,  0.193, 0.327, 0.512])
 
-transition_rates = TransitionRates(population = network.get_node_count(),
-                                   lp_sampler = latent_periods,
-                                  cip_sampler = community_infection_periods,
-                                  hip_sampler = hospital_infection_periods,
-                                   hf_sampler = hospitalization_fraction,
-                                  cmf_sampler = community_mortality_fraction,
-                                  hmf_sampler = hospital_mortality_fraction,
-                    distributional_parameters = network.get_age_groups()
-)
+transition_rates = TransitionRates.from_samplers(
+        population=network.get_node_count(),
+        lp_sampler=latent_periods,
+        cip_sampler=community_infection_periods,
+        hip_sampler=hospital_infection_periods,
+        hf_sampler=hospitalization_fraction,
+        cmf_sampler=community_mortality_fraction,
+        hmf_sampler=hospital_mortality_fraction,
+        distributional_parameters=network.get_age_groups())
 
 transition_rates.calculate_from_clinical() 
 
