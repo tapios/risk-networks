@@ -23,17 +23,16 @@ hospital_infection_periods = 5.0
 hospitalization_fraction = 0.01 
 community_mortality_fraction = 0.001
 hospital_mortality_fraction = 0.01
-no_age_categories = np.ones(population)
 transition_rates_ensemble = []
 for i in range(ensemble_size):
-    transition_rates =TransitionRates(population = population,
-                                      lp_sampler = latent_periods,
-                                      cip_sampler = community_infection_periods,
-                                      hip_sampler = hospital_infection_periods,
-                                      hf_sampler = hospitalization_fraction,
-                                      cmf_sampler = community_mortality_fraction,
-                                      hmf_sampler = hospital_mortality_fraction,
-                                      distributional_parameters = no_age_categories)
+    transition_rates = TransitionRates.from_samplers(
+            population=population,
+            lp_sampler=latent_periods,
+            cip_sampler=community_infection_periods,
+            hip_sampler=hospital_infection_periods,
+            hf_sampler=hospitalization_fraction,
+            cmf_sampler=community_mortality_fraction,
+            hmf_sampler=hospital_mortality_fraction)
     transition_rates.calculate_from_clinical()
     transition_rates_ensemble.append(transition_rates)
 

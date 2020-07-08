@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.linalg as la
 import time
-from sklearn.decomposition import TruncatedSVD
 from sklearn.utils.extmath import randomized_svd
  
 class EnsembleAdjustmentKalmanFilter:
@@ -53,7 +52,7 @@ class EnsembleAdjustmentKalmanFilter:
             transmission_rates,
             truth,
             cov,
-            print_error=True,
+            print_error=False,
             r=1.0):
 
         '''
