@@ -42,7 +42,7 @@ hospitalization_fraction     = BetaSampler(mean=0.25, b=4)
 community_mortality_fraction = BetaSampler(mean=0.02, b=4)
 hospital_mortality_fraction  = BetaSampler(mean=0.04, b=4)
 
-transition_rates = TransitionRates(
+transition_rates = TransitionRates.from_samplers(
         network.get_node_count(),
         latent_periods,
         community_infection_periods,
