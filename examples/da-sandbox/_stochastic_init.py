@@ -26,14 +26,15 @@ print_start_of(__name__)
 # transition rates a.k.a. independent rates (σ, γ etc.) ########################
 # constructor takes clinical parameter samplers which are then used to draw real
 # clinical parameters, and those are used to calculate transition rates
-transition_rates = TransitionRates(population = network.get_node_count(),
-                                   lp_sampler = latent_periods,
-                                  cip_sampler = community_infection_periods,
-                                  hip_sampler = hospital_infection_periods,
-                                   hf_sampler = hospitalization_fraction,
-                                  cmf_sampler = community_mortality_fraction,
-                                  hmf_sampler = hospital_mortality_fraction,
-                    distributional_parameters = network.get_age_groups()
+transition_rates = TransitionRates.from_samplers(
+        population=network.get_node_count(),
+        lp_sampler=latent_periods,
+        cip_sampler=community_infection_periods,
+        hip_sampler=hospital_infection_periods,
+        hf_sampler=hospitalization_fraction,
+        cmf_sampler=community_mortality_fraction,
+        hmf_sampler=hospital_mortality_fraction,
+        distributional_parameters=network.get_age_groups()
 )
 
 transition_rates.calculate_from_clinical()

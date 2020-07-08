@@ -93,6 +93,7 @@ start_time = 0.0
 loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=start_time)
 user_network = loaded_data.contact_network.build_user_network_using(FullUserGraphBuilder())
 initial_statuses = loaded_data.start_statuses
+n_user_nodes = user_network.get_node_count()
 
 #
 # Set up the population priors
@@ -104,19 +105,20 @@ transition_rates_ensemble = []
 
 #all parameters should be positive, so we apply lognormal transform
 for i in range(ensemble_size):
-    transition_rates_member =  TransitionRates(population = user_network.get_node_count(),
-                                               lp_sampler = np.random.normal(0,1,user_network.get_node_count()),
-                                             cip_sampler = np.random.normal(0,1,user_network.get_node_count()),
-                                             hip_sampler = np.random.normal(0,1,user_network.get_node_count()),
-                                              hf_sampler = hospitalization_fraction,
-                                             cmf_sampler = community_mortality_fraction,
-                                             hmf_sampler = hospital_mortality_fraction,                           
-                               distributional_parameters = user_network.get_age_groups(),
-                                            lp_transform = 'log',
-                                           cip_transform = 'log',
-                                           hip_transform = 'log')
+    transition_rates_member = TransitionRates.from_samplers(
+               population = user_network.get_node_count(),
+               lp_sampler = np.random.normal(0, 1, n_user_nodes),
+              cip_sampler = np.random.normal(0, 1, n_user_nodes),
+              hip_sampler = np.random.normal(0, 1, n_user_nodes),
+               hf_sampler = hospitalization_fraction,
+              cmf_sampler = community_mortality_fraction,
+              hmf_sampler = hospital_mortality_fraction,
+distributional_parameters = user_network.get_age_groups(),
+             lp_transform = 'log',
+            cip_transform = 'log',
+            hip_transform = 'log')
     transition_rates_member.calculate_from_clinical()
-    
+
     transition_rates_ensemble.append(transition_rates_member)
 
 
