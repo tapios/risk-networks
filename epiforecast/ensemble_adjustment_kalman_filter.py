@@ -150,75 +150,83 @@ class EnsembleAdjustmentKalmanFilter:
             # if ensemble_size < observations size, we pad the singular value matrix with added noise
             if zp.shape[0] < zp.shape[1]:
                 tic= time.perf_counter()
-                F_full, Dp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 toc= time.perf_counter()
                 print("prior svd time", toc - tic)
                 
                 F = F_full[:,:J-1]
-                Dp_vec = Dp_vec[:-1]
-                Dp_vec = 1./np.sqrt(J-1) * Dp_vec
-                Dp_vec_full = np.zeros(zp.shape[1])
-                Dp_vec_full[:J-1] = Dp_vec
-                Dp_vec_full = Dp_vec_full**2 + self.joint_cov_noise 
+                rtDp_vec = Dp_vec[:-1]
+                rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
+                rtDp_vec_full = np.zeros(zp.shape[1])
+                rtDp_vec_full[:J-1] = rtDp_vec
+                Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
             
             else:
                 
-                F_full, Dp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 F = F_full
-                Dp_vec = 1./np.sqrt(J-1) * Dp_vec
-                Dp_vec_full = Dp_vec**2 + self.joint_cov_noise 
+                rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
+                Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
 
             # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
             Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
             
+        G_full = np.diag(np.sqrt(Dp_vec_full))
+        G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
+            
         # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
         if not self.observation_svd_reduced:
 
             # Performing the second SVD of EAKF in the full space
-            G_full = np.diag(np.sqrt(Dp_vec_full))
-            G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
-            # computation of multidot([G.T, F_full.T, H.T, np.sqrt(cov_inv)])
-            U, D_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                 full_matrices=True)
-            D_vec = D_vec**2
-            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+            # This indent creates U and D_vec
+           
+            # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
+            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                   full_matrices=True)
+            D_vec = np.zeros(F_full.shape[0])
+            D_vec[:cov_inv.shape[0]] = rtD_vec**2
+            #print(D_vec[:cov_inv.shape[0]])
         else:
             
-            Dp_vec = Dp_vec**2 + self.joint_cov_noise 
-            G = np.diag(np.sqrt(Dp_vec))
-            G_inv = np.diag(1./np.sqrt(Dp_vec))
-            G_full = np.diag(np.sqrt(Dp_vec_full))
-            G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
-            # first obtain the singular vectors
-        
+            # This indent creates U and D_vec       
             start = time.perf_counter()
 
-            #J-1 is too small
+            #get truncation size for the svd
             trunc_size = min(2*(J-1),cov_inv.shape[0])
 
-            #np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
-            Urect, rtD_vec , _ = randomized_svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), 
-                                              n_components=trunc_size,
-                                              n_iter=5,
-                                              random_state=None)
+            #if cov_inv is small then no truncation required
+            if trunc_size == cov_inv.shape[0]:
+                # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
+                U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                       full_matrices=True)
+                D_vec = rtD_vec**2
+               
+                
+            else:
+                # The max number of singular values is the size of the observations
+                # we pad from trunc_size -> size obs, and pad from size_obs to joint space size
+                # np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
+                Urect, rtD_vec , Vtrect = randomized_svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), 
+                                                         n_components=trunc_size,
+                                                         random_state=None)
 
-            #to get the full U we perform another svd on U*D_vec_red
-            U, _, _ = la.svd(np.multiply(Urect,rtD_vec)) 
-            
-            #print(rtD_vec*rtD_vec)
+                #to get the full U we perform another svd on U*D_vec_red
+                U,_, _ = la.svd(np.multiply(Urect,rtD_vec))
+                #U, _, _ = la.svd(np.linalg.multi_dot([np.multiply(Urect,rtD_vec),Vtrect]))
+              
+                #pad square rtD_vec and pad  with its smallest value
+                sing_val_sq = rtD_vec**2           
+                D_vec = np.hstack([sing_val_sq[-1] * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
+                D_vec[:trunc_size] += sing_val_sq  
+                #print(D_vec[:trunc_size])
+                
             end = time.perf_counter()
             print("Time for (truncate + padded) SVD: ", end-start)
-          
-            #pad square rtD_vec and pad  with its smallest value
-            sing_val_sq = rtD_vec*rtD_vec #trunc_svd.singular_values_          
-            D_vec = sing_val_sq[-1] * np.ones(F_full.shape[0])
-            D_vec[:trunc_size] = sing_val_sq  
-
-            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-
             
+
+        B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
         #Computation of multi_dot([F_full, G.T,U,B.T,G_inv,F_full.T]) first by creating without F_full.T and multiply after by it.     
         AnoFt = np.linalg.multi_dot([np.multiply(F_full, np.diag(G_full)), np.multiply(np.multiply(U,np.diag(B)), np.diag(G_inv_full))])
         A = AnoFt.dot(F_full.T)
