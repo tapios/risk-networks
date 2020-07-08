@@ -146,18 +146,18 @@ class TransitionRates:
         """
         n_user_nodes = user_nodes.size
 
-        clinical_parameters_full = self.get_clinical_parameters_as_dict()
-        clinical_parameters = {}
-        for short_name, parameter in clinical_parameters_full.items():
+        clinical_parameters = self.get_clinical_parameters_as_dict()
+        user_clinical_parameters = {}
+        for short_name, parameter in clinical_parameters.items():
             if isinstance(parameter, (int, float)):
-                clinical_parameters[short_name] = parameter
+                user_clinical_parameters[short_name] = parameter
             else:
-                clinical_parameters[short_name] = parameter[user_nodes]
+                user_clinical_parameters[short_name] = parameter[user_nodes]
 
         clinical_transforms = self.get_clinical_transforms()
 
         return TransitionRates(n_user_nodes,
-                               clinical_parameters,
+                               user_clinical_parameters,
                                clinical_transforms)
 
     def transform_clinical_parameter(
