@@ -1,3 +1,4 @@
+from math import isclose
 import numpy as np
 
 LEFT_PAD = 3
@@ -89,5 +90,23 @@ def list_of_transition_rates_to_array(list_of_rates):
         rates_array[i] = rates.get_clinical_parameters_as_array()
 
     return rates_array
+
+def modulo_is_close_to_zero(
+        time,
+        modulo_interval,
+        eps=0.125):
+    """
+    Determine if (time mod modulo_interval) ≈ 0
+
+    Input:
+        time (int),
+             (float): time, real number (positive or negative)
+        modulo_interval (int),
+                        (float): modulo interval, positive real
+        eps (float): (-eps/2, eps/2) is the approximate interval
+    Output:
+        is_close (bool): whether or not time is close to 0
+    """
+    return isclose( (time + eps/2) % modulo_interval, 0.0, abs_tol=eps )
 
 
