@@ -1,14 +1,14 @@
 import os
 import argparse
 
-from _utilities import print_start_of, print_end_of, print_info
+from _utilities import print_start_of, print_end_of, print_info_module
 
 
 print_start_of(__name__)
 ################################################################################
 parser = argparse.ArgumentParser()
 
-print_info(__name__, "parsing args of PID:", os.getpid())
+print_info_module(__name__, "parsing args of PID:", os.getpid())
 
 # user_network #################################################################
 parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
@@ -24,7 +24,7 @@ parser.add_argument('--observations-I-min-threshold', type=float, default=0.3)
 
 # parser setup #################################################################
 arguments = parser.parse_args()
-print_info(__name__, arguments)
+print_info_module(__name__, arguments)
 
 ################################################################################
 print_end_of(__name__)

@@ -6,15 +6,15 @@ from _stochastic_init import (epidemic_simulator,
                               epidemic_data_storage,
                               kinetic_ic)
 from _user_network_init import user_nodes
-from _utilities import print_start_of, print_end_of, print_info
+from _utilities import print_start_of, print_end_of, print_info_module
 
 
 print_start_of(__name__)
 ################################################################################
-print_info(__name__,
-           "Running epidemic_simulator for",
-           total_time,
-           "days")
+print_info_module(__name__,
+                  "Running epidemic_simulator for",
+                  total_time,
+                  "days")
 
 time = start_time          # float
 kinetic_state = kinetic_ic # dict { node : compartment }

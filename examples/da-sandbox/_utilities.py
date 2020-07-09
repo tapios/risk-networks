@@ -12,7 +12,7 @@ def print_start_of(module_name):
         None
     """
     print(" " * LEFT_PAD, end='')
-    print(str(module_name) + ": started")
+    print(str(module_name) + ": started", flush=True)
 
 def print_end_of(module_name):
     """
@@ -24,9 +24,9 @@ def print_end_of(module_name):
         None
     """
     print(" " * LEFT_PAD, end='')
-    print(str(module_name) + ": ended\n")
+    print(str(module_name) + ": ended\n", flush=True)
 
-def print_info(
+def print_info_module(
         module_name,
         *args,
         **kwargs):
@@ -39,10 +39,10 @@ def print_info(
     Output:
         None
     """
-    print(" " * LEFT_PAD + str(module_name) + ": ", end='')
-    print(*args, **kwargs)
+    print("*" + " " * (LEFT_PAD - 1) + str(module_name) + ": ", end='')
+    print(*args, **kwargs, flush=True)
 
-def print_warning(
+def print_warning_module(
         module_name,
         *args,
         **kwargs):
@@ -56,7 +56,21 @@ def print_warning(
         None
     """
     print("!" + " " * (LEFT_PAD - 1) + str(module_name) + ": ", end='')
-    print(*args, **kwargs)
+    print(*args, **kwargs, flush=True)
+
+def print_info(
+        *args,
+        **kwargs):
+    """
+    Print info in the main program
+
+    Input:
+        *args, **kwargs: to be passed to the 'print' function
+    Output:
+        None
+    """
+    print("*" + " " * (LEFT_PAD - 1), end='')
+    print(*args, **kwargs, flush=True)
 
 def list_of_transition_rates_to_array(list_of_rates):
     """

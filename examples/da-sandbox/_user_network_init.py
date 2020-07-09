@@ -5,7 +5,7 @@ from epiforecast.user_base import (FullUserGraphBuilder,
 
 from _argparse_init import arguments
 from _network_init import network
-from _utilities import print_start_of, print_end_of, print_warning
+from _utilities import print_start_of, print_end_of, print_warning_module
 
 
 print_start_of(__name__)
@@ -18,13 +18,14 @@ else:
     seed_user = arguments.user_network_seed_user
     n_nodes = network.get_node_count()
     if seed_user > n_nodes:
-        print_warning(__name__,
-                      "specified seed user is greater than node count: ",
-                      + "seed_user = "
-                      + seed_user
-                      + ", n_nodes = "
-                      + n_nodes)
-        print_warning(__name__, "this defaults to using a random seed user")
+        print_warning_module(
+                __name__,
+                "specified seed user is greater than node count: "
+                + "seed_user = {}".format(seed_user)
+                + ", n_nodes = {}".format(n_nodes))
+        print_warning_module(
+                __name__,
+                "this defaults to using a random seed user")
         seed_user = None
 
     user_network = network.build_user_network_using(
