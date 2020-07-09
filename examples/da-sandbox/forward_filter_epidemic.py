@@ -176,10 +176,6 @@ states_ensemble,_ = random_risk(population,
 #loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = time)
 #statuses = loaded_data.start_statuses
 
-# states_ensemble,_ = deterministic_risk(population,
-#                                        statuses,
-#                                        ensemble_size = ensemble_size)
-
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 
 states_trace_ensemble=np.zeros([ensemble_size,5*user_population,time_trace.size])

@@ -93,9 +93,9 @@ master_eqn_ensemble = MasterEquationModelEnsemble(population = population,
 loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = time)
 statuses = loaded_data.start_statuses
 
-states_ensemble,_ = deterministic_risk(population,
-                                       statuses,
-                                       ensemble_size = ensemble_size)
+states_ensemble = deterministic_risk(populace,
+                                     statuses,
+                                     ensemble_size = ensemble_size)
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 

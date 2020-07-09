@@ -7,7 +7,7 @@ from epiforecast.measurements import Observation, DataObservation, HighVarianceO
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.scenarios import random_epidemic
 
-from epiforecast.risk_simulator_initial_conditions import random_risk,deterministic_risk
+from epiforecast.risk_simulator_initial_conditions import random_risk
 from epiforecast.epiplots import plot_ensemble_states, plot_epidemic_data
 from epiforecast.utilities import compartments_count
 

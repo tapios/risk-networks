@@ -125,12 +125,9 @@ loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
 loaded_kinetic_ic = loaded_data.start_statuses
 
-# TODO 'deterministic_risk' should take in 'user_nodes';
-# but conceptually it should be 'user_*' something, not 'network_*'
-# (it used to be 'population')
-ensemble_ic = deterministic_risk(user_population,
+ensemble_ic = deterministic_risk(user_nodes,
                                  loaded_kinetic_ic,
-                                 ensemble_size=ensemble_size)
+                                 ensemble_size)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)

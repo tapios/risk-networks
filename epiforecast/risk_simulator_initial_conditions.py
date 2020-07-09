@@ -27,36 +27,43 @@ def uniform_risk(population, fraction_infected = 0.01, ensemble_size=1):
     return states_ensemble, 'urisk'+str(int(fraction_infected*100)).zfill(3)
 
 def deterministic_risk(
-        population,
-        initial_states,
-        ensemble_size=1):
+        user_nodes,
+        kinetic_states,
+        ensemble_size):
     """
-    Generate ICs suitable for master equation ensemble from kinetic model states
+    Generate exact ensemble user states from full kinetic model states
+
+    The resulting ensemble states are exact copies of the kinetic model states
 
     Input:
-        population (int): total number of nodes in a network
-        initial_states (dict): a mapping node_number -> state
+        user_nodes (np.array): (n_user_nodes,) array of user node indices
+        kinetic_states (dict): a mapping node -> state
         ensemble_size (int): size of the ensemble
 
     Output:
-        ensemble_state (np.array): (ensemble_size, 5*population) array of
-                                    states, each ensemble member replicates
-                                    initial_states
+        ensemble_state (np.array): (ensemble_size, 5*n_user_nodes) array of
+                                   states
     """
-    # TODO population = len(initial_states), no need to pass it
-    susceptible_mask  = mask_by_compartment(initial_states, 'S')
-    infected_mask     = mask_by_compartment(initial_states, 'I')
-    hospitalized_mask = mask_by_compartment(initial_states, 'H')
-    resistant_mask    = mask_by_compartment(initial_states, 'R')
-    dead_mask         = mask_by_compartment(initial_states, 'D')
+    s_mask = mask_by_compartment(kinetic_states, 'S')
+    i_mask = mask_by_compartment(kinetic_states, 'I')
+    h_mask = mask_by_compartment(kinetic_states, 'H')
+    r_mask = mask_by_compartment(kinetic_states, 'R')
+    d_mask = mask_by_compartment(kinetic_states, 'D')
 
-    S, I, H, R, D = np.zeros([5, population])
+    user_s_mask = s_mask[user_nodes]
+    user_i_mask = i_mask[user_nodes]
+    user_h_mask = h_mask[user_nodes]
+    user_r_mask = r_mask[user_nodes]
+    user_d_mask = d_mask[user_nodes]
 
-    S[susceptible_mask]  = 1.
-    I[infected_mask]     = 1.
-    H[hospitalized_mask] = 1.
-    R[resistant_mask]    = 1.
-    D[dead_mask]         = 1.
+    n_user_nodes = user_nodes.size
+    S, I, H, R, D = np.zeros([5, n_user_nodes])
+
+    S[user_s_mask] = 1.
+    I[user_i_mask] = 1.
+    H[user_h_mask] = 1.
+    R[user_r_mask] = 1.
+    D[user_d_mask] = 1.
 
     member_state = np.hstack((S, I, H, R, D))
     ensemble_state = np.tile(member_state, (ensemble_size, 1))

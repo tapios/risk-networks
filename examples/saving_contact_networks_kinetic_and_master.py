@@ -208,9 +208,9 @@ loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = tim
 statuses = loaded_data.start_statuses
 
 
-states_ensemble = deterministic_risk(population,
+states_ensemble = deterministic_risk(populace,
                                      statuses,
-                                     ensemble_size = ensemble_size)[0]
+                                     ensemble_size = ensemble_size)
 
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)

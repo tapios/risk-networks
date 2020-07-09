@@ -167,7 +167,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(population = user_population,
 
 states_trace_ensemble=np.zeros([ensemble_size,5*user_population,time_trace.size])
 
-states_ensemble = deterministic_risk(population,
+states_ensemble = deterministic_risk(user_nodes,
                                      initial_statuses,
                                      ensemble_size = ensemble_size)
 
