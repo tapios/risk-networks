@@ -17,7 +17,12 @@ parser.add_argument('--user-network-seed-user', type=int, default=190)
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default="")
 
-# parser #######################################################################
+# observations #################################################################
+parser.add_argument('--observations-I-fraction-tested', type=float, default=0.1)
+parser.add_argument('--observations-I-min-threshold', type=float, default=0.3)
+
+
+# parser setup #################################################################
 arguments = parser.parse_args()
 print_info(__name__, arguments)
 
