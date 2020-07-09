@@ -298,7 +298,8 @@ pickle.dump(time_span,
             open(os.path.join(OUTPUT_PATH, 'time_span.pkl'), 'wb'))
 
 # plot trajectories
-axes = plot_ensemble_states(states_trace_ensemble,
+axes = plot_ensemble_states(population,
+                            states_trace_ensemble,
                             time_span,
                             axes=axes,
                             xlims=(-0.1, total_time),

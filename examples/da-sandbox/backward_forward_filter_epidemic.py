@@ -299,7 +299,8 @@ for k in range(1,int(simulation_length/forward_prediction_interval)):
 
 pickle.dump(states_trace_ensemble, open('data/states_trace_ensemble.pkl', 'wb'))
 pickle.dump(time_trace, open('data/time_trace.pkl', 'wb'))
-axes = plot_ensemble_states(states_trace_ensemble,
+axes = plot_ensemble_states(population,
+                            states_trace_ensemble,
                             time_trace,
                             axes = axes,
                             xlims = (-0.1, simulation_length),

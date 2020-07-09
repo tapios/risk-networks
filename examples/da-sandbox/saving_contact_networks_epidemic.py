@@ -115,7 +115,8 @@ for i in range(int(simulation_length/static_contact_interval)):
 
     states_trace_ensemble[:,:,i] = states_ensemble
 
-axes = plot_ensemble_states(states_trace_ensemble,
+axes = plot_ensemble_states(population,
+                            states_trace_ensemble,
                             time_trace,
                             axes = axes,
                             xlims = (-0.1, simulation_length),

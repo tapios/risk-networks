@@ -66,6 +66,7 @@ def plot_master_eqns(
     return axes
 
 def plot_ensemble_states(
+        population,
         states,
         t,
         axes=None,
@@ -82,7 +83,6 @@ def plot_ensemble_states(
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
-    population   = states.shape[1]/N_eqns
 
     states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
     states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
