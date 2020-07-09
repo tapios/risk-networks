@@ -8,8 +8,8 @@ class EnsembleAdjustmentKalmanFilter:
     def __init__(
             self,
             prior_svd_reduced = True,
-            observation_svd_reduced = True,
             observation_svd_regularized = True,
+            observation_svd_reduced = True,
             joint_cov_noise = 1e-2):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
@@ -173,6 +173,8 @@ class EnsembleAdjustmentKalmanFilter:
         G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
             
         # observation_svd_regularized == True utilizes the regularized version for svd 
+        # the regularized version performs svd in a reduced space by default
+        # observaiton_svd_reduced only matters if observation_svd_regularized == True 
         # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
         if not self.observation_svd_regularized:
             if not self.observation_svd_reduced:
