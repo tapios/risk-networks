@@ -10,12 +10,12 @@ parser = argparse.ArgumentParser()
 
 print_info(__name__, "parsing args of PID:", os.getpid())
 
-# user_network arguments #######################################################
+# user_network #################################################################
 parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
 parser.add_argument('--user-network-seed-user', type=int, default=190)
 
-# constants arguments ##########################################################
-parser.add_argument('--constants-output-directory', type=str, default="")
+# constants ####################################################################
+parser.add_argument('--constants-output-path', type=str, default="")
 
 # parser #######################################################################
 arguments = parser.parse_args()

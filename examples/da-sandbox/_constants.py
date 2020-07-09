@@ -15,12 +15,11 @@ NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
 SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
 FIGURES_PATH = os.path.join('..', '..', 'figs')
 
-if len(arguments.constants_output_directory) > 0:
-    output_directory = arguments.constants_output_directory
+if len(arguments.constants_output_path) > 0:
+    OUTPUT_PATH = arguments.constants_output_path
 else:
-    output_directory = datetime.now().strftime('%y%m%d-%H-%M')
-
-OUTPUT_PATH = os.path.join('output', output_directory)
+    OUTPUT_PATH = os.path.join('output',
+                               datetime.now().strftime('%y%m%d-%H-%M'))
 
 # time & intervals #############################################################
 minute = 1 / 60 / 24
@@ -31,7 +30,7 @@ static_contact_interval = 3 * hour
 mean_contact_lifetime = 0.5 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    =  3.0  # the ultimate end time
+end_time    = 20.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
