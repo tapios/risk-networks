@@ -6,7 +6,7 @@ from _constants import (start_time,
                         community_transmission_rate,
                         hospital_transmission_reduction)
 from _stochastic_init import transition_rates
-from _user_network_init import user_population
+from _user_network_init import user_nodes, user_population
 from _utilities import print_start_of, print_end_of
 
 
@@ -18,7 +18,9 @@ n_backward_steps = 25 # amount of steps per static interval: backward run
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
-    transition_rates_ensemble.append(transition_rates)
+    transition_rates_particle = transition_rates[user_nodes]
+    transition_rates_particle.calculate_from_clinical()
+    transition_rates_ensemble.append(transition_rates_particle)
 
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
