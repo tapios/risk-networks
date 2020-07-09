@@ -320,4 +320,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
 
+# plot accuracy
+_, axes_acc = plt.subplots()
+axes_acc.plot(time_span, accuracy_tracker.performance_track)
+
+plt.savefig(os.path.join(OUTPUT_PATH, 'accuracy.png'),
+            rasterized=True,
+            dpi=150)
+
 
