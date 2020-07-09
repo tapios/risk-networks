@@ -84,4 +84,18 @@ def compartments_count(states):
 
     return np.array((n_S, n_E, n_I, n_H, n_R, n_D))
 
+def dict_slice(
+        states,
+        nodes):
+    """
+    Get number of nodes in each compartment
+
+    Input:
+        states (dict): a mapping node -> state
+        nodes (np.array): (n_nodes,) array of node indices to take a slice of
+    Output:
+        states_slice (dict): a mapping node -> state (with node in nodes)
+    """
+    return { node: states[node] for node in nodes }
+
 
