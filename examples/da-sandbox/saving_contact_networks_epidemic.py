@@ -50,10 +50,10 @@ for i in range(int(simulation_length/static_contact_interval)):
                                epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
 
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
-                          statuses_list = statuses_sum_trace,
-                                   axes = axes,
-                             plot_times = time_trace)
+axes = plot_epidemic_data(population = population,
+                       statuses_list = statuses_sum_trace,
+                                axes = axes,
+                          plot_times = time_trace)
 
 plt.savefig('save_and_load_epidemic.png', rasterized=True, dpi=150)
 

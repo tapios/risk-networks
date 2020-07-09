@@ -20,7 +20,7 @@ from epiforecast.samplers import AgeDependentConstant
 
 from epiforecast.scenarios import  random_epidemic
 
-from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters, plot_epidemic_data
+from epiforecast.epiplots import plot_ensemble_states, plot_scalar_parameters, plot_epidemic_data
 from epiforecast.contact_network import ContactNetwork
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
@@ -170,10 +170,10 @@ for i in range(int(simulation_length/static_contact_interval)):
                                epidemic_simulator.kinetic_model.statuses['R'][-1],
                                epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
 
-axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
-                          statuses_list = statuses_sum_trace,
-                                   axes = axes,
-                             plot_times = time_trace)
+axes = plot_epidemic_data(population = population,
+                       statuses_list = statuses_sum_trace,
+                                axes = axes,
+                          plot_times = time_trace)
 
 plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 

@@ -54,7 +54,7 @@ epidemic_simulator = EpidemicSimulator(
               day_inception_rate = max_contact_rate,
             night_inception_rate = min_contact_rate,
                   health_service = health_service,
-                  start_time = start_time
+                      start_time = start_time
 )
 
 kinetic_ic = random_epidemic(population,

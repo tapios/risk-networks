@@ -66,10 +66,10 @@ for i in range(int(simulation_length/static_contact_interval)):
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
-                          statuses_list = statuses_sum_trace,
-                                   axes = axes,
-                             plot_times = time_trace)
+axes = plot_epidemic_data(population = population,
+                       statuses_list = statuses_sum_trace,
+                                axes = axes,
+                          plot_times = time_trace)
 
 if not os.path.exists('data'):
     os.makedirs('data')
