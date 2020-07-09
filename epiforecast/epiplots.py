@@ -83,6 +83,7 @@ def plot_ensemble_states(
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
+    user_population = int(states.shape[1]/N_eqns)
 
     states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
     states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -106,7 +107,7 @@ def plot_ensemble_states(
             axes[2].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
             axes[2].plot(t, states_perc[3,status], color = statuses_colors[status])
 
-    residual_state = 1 - states_sum.sum(axis = 1)
+    residual_state = user_population/population - states_sum.sum(axis = 1)
     residual_state = np.percentile(residual_state, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
     axes[0].fill_between(t, np.clip(residual_state[0], a_min, a_max), np.clip(residual_state[-1], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
     axes[0].fill_between(t, np.clip(residual_state[1], a_min, a_max), np.clip(residual_state[-2], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
