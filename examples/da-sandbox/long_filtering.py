@@ -147,7 +147,7 @@ for j in range(spin_up_steps):
 
     ensemble_state = master_eqn_ensemble.simulate(
             static_contact_interval,
-            n_steps=n_forward_steps)
+            min_steps=n_forward_steps)
 
     master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
@@ -180,7 +180,7 @@ for k in range(n_intervals_skipped, n_intervals):
         # run ensemble backwards
         ensemble_state = master_eqn_ensemble.simulate_backwards(
                 static_contact_interval,
-                n_steps=n_backward_steps)
+                min_steps=n_backward_steps)
 
         current_time -= static_contact_interval
         # data assimilation
@@ -233,7 +233,7 @@ for k in range(n_intervals_skipped, n_intervals):
         # run ensemble forward
         ensemble_state = master_eqn_ensemble.simulate(
                 static_contact_interval,
-                n_steps=n_forward_steps)
+                min_steps=n_forward_steps)
 
         current_time += static_contact_interval
 
@@ -282,7 +282,7 @@ for k in range(n_intervals_skipped, n_intervals):
         # run ensemble forward
         ensemble_state = master_eqn_ensemble.simulate(
                 static_contact_interval,
-                n_steps=n_forward_steps)
+                min_steps=n_forward_steps)
 
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
