@@ -82,7 +82,7 @@ ensemble_model.set_states_ensemble(y0)
 ensemble_model.set_mean_contact_duration(network.get_edge_weights())
 
 static_contact_interval = 3 * hour
-ode_states = ensemble_model.simulate(static_contact_interval, n_steps=100)
+ode_states = ensemble_model.simulate(static_contact_interval, min_steps=100)
 
 statuses = random_state(population)
 

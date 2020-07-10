@@ -72,19 +72,19 @@ for mm, member in enumerate(master_eqn_ensemble.ensemble):
 #simulate without closure
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
 master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
-res1 = master_eqn_ensemble.simulate(100, n_steps = 20, closure = None)
+res1 = master_eqn_ensemble.simulate(100, min_steps = 20, closure = None)
 #simulate on coarse mesh without closure
 master_eqn_ensemble.set_start_time(start_time)
 master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
-res2 = master_eqn_ensemble.simulate(100, n_steps = 2, closure = None)
+res2 = master_eqn_ensemble.simulate(100, min_steps = 2, closure = None)
 
 #simulate on fine mesh with closure
 
 master_eqn_ensemble.set_start_time(start_time)
 master_eqn_ensemble.set_mean_contact_duration(network.get_edge_weights())
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
-res3 = master_eqn_ensemble.simulate(100, n_steps = 200)
+res3 = master_eqn_ensemble.simulate(100, min_steps = 200)
 print('Simulation done!')
 
 
