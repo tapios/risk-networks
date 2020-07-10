@@ -242,7 +242,7 @@ class MasterEquationModelEnsemble:
 		t_span = [self.start_time,self.stop_time],
                 y0 = self.y0[mm],
 		t_eval = [self.stop_time],
-                method = self.method,
+                method = 'RK45',
                 max_step = self.maxdt)
            
             self.y0[mm] = np.squeeze(result.y)
