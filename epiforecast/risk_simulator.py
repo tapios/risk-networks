@@ -231,7 +231,7 @@ class MasterEquationModelEnsemble:
         """
         
         self.stop_time = self.start_time + time_window
-        self.maxdt = time_window/min_steps
+        self.maxdt = abs(time_window) / min_steps
 
         self.eval_closure(self.y0, closure = closure)
 
