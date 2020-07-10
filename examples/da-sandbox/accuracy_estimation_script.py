@@ -14,7 +14,7 @@ def print_info(*args, **kwargs):
     global WALL_START_TIME
 
     print('[{:>10.2f}] '.format(time_elapsed()), end='')
-    print(*args, **kwargs)
+    print(*args, **kwargs, flush=True)
 
 
 # main #########################################################################
