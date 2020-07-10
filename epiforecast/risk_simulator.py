@@ -233,8 +233,7 @@ class MasterEquationModelEnsemble:
         self.stop_time = self.start_time + time_window
         self.maxdt = abs(time_window) / min_steps
 
-        self.eval_closure(self.y0, closure = closure)
-
+        self.eval_closure(self.y0, closure = closure) 
         for mm, member in enumerate(self.ensemble):
 
             result = solve_ivp(
@@ -245,7 +244,7 @@ class MasterEquationModelEnsemble:
                 method = 'RK45',
                 max_step = self.maxdt)
            
-            self.y0[mm] = np.squeeze(result.y)
+            self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
     
         self.start_time += time_window
         return self.y0
