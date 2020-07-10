@@ -2,7 +2,6 @@ import scipy.sparse as sps
 from scipy.integrate  import solve_ivp
 import numpy as np
 import networkx as nx
-from tqdm.autonotebook import tqdm
 
 class NetworkCompartmentalModel:
     """
@@ -98,7 +97,7 @@ class MasterEquationModelEnsemble:
 
         self.ensemble = []
 
-        for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
+        for mm in range(self.M):
             member = NetworkCompartmentalModel(N = self.N,
                                hospital_transmission_reduction = hospital_transmission_reduction)
 
