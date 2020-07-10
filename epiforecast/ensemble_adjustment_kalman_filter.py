@@ -2,6 +2,7 @@ import numpy as np
 import scipy.linalg as la
 import time
 from sklearn.utils.extmath import randomized_svd
+import warnings
  
 class EnsembleAdjustmentKalmanFilter:
 
@@ -9,10 +10,15 @@ class EnsembleAdjustmentKalmanFilter:
             self,
             prior_svd_reduced = True,
             observation_svd_regularized = True,
-            observation_svd_reduced = True,
+            observation_svd_reduced = False,
             joint_cov_noise = 1e-2):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
+
+        Flags:
+            * prior_svd_reduced: reduced SVD on first SVD of EAKF
+            * observation_svd_regularized: reduced SVD on second SVD of EAKF with regularization
+            * observation_svd_reduced: reduced SVD on second SVD of EAKF with padding 
 
         Key functions:
             * eakf.obs
@@ -22,6 +28,12 @@ class EnsembleAdjustmentKalmanFilter:
         '''
         if not prior_svd_reduced and observation_svd_reduced:
             raise NotImplementedError("observation SVD cannot be reduced, if prior SVD is not reduced")
+        if not prior_svd_reduced and observation_svd_regularized:
+            raise NotImplementedError("\'observation_svd_regularized=True\' only works with " + 
+                                      "\'prior_svd_reduced=True\'! Please double check the setting.")
+        if observation_svd_regularized and observation_svd_reduced:
+            warnings.warn("\'observation_svd_reduced=True\' is ignored, " +
+                          "since \'observation_svd_regularized=True\'! Please double check the setting.")
         
         # Error
         self.error = np.empty(0)
@@ -172,9 +184,6 @@ class EnsembleAdjustmentKalmanFilter:
         G_full = np.diag(np.sqrt(Dp_vec_full))
         G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
             
-        # observation_svd_regularized == True utilizes the regularized version for svd 
-        # the regularized version performs svd in a reduced space by default
-        # observaiton_svd_reduced only matters if observation_svd_regularized == True 
         # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
         if not self.observation_svd_regularized:
             if not self.observation_svd_reduced:
@@ -233,7 +242,6 @@ class EnsembleAdjustmentKalmanFilter:
             
         else:
             ### previous implementation
-            start = time.perf_counter()
             Dp_vec = rtDp_vec**2 + self.joint_cov_noise 
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
@@ -263,8 +271,6 @@ class EnsembleAdjustmentKalmanFilter:
                 Dp_u_vec_full[:J-1] = Dp_u_vec
                 Dp_u = np.diag(Dp_u_vec_full)
                 Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
-            end = time.perf_counter()
-            print("Time for second SVD: ", end-start)
             
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
