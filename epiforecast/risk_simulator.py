@@ -168,7 +168,7 @@ class MasterEquationModelEnsemble:
         self.y0 = np.copy(states_ensemble)
 
     # ODE solver methods -------------------------------------------------------
-    def do_step(
+    def compute_rhs(
             self,
             t,
             y,
@@ -182,7 +182,7 @@ class MasterEquationModelEnsemble:
 
         Returns:
         --------
-        y_dot (array): lhs of master eqns
+        y_dot (array): rhs of master eqns
         """
         iS, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(3)]
 
@@ -229,24 +229,22 @@ class MasterEquationModelEnsemble:
           min_steps : minimum number of timesteps
             closure : by default consider that closure = 'independent'
         """
-        
-        self.stop_time = self.start_time + time_window
-        self.maxdt = abs(time_window) / min_steps
+        stop_time = self.start_time + time_window
+        maxdt = abs(time_window) / min_steps
 
         self.eval_closure(self.y0, closure = closure)
 
         for mm, member in enumerate(self.ensemble):
-
             result = solve_ivp(
-		fun = lambda t, y: self.do_step(t, y, member, closure = closure),
-		t_span = [self.start_time,self.stop_time],
-                y0 = self.y0[mm],
-		t_eval = [self.stop_time],
-                method = 'RK45',
-                max_step = self.maxdt)
-           
+                    fun = lambda t, y: self.compute_rhs(t, y, member, closure = closure),
+                    t_span = [self.start_time, stop_time],
+                    y0 = self.y0[mm],
+                    t_eval = [stop_time],
+                    method = 'RK45',
+                    max_step = maxdt)
+
             self.y0[mm] = np.squeeze(result.y)
-    
+
         self.start_time += time_window
         return self.y0
 
@@ -264,10 +262,8 @@ class MasterEquationModelEnsemble:
             closure : by default consider that closure = 'independent'
         """
         positive_time_window = abs(time_window)
-        y0 =  self.simulate(-positive_time_window,
-                            min_steps,
-                            closure)
-        return y0
-       
-      
-        
+        return self.simulate(-positive_time_window,
+                             min_steps,
+                             closure)
+
+
