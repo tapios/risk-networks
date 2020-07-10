@@ -101,12 +101,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_skipped = 10 # for spin-up period
+n_prediction_windows_skipped =  7 # for spin-up period
 
-da_window         = 7.0
+da_window         = 5.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
-I_assimilation_interval  = static_contact_interval # same for I
+I_assimilation_interval  = 1.0 # same for I
 
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
@@ -116,9 +116,9 @@ assert n_prediction_windows_skipped * prediction_window > da_window
 assert n_prediction_windows > n_prediction_windows_skipped
 
 # storing ######################################################################
-master_states = EnsembleTimeSeries(ensemble_size,
-                                   5 * user_population,
-                                   time_span.size)
+master_states_timeseries = EnsembleTimeSeries(ensemble_size,
+                                              5 * user_population,
+                                              time_span.size)
 
 # initial conditions ###########################################################
 loaded_data = epidemic_data_storage.get_network_from_start_time(
@@ -159,7 +159,7 @@ for j in range(spin_up_steps):
     current_time += static_contact_interval
 
     # storing
-    master_states.push_back(ensemble_state)
+    master_states_timeseries.push_back(ensemble_state)
 
 print_info("Spin-up ended")
 
@@ -295,14 +295,15 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
         current_time += static_contact_interval
-        master_states.push_back(ensemble_state)
+        master_states_timeseries.push_back(ensemble_state)
 
 
 # save & plot ##################################################################
 accuracy_tracker = PerformanceTracker(metrics=[ModelAccuracy()])
 for j, kinetic_state in enumerate(statuses_all):
     user_kinetic_state = dict_slice(kinetic_state, user_nodes)
-    accuracy_tracker.update(user_kinetic_state, master_states.get_snapshot(j))
+    accuracy_tracker.update(user_kinetic_state,
+                            master_states_timeseries.get_snapshot(j))
 
 np.save(os.path.join(OUTPUT_PATH, 'accuracy_track.npy'),
         accuracy_tracker.performance_track)
@@ -311,7 +312,7 @@ np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'),
 
 # plot trajectories
 axes = plot_ensemble_states(population,
-                            master_states.container,
+                            master_states_timeseries.container,
                             time_span,
                             axes=axes,
                             xlims=(-0.1, total_time),
