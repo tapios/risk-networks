@@ -1,7 +1,7 @@
 import scipy.sparse as sps
+from scipy.integrate  import solve_ivp
 import numpy as np
 import networkx as nx
-from tqdm.autonotebook import tqdm
 
 class NetworkCompartmentalModel:
     """
@@ -97,7 +97,7 @@ class MasterEquationModelEnsemble:
 
         self.ensemble = []
 
-        for mm in tqdm(range(self.M), desc = 'Building ensemble', total = self.M):
+        for mm in range(self.M):
             member = NetworkCompartmentalModel(N = self.N,
                                hospital_transmission_reduction = hospital_transmission_reduction)
 
@@ -167,7 +167,7 @@ class MasterEquationModelEnsemble:
         self.y0 = np.copy(states_ensemble)
 
     # ODE solver methods -------------------------------------------------------
-    def do_step(
+    def compute_rhs(
             self,
             t,
             y,
@@ -181,7 +181,7 @@ class MasterEquationModelEnsemble:
 
         Returns:
         --------
-        y_dot (array): lhs of master eqns
+        y_dot (array): rhs of master eqns
         """
         iS, iI, iH = [range(jj * member.N, (jj + 1) * member.N) for jj in range(3)]
 
@@ -219,69 +219,50 @@ class MasterEquationModelEnsemble:
     def simulate(
             self,
             time_window,
-            n_steps=50,
-            closure='independent',
-            **kwargs):
+            min_steps = 1,
+            closure = 'independent'):
         """
         Args:
         -------
         time_window : duration of simulation
-            n_steps : number of Euler steps
+          min_steps : minimum number of timesteps
             closure : by default consider that closure = 'independent'
         """
-        self.stop_time = self.start_time + time_window
-        t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
-        self.dt = np.diff(t).min()
+        stop_time = self.start_time + time_window
+        maxdt = abs(time_window) / min_steps
 
-        yt      = np.empty([self.y0.size, t.size])
-        yt[:,0] = self.y0.flatten()
+        self.eval_closure(self.y0, closure = closure)
 
-        for jj, time in tqdm(enumerate(t[:-1]),
-                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.start_time, self.stop_time),
-                             total = t.size - 1):
-            self.eval_closure(self.y0, closure = closure)
-            for mm, member in enumerate(self.ensemble):
-                self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
-                self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
-            yt[:,jj + 1] = np.copy(self.y0.flatten())
+        for mm, member in enumerate(self.ensemble):
+            result = solve_ivp(
+                    fun = lambda t, y: self.compute_rhs(t, y, member, closure = closure),
+                    t_span = [self.start_time, stop_time],
+                    y0 = self.y0[mm],
+                    t_eval = [stop_time],
+                    method = 'RK45',
+                    max_step = maxdt)
 
-        self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, t.size)
-        self.start_time   += time_window
+            self.y0[mm] = np.squeeze(result.y)
 
+        self.start_time += time_window
         return self.y0
 
     def simulate_backwards(
             self,
             time_window,
-            n_steps = 100,
-            closure = 'independent',
-            **kwargs):
+            min_steps = 1,
+            closure = 'independent'):
         """
+        We run simulate with a negative time_window
         Args:
         -------
         time_window : duration of simulation
-            n_steps : number of Euler steps
+          min_steps : minimum_number of time steps (>=1)
             closure : by default consider that closure = 'independent'
         """
-        self.stop_time = self.start_time - time_window
-        t       = np.linspace(self.start_time, self.stop_time, n_steps + 1)
-        self.dt = np.diff(t).min()
+        positive_time_window = abs(time_window)
+        return self.simulate(-positive_time_window,
+                             min_steps,
+                             closure)
 
-        yt      = np.empty([self.y0.size, t.size])
-        yt[:,0] = self.y0.flatten()
 
-        for jj, time in tqdm(enumerate(t[:-1]),
-                             desc = '[ Master equations ] Time window [%2.3f, %2.3f]'%(self.stop_time, self.start_time),
-                             total = t.size - 1):
-            self.eval_closure(self.y0, closure = closure)
-            for mm, member in enumerate(self.ensemble):
-                self.y0[mm] += self.dt * self.do_step(t, self.y0[mm], member, closure = closure)
-                self.y0[mm]  = np.clip(self.y0[mm], 0., 1.)
-            yt[:,jj + 1] = np.copy(self.y0.flatten())
-
-        self.simulation_time = t
-        self.states_trace    = yt.reshape(self.M, -1, t.size)
-        self.start_time   -= time_window
-
-        return self.y0
