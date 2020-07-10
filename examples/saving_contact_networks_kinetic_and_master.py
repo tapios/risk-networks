@@ -226,7 +226,7 @@ for i in range(int(simulation_length/static_contact_interval)):
     loaded_data=epidemic_data_storage.get_network_from_start_time(start_time=time)
     master_eqn_ensemble.set_mean_contact_duration(loaded_data.contact_network.get_edge_weights()) # contact duration stored on network
  
-    states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, n_steps = 25)
+    states_ensemble = master_eqn_ensemble.simulate(static_contact_interval, min_steps = 25)
     
     #at the update the time
     time = time + static_contact_interval
