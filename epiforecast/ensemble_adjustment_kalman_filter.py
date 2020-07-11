@@ -265,12 +265,12 @@ class EnsembleAdjustmentKalmanFilter:
                                                         n_iter=5,
                                                         random_state=None)
 
-                F_u_full, _, _ = la.svd(np.multiply(F_u, Dp_u_vec))
+                F_u_null = la.null_space(F_u.T)
+                F_u_full = np.hstack([F_u, F_u_null])
 
                 Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
                 Dp_u_vec_full[:J-1] = Dp_u_vec
-                Dp_u = np.diag(Dp_u_vec_full)
-                Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
+                Sigma_u = np.linalg.multi_dot([np.multiply(F_u_full, Dp_u_vec_full), F_u_full.T])
             
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
