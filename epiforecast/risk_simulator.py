@@ -242,7 +242,7 @@ class MasterEquationModelEnsemble:
                     method = 'RK45',
                     max_step = maxdt)
 
-            self.y0[mm] = np.squeeze(result.y)
+            self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
 
         self.start_time += time_window
         return self.y0
@@ -261,6 +261,7 @@ class MasterEquationModelEnsemble:
             closure : by default consider that closure = 'independent'
         """
         positive_time_window = abs(time_window)
+        
         return self.simulate(-positive_time_window,
                              min_steps,
                              closure)
