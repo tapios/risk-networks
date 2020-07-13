@@ -1,6 +1,6 @@
 import numpy as np
 
-from .utilities import mask_by_compartment, dict_slice
+from .utilities import mask_by_compartment, dict_slice, shuffle
 
 def random_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
@@ -47,6 +47,30 @@ def deterministic_risk(
     """
     user_kinetic_states = dict_slice(kinetic_states, user_nodes)
     return __kinetic_to_master(user_kinetic_states, ensemble_size)
+
+def kinetic_to_master_same_fraction(
+        user_nodes,
+        kinetic_states,
+        ensemble_size):
+    """
+    Generate ensemble user states from full kinetic model states (fraction)
+
+    The resulting ensemble states have the same fraction of nodes in each
+    compartment as the kinetic model states, but not exactly the same nodes
+
+    Input:
+        user_nodes (np.array): (n_user_nodes,) array of user node indices
+        kinetic_states (dict): a mapping node -> state
+        ensemble_size (int): size of the ensemble
+
+    Output:
+        ensemble_state (np.array): (ensemble_size, 5*n_user_nodes) array of
+                                   states
+    """
+    user_kinetic_states = dict_slice(kinetic_states, user_nodes)
+    shuffled_user_kinetic_states = shuffle(user_kinetic_states)
+
+    return __kinetic_to_master(shuffled_user_kinetic_states, ensemble_size)
 
 def __kinetic_to_master(
         kinetic_states,
