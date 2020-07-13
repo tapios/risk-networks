@@ -1,6 +1,6 @@
 import numpy as np
 
-from .utilities import mask_by_compartment
+from .utilities import mask_by_compartment, dict_slice
 
 def random_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
@@ -33,7 +33,8 @@ def deterministic_risk(
     """
     Generate exact ensemble user states from full kinetic model states
 
-    The resulting ensemble states are exact copies of the kinetic model states
+    The resulting ensemble user states are exact copies of the kinetic model
+    states
 
     Input:
         user_nodes (np.array): (n_user_nodes,) array of user node indices
@@ -44,26 +45,38 @@ def deterministic_risk(
         ensemble_state (np.array): (ensemble_size, 5*n_user_nodes) array of
                                    states
     """
+    user_kinetic_states = dict_slice(kinetic_states, user_nodes)
+    return __kinetic_to_master(user_kinetic_states, ensemble_size)
+
+def __kinetic_to_master(
+        kinetic_states,
+        ensemble_size):
+    """
+    Generate ensemble states from kinetic model states
+
+    The resulting ensemble states are exact copies of the kinetic model states
+
+    Input:
+        kinetic_states (dict): a mapping node -> state
+        ensemble_size (int): size of the ensemble
+
+    Output:
+        ensemble_state (np.array): (ensemble_size, 5*n_nodes) array of states
+    """
     s_mask = mask_by_compartment(kinetic_states, 'S')
     i_mask = mask_by_compartment(kinetic_states, 'I')
     h_mask = mask_by_compartment(kinetic_states, 'H')
     r_mask = mask_by_compartment(kinetic_states, 'R')
     d_mask = mask_by_compartment(kinetic_states, 'D')
 
-    user_s_mask = s_mask[user_nodes]
-    user_i_mask = i_mask[user_nodes]
-    user_h_mask = h_mask[user_nodes]
-    user_r_mask = r_mask[user_nodes]
-    user_d_mask = d_mask[user_nodes]
+    n_nodes = len(kinetic_states)
+    S, I, H, R, D = np.zeros([5, n_nodes])
 
-    n_user_nodes = user_nodes.size
-    S, I, H, R, D = np.zeros([5, n_user_nodes])
-
-    S[user_s_mask] = 1.
-    I[user_i_mask] = 1.
-    H[user_h_mask] = 1.
-    R[user_r_mask] = 1.
-    D[user_d_mask] = 1.
+    S[s_mask] = 1.
+    I[i_mask] = 1.
+    H[h_mask] = 1.
+    R[r_mask] = 1.
+    D[d_mask] = 1.
 
     member_state = np.hstack((S, I, H, R, D))
     ensemble_state = np.tile(member_state, (ensemble_size, 1))
