@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
-from epiforecast.risk_simulator_initial_conditions import deterministic_risk
+from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction
 from epiforecast.epiplots import plot_ensemble_states
 from epiforecast.performance_metrics import ModelAccuracy, PerformanceTracker
 from epiforecast.utilities import dict_slice
@@ -125,9 +125,9 @@ loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
 loaded_kinetic_ic = loaded_data.start_statuses
 
-ensemble_ic = deterministic_risk(user_nodes,
-                                 loaded_kinetic_ic,
-                                 ensemble_size)
+ensemble_ic = kinetic_to_master_same_fraction(user_nodes,
+                                              loaded_kinetic_ic,
+                                              ensemble_size)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
