@@ -2,7 +2,6 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import time
-from sklearn.utils.extmath import randomized_svd
 import warnings
 import pdb
  
@@ -220,11 +219,9 @@ class EnsembleAdjustmentKalmanFilter:
                     # we pad from trunc_size -> size obs, and pad from size_obs to joint space size
 
                     # calculating np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
-                    Urect, rtD_vec , _ = randomized_svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), 
-                                                        n_components=trunc_size,
-                                                        power_iteration_normalizer = 'auto',
-                                                        n_iter=10,
-                                                        random_state=None)
+                    Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
+                                                   k=J-1,
+                                                   return_singular_vectors='u')
 
                     # to get the full space, U, we pad it with a basis of the null space 
                     Unull = la.null_space(Urect.T)
@@ -264,7 +261,7 @@ class EnsembleAdjustmentKalmanFilter:
                                           G_inv, B, U.T, G, F.T])
 
             if zp.shape[0] < zp.shape[1]:
-                F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1)
+                F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
 
                 F_u_null = la.null_space(F_u.T)
                 F_u_full = np.hstack([F_u_null, F_u])
