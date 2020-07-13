@@ -220,7 +220,7 @@ class EnsembleAdjustmentKalmanFilter:
 
                     # calculating np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
                     Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
-                                                   k=J-1,
+                                                   k=trunc_size,
                                                    return_singular_vectors='u')
 
                     # to get the full space, U, we pad it with a basis of the null space 
@@ -229,7 +229,7 @@ class EnsembleAdjustmentKalmanFilter:
                       
                     # pad square rtD_vec and pad  with its smallest value, then with zeros
                     sing_val_sq = rtD_vec**2           
-                    D_vec = np.hstack([sing_val_sq[-1] * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
+                    D_vec = np.hstack([np.min(sing_val_sq) * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
                     D_vec[:trunc_size] = sing_val_sq
                 #
  
