@@ -1,8 +1,10 @@
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse.linalg as spla
 import time
 from sklearn.utils.extmath import randomized_svd
 import warnings
+import pdb
  
 class EnsembleAdjustmentKalmanFilter:
 
@@ -262,16 +264,13 @@ class EnsembleAdjustmentKalmanFilter:
                                           G_inv, B, U.T, G, F.T])
 
             if zp.shape[0] < zp.shape[1]:
-                F_u, Dp_u_vec , _ = randomized_svd(Sigma_u,
-                                                        n_components=J-1,
-                                                        n_iter=5,
-                                                        random_state=None)
+                F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1)
 
                 F_u_null = la.null_space(F_u.T)
-                F_u_full = np.hstack([F_u, F_u_null])
+                F_u_full = np.hstack([F_u_null, F_u])
 
-                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
-                Dp_u_vec_full[:J-1] = Dp_u_vec
+                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
+                Dp_u_vec_full[-J+1:] = Dp_u_vec
                 Sigma_u = np.linalg.multi_dot([np.multiply(F_u_full, Dp_u_vec_full), F_u_full.T])
             
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
