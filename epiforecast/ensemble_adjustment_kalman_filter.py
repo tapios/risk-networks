@@ -84,6 +84,7 @@ class EnsembleAdjustmentKalmanFilter:
                           i may not be independent from observations of state j. For example, this
                           can occur when a test applied to person ni alters the certainty of a subsequent
                           test to person nj.
+                          We assume the covariance is diagonal in this code.
 
         #TODO: how to deal with no transition and/or transmission rates. i.e empty array input.
                (Could we just use an ensemble sized column of zeros? then output the empty array
@@ -102,7 +103,8 @@ class EnsembleAdjustmentKalmanFilter:
         x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
         try:
-            cov_inv = np.linalg.inv(cov)
+            # We assume independent variances (i.e diagonal covariance)
+            cov_inv = np.diag(1/np.diag(cov))
         except np.linalg.linalg.LinAlgError:
             print('cov not invertible')
             cov_inv = np.ones(cov.shape)
