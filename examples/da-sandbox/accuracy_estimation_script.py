@@ -22,20 +22,21 @@ WALL_START_TIME = timer()
 SLEEP_INTERVAL_MAX = 60
 OUTPUT_PATH = 'output'
 EXEC = ['python3', 'accuracy_estimation.py']
-CONST_ARGUMENTS = ['--observations-I-fraction-tested', str(0.5)]
+CONST_ARGUMENTS = []
 
 sleep_interval = 1
 children = []
 
-#user_fractions = np.array([0.01, 0.03, 0.05, 0.1, 0.5, 1.0])
-user_fractions = np.array([0.01, 0.03])
-for user_fraction in user_fractions:
+user_fractions = np.array([0.03, 0.05, 0.1, 0.5, 1.0])
+fractions_tested = np.array([0.5, 0.1, 0.05, 0.02, 0.01])
+for user_fraction, tested in zip(user_fractions, fractions_tested):
     CURRENT_OUTPUT_PATH = os.path.join(OUTPUT_PATH, str(user_fraction))
     if not os.path.exists(CURRENT_OUTPUT_PATH):
         os.makedirs(CURRENT_OUTPUT_PATH)
 
     current_arguments =  ['--user-network-user-fraction', str(user_fraction)]
     current_arguments += ['--constants-output-path', CURRENT_OUTPUT_PATH]
+    current_arguments += ['--observations-I-fraction-tested', str(tested)]
 
     stdout_file = open(os.path.join(CURRENT_OUTPUT_PATH, 'stdout'), 'w')
     stderr_file = open(os.path.join(CURRENT_OUTPUT_PATH, 'stderr'), 'w')
