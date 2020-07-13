@@ -84,6 +84,19 @@ def compartments_count(states):
 
     return np.array((n_S, n_E, n_I, n_H, n_R, n_D))
 
+def shuffle(states):
+    """
+    Shuffle states preserving the number of nodes in each compartment
+
+    Input:
+        states (dict): a mapping node -> state
+    Output:
+        shuffled_states (dict): a mapping node -> state, shuffled
+    """
+    states_array = np.fromiter(states.values(), dtype='<U1')
+    np.random.shuffle(states_array) # in-place
+    return { node: state for node, state in zip(states.keys(), states_array) }
+
 def dict_slice(
         states,
         nodes):
