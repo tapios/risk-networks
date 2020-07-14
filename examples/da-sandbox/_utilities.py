@@ -109,4 +109,22 @@ def modulo_is_close_to_zero(
     """
     return isclose( (time + eps/2) % modulo_interval, 0.0, abs_tol=eps )
 
+def are_close(
+        time1,
+        time2,
+        eps=0.125):
+    """
+    Determine if |time1 - time2| ≤ eps/2
+
+    Input:
+        time1 (int),
+              (float): time, real number (positive or negative)
+        time2 (int),
+              (float): time, real number (positive or negative)
+        eps (float): eps/2 is the maximum distance between time1 and time2
+    Output:
+        are_close (bool): whether or not time1 and time2 are close
+    """
+    return isclose(time1, time2, abs_tol=eps/2)
+
 
