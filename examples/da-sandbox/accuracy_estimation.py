@@ -30,7 +30,8 @@ from _constants import (static_contact_interval,
 # utilities ####################################################################
 from _utilities import (print_info,
                         list_of_transition_rates_to_array,
-                        modulo_is_close_to_zero)
+                        modulo_is_close_to_zero,
+                        are_close)
 
 # general init #################################################################
 import _general_init
@@ -56,6 +57,8 @@ perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
                           negative_death_records]
+
+I_observation_delay = 1.0
 
 # assimilator ##################################################################
 transition_rates_to_update_str   = []
@@ -166,14 +169,19 @@ print_info("Spin-up ended")
 # main loop: backward/forward/data assimilation ################################
 for k in range(n_prediction_windows_skipped, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
-    current_time = k * prediction_window
+
+    assert are_close(current_time,
+                     k * prediction_window,
+                     eps=static_contact_interval)
+    current_time = k * prediction_window # to avoid build-up of errors
+    past_time = current_time
 
     # backward run with data assimilation
-    master_eqn_ensemble.set_start_time(current_time)
+    master_eqn_ensemble.set_start_time(past_time)
 
     for j in range(steps_per_da_window):
         loaded_data = epidemic_data_storage.get_network_from_end_time(
-                end_time=current_time)
+                end_time=past_time)
 
         user_network.update_from(loaded_data.contact_network)
         master_eqn_ensemble.set_mean_contact_duration(
@@ -184,12 +192,15 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                 static_contact_interval,
                 min_steps=n_backward_steps)
 
-        current_time -= static_contact_interval
+        past_time -= static_contact_interval
 
         # data assimilation
-        if modulo_is_close_to_zero(current_time,
-                                   I_assimilation_interval,
-                                   eps=static_contact_interval):
+        assimilate_I = modulo_is_close_to_zero(past_time,
+                                               I_assimilation_interval,
+                                               eps=static_contact_interval)
+        delay_satisfied = past_time <= (current_time - I_observation_delay)
+
+        if assimilate_I and delay_satisfied:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -199,11 +210,12 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     user_nodes,
-                    current_time)
+                    past_time)
 
-        if modulo_is_close_to_zero(current_time,
-                                   HD_assimilation_interval,
-                                   eps=static_contact_interval):
+        assimilate_HD = modulo_is_close_to_zero(past_time,
+                                                HD_assimilation_interval,
+                                                eps=static_contact_interval)
+        if assimilate_HD:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -213,7 +225,7 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     user_nodes,
-                    current_time)
+                    past_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
@@ -223,11 +235,11 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
 
 
     # forward run with data assimilation
-    master_eqn_ensemble.set_start_time(current_time)
+    master_eqn_ensemble.set_start_time(past_time)
 
     for j in range(steps_per_da_window):
         loaded_data = epidemic_data_storage.get_network_from_start_time(
-                start_time=current_time)
+                start_time=past_time)
 
         user_network.update_from(loaded_data.contact_network)
         master_eqn_ensemble.set_mean_contact_duration(
@@ -238,12 +250,15 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                 static_contact_interval,
                 min_steps=n_forward_steps)
 
-        current_time += static_contact_interval
+        past_time += static_contact_interval
 
         # data assimilation
-        if modulo_is_close_to_zero(current_time,
-                                   I_assimilation_interval,
-                                   eps=static_contact_interval):
+        assimilate_I = modulo_is_close_to_zero(past_time,
+                                               I_assimilation_interval,
+                                               eps=static_contact_interval)
+        delay_satisfied = past_time <= (current_time - I_observation_delay)
+
+        if assimilate_I and delay_satisfied:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -253,11 +268,12 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     user_nodes,
-                    current_time)
+                    past_time)
 
-        if modulo_is_close_to_zero(current_time,
-                                   HD_assimilation_interval,
-                                   eps=static_contact_interval):
+        assimilate_HD = modulo_is_close_to_zero(past_time,
+                                                HD_assimilation_interval,
+                                                eps=static_contact_interval)
+        if assimilate_HD:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -267,7 +283,7 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     user_nodes,
-                    current_time)
+                    past_time)
 
         # update ensemble after data assimilation
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
@@ -275,6 +291,9 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
 
+
+    # DA should get back to the current time
+    assert are_close(past_time, current_time, eps=static_contact_interval)
 
     # forward run w/o data assimilation; prediction
     master_eqn_ensemble.set_start_time(current_time)
