@@ -5,7 +5,6 @@
 #SBATCH --mem-per-cpu=1G
 #SBATCH -J "risk_networks_accuracy"
 #SBATCH --output="output/slurm.out"
-#SBATCH --mail-user=dburov@caltech.edu
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 
