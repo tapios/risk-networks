@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --time=6:00:00                  # walltime
+#SBATCH --time=12:00:00                 # walltime
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
-#SBATCH --mem-per-cpu=6G
+#SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
 #SBATCH -J "risk_networks_accuracy"
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
