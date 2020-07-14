@@ -46,7 +46,10 @@ def deterministic_risk(
                                    states
     """
     user_kinetic_states = dict_slice(kinetic_states, user_nodes)
-    return __kinetic_to_master(user_kinetic_states, ensemble_size)
+    member_state = __kinetic_to_master(user_kinetic_states)
+    ensemble_state = np.tile(member_state, (ensemble_size, 1))
+
+    return ensemble_state
 
 def kinetic_to_master_same_fraction(
         user_nodes,
@@ -68,24 +71,27 @@ def kinetic_to_master_same_fraction(
                                    states
     """
     user_kinetic_states = dict_slice(kinetic_states, user_nodes)
-    shuffled_user_kinetic_states = shuffle(user_kinetic_states)
 
-    return __kinetic_to_master(shuffled_user_kinetic_states, ensemble_size)
+    n_user_nodes = len(user_kinetic_states)
+    ensemble_state = np.empty( (ensemble_size, 5*n_user_nodes) )
 
-def __kinetic_to_master(
-        kinetic_states,
-        ensemble_size):
+    for m in range(ensemble_size):
+        shuffled_user_kinetic_states = shuffle(user_kinetic_states)
+        ensemble_state[m] = __kinetic_to_master(shuffled_user_kinetic_states)
+
+    return ensemble_state
+
+def __kinetic_to_master(kinetic_states):
     """
-    Generate ensemble states from kinetic model states
+    Generate a vector of master states from kinetic model states
 
-    The resulting ensemble states are exact copies of the kinetic model states
+    The resulting vector has {0, 1} values which correspond to kinetic states
 
     Input:
         kinetic_states (dict): a mapping node -> state
-        ensemble_size (int): size of the ensemble
 
     Output:
-        ensemble_state (np.array): (ensemble_size, 5*n_nodes) array of states
+        master_states (np.array): (5*n_nodes,) array of states
     """
     s_mask = mask_by_compartment(kinetic_states, 'S')
     i_mask = mask_by_compartment(kinetic_states, 'I')
@@ -102,10 +108,9 @@ def __kinetic_to_master(
     R[r_mask] = 1.
     D[d_mask] = 1.
 
-    member_state = np.hstack((S, I, H, R, D))
-    ensemble_state = np.tile(member_state, (ensemble_size, 1))
+    master_states = np.hstack((S, I, H, R, D))
 
-    return ensemble_state
+    return master_states
 
 def prevalence_deterministic_risk(population, initial_states, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
