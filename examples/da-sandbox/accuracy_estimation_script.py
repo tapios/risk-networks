@@ -28,7 +28,7 @@ sleep_interval = 1
 children = []
 
 user_fractions = np.array([0.03, 0.05, 0.1, 0.5, 1.0])
-fractions_tested = np.array([0.5, 0.1, 0.05, 0.02, 0.01])
+fractions_tested = np.array([0.5, 0.2, 0.1, 0.02, 0.01])
 for user_fraction, tested in zip(user_fractions, fractions_tested):
     CURRENT_OUTPUT_PATH = os.path.join(OUTPUT_PATH, str(user_fraction))
     if not os.path.exists(CURRENT_OUTPUT_PATH):
