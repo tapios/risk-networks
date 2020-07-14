@@ -28,6 +28,7 @@ OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${COUNTER}"
 user_fractions=(0.03 0.05 0.1 0.5 1.0)
 fractions_tested=(0.5 0.2 0.1 0.02 0.01)
 
+network_size=1e4
 user_fraction=${user_fractions[${SLURM_ARRAY_TASK_ID}]}
 tested=${fractions_tested[${SLURM_ARRAY_TASK_ID}]}
 output_path="${OUTPUT_DIR}/${user_fraction}"
@@ -43,6 +44,7 @@ python3 accuracy_estimation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-fraction-tested=${tested} \
+  --network-node-count=${network_size} \
   >${stdout} 2>${stderr}
 
 
