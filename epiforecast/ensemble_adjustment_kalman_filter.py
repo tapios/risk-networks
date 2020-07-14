@@ -1,8 +1,9 @@
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse.linalg as spla
 import time
-from sklearn.utils.extmath import randomized_svd
 import warnings
+import pdb
  
 class EnsembleAdjustmentKalmanFilter:
 
@@ -84,6 +85,7 @@ class EnsembleAdjustmentKalmanFilter:
                           i may not be independent from observations of state j. For example, this
                           can occur when a test applied to person ni alters the certainty of a subsequent
                           test to person nj.
+                          We assume the covariance is diagonal in this code.
 
         #TODO: how to deal with no transition and/or transmission rates. i.e empty array input.
                (Could we just use an ensemble sized column of zeros? then output the empty array
@@ -102,7 +104,8 @@ class EnsembleAdjustmentKalmanFilter:
         x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
         try:
-            cov_inv = np.linalg.inv(cov)
+            # We assume independent variances (i.e diagonal covariance)
+            cov_inv = np.diag(1/np.diag(cov))
         except np.linalg.linalg.LinAlgError:
             print('cov not invertible')
             cov_inv = np.ones(cov.shape)
@@ -216,11 +219,9 @@ class EnsembleAdjustmentKalmanFilter:
                     # we pad from trunc_size -> size obs, and pad from size_obs to joint space size
 
                     # calculating np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
-                    Urect, rtD_vec , _ = randomized_svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), 
-                                                        n_components=trunc_size,
-                                                        power_iteration_normalizer = 'auto',
-                                                        n_iter=10,
-                                                        random_state=None)
+                    Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
+                                                   k=trunc_size,
+                                                   return_singular_vectors='u')
 
                     # to get the full space, U, we pad it with a basis of the null space 
                     Unull = la.null_space(Urect.T)
@@ -228,7 +229,7 @@ class EnsembleAdjustmentKalmanFilter:
                       
                     # pad square rtD_vec and pad  with its smallest value, then with zeros
                     sing_val_sq = rtD_vec**2           
-                    D_vec = np.hstack([sing_val_sq[-1] * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
+                    D_vec = np.hstack([np.min(sing_val_sq) * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
                     D_vec[:trunc_size] = sing_val_sq
                 #
  
@@ -260,17 +261,14 @@ class EnsembleAdjustmentKalmanFilter:
                                           G_inv, B, U.T, G, F.T])
 
             if zp.shape[0] < zp.shape[1]:
-                F_u, Dp_u_vec , _ = randomized_svd(Sigma_u,
-                                                        n_components=J-1,
-                                                        n_iter=5,
-                                                        random_state=None)
+                F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
 
-                F_u_full, _, _ = la.svd(np.multiply(F_u, Dp_u_vec))
+                F_u_null = la.null_space(F_u.T)
+                F_u_full = np.hstack([F_u_null, F_u])
 
-                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * Dp_u_vec[-1]
-                Dp_u_vec_full[:J-1] = Dp_u_vec
-                Dp_u = np.diag(Dp_u_vec_full)
-                Sigma_u = np.linalg.multi_dot([F_u_full, Dp_u, F_u_full.T])
+                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
+                Dp_u_vec_full[-J+1:] = Dp_u_vec
+                Sigma_u = np.linalg.multi_dot([np.multiply(F_u_full, Dp_u_vec_full), F_u_full.T])
             
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
