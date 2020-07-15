@@ -1,7 +1,7 @@
 import numpy as np
 import sklearn.metrics as skm
 from collections import defaultdict
-import matplotlib.pyplot as plt
+
 
 def confusion_matrix(data,
                      ensemble_states,
