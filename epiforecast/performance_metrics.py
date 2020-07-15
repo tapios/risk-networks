@@ -29,7 +29,7 @@ def confusion_matrix(data,
 
     ensemble_probabilities[1] = ((1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)) > threshold).mean(axis = 0)
     ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = (ensemble_states.reshape(ensemble_size, n_status, population) > threshold).mean(axis = 0)
-
+    
     ensemble_statuses = ensemble_probabilities.argmax(axis = 0)
     if not combined:
         data_statuses     = [status_catalog[status] if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
@@ -48,7 +48,7 @@ def confusion_matrix(data,
 class ModelAccuracy:
     """
     Container for model accuracy metric. Metric based on overall class assignment.
-                Accuracy = TruePositives + TrueNegatives / TotalCases
+                Accuracy = (True Positives + True Negatives) / Total Cases
     """
 
     def __init__(self, name = 'Accuracy'):
@@ -72,6 +72,68 @@ class ModelAccuracy:
         """
         cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
         return np.diag(cm).sum()/cm.sum()
+
+class ModelSpecificity:
+    """
+    Container for model specificity metric. Metric based on overall class assignment.
+    Specificity (True Negative Rate) = True Negatives / (True Negatives + False Positives)
+    """
+
+    def __init__(self, name = 'Specificity'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 combined = False
+                 ):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+                threshold      : used to declare a positive class.
+                combined       : if statuses in `statuses` are to be taken as a single class.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+        tn, fp, fn, tp = cm.ravel()
+        
+        return tn / (tn + fp)
+
+class ModelSenstivity:
+    """
+    Container for model sensitivity metric. Metric based on overall class assignment.
+    Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
+    """
+
+    def __init__(self, name = 'Specificity'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 combined = False
+                 ):
+        """
+        Calculates the Specificity of a calculation
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+                threshold      : used to declare a positive class.
+                combined       : if statuses in `statuses` are to be taken as a single class.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+        tn, fp, fn, tp = cm.ravel()
+        
+        return tp / (tp + fn)
+    
 
 class F1Score:
     """
