@@ -131,13 +131,13 @@ class ModelSpecificity:
         
         return tn / (tn + fp)
 
-class ModelSenstivity:
+class ModelSensitivity:
     """
     Container for model sensitivity metric. Metric based on overall class assignment.
     Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
     """
 
-    def __init__(self, name = 'Specificity'):
+    def __init__(self, name = 'Sensitivity'):
         self.name = name
 
     def __call__(self,
@@ -196,7 +196,7 @@ class PerformanceTracker:
     Container to track how a classification model behaves over time.
     """
     def __init__(self,
-                  metrics   = [ModelAccuracy(), F1Score()],
+                  metrics   = [ModelSpecificity(), ModelSensitivity()],
                   statuses  = ['E', 'I'],
                   threshold = 0.5):
         """
