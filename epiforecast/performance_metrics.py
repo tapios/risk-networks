@@ -98,7 +98,7 @@ class ModelAccuracy:
                 threshold      : used to declare a positive class.
                 combined       : if statuses in `statuses` are to be taken as a single class.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
         return np.diag(cm).sum()/cm.sum()
 
 class ModelSpecificity:
@@ -126,7 +126,7 @@ class ModelSpecificity:
                 threshold      : used to declare a positive class.
                 combined       : if statuses in `statuses` are to be taken as a single class.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
         tn, fp, fn, tp = cm.ravel()
         
         return tn / (tn + fp)
