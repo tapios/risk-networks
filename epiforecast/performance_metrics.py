@@ -45,33 +45,7 @@ def confusion_matrix(data,
 
     return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = status_of_interest)
 
-def plot_roc_curve(specificity,
-                   sensitivity,
-                   show = True,
-                   fig_size=(10, 5)):
-    """
-    Plots an ROC (Receiver Operating Characteristics) curve. This requires many experiments to
-    as each experiments will produce one specificity, sensitivity pair.
-    The x-axis is the False Positive Rate = 1 - specificity = 1 - FN / (TN + FP) 
-    The y-axis is the True Positive Rate = sensitivity = TP / (TP + FN) 
 
-    Args
-    ----
-    specificity (np.array): array of specificities
-    sensitivity (np.array): array of sensitivities of the same length
-    """
-    tpr = sensitivity
-    fpr = 1 - specificity
-    fig, ax = plt.subplots(figsize=fig_size)
-    plt.plot(fpr, tpr, color='orange')
-    plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic (ROC) Curve')
-    if show:
-        plt.show()
-        
-    return fig, ax
 
 class ModelAccuracy:
     """
