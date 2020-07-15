@@ -5,14 +5,19 @@ from collections import defaultdict
 
 def confusion_matrix(data,
                      ensemble_states,
-                     statuses  = ['S', 'E', 'I', 'H', 'R', 'D']):
+                     statuses=['S','E','I','H','R','D'],
+                     threshold = 0.5,
+                     method='or'):
 
     """
     Wrapper of `sklearn.metrics.confusion_matrix`.
     Args:
     -----
         ensemble_states: (ensemble_size, 5 * population) `np.array` of the current state of the ensemble ODE system.
-        statuses: list of statuses of interest.
+        statuses       : `list` of statuses of interest.
+        threshold      : float in [0,1] used to determine a binary classification
+        method: string, 'sum': means you assign true if the sum exceeds the threshold
+                        'or' : means you assign true if either exceeds the threshold
     """
 
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
@@ -20,16 +25,27 @@ def confusion_matrix(data,
     ensemble_size = len(ensemble_states)
     population    = len(data)
 
-    n_status = 5
-
     ensemble_probabilities = np.zeros((6, population))
-
-    ensemble_probabilities[1] = (1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)).mean(axis = 0)
-    ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = ensemble_states.reshape(ensemble_size, n_status, population).mean(axis = 0)
     
-    ensemble_statuses = ensemble_probabilities.argmax(axis = 0)
+    #obtain the prediction of the ensemble by averaging
+    ensemble_probabilities[1] = (1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)).mean(axis = 0)
+    ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
+
+    #obtain a binary classification of the prediction
+    if method == 'sum':
+         #if the sum of the statuses of interest > threshold then we assign true
+         positive_classifier_mass = np.vstack([ensemble_probabilities[status_id] for status_id in status_of_interest]).sum(axis=0)
+         positive_classifier_mass = (positive_classifier_mass > threshold)
+
+    elif method == 'or':
+        #if either of the statuses of interest > threshold then we assign true
+        positive_classifier_mass = np.vstack([ensemble_probabilities[status_id]>0 for status_id in status_of_interest]).sum(axis=0)
+        positive_classifier_mass = (positive_classifier_mass > 0)
+    else:
+        raise ValueError("please choose methods from 'sum' (default) or 'or' ")
+
     data_statuses      = [8 if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
-    ensemble_statuses  = [8 if node_status in status_of_interest else 7 for node_status in ensemble_statuses]
+    ensemble_statuses  = [8 if positive else 7 for positive in positive_classifier_mass ]
     status_of_interest = [8]
     #
     if len(status_of_interest) < 6:
@@ -52,7 +68,8 @@ class ModelAccuracy:
                  data,
                  ensemble_states,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
-                 ):
+                 threshold = 0.5,
+                 method = 'or'):
         """
             Args:
             -----
@@ -60,11 +77,13 @@ class ModelAccuracy:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         return np.diag(cm).sum()/cm.sum()
 
 class ModelSpecificity:
     """
+    Specificity, is the selectivity, is  the True Negative Rate
+    
     Container for model specificity metric. Metric based on overall class assignment.
     Specificity (True Negative Rate) = True Negatives / (True Negatives + False Positives)
     """
@@ -76,7 +95,8 @@ class ModelSpecificity:
                  data,
                  ensemble_states,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
-                 ):
+                 threshold = 0.5,
+                 method = 'or'):
         """
         Args:
         -----
@@ -84,14 +104,16 @@ class ModelSpecificity:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
         
         return tn / (tn + fp)
 
 class ModelSensitivity:
     """
+    Sensitivity, is the recall, is the hit rate, is the True Positive Rate
     Container for model sensitivity metric. Metric based on overall class assignment.
+    
     Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
     """
 
@@ -102,7 +124,8 @@ class ModelSensitivity:
                  data,
                  ensemble_states,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
-                 ):
+                 threshold = 0.5,
+                 method = 'or'):
         """
         Calculates the Specificity of a calculation
         Args:
@@ -111,7 +134,7 @@ class ModelSensitivity:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
         
         return tp / (tp + fn)
@@ -131,7 +154,8 @@ class F1Score:
                  data,
                  ensemble_states,
                  statuses = ['E', 'I'],
-                 ):
+                 threshold = 0.5,
+                 method = 'or'):
         """
         Glossary:
             tn : true negative
@@ -139,7 +163,7 @@ class F1Score:
             fn : false negative
             tp : true positive
         """
-        cm = confusion_matrix(data, ensemble_states, statuses)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         return 2 * tp / (2 * tp + fp + fn)
@@ -150,16 +174,22 @@ class PerformanceTracker:
     """
     def __init__(self,
                   metrics   = [ModelSpecificity(), ModelSensitivity()],
-                  statuses  = ['E', 'I']):
+                  statuses  = ['E', 'I'],
+                  threshold = 0.5,
+                  method = 'or' ):
         """
         Args:
         ------
             metrics: list of metrics that can be fed to the wrapper.
             statuses: statuses of interest.
+            threshold: a threshold probabilitiy for classification
+            method: 'sum' or 'or' to determine how statuses exceed a threshold
         """
 
         self.statuses  = statuses
         self.metrics   = metrics
+        self.threshold = threshold
+        self.method = method
         self.performance_track = None
         self.prevalence_track  = None
 
@@ -185,7 +215,7 @@ class PerformanceTracker:
             ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
         """
 
-        results = [metric(data, ensemble_states, self.statuses) for metric in self.metrics]
+        results = [metric(data, ensemble_states, self.statuses, self.threshold, self.method) for metric in self.metrics]
         if self.performance_track is None:
             self.performance_track = np.array(results).reshape(1, len(self.metrics))
         else:
