@@ -93,7 +93,7 @@ from _post_process_init import axes
 # epidemic data ################################################################
 ################################################################################
 from _run_and_store_epidemic import (epidemic_data_storage,
-                                     statuses_all)
+                                     kinetic_states_timeseries)
 import _post_process_epidemic
 
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
@@ -104,7 +104,7 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_skipped =  7 # for spin-up period
+n_prediction_windows_spin_up = 7
 
 da_window         = 5.0
 prediction_window = 1.0
@@ -115,8 +115,8 @@ n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
 
-assert n_prediction_windows_skipped * prediction_window > da_window
-assert n_prediction_windows > n_prediction_windows_skipped
+assert n_prediction_windows_spin_up * prediction_window > da_window
+assert n_prediction_windows > n_prediction_windows_spin_up
 
 # storing ######################################################################
 master_states_timeseries = EnsembleTimeSeries(ensemble_size,
@@ -142,7 +142,7 @@ master_eqn_ensemble.set_start_time(start_time)
 ################################################################################
 # spin-up w/o data assimilation ################################################
 current_time = start_time
-spin_up_steps = n_prediction_windows_skipped * steps_per_prediction_window
+spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
 
 print_info("Spin-up started")
 for j in range(spin_up_steps):
@@ -167,7 +167,7 @@ for j in range(spin_up_steps):
 print_info("Spin-up ended")
 
 # main loop: backward/forward/data assimilation ################################
-for k in range(n_prediction_windows_skipped, n_prediction_windows):
+for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
 
     assert are_close(current_time,
@@ -195,12 +195,12 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
         past_time -= static_contact_interval
 
         # data assimilation
-        assimilate_I = modulo_is_close_to_zero(past_time,
-                                               I_assimilation_interval,
-                                               eps=static_contact_interval)
+        assimilate_I_now = modulo_is_close_to_zero(past_time,
+                                                   I_assimilation_interval,
+                                                   eps=static_contact_interval)
         delay_satisfied = past_time <= (current_time - I_observation_delay)
 
-        if assimilate_I and delay_satisfied:
+        if assimilate_I_now and delay_satisfied:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -212,10 +212,10 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     user_nodes,
                     past_time)
 
-        assimilate_HD = modulo_is_close_to_zero(past_time,
-                                                HD_assimilation_interval,
-                                                eps=static_contact_interval)
-        if assimilate_HD:
+        assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                    HD_assimilation_interval,
+                                                    eps=static_contact_interval)
+        if assimilate_HD_now:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -253,12 +253,12 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
         past_time += static_contact_interval
 
         # data assimilation
-        assimilate_I = modulo_is_close_to_zero(past_time,
-                                               I_assimilation_interval,
-                                               eps=static_contact_interval)
+        assimilate_I_now = modulo_is_close_to_zero(past_time,
+                                                   I_assimilation_interval,
+                                                   eps=static_contact_interval)
         delay_satisfied = past_time <= (current_time - I_observation_delay)
 
-        if assimilate_I and delay_satisfied:
+        if assimilate_I_now and delay_satisfied:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -270,10 +270,10 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
                     user_nodes,
                     past_time)
 
-        assimilate_HD = modulo_is_close_to_zero(past_time,
-                                                HD_assimilation_interval,
-                                                eps=static_contact_interval)
-        if assimilate_HD:
+        assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                    HD_assimilation_interval,
+                                                    eps=static_contact_interval)
+        if assimilate_HD_now:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
@@ -319,7 +319,7 @@ for k in range(n_prediction_windows_skipped, n_prediction_windows):
 
 # save & plot ##################################################################
 accuracy_tracker = PerformanceTracker(metrics=[ModelAccuracy()])
-for j, kinetic_state in enumerate(statuses_all):
+for j, kinetic_state in enumerate(kinetic_states_timeseries):
     user_kinetic_state = dict_slice(kinetic_state, user_nodes)
     accuracy_tracker.update(user_kinetic_state,
                             master_states_timeseries.get_snapshot(j))

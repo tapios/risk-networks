@@ -19,11 +19,11 @@ print_info_module(__name__,
 time = start_time          # float
 kinetic_state = kinetic_ic # dict { node : compartment }
 
-user_state = { node : kinetic_state[node] for node in user_nodes }
+user_state = dict_slice(kinetic_state, user_nodes)
 n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
 statuses_sum_trace = [[n_S, n_E, n_I, n_H, n_R, n_D]]
 
-statuses_all = []
+kinetic_states_timeseries = []
 
 for i in range(int(total_time/static_contact_interval)):
     # run
@@ -47,11 +47,11 @@ for i in range(int(total_time/static_contact_interval)):
             end_statuses=kinetic_state)
 
     # store for plotting
-    user_state = { node : kinetic_state[node] for node in user_nodes }
+    user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
-    statuses_all.append(kinetic_state)
+    kinetic_states_timeseries.append(kinetic_state)
 
 ################################################################################
 print_end_of(__name__)
