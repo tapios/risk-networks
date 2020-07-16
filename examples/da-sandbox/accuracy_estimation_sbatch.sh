@@ -9,7 +9,7 @@
 #SBATCH --array=0-4
 
 
-# submit with: sbatch --mail-user=mail@domain.com SBATCH_accuracy_estimation.sh
+# submit with: sbatch --mail-user=mail@domain.com accuracy_estimation_sbatch.sh
 
 # preface ######################################################################
 set -euo pipefail
