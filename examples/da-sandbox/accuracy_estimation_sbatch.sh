@@ -4,6 +4,8 @@
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
 #SBATCH -J "risk_networks_accuracy"
+#SBATCH --output=output_%A/slurm_%a.out
+#SBATCH --error=output_%A/slurm_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --array=0-4
@@ -14,14 +16,7 @@
 # preface ######################################################################
 set -euo pipefail
 
-OUTPUT_DIR_PREFIX="output"
-COUNTER=""
-
-while [ -d "${OUTPUT_DIR_PREFIX}${COUNTER}" ]; do
-  ((COUNTER+=1))
-done
-
-OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${COUNTER}"
+OUTPUT_DIR="output_${SLURM_ARRAY_JOB_ID}" # corresponds to "output_%A"
 
 
 # parameters & constants #######################################################
