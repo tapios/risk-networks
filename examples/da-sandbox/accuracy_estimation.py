@@ -104,16 +104,18 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_spin_up = 7
 
+# floats/ints
 da_window         = 5.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
-n_prediction_windows        = int(total_time/prediction_window)
-steps_per_da_window         = int(da_window/static_contact_interval)
-steps_per_prediction_window = int(prediction_window/static_contact_interval)
+# ints
+n_prediction_windows_spin_up = 7
+n_prediction_windows         = int(total_time/prediction_window)
+steps_per_da_window          = int(da_window/static_contact_interval)
+steps_per_prediction_window  = int(prediction_window/static_contact_interval)
 
 assert n_prediction_windows_spin_up * prediction_window > da_window
 assert n_prediction_windows > n_prediction_windows_spin_up
