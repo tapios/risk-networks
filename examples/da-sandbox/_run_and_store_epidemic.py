@@ -1,4 +1,4 @@
-from epiforecast.utilities import compartments_count
+from epiforecast.utilities import compartments_count, dict_slice
 
 from _constants import start_time, total_time, static_contact_interval
 from _network_init import network
