@@ -193,15 +193,15 @@ def plot_scalar_parameters(parameters, time_horizon, names):
     return axes
 
 
-def plot_roc_curve(specificity,
-                   sensitivity,
+def plot_roc_curve(true_negative_rate,
+                   true_positive_rate,
                    show = True,
                    fig_size=(10, 5)):
     """
     Plots an ROC (Receiver Operating Characteristics) curve. This requires many experiments to
-    as each experiments will produce one specificity, sensitivity pair.
-    The x-axis is the False Positive Rate = 1 - specificity = 1 - FN / (TN + FP) 
-    The y-axis is the True Positive Rate = sensitivity = TP / (TP + FN) 
+    as each experiments will produce one TNR, TPR pair.
+    The x-axis is the False Positive Rate = 1 - TNR = 1 - FN / (TN + FP) 
+    The y-axis is the True Positive Rate = TPR = TP / (TP + FN) 
 
     One can obtain these quantities through the PerformanceMetrics object
     
@@ -210,8 +210,8 @@ def plot_roc_curve(specificity,
     specificity (np.array): array of specificities
     sensitivity (np.array): array of sensitivities of the same length
     """
-    tpr = sensitivity
-    fpr = 1 - specificity
+    tpr = true_negative_rate
+    fpr = 1 - true_positive_rate
     fig, ax = plt.subplots(figsize=fig_size)
     plt.plot(fpr, tpr, color='orange')
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')

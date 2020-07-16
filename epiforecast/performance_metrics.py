@@ -52,7 +52,7 @@ def confusion_matrix(data,
 
 
 
-class ModelAccuracy:
+class Accuracy:
     """
     Container for model accuracy metric. Metric based on overall class assignment.
                 Accuracy = (True Positives + True Negatives) / Total Cases
@@ -77,11 +77,10 @@ class ModelAccuracy:
         cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
         return (tn+tp) / (tn+fp+fn+tp)
-class ModelSpecificity:
+class TrueNegativeRate:
     """
-    Specificity, is the selectivity, is  the True Negative Rate
-    
-    Container for model specificity metric. Metric based on overall class assignment.
+    True Negative Rate is the specificity, is the selectivity 
+    Container for the TNR metric, based on overall class assignment
     Specificity (True Negative Rate) = True Negatives / (True Negatives + False Positives)
     """
 
@@ -106,10 +105,10 @@ class ModelSpecificity:
         
         return tn / (tn + fp)
 
-class ModelSensitivity:
+class TruePositiveRate:
     """
-    Sensitivity, is the recall, is the hit rate, is the True Positive Rate
-    Container for model sensitivity metric. Metric based on overall class assignment.
+    True Positive Rate is the sensitivity, is the recall, is the hit rate.
+    Container for model TPR Metric, based on overall class assignment.
     
     Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
     """
@@ -124,7 +123,6 @@ class ModelSensitivity:
                  threshold = 0.5,
                  method = 'or'):
         """
-        Calculates the Specificity of a calculation
         Args:
         -----
                 data           : dictionary with {node : status}
@@ -170,7 +168,7 @@ class PerformanceTracker:
     Container to track how a classification model behaves over time.
     """
     def __init__(self,
-                  metrics   = [ModelSpecificity(), ModelSensitivity()],
+                  metrics   = [TrueNegativeRate(),TruePositiveRate()],
                   statuses  = ['E', 'I'],
                   threshold = 0.5,
                   method = 'or' ):
