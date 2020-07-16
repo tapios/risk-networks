@@ -21,37 +21,34 @@ def confusion_matrix(data,
     """
 
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
-    status_of_interest = [status_catalog[status] for status in statuses]
+    status_of_interest = np.array([status_catalog[status] for status in statuses])
     ensemble_size = len(ensemble_states)
     population    = len(data)
 
     ensemble_probabilities = np.zeros((6, population))
     
     #obtain the prediction of the ensemble by averaging
-    ensemble_probabilities[1] = (1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)).mean(axis = 0)
-    ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
-
+    ensemble_probabilities[ [0, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
+    ensemble_probabilities[1] = 1 - ensemble_probabilities.sum(axis = 0)
+    
     #obtain a binary classification of the prediction
     if method == 'sum':
          #if the sum of the statuses of interest > threshold then we assign true
-         positive_classifier_mass = np.vstack([ensemble_probabilities[status_id] for status_id in status_of_interest]).sum(axis=0)
-         positive_classifier_mass = (positive_classifier_mass > threshold)
+         classification = ensemble_probabilities[status_of_interest].sum(axis=0)
+         classification = (classification > threshold)
 
     elif method == 'or':
         #if either of the statuses of interest > threshold then we assign true
-        positive_classifier_mass = np.vstack([ensemble_probabilities[status_id]>0 for status_id in status_of_interest]).sum(axis=0)
-        positive_classifier_mass = (positive_classifier_mass > 0)
+        classification = (ensemble_probabilities[status_of_interest] > threshold).any(axis=0)
     else:
         raise ValueError("please choose methods from 'sum' (default) or 'or' ")
 
+    #interface for sklearn
     data_statuses      = [8 if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
-    ensemble_statuses  = [8 if positive else 7 for positive in positive_classifier_mass ]
-    status_of_interest = [8]
-    #
-    if len(status_of_interest) < 6:
-        status_of_interest.insert(0, 7)
+    ensemble_statuses  = [8 if positive else 7 for positive in classification]
+    labels = [7,8]
 
-    return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = status_of_interest)
+    return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = labels)
 
 
 
@@ -78,8 +75,8 @@ class ModelAccuracy:
                 statuses       : statuses of interest.
         """
         cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
-        return np.diag(cm).sum()/cm.sum()
-
+        tn, fp, fn, tp = cm.ravel()
+        return (tn+tp) / (tn+fp+fn+tp)
 class ModelSpecificity:
     """
     Specificity, is the selectivity, is  the True Negative Rate
