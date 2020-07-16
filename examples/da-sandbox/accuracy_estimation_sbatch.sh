@@ -4,14 +4,15 @@
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
 #SBATCH -J "risk_networks_accuracy"
-#SBATCH --output=output_%A/slurm_%a.out
-#SBATCH --error=output_%A/slurm_%a.err
+#SBATCH --output=slurm_output/%A_%a.out
+#SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --array=0-4
 
 
-# submit with: sbatch --mail-user=mail@domain.com accuracy_estimation_sbatch.sh
+# create a directory named "slurm_output" and then submit with:
+#       sbatch --mail-user=mail@domain.com accuracy_estimation_sbatch.sh
 
 # preface ######################################################################
 set -euo pipefail
