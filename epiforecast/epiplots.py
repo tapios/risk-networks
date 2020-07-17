@@ -193,8 +193,9 @@ def plot_scalar_parameters(parameters, time_horizon, names):
     return axes
 
 
-def plot_roc_curve(true_negative_rate,
-                   true_positive_rate,
+def plot_roc_curve(true_negative_rates,
+                   true_positive_rates,
+                   labels = None,
                    show = True,
                    fig_size=(10, 5)):
     """
@@ -207,17 +208,37 @@ def plot_roc_curve(true_negative_rate,
     
     Args
     ----
-    specificity (np.array): array of specificities
-    sensitivity (np.array): array of sensitivities of the same length
+    true_negative_rates(np.array): array of true_negative_rates
+    true_positive_rates(np.array): array of true_positive_rates of the same dimensions
+    show                   (bool): bool to display graph
+    labels                 (list): list of labels for the line plots
     """
-    tpr = true_negative_rate
-    fpr = 1 - true_positive_rate
+    if true_negative_rates.ndim == 1:
+        fpr = 1.0 -  np.array([true_negative_rates])
+    else:
+        fpr = 1 - true_negative_rates
+        
+    if true_positive_rates.ndim == 1:
+        tpr = np.array([true_positive_rates])
+    else:
+        tpr = true_positive_rates
+
+    # fpr,tpr size num_line_plots x num_samples_per_plot 
+    colors = ['C'+str(i) for i in range(tpr.shape[0])]
+
+    if labels is None:
+        labels = ['ROC_' + str(i) for i in range(tpr.shape[0])]
+        
     fig, ax = plt.subplots(figsize=fig_size)
-    plt.plot(fpr, tpr, color='orange')
+    for xrate,yrate,clr,lbl in zip(fpr,tpr,colors,labels):
+        plt.plot(xrate, yrate, color=clr, label=lbl )
+            
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.legend(loc='lower right')
+
     if show:
         plt.show()
         
