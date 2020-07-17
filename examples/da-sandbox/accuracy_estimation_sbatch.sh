@@ -1,14 +1,18 @@
 #!/bin/bash
 
 #SBATCH --time=12:00:00                 # walltime
-#SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
-#SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
+#SBATCH --nodes=1                       # number of nodes
+#SBATCH --exclusive                     # exclusive use of the node
+#SBATCH --ntasks=56                     # number of processor cores (i.e. tasks)
+#SBATCH --mem=386G                      # memory per node
+#SBATCH --constraint=cascadelake        # 'cascadelake' for expansion nodes
+##SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
 #SBATCH -J "risk_networks_accuracy"
 #SBATCH --output=slurm_output/%A_%a.out
 #SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-4
+#SBATCH --array=0
 
 
 # create a directory named "slurm_output" and then submit with:
