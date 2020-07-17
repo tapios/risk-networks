@@ -1,11 +1,11 @@
 import numpy as np
 import sklearn.metrics as skm
 from collections import defaultdict
-
+import warnings
 
 def confusion_matrix(data,
                      ensemble_states,
-                     statuses=['S','E','I','H','R','D'],
+                     statuses = ['S', 'E' ,'I' ,'H' ,'R' ,'D'],
                      threshold = 0.5,
                      method='or'):
 
@@ -106,7 +106,7 @@ class TrueNegativeRate:
 
         #the setting where we cannot measure a negative rate as there are no negative values
         if (tn + fp) == 0: #tn,fp are `int`
-            print("Warning: TrueNegativeRate is returning 0, but is not valid when there are no negative values")
+            warnings.warn("Warning: TrueNegativeRate is returning 0, but is not valid when there are no negative values")
             return 0
 
         return tn / (tn + fp)
@@ -140,7 +140,7 @@ class TruePositiveRate:
 
         #the setting where we cannot measure a positive rate as there are no positive values
         if (tp + fn) == 0: #tp, fn are `int`
-            print("Warning: TruePositiveRate is returning 0, but is not valid when there are no positive values")
+            warnings.warn("Warning: TruePositiveRate is returning 0, but is not valid when there are no positive values")
             return 0
         
         return tp / (tp + fn)
@@ -174,7 +174,7 @@ class F1Score:
 
         #the setting where everything is negative, and captured perfectly 
         if (tp + fp + fn) == 0: #tp, fn are `int`
-            print("Warning: F1Score is returning 0, but is not valid in the current scenario")
+            warnings.warn("Warning: F1Score is returning 0, but is not valid in the current scenario")
             return 0
         
         return 2 * tp / (2 * tp + fp + fn)

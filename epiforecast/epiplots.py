@@ -201,7 +201,7 @@ def plot_roc_curve(true_negative_rates,
     """
     Plots an ROC (Receiver Operating Characteristics) curve. This requires many experiments to
     as each experiments will produce one TNR, TPR pair.
-    The x-axis is the False Positive Rate = 1 - TNR = 1 - FN / (TN + FP) 
+    The x-axis is the False Positive Rate = 1 - TNR = 1 - TN / (TN + FP) 
     The y-axis is the True Positive Rate = TPR = TP / (TP + FN) 
 
     One can obtain these quantities through the PerformanceMetrics object
@@ -214,7 +214,7 @@ def plot_roc_curve(true_negative_rates,
     labels                 (list): list of labels for the line plots
     """
     if true_negative_rates.ndim == 1:
-        fpr = 1.0 -  np.array([true_negative_rates])
+        fpr = 1 -  np.array([true_negative_rates])
     else:
         fpr = 1 - true_negative_rates
         
