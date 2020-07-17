@@ -203,3 +203,55 @@ def plot_scalar_parameters(parameters, time_horizon, names):
         axes[kk].set_title(names[kk]);
 
     return axes
+
+
+def plot_roc_curve(true_negative_rates,
+                   true_positive_rates,
+                   labels = None,
+                   show = True,
+                   fig_size=(10, 5)):
+    """
+    Plots an ROC (Receiver Operating Characteristics) curve. This requires many experiments to
+    as each experiments will produce one TNR, TPR pair.
+    The x-axis is the False Positive Rate = 1 - TNR = 1 - TN / (TN + FP) 
+    The y-axis is the True Positive Rate = TPR = TP / (TP + FN) 
+
+    One can obtain these quantities through the PerformanceMetrics object
+    
+    Args
+    ----
+    true_negative_rates(np.array): array of true_negative_rates
+    true_positive_rates(np.array): array of true_positive_rates of the same dimensions
+    show                   (bool): bool to display graph
+    labels                 (list): list of labels for the line plots
+    """
+    if true_negative_rates.ndim == 1:
+        fpr = 1 -  np.array([true_negative_rates])
+    else:
+        fpr = 1 - true_negative_rates
+        
+    if true_positive_rates.ndim == 1:
+        tpr = np.array([true_positive_rates])
+    else:
+        tpr = true_positive_rates
+
+    # fpr,tpr size num_line_plots x num_samples_per_plot 
+    colors = ['C'+str(i) for i in range(tpr.shape[0])]
+
+    if labels is None:
+        labels = ['ROC_' + str(i) for i in range(tpr.shape[0])]
+        
+    fig, ax = plt.subplots(figsize=fig_size)
+    for xrate,yrate,clr,lbl in zip(fpr,tpr,colors,labels):
+        plt.plot(xrate, yrate, color=clr, label=lbl )
+            
+    plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.legend(loc='lower right')
+
+    if show:
+        plt.show()
+        
+    return fig, ax

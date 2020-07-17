@@ -1,54 +1,61 @@
 import numpy as np
 import sklearn.metrics as skm
 from collections import defaultdict
+import warnings
 
 def confusion_matrix(data,
                      ensemble_states,
-                     statuses  = ['S', 'E', 'I', 'H', 'R', 'D'],
+                     statuses = ['S', 'E' ,'I' ,'H' ,'R' ,'D'],
                      threshold = 0.5,
-                     combined = False):
+                     method='or'):
 
     """
     Wrapper of `sklearn.metrics.confusion_matrix`.
     Args:
     -----
         ensemble_states: (ensemble_size, 5 * population) `np.array` of the current state of the ensemble ODE system.
-        statuses: list of statuses of interest.
-        threshold for declaring a given status.
-        combined: Boolean that allows to treat a classification as one vs the rest.
+        statuses       : `list` of statuses of interest.
+        threshold      : float in [0,1] used to determine a binary classification
+        method: string, 'sum': means you assign true if the sum exceeds the threshold
+                        'or' : means you assign true if either exceeds the threshold
     """
 
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
-    status_of_interest = [status_catalog[status] for status in statuses]
+    status_of_interest = np.array([status_catalog[status] for status in statuses])
     ensemble_size = len(ensemble_states)
     population    = len(data)
 
-    n_status = 5
-
     ensemble_probabilities = np.zeros((6, population))
+    
+    #obtain the prediction of the ensemble by averaging
+    ensemble_probabilities[ [0, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
+    ensemble_probabilities[1] = 1 - ensemble_probabilities.sum(axis = 0)
+    
+    #obtain a binary classification of the prediction
+    if method == 'sum':
+         #if the sum of the statuses of interest > threshold then we assign true
+         classification = ensemble_probabilities[status_of_interest].sum(axis=0)
+         classification = (classification > threshold)
 
-    ensemble_probabilities[1] = ((1 - ensemble_states.reshape(ensemble_size, 5, -1).sum(axis = 1)) > threshold).mean(axis = 0)
-    ensemble_probabilities[np.hstack([0,np.arange(2,6)])] = (ensemble_states.reshape(ensemble_size, n_status, population) > threshold).mean(axis = 0)
-
-    ensemble_statuses = ensemble_probabilities.argmax(axis = 0)
-    if not combined:
-        data_statuses     = [status_catalog[status] if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
-        ensemble_statuses = [node_status if node_status in status_of_interest else 7 for node_status in ensemble_statuses]
+    elif method == 'or':
+        #if either of the statuses of interest > threshold then we assign true
+        classification = (ensemble_probabilities[status_of_interest] > threshold).any(axis=0)
     else:
-        data_statuses     = [8 if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
-        ensemble_statuses = [8 if node_status in status_of_interest else 7 for node_status in ensemble_statuses]
-        status_of_interest = [8]
-    #
-    if len(status_of_interest) < 6:
-        status_of_interest.insert(0, 7)
+        raise ValueError("please choose methods from 'sum' (default) or 'or' ")
 
-    return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = status_of_interest)
+    #interface for sklearn
+    data_statuses      = [8 if status_catalog[status] in status_of_interest else 7 for status in list(data.values())]
+    ensemble_statuses  = [8 if positive else 7 for positive in classification]
+    labels = [7,8]
+
+    return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = labels)
 
 
-class ModelAccuracy:
+
+class Accuracy:
     """
     Container for model accuracy metric. Metric based on overall class assignment.
-                Accuracy = TruePositives + TrueNegatives / TotalCases
+                Accuracy = (True Positives + True Negatives) / Total Cases
     """
 
     def __init__(self, name = 'Accuracy'):
@@ -59,19 +66,85 @@ class ModelAccuracy:
                  ensemble_states,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
-                 combined = False
-                 ):
+                 method = 'or'):
         """
             Args:
             -----
                 data           : dictionary with {node : status}
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
-                threshold      : used to declare a positive class.
-                combined       : if statuses in `statuses` are to be taken as a single class.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined)
-        return np.diag(cm).sum()/cm.sum()
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+        return (tn+tp) / (tn+fp+fn+tp)
+    
+class TrueNegativeRate:
+    """
+    True Negative Rate is the specificity, is the selectivity 
+    Container for the TNR metric, based on overall class assignment
+    Specificity (True Negative Rate) = True Negatives / (True Negatives + False Positives)
+    """
+
+    def __init__(self, name = 'TrueNegativeRate'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        #the setting where we cannot measure a negative rate as there are no negative values
+        if (tn + fp) == 0: #tn,fp are `int`
+            warnings.warn("TrueNegativeRate is returning 0, but is not valid when there are no negative values")
+            return 0
+
+        return tn / (tn + fp)
+
+class TruePositiveRate:
+    """
+    True Positive Rate is the sensitivity, is the recall, is the hit rate.
+    Container for model TPR Metric, based on overall class assignment.
+    
+    Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
+    """
+
+    def __init__(self, name = 'TruePositiveRate'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        #the setting where we cannot measure a positive rate as there are no positive values
+        if (tp + fn) == 0: #tp, fn are `int`
+            warnings.warn("TruePositiveRate is returning 0, but is not valid when there are no positive values")
+            return 0
+        
+        return tp / (tp + fn)
+    
 
 class F1Score:
     """
@@ -87,8 +160,8 @@ class F1Score:
                  data,
                  ensemble_states,
                  statuses = ['E', 'I'],
-                 threshold = 0.5
-                 ):
+                 threshold = 0.5,
+                 method = 'or'):
         """
         Glossary:
             tn : true negative
@@ -96,9 +169,14 @@ class F1Score:
             fn : false negative
             tp : true positive
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, combined = True)
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
+        #the setting where everything is negative, and captured perfectly 
+        if (tp + fp + fn) == 0: #tp, fn are `int`
+            warnings.warn("F1Score is returning 0, but is not valid in the current scenario")
+            return 0
+        
         return 2 * tp / (2 * tp + fp + fn)
 
 class PerformanceTracker:
@@ -106,20 +184,23 @@ class PerformanceTracker:
     Container to track how a classification model behaves over time.
     """
     def __init__(self,
-                  metrics   = [ModelAccuracy(), F1Score()],
+                  metrics   = [TrueNegativeRate(),TruePositiveRate()],
                   statuses  = ['E', 'I'],
-                  threshold = 0.5):
+                  threshold = 0.5,
+                  method = 'or' ):
         """
         Args:
         ------
             metrics: list of metrics that can be fed to the wrapper.
             statuses: statuses of interest.
-            threhold: 0.5 by default to declare a given status.
+            threshold: a threshold probabilitiy for classification
+            method: 'sum' or 'or' to determine how statuses exceed a threshold
         """
 
         self.statuses  = statuses
         self.metrics   = metrics
         self.threshold = threshold
+        self.method = method
         self.performance_track = None
         self.prevalence_track  = None
 
@@ -145,7 +226,7 @@ class PerformanceTracker:
             ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
         """
 
-        results = [metric(data, ensemble_states, self.statuses, self.threshold) for metric in self.metrics]
+        results = [metric(data, ensemble_states, self.statuses, self.threshold, self.method) for metric in self.metrics]
         if self.performance_track is None:
             self.performance_track = np.array(results).reshape(1, len(self.metrics))
         else:
