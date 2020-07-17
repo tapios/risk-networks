@@ -85,7 +85,7 @@ class TrueNegativeRate:
     Specificity (True Negative Rate) = True Negatives / (True Negatives + False Positives)
     """
 
-    def __init__(self, name = 'Specificity'):
+    def __init__(self, name = 'TrueNegativeRate'):
         self.name = name
 
     def __call__(self,
@@ -106,7 +106,7 @@ class TrueNegativeRate:
 
         #the setting where we cannot measure a negative rate as there are no negative values
         if (tn + fp) == 0: #tn,fp are `int`
-            warnings.warn("Warning: TrueNegativeRate is returning 0, but is not valid when there are no negative values")
+            warnings.warn("TrueNegativeRate is returning 0, but is not valid when there are no negative values")
             return 0
 
         return tn / (tn + fp)
@@ -119,7 +119,7 @@ class TruePositiveRate:
     Sensitivity (True Positive Rate) = True Positives / (True Positives + False Negatives)
     """
 
-    def __init__(self, name = 'Sensitivity'):
+    def __init__(self, name = 'TruePositiveRate'):
         self.name = name
 
     def __call__(self,
@@ -140,7 +140,7 @@ class TruePositiveRate:
 
         #the setting where we cannot measure a positive rate as there are no positive values
         if (tp + fn) == 0: #tp, fn are `int`
-            warnings.warn("Warning: TruePositiveRate is returning 0, but is not valid when there are no positive values")
+            warnings.warn("TruePositiveRate is returning 0, but is not valid when there are no positive values")
             return 0
         
         return tp / (tp + fn)
@@ -174,7 +174,7 @@ class F1Score:
 
         #the setting where everything is negative, and captured perfectly 
         if (tp + fp + fn) == 0: #tp, fn are `int`
-            warnings.warn("Warning: F1Score is returning 0, but is not valid in the current scenario")
+            warnings.warn("F1Score is returning 0, but is not valid in the current scenario")
             return 0
         
         return 2 * tp / (2 * tp + fp + fn)
