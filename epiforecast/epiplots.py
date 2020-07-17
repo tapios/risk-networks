@@ -2,6 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
 
+
+COLORS_OF_STATUSES = {
+        'S': 'C0',
+        'E': 'C3',
+        'I': 'C1',
+        'H': 'C2',
+        'R': 'C4',
+        'D': 'C6'
+}
+
+
 def plot_master_eqns(
         states,
         t,
@@ -55,6 +66,7 @@ def plot_master_eqns(
     return axes
 
 def plot_ensemble_states(
+        population,
         states,
         t,
         axes=None,
@@ -71,7 +83,7 @@ def plot_ensemble_states(
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
-    population   = states.shape[1]/N_eqns
+    user_population = int(states.shape[1]/N_eqns)
 
     states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
     states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -95,7 +107,7 @@ def plot_ensemble_states(
             axes[2].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
             axes[2].plot(t, states_perc[3,status], color = statuses_colors[status])
 
-    residual_state = 1 - states_sum.sum(axis = 1)
+    residual_state = user_population/population - states_sum.sum(axis = 1)
     residual_state = np.percentile(residual_state, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
     axes[0].fill_between(t, np.clip(residual_state[0], a_min, a_max), np.clip(residual_state[-1], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
     axes[0].fill_between(t, np.clip(residual_state[1], a_min, a_max), np.clip(residual_state[-2], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
@@ -119,25 +131,25 @@ def plot_ensemble_states(
 
     return axes
 
-def plot_kinetic_model_data(kinetic_model, axes):
+def plot_epidemic_data(
+        population,
+        statuses_list,
+        axes,
+        plot_times):
+    """
+    Plot cumulative kinetic model states vs time
 
-    statuses_name   = kinetic_model.return_statuses
-    statuses_colors = ['C0', 'C3', 'C1', 'C2', 'C4', 'C6']
-    colors_dict = dict(zip(statuses_name, statuses_colors))
-    population  = len(kinetic_model.current_statuses)
-
-    data = kinetic_model.statuses
-    axes[1].scatter(kinetic_model.current_time, data['I'][-1]/population, c = colors_dict['I'], marker = 'x')
-    axes[2].scatter(kinetic_model.current_time, data['H'][-1]/population, c = colors_dict['H'], marker = 'x')
-    axes[2].scatter(kinetic_model.current_time, data['D'][-1]/population, c = colors_dict['D'], marker = 'x')
-
-    return axes
-
-def plot_epidemic_data(kinetic_model, statuses_list, axes, plot_times):
-    statuses_name   = kinetic_model.return_statuses
-    population = len(kinetic_model.current_statuses)
-    statuses_colors = ['C0', 'C3', 'C1', 'C2', 'C4', 'C6']
-    colors_dict = dict(zip(statuses_name, statuses_colors))
+    Input:
+        population (int): total population, used to normalize states to [0,1]
+        statuses_list (list): timeseries of cumulative states; each element is a
+                              6-tuple: (n_S, n_E, n_I, n_H, n_R, n_D)
+        axes (np.array or list): (3,) array for plotting (S,E,R), (I) and (H,D)
+        plot_times (np.array): (len(statuses_list),) array of times to plot
+                               against
+    Output:
+        None
+    """
+    global COLORS_OF_STATUSES
 
     Sdata = [statuses_list[i][0]/population for i in range(len(plot_times))]
     Edata = [statuses_list[i][1]/population for i in range(len(plot_times))]
@@ -146,14 +158,14 @@ def plot_epidemic_data(kinetic_model, statuses_list, axes, plot_times):
     Rdata = [statuses_list[i][4]/population for i in range(len(plot_times))]
     Ddata = [statuses_list[i][5]/population for i in range(len(plot_times))]
     
-    axes[0].scatter(plot_times, Sdata, c = colors_dict['S'], marker = 'x')
-    axes[0].scatter(plot_times, Edata, c = colors_dict['E'], marker = 'x')
-    axes[0].scatter(plot_times, Rdata, c = colors_dict['R'], marker = 'x')
+    axes[0].scatter(plot_times, Sdata, c=COLORS_OF_STATUSES['S'], marker='x')
+    axes[0].scatter(plot_times, Edata, c=COLORS_OF_STATUSES['E'], marker='x')
+    axes[0].scatter(plot_times, Rdata, c=COLORS_OF_STATUSES['R'], marker='x')
 
-    axes[1].scatter(plot_times, Idata, c = colors_dict['I'], marker = 'x')
+    axes[1].scatter(plot_times, Idata, c=COLORS_OF_STATUSES['I'], marker='x')
 
-    axes[2].scatter(plot_times, Hdata, c = colors_dict['H'], marker = 'x')
-    axes[2].scatter(plot_times, Ddata, c = colors_dict['D'], marker = 'x')
+    axes[2].scatter(plot_times, Hdata, c=COLORS_OF_STATUSES['H'], marker='x')
+    axes[2].scatter(plot_times, Ddata, c=COLORS_OF_STATUSES['D'], marker='x')
 
     return axes
 

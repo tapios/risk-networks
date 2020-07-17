@@ -20,7 +20,7 @@ from epiforecast.samplers import AgeDependentConstant
 
 from epiforecast.scenarios import  random_epidemic
 
-from epiforecast.epiplots import plot_ensemble_states, plot_kinetic_model_data, plot_scalar_parameters, plot_epidemic_data
+from epiforecast.epiplots import plot_ensemble_states, plot_scalar_parameters, plot_epidemic_data
 from epiforecast.contact_network import ContactNetwork
 from epiforecast.risk_simulator import MasterEquationModelEnsemble
 from epiforecast.epidemic_simulator import EpidemicSimulator
@@ -29,22 +29,6 @@ from epiforecast.measurements import Observation, DataObservation, DataNodeObser
 from epiforecast.utilities import seed_numba_random_state
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.risk_simulator_initial_conditions import deterministic_risk
-# def deterministic_risk(population, initial_states, ensemble_size=1):
-    
-#     states_ensemble = np.zeros([ensemble_size, 5 * population])
-
-#     init_catalog = {'S': False, 'I': True}
-#     infected = np.array([init_catalog[status] for status in list(initial_states.values())])
-
-#     for mm in range(ensemble_size):
-#         E, I, H, R, D = np.zeros([5, population])
-#         S = np.ones(population,)
-#         I[infected] = 1.
-#         S[infected] = 0.
-
-#         states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
-
-#     return states_ensemble
 
 #
 # Set random seeds for reproducibility
@@ -186,10 +170,10 @@ for i in range(int(simulation_length/static_contact_interval)):
                                epidemic_simulator.kinetic_model.statuses['R'][-1],
                                epidemic_simulator.kinetic_model.statuses['D'][-1]]) 
 
-axes = plot_epidemic_data(kinetic_model = epidemic_simulator.kinetic_model,
-                          statuses_list = statuses_sum_trace,
-                                   axes = axes,
-                             plot_times = time_trace)
+axes = plot_epidemic_data(population = population,
+                       statuses_list = statuses_sum_trace,
+                                axes = axes,
+                          plot_times = time_trace)
 
 plt.savefig('kinetic_and_master.png', rasterized=True, dpi=150)
 
@@ -224,9 +208,9 @@ loaded_data = epidemic_data_storage.get_network_from_start_time(start_time = tim
 statuses = loaded_data.start_statuses
 
 
-states_ensemble = deterministic_risk(population,
+states_ensemble = deterministic_risk(populace,
                                      statuses,
-                                     ensemble_size = ensemble_size)[0]
+                                     ensemble_size = ensemble_size)
 
 
 master_eqn_ensemble.set_states_ensemble(states_ensemble)
@@ -250,7 +234,8 @@ for i in range(int(simulation_length/static_contact_interval)):
     
     states_trace_ensemble[:,:,i] = states_ensemble
 
-axes = plot_ensemble_states(states_trace_ensemble,
+axes = plot_ensemble_states(population,
+                            states_trace_ensemble,
                             time_trace,
                             axes = axes,
                             xlims = (0.0, simulation_length),
