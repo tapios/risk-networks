@@ -7,7 +7,7 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction
-from epiforecast.epiplots import plot_roc_curve
+from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
 from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, PerformanceTracker
 from epiforecast.utilities import dict_slice
 
