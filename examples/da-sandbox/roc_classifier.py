@@ -104,7 +104,7 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_spin_up = 10
+n_prediction_windows_spin_up = 8
 
 da_window         = 7.0
 prediction_window = 1.0
@@ -329,8 +329,18 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
 
+# save full the data we require:
+master_eqns_mean_states = master_states_timeseries.get_mean()
+np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
+
+kinetic_eqns_statuses = []
+for kinetic_state in kinetic_states_timeseries:
+    kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
+
+np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
 
 
+#(This could be done elsewhere)
 #calc roc and save for each threshold
 
 n_roc = 50

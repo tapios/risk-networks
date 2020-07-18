@@ -1,30 +1,55 @@
-import os
+import os, sys; sys.path.append(os.path.join('..', '..'))
+
 import numpy as np
 
-EXP_NAME = 'sum_roc_itest_'
-EXP_PARAM_VALUES = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.5, 1.0]
+from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, PerformanceTracker
+from epiforecast.epiplots import plot_roc_curve
+
+EXP_NAME = 'short_roc_itest'
+EXP_PARAM_VALUES = [0.01]
 THRESHOLD_NUM = 50
 OUTDIR = 'output'
 
+# data file for mean states of master equations
+# np.array of size [user_population,time_span]
+master_eqns_fname = 'master_eqns_mean_states.npy'
+
+# data file for statuses of kinetic equations
+# list (size time_span) of dicts (of size user_population)
+kinetic_eqns_fname = 'kinetic_eqns_statuses.npy'
+
 
 thresholds = 1.0/THRESHOLD_NUM*np.arange(THRESHOLD_NUM)
-print(thresholds)
-exp_run = [EXP_NAME + str(val) for val in EXP_PARAM_VALUES]
+exp_run = [EXP_NAME + '_' + str(val) for val in EXP_PARAM_VALUES]
 output_dirs = [os.path.join('.',OUTDIR, exp) for exp in exp_run]  
 
 print(output_dirs)
 
-for output_dir in output_dirs:
-    #load in as performance_track
-    true_positive_rate_ctrack_all = np.empty([THRESHOLD_NUM,0])
-    true_negative_rate_track_all = np.empty([THRESHOLD_NUM,0])
+    
+#container for true rates as a [num expts  x num thresholds] 
+true_positive_rates = np.zeros([len(output_dirs),THRESHOLD_NUM])
+true_negative_rates = np.zeros([len(output_dirs),THRESHOLD_NUM])
 
-    #load in performance from file
+for i,output_dir in enumerate(output_dirs):
     
-    fnames = [f for f in filter(lambda f: f.startswith('performance_track'), os.listdir(output_dir)) ]
-    fnames.sort(key = lambda f: float(f.split('performance_track_')[1].split('.npy')[0])) #sort by performance_track_NUMBER.npy
+    master_eqns_mean_states = np.load(os.path.join(output_dir,master_eqns_fname))
+    print(master_eqns_mean_states.shape)
+    kinetic_eqns_statuses = np.load(os.path.join(output_dir,kinetic_eqns_fname),allow_pickle=True).tolist()
+
     
-    for fname in fnames:
-        performance_track = np.load(os.path.join(output_dir,fname))
-        
-        #...
+    for j,threshold in enumerate(thresholds):
+        performance_tracker = PerformanceTracker(metrics=[TrueNegativeRate(),TruePositiveRate()],
+                                                 threshold = threshold,
+                                                 method = 'or')
+        #obtain performance at end time
+        performance_tracker.update(kinetic_eqns_statuses[-1],
+                                   master_eqns_mean_states[:,-1])
+
+        #obtain the performance at all states for this threshold
+        true_negative_rates[i,j] = performance_tracker.performance_track[0,0]
+        true_positive_rates[i,j] = performance_tracker.performance_track[0,1]
+
+#plot all the ROCs on one plot
+fig,ax = plot_roc_curve(true_negative_rates,true_positive_rates,show=False)
+fig.savefig(os.path.join(OUTDIR,'roc'+EXP_NAME+'.png'),dpi=300)
+
