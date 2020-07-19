@@ -10,6 +10,12 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --array=0-8
 
+##################################
+# Infectiousness test experiment #
+##################################
+# set: fractions_test = % tested of I per day
+# set: output_path = ${OUTPUT_DIR}/expt_name_${tested}
+#
 # submit with: sbatch run_infectious_test_expt.sh
 
 # preface ######################################################################
@@ -24,7 +30,7 @@ network_size=1e3
 I_min_threshold=0.0
 user_fraction=1.0
 tested=${fractions_tested[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/short_roc_itest_${tested}"
+output_path="${OUTPUT_DIR}/noisy_measurement_itest_${tested}"
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
