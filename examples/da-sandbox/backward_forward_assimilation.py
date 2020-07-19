@@ -104,7 +104,7 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_spin_up = 8
+n_prediction_windows_spin_up = 10
 
 da_window         = 7.0
 prediction_window = 1.0
@@ -338,41 +338,5 @@ for kinetic_state in kinetic_states_timeseries:
     kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
 
 np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
-
-
-#(This could be done elsewhere)
-#calc roc and save for each threshold
-
-n_roc = 50
-thresholds = 1/n_roc*np.arange(n_roc)
-tpr = np.zeros(n_roc)
-tnr = np.zeros(n_roc)
-for i,threshold in enumerate(thresholds):
-    performance_tracker = PerformanceTracker(metrics=[TrueNegativeRate(),TruePositiveRate()],
-                                             threshold = threshold,
-                                             method = 'sum')
-
-    for j, kinetic_state in enumerate(kinetic_states_timeseries):
-        user_kinetic_state = dict_slice(kinetic_state, user_nodes)
-        performance_tracker.update(user_kinetic_state,
-                                master_states_timeseries.get_snapshot(j))
-
-    #assess the performance at the end time
-    tnr[i] = performance_tracker.performance_track[-1,0]
-    tpr[i] = performance_tracker.performance_track[-1,1]
-    
-    np.save(os.path.join(OUTPUT_PATH, 'performance_track_'+str(threshold)+'.npy'),
-            performance_tracker.performance_track)
-
-
-np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'),
-        time_span)
-
-
-
-#roc plot 
-fig,ax = plot_roc_curve(tnr,tpr,show=False)
-fig.savefig(os.path.join(OUTPUT_PATH,'roc.png'),dpi=300)
-
 
 
