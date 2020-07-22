@@ -210,32 +210,29 @@ class MasterEquationModelEnsemble:
         self.eval_closure(self.y0, closure = closure)
 
         if parallel_flag == True:
-                results = []
-                for mm, member in enumerate(self.ensemble):
-                    y0 = np.copy(self.y0[mm])
-                    start_time = self.start_time
-                    integrator_obj = MasterEquationModelIntegrator()
-                    if closure == 'independent':
-                        integrator_obj.set_values(np.copy(self.L), 
-                                                  member, closure, 
-                                                  np.copy(self.CM_SI[:,mm]), 
-                                                  np.copy(self.CM_SH[:,mm]))
-                    else:
-                        integrator_obj.set_values(self.L, member)
-                    results.append(self.pool.apipe(integrator_obj.integrator,
-                                                    closure,
-                                                    start_time, 
-                                                    stop_time,
-                                                    y0,
-                                                    maxdt))
-                #self.pool.close()
-                #self.pool.join()
-                mm = 0
-                for single_result in results:
-                    result = single_result.get()
-                    self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
-                    mm += 1
-                #self.pool.restart()
+            results = []
+            for mm, member in enumerate(self.ensemble):
+                y0 = np.copy(self.y0[mm])
+                start_time = self.start_time
+                integrator_obj = MasterEquationModelIntegrator()
+                if closure == 'independent':
+                    integrator_obj.set_values(np.copy(self.L), 
+                                              member, closure, 
+                                              np.copy(self.CM_SI[:,mm]), 
+                                              np.copy(self.CM_SH[:,mm]))
+                else:
+                    integrator_obj.set_values(self.L, member)
+                results.append(self.pool.apipe(integrator_obj.integrator,
+                                                closure,
+                                                start_time, 
+                                                stop_time,
+                                                y0,
+                                                maxdt))
+            mm = 0
+            for single_result in results:
+                result = single_result.get()
+                self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
+                mm += 1
 
         else:
             for mm, member in enumerate(self.ensemble):

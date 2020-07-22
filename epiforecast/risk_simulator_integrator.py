@@ -2,6 +2,7 @@ import scipy.sparse as sps
 from scipy.integrate  import solve_ivp, odeint
 import numpy as np
 import networkx as nx
+import mkl
 
 class MasterEquationModelIntegrator:
 
@@ -47,6 +48,7 @@ class MasterEquationModelIntegrator:
         """
         Function called for ode integration of master equation.
         """
+        mkl.set_num_threads(1)
         result = solve_ivp(
                 fun = self.compute_rhs,
                 t_span = [start_time, stop_time],
