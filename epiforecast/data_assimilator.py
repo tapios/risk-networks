@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-import time
+
 
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
@@ -29,6 +29,12 @@ class DataAssimilator:
                                                 Master Equation models
            Keyword Args
            ------------
+           n_assimilation_batches (int) : Default = 1, the number of random batches over which we assimilate.
+                                          At the cost of information loss, one can batch assimilation updates into random even-sized batches,
+                                          the update scales with O(num observation states^3) and is memory intensive.
+                                          Thus performing n x m-sized updates is far cheaper than an nm-sized update. 
+         
+                                          
            transition_rates_to_update_str (list): list of strings naming the transition_rates we would like
                                                   update with data. must coincide with naming found in
                                                   epiforecast/populations.py.
@@ -235,7 +241,6 @@ class DataAssimilator:
                 
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
-                tic=time.perf_counter()
                 # If batching is not required:
                 if self.n_assimilation_batches==1:
                     (ensemble_state[:, obs_states],
@@ -268,8 +273,6 @@ class DataAssimilator:
                                        cov_batch,
                                        print_error=print_error)
                     
-                toc=time.perf_counter()
-                print("EAKF_time", toc-tic)
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
                 # set the updated rates in the TransitionRates object and
