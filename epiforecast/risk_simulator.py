@@ -2,8 +2,6 @@ import scipy.sparse as sps
 from scipy.integrate  import solve_ivp
 import numpy as np
 import networkx as nx
-import multiprocessing
-from multiprocessing import get_context
 
 class NetworkCompartmentalModel:
     """
@@ -218,25 +216,11 @@ class MasterEquationModelEnsemble:
             self.CM_SI = self.L.multiply(self.numSI/(self.denSI+1e-8)).dot(y[:,iI].T)
             self.CM_SH = self.L.multiply(self.numSH/(self.denSH+1e-8)).dot(y[:,iH].T)
 
-    def _integrator(self, member, closure, stop_time, y0, maxdt, method='RK45'):
-        """
-        Private function called by self.simulate for parallel implementation.
-        """
-        result = solve_ivp(
-                fun = lambda t, y: self.compute_rhs(t, y, member, closure = closure),
-                t_span = [self.start_time, stop_time],
-                y0 = y0,
-                t_eval = [stop_time],
-                method = method,
-                max_step = maxdt)
-        return result
- 
     def simulate(
             self,
             time_window,
             min_steps = 1,
-            closure = 'independent',
-            parallel_flag = True):
+            closure = 'independent'):
         """
         Args:
         -------
@@ -249,36 +233,16 @@ class MasterEquationModelEnsemble:
 
         self.eval_closure(self.y0, closure = closure)
 
-        if parallel_flag == True:
-            #with get_context("spawn").Pool(multiprocessing.cpu_count()) as pool:
-            pool = multiprocessing.Pool(multiprocessing.cpu_count())
-            results = []
-            for mm, member in enumerate(self.ensemble):
-                y0 = self.y0[mm]
-                results.append(pool.apply_async(self._integrator,
-                                                (member, closure,
-                                                stop_time,
-                                                y0,
-                                                maxdt)))
-            pool.close()
-            pool.join()
-            mm = 0
-            for single_result in results:
-                result = single_result.get()
-                self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
-                mm += 1
+        for mm, member in enumerate(self.ensemble):
+            result = solve_ivp(
+                    fun = lambda t, y: self.compute_rhs(t, y, member, closure = closure),
+                    t_span = [self.start_time, stop_time],
+                    y0 = self.y0[mm],
+                    t_eval = [stop_time],
+                    method = 'RK45',
+                    max_step = maxdt)
 
-        else:
-            for mm, member in enumerate(self.ensemble):
-                result = solve_ivp(
-                        fun = lambda t, y: self.compute_rhs(t, y, member, closure = closure),
-                        t_span = [self.start_time, stop_time],
-                        y0 = self.y0[mm],
-                        t_eval = [stop_time],
-                        method = 'RK45',
-                        max_step = maxdt)
-    
-                self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
+            self.y0[mm] = np.clip(np.squeeze(result.y),0,1)
 
         self.start_time += time_window
         return self.y0
