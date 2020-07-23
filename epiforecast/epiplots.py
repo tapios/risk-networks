@@ -248,7 +248,59 @@ def plot_roc_curve(true_negative_rates,
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.title('Receiver Operating Characteristic Curve')
+    plt.legend(loc='lower right')
+
+    if show:
+        plt.show()
+        
+    return fig, ax
+
+
+def plot_tpr_curve(predicted_positive_fraction,
+                   true_positive_rates,
+                   labels = None,
+                   show = True,
+                   fig_size=(10, 5)):
+    """
+    plots a curve of predicted_positive_fraction vs true_positive_rate
+    as each experiments will produce one TNR, TPR pair.
+    The x-axis is the Predicted Positive Fraction = PPF = (TP + FP) / Total 
+    The y-axis is the True Positive Rate = TPR = TP / (TP + FN) 
+
+    One can obtain these quantities through the PerformanceMetrics object
+    
+    Args
+    ----
+    predicted_positive_fraction(np.array): array of predicted_positive_fraction
+    true_positive_rates(np.array): array of true_positive_rates of the same dimensions
+    show                   (bool): bool to display graph
+    labels                 (list): list of labels for the line plots
+    """
+    if predicted_positive_fraction.ndim == 1:
+        ppf = np.array([predicted_positive_fraction])
+    else:
+        ppf = predicted_positive_fraction
+        
+    if true_positive_rates.ndim == 1:
+        tpr = np.array([true_positive_rates])
+    else:
+        tpr = true_positive_rates
+
+    # ppf,tpr size num_line_plots x num_samples_per_plot 
+    colors = ['C'+str(i) for i in range(tpr.shape[0])]
+
+    if labels is None:
+        labels = ['Curve_' + str(i) for i in range(tpr.shape[0])]
+        
+    fig, ax = plt.subplots(figsize=fig_size)
+    for xrate,yrate,clr,lbl in zip(ppf,tpr,colors,labels):
+        plt.plot(xrate, yrate, color=clr, label=lbl )
+            
+    plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
+    plt.xlabel('Predicted Positive Fraction')
+    plt.ylabel('True Positive Rate')
+    plt.title('PPF vs TPR Curve')
     plt.legend(loc='lower right')
 
     if show:

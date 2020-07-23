@@ -55,6 +55,59 @@ def confusion_matrix(data,
     return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = labels)
 
 
+class PredictedNegativeFraction:
+    """
+    Container for the Predicted Negative Fraction, based on overall class assignment
+    Predicted Negative Fraction = True Negatives + False Negatives/ Total
+    """
+
+    def __init__(self, name = 'PredictedNegativeFraction'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        return (tn + fn) / (tn + fn + tp + fp)
+
+class PredictedPositiveFraction:
+    """
+    Container for the Predicted Postive Fraction, based on overall class assignment
+    Predicted Postive Fraction  = (True Positives + False Positives) / Total
+    """
+
+    def __init__(self, name = 'PredictedPositiveFraction'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        return (tp + fp) / (tn + fn + tp + fp)
 
 class Accuracy:
     """
