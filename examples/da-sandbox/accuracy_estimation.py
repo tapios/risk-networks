@@ -1,5 +1,6 @@
 import os, sys; sys.path.append(os.path.join('..', '..'))
 
+from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -146,6 +147,7 @@ master_eqn_ensemble.set_start_time(start_time)
 current_time = start_time
 spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
 
+timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
     loaded_data = epidemic_data_storage.get_network_from_start_time(
@@ -166,11 +168,12 @@ for j in range(spin_up_steps):
     # storing
     master_states_timeseries.push_back(ensemble_state)
 
-print_info("Spin-up ended")
+print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 
 # main loop: backward/forward/data assimilation ################################
 for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
+    timer_window = timer()
 
     assert are_close(current_time,
                      k * prediction_window,
@@ -317,6 +320,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         current_time += static_contact_interval
         master_states_timeseries.push_back(ensemble_state)
+
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "elapsed:", timer() - timer_window, end='\n\n')
 
 
 # save & plot ##################################################################
