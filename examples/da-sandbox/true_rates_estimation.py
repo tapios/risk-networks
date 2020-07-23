@@ -9,7 +9,7 @@ from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction
 from epiforecast.epiplots import plot_ensemble_states
-from epiforecast.performance_metrics import ModelAccuracy, PerformanceTracker
+from epiforecast.performance_metrics import PerformanceTracker
 from epiforecast.utilities import dict_slice
 
 
@@ -326,14 +326,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 
 # save & plot ##################################################################
-accuracy_tracker = PerformanceTracker(metrics=[ModelAccuracy()])
+true_rates_tracker = PerformanceTracker()
 for j, kinetic_state in enumerate(kinetic_states_timeseries):
     user_kinetic_state = dict_slice(kinetic_state, user_nodes)
-    accuracy_tracker.update(user_kinetic_state,
+    true_rates_tracker.update(user_kinetic_state,
                             master_states_timeseries.get_snapshot(j))
 
-np.save(os.path.join(OUTPUT_PATH, 'accuracy_track.npy'),
-        accuracy_tracker.performance_track)
+np.save(os.path.join(OUTPUT_PATH, 'true_rates_track.npy'),
+        true_rates_tracker.performance_track)
 np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'),
         time_span)
 
@@ -348,11 +348,17 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
 
-# plot accuracy
-_, axes_acc = plt.subplots()
-axes_acc.plot(time_span, accuracy_tracker.performance_track)
+# plot true positive and negative rates
+_, axes_rates = plt.subplots()
+axes_rates.plot(time_span,
+                true_rates_tracker.performance_track[:,0],
+                label='true negative rate')
+axes_rates.plot(time_span,
+                true_rates_tracker.performance_track[:,1],
+                label='true positive rate')
 
-plt.savefig(os.path.join(OUTPUT_PATH, 'accuracy.png'),
+plt.legend()
+plt.savefig(os.path.join(OUTPUT_PATH, 'true_rates.png'),
             rasterized=True,
             dpi=150)
 
