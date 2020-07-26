@@ -243,7 +243,7 @@ def plot_roc_curve(true_negative_rates,
         
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(fpr,tpr,colors,labels):
-        plt.plot(xrate, yrate, color=clr, label=lbl )
+        plt.plot(xrate, yrate, color=clr, label=lbl , marker='|')
             
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('False Positive Rate')
@@ -295,7 +295,7 @@ def plot_tpr_curve(predicted_positive_fraction,
         
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(ppf,tpr,colors,labels):
-        plt.plot(xrate, yrate, color=clr, label=lbl )
+        plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
             
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('Predicted Positive Fraction')
