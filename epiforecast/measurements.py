@@ -6,7 +6,7 @@ class TestMeasurement:
             status,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False):
+            noisy_measurement=True):
 
         self.sensitivity = sensitivity
         self.specificity = specificity
@@ -236,7 +236,7 @@ class Observation(StateInformedObservation, TestMeasurement):
             max_threshold=1.0,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False,
+            noisy_measurement=True,
             obs_var_min = 1e-3):
 
         self.name=obs_name
@@ -291,7 +291,7 @@ class Observation(StateInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-        
+        print("number of infected in observation:", sum(val == 'I' for val in observed_data.values()))  
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale)
@@ -313,7 +313,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
             obs_name,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False,
+            noisy_measurement=True,
             obs_var_min = 1e-3):
 
         self.name=obs_name
@@ -366,6 +366,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
+        print("number of infected in observation:", sum(val == 'I' for val in observed_data.values()))  
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,

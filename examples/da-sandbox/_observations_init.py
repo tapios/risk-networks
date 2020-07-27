@@ -16,6 +16,7 @@ random_infection_test = Observation(
         obs_status='I',
         obs_name="Random Infection Test",
         min_threshold=arguments.observations_I_min_threshold,
+        noisy_measurement=True,
         obs_var_min=1e-6)
 
 high_var_infection_test = HighVarianceObservation(
@@ -23,6 +24,8 @@ high_var_infection_test = HighVarianceObservation(
         obs_frac=arguments.observations_I_fraction_tested,
         obs_status='I',
         obs_name="Test maximal variance infected",
+        noisy_measurement=True,
+        sensitivity=0.99,
         obs_var_min=1e-6)
 
 # perfect observations #########################################################
