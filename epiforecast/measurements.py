@@ -291,7 +291,7 @@ class Observation(StateInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-        print("number of infected in observation:", sum(val == 'I' for val in observed_data.values()))  
+
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
                                                       scale)
@@ -366,7 +366,6 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-        print("number of infected in observation:", sum(val == 'I' for val in observed_data.values()))  
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
