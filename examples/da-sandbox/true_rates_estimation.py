@@ -146,10 +146,13 @@ master_eqn_ensemble.set_start_time(start_time)
 # spin-up w/o data assimilation ################################################
 current_time = start_time
 spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
+ensemble_state = ensemble_ic
 
 timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
+    master_states_timeseries.push_back(ensemble_state) # store
+
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
 
@@ -164,9 +167,6 @@ for j in range(spin_up_steps):
     master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
     current_time += static_contact_interval
-
-    # storing
-    master_states_timeseries.push_back(ensemble_state)
 
 print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 
@@ -304,6 +304,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     master_eqn_ensemble.set_start_time(current_time)
 
     for j in range(steps_per_prediction_window):
+        master_states_timeseries.push_back(ensemble_state) # store
+
         loaded_data = epidemic_data_storage.get_network_from_start_time(
                 start_time=current_time)
 
@@ -319,10 +321,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
 
         current_time += static_contact_interval
-        master_states_timeseries.push_back(ensemble_state)
 
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "elapsed:", timer() - timer_window, end='\n\n')
+
+master_states_timeseries.push_back(ensemble_state) # store after the last step
 
 
 # save & plot ##################################################################
@@ -330,7 +333,7 @@ true_rates_tracker = PerformanceTracker()
 for j, kinetic_state in enumerate(kinetic_states_timeseries):
     user_kinetic_state = dict_slice(kinetic_state, user_nodes)
     true_rates_tracker.update(user_kinetic_state,
-                            master_states_timeseries.get_snapshot(j))
+                              master_states_timeseries.get_snapshot(j))
 
 np.save(os.path.join(OUTPUT_PATH, 'true_rates_track.npy'),
         true_rates_tracker.performance_track)
