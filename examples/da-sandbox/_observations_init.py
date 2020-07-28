@@ -17,6 +17,7 @@ random_infection_test = Observation(
         obs_name="Random Infection Test",
         min_threshold=arguments.observations_I_min_threshold,
         noisy_measurement=True,
+        sensitivity=0.99,
         obs_var_min=1e-6)
 
 high_var_infection_test = HighVarianceObservation(
