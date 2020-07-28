@@ -61,7 +61,7 @@ class KineticModel:
         # of EpidemicSimulator which seems to make use of this method; should be
         # refactored in the future (this is already implemented in
         # ContactNetwork.set_edge_weights)
-        raise NotImplemented("this method should be refactored")
+        raise NotImplementedError("this method should be refactored")
 
         weights = {tuple(edge): mean_contact_duration[i]
                    for i, edge in enumerate(nx.edges(self.contact_network))}
