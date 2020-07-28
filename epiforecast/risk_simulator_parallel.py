@@ -102,7 +102,6 @@ class MasterEquationModelEnsemble:
         self.ensemble = []
 
         self.pool = ProcessPool()
-        #self.pool = ProcessPool(nodes=4)
 
         for mm in range(self.M):
             member = NetworkCompartmentalModel(N = self.N,
