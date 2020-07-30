@@ -38,7 +38,7 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
-module load python3/3.8.5
+module load python3/3.7.0
 srun python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
