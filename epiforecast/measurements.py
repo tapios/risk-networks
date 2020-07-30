@@ -118,8 +118,6 @@ class TestMeasurement:
 
 #### Adding Observations in here
 
-#We observe a subset of nodes at a status, only if the state exceeds a given threshold value.
-#e.g we have a probability of observing I_i if (I_i > 0.8) when the observation takes place.
 class StateInformedObservation:
     def __init__(
             self,
@@ -129,6 +127,7 @@ class StateInformedObservation:
             min_threshold,
             max_threshold):
 
+       
         #number of nodes in the graph
         self.N = N
         #number of different states a node can be in
@@ -176,6 +175,74 @@ class StateInformedObservation:
             self.obs_states=np.array([],dtype=int)
             print("no observation was above the threshold")
 
+class BudgetedInformedObservation:
+    """
+    We observe the status at some nodes. We provide 
+    - A status to observe at
+    - A maximum budget of observations per node 
+    - An interval [a,b] where we observe (first) if the ensemble mean state satisfies the constraint 
+    E.g if we have a budget of 10 nodes in an assimilation, to observe status I, and [0.3,0.5] interval.
+        Assume the ensemble mean gives 4 nodes where 0.3 <= I <= 0.5, we observe these.
+        We then randomly observe outside 6 more nodes where I < 0.3 or I > 0.5.
+    """
+    def __init__(
+            self,
+            N,
+            obs_budget,
+            obs_status,
+            min_threshold,
+            max_threshold):
+
+       
+        #number of nodes in the graph
+        self.N = N
+        #number of different states a node can be in
+
+        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.n_status = len(self.status_catalog.keys())
+
+
+        #array of status to observe
+        self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
+
+        #The absolute number of nodes to observe
+        self.obs_budget = int(obs_budget)
+        #The minimum threshold (in [0,1]) to be considered for test (e.g 0.7)
+        self.obs_min_threshold = np.clip(min_threshold,0.0,1.0)
+        self.obs_max_threshold = np.clip(max_threshold,0.0,1.0)
+
+        #default init observation
+        self.obs_states = np.empty(0)
+
+    def find_observation_states(
+            self,
+            nodes,
+            state,
+            data):
+        """
+        Update the observation model when taking observation
+        """
+        #Candidates for observations are those with a required state >= threshold
+        candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
+        xmean = np.mean(state[:,candidate_states],axis=0)
+
+        candidate_states_ens=candidate_states[(xmean>=self.obs_min_threshold) & \
+                                              (xmean<=self.obs_max_threshold)]
+        other_states_ens=candidate_states[(xmean<self.obs_min_threshold) | \
+                                          (xmean>self.obs_max_threshold)]
+
+        cand_size=candidate_states_ens.size
+        other_size= other_states_ens.size
+        if cand_size == self.obs_budget:
+            self.obs_states = candidate_states_ens
+
+        elif cand_size > self.obs_budget:
+            choice=np.random.choice(np.arange(cand_size), size=self.obs_budget, replace=False)
+            self.obs_states=candidate_states_ens[choice]
+
+        else: #cand_size < self.obs_budget
+            choice=np.random.choice(np.arange(other_size), size=self.obs_budget - cand_size, replace=False)
+            self.obs_states = np.hstack([candidate_states_ens, other_states_ens[choice]])
 
 class HighVarianceStateInformedObservation:
     def __init__(
@@ -302,6 +369,82 @@ class Observation(StateInformedObservation, TestMeasurement):
         self.mean     = observed_mean
         self.variance = observed_variance
 
+class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
+    def __init__(
+            self,
+            N,
+            obs_budget,
+            obs_status,
+            obs_name,
+            min_threshold=0.0,
+            max_threshold=1.0,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=True,
+            obs_var_min = 1e-3):
+
+        self.name=obs_name
+        self.obs_var_min = obs_var_min
+
+        BudgetedInformedObservation.__init__(self,
+                                          N,
+                                          obs_budget,
+                                          obs_status,
+                                          min_threshold,
+                                          max_threshold)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
+
+    def find_observation_states(
+            self,
+            nodes,
+            state,
+            data):
+        """
+        Obtain where one should make an observation based on the current state,
+
+        Inputs:
+            state: np.array of size [self.N * n_status]
+        """
+        BudgetedInformedObservation.find_observation_states(self,
+                                                         nodes,
+                                                         state,
+                                                         data)
+
+    def observe(
+            self,
+            nodes,
+            state,
+            data,
+            scale='log'):
+        """
+        Inputs:
+            data: dictionary {node number : status}; data[i] = contact_network.node(i)
+        """
+
+        #make a measurement of the data
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
+
+        #mean, var np.arrays of size state
+        observed_states = np.remainder(self.obs_states,self.N)
+        #convert from np.array indexing to the node id in the (sub)graph
+        observed_nodes = nodes[observed_states]
+        observed_data = {node : data[node] for node in observed_nodes}
+
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
+
+        observed_mean     = np.array([mean[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+
+        self.mean     = observed_mean
+        self.variance = observed_variance
 
 #combine them together
 class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurement):
