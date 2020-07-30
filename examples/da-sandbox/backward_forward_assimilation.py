@@ -187,7 +187,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     
 
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
-    
+    timer_window = timer()
+
     assert are_close(current_time,
                      k * prediction_window,
                      eps=static_contact_interval)
