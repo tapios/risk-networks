@@ -22,6 +22,10 @@ def confusion_matrix(data,
 
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
     status_of_interest = np.array([status_catalog[status] for status in statuses])
+    if ensemble_states.ndim == 1:
+        #in the case of "1" ensemble member - ensure array is 2 dimensional
+        ensemble_states = np.array([ensemble_states])
+
     ensemble_size = len(ensemble_states)
     population    = len(data)
 
@@ -30,7 +34,7 @@ def confusion_matrix(data,
     #obtain the prediction of the ensemble by averaging
     ensemble_probabilities[ [0, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
     ensemble_probabilities[1] = 1 - ensemble_probabilities.sum(axis = 0)
-    
+   
     #obtain a binary classification of the prediction
     if method == 'sum':
          #if the sum of the statuses of interest > threshold then we assign true
@@ -51,6 +55,59 @@ def confusion_matrix(data,
     return skm.confusion_matrix(data_statuses, ensemble_statuses, labels = labels)
 
 
+class PredictedNegativeFraction:
+    """
+    Container for the Predicted Negative Fraction, based on overall class assignment
+    Predicted Negative Fraction = True Negatives + False Negatives/ Total
+    """
+
+    def __init__(self, name = 'PredictedNegativeFraction'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        return (tn + fn) / (tn + fn + tp + fp)
+
+class PredictedPositiveFraction:
+    """
+    Container for the Predicted Postive Fraction, based on overall class assignment
+    Predicted Postive Fraction  = (True Positives + False Positives) / Total
+    """
+
+    def __init__(self, name = 'PredictedPositiveFraction'):
+        self.name = name
+
+    def __call__(self,
+                 data,
+                 ensemble_states,
+                 statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
+                 threshold = 0.5,
+                 method = 'or'):
+        """
+        Args:
+        -----
+                data           : dictionary with {node : status}
+                ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
+                statuses       : statuses of interest.
+        """
+        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        tn, fp, fn, tp = cm.ravel()
+
+        return (tp + fp) / (tn + fn + tp + fp)
 
 class Accuracy:
     """

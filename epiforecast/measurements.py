@@ -6,7 +6,7 @@ class TestMeasurement:
             status,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False):
+            noisy_measurement=True):
 
         self.sensitivity = sensitivity
         self.specificity = specificity
@@ -24,12 +24,16 @@ class TestMeasurement:
         Inputs:
         -------
             ensemble_states : `np.array` of shape (ensemble_size, num_status * population) at a given time
-            status_idx      : status id of interest. Following the ordering of the reduced system SIHRD.
         """
         if fixed_prevalence is None:
-            population      = ensemble_states.shape[1]/self.n_status
+            population      = int(ensemble_states.shape[1]/self.n_status)
             ensemble_size   = ensemble_states.shape[0]
-            self.prevalence = ensemble_states.reshape(ensemble_size,self.n_status,-1)[:,self.status_catalog[self.status],:].sum(axis = 1)/population
+
+            prevalence = ensemble_states.reshape(ensemble_size,self.n_status, population)[:,self.status_catalog[self.status],:].sum(axis = 1) / float(population)
+            if ensemble_size > 1:
+                prevalence = np.mean(prevalence, axis=0)
+            
+            self.prevalence = max(prevalence, 1.0 / float(population)) * np.ones(ensemble_size)
         else:
             self.prevalence = fixed_prevalence
 
@@ -213,7 +217,7 @@ class HighVarianceStateInformedObservation:
             dec_sort_vector = np.argsort(-xvar)
 
             self.obs_states=candidate_states[dec_sort_vector[:obs_states_size]]
-
+            
         elif (self.obs_frac == 1.0):
             self.obs_states=candidate_states
         else: #The value is too small
@@ -232,7 +236,7 @@ class Observation(StateInformedObservation, TestMeasurement):
             max_threshold=1.0,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False,
+            noisy_measurement=True,
             obs_var_min = 1e-3):
 
         self.name=obs_name
@@ -309,7 +313,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
             obs_name,
             sensitivity=0.80,
             specificity=0.99,
-            noisy_measurement=False,
+            noisy_measurement=True,
             obs_var_min = 1e-3):
 
         self.name=obs_name
@@ -369,7 +373,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
-
+        
         self.mean     = observed_mean
         self.variance = observed_variance
 
