@@ -1,5 +1,6 @@
 import os, sys; sys.path.append(os.path.join('..', '..'))
 
+from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -53,7 +54,7 @@ from _observations_init import (random_infection_test,
                                 positive_death_records,
                                 negative_death_records)
 
-imperfect_observations = [high_var_infection_test]
+imperfect_observations = [random_infection_test]
 perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
@@ -106,13 +107,13 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
-n_prediction_windows_spin_up = 12
 
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
+n_prediction_windows_spin_up = 12
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
@@ -146,6 +147,7 @@ current_time = start_time
 spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
 ensemble_state = ensemble_ic
 
+timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
     master_states_timeseries.push_back(ensemble_state) # storage
@@ -165,6 +167,7 @@ for j in range(spin_up_steps):
 
     current_time += static_contact_interval
 
+print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 print_info("Spin-up ended: current time", current_time)
 
 # main loop: backward/forward/data assimilation ################################
@@ -210,7 +213,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         current_time += static_contact_interval
     
     past_time = current_time
-    print("time at end of prediction", current_time)
+    print_info("Prediction ended: current time:", current_time)
+    
     ## 2) backward run with data assimilation
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_da_window):
@@ -267,7 +271,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         past_time -= static_contact_interval
 
-    #Final assimilation (at the end of the sweep)
+    #Final assimilation (at the peak of the sweep)
     assimilate_I_now = modulo_is_close_to_zero(past_time,
                                                I_assimilation_interval,
                                                eps=static_contact_interval)
@@ -306,7 +310,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         new_transition_rates=transition_rates_ensemble,
         new_transmission_rate=community_transmission_rate_ensemble)
 
-    print("time at end of backward DA", past_time)
+    print_info("Backward assimilation ended; current time:", past_time)
 
     ## 3) forward run with data assimilation
     master_eqn_ensemble.set_start_time(past_time)
@@ -362,9 +366,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
 
-    print("time at end of forward DA", past_time)
+    print_info("Forward assimilation ended; current time", past_time)
     # DA should get back to the current time
     assert are_close(past_time, current_time, eps=static_contact_interval)
+    
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "ended; elapsed:", timer() - timer_window, end='\n\n')
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
