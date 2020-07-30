@@ -18,7 +18,7 @@
 
 
 # create a directory named "slurm_output" and then submit with:
-#       sbatch --mail-user=mail@domain.com true_rates_estimation_sbatch.sh
+#       sbatch --mail-user=mail@domain.com run_user_base_expt.sh
 
 # preface ######################################################################
 set -euo pipefail
@@ -43,7 +43,7 @@ mkdir -p "${output_path}"
 
 # launch #######################################################################
 module load python3/3.8.5
-srun python3 true_rates_estimation.py \
+srun python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-fraction-tested=${tested} \
