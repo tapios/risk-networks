@@ -21,8 +21,8 @@ parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
 parser.add_argument('--user-network-seed-user', type=int, default=190)
 
 # observations #################################################################
-parser.add_argument('--observations-I-fraction-tested', type=float, default=0.1)
-parser.add_argument('--observations-I-min-threshold', type=float, default=0.3)
+parser.add_argument('--observations-I-fraction-tested', type=float, default=0.01)
+parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 
 
 # parser setup #################################################################
