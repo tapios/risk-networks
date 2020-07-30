@@ -151,6 +151,8 @@ def plot_epidemic_data(
     """
     global COLORS_OF_STATUSES
 
+    assert len(statuses_list) == len(plot_times)
+
     Sdata = [statuses_list[i][0]/population for i in range(len(plot_times))]
     Edata = [statuses_list[i][1]/population for i in range(len(plot_times))]
     Idata = [statuses_list[i][2]/population for i in range(len(plot_times))]

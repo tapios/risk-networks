@@ -34,7 +34,7 @@ end_time    = 45.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
-time_span = np.linspace(start_time, end_time, total_steps, endpoint=False)
+time_span = np.linspace(start_time, end_time, 1+total_steps) # ic+simulation
 
 # model parameters #############################################################
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates

@@ -13,8 +13,8 @@ from _utilities import print_start_of, print_end_of
 print_start_of(__name__)
 ################################################################################
 ensemble_size = 100
-n_forward_steps  =  1 # minimum amount of steps per time step: forward run
-n_backward_steps =  5 # minimum amount of steps per time step: backward run
+n_forward_steps  = 1 # minimum amount of steps per time step: forward run
+n_backward_steps = 2 # minimum amount of steps per time step: backward run
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):

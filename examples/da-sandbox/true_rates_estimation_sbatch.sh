@@ -1,18 +1,24 @@
 #!/bin/bash
 
 #SBATCH --time=12:00:00                 # walltime
-#SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
-#SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
-#SBATCH -J "risk_networks_accuracy"
+#SBATCH --nodes=1                       # number of nodes (per job)
+#SBATCH --mem=386G                      # memory per node
+#SBATCH --exclusive                     # exclusive use of the node
+#SBATCH --ntasks=1                      # number of processes (i.e. tasks)
+#SBATCH --cpus-per-task=56              # number of cores per process
+#SBATCH -J "risk_networks_true_rates"
 #SBATCH --output=slurm_output/%A_%a.out
 #SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --array=0-4
 
+##SBATCH --mem-per-cpu=24G               # 24G is needed for 10k full user base
+##SBATCH --constraint=cascadelake        # 'cascadelake' for expansion nodes
+
 
 # create a directory named "slurm_output" and then submit with:
-#       sbatch --mail-user=mail@domain.com accuracy_estimation_sbatch.sh
+#       sbatch --mail-user=mail@domain.com true_rates_estimation_sbatch.sh
 
 # preface ######################################################################
 set -euo pipefail
@@ -36,8 +42,8 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
-module load python3/3.7.0
-python3 accuracy_estimation.py \
+module load python3/3.8.5
+srun python3 true_rates_estimation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-fraction-tested=${tested} \

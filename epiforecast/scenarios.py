@@ -74,7 +74,7 @@ def NYC_transition_rates(population_network, random_seed=1234):
     whose statistics vaguely resemble the clinical statistics of 
     New York City, NY, USA.
     """
-    raise NotImplemented("this function should be refactored")
+    raise NotImplementedError("this function should be refactored")
 
     age_distribution = [ 
                          0.21,  # 0-17 years
