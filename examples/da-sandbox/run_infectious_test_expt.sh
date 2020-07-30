@@ -3,7 +3,7 @@
 #SBATCH --time=6:00:00                 # walltime
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --mem-per-cpu=4G               # 24G is needed for 10k full user base
-#SBATCH -J "risk_networks_accuracy"
+#SBATCH -J "I_expt"
 #SBATCH --output=output/slurm_%j.out
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="randitest"
+EXP_NAME="test"
 
 # parameters & constants #######################################################
 fractions_tested=(1.0 0.5 0.1 0.05 0.04 0.03 0.02 0.01 0.005 0.0) #Make sure no. expts agrees with size of array. and no commas.
