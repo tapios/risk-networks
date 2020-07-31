@@ -1,5 +1,6 @@
 from epiforecast.measurements import (Observation,
                                       BudgetedObservation,
+                                      StaticNeighborObservation,
                                       DataObservation,
                                       HighVarianceObservation)
 

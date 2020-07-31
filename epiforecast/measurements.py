@@ -106,16 +106,21 @@ class TestMeasurement:
         """
         measurements = {}
         uncertainty  = {}
-
+        positive_nodes = []
+        
         for node in nodes_state_dict.keys():
             if nodes_state_dict[node] == self.status:
+                positive_test = not (self.noisy_measurement and (np.random.random() > self.sensitivity))
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test = not (self.noisy_measurement and (np.random.random() > self.sensitivity)))
+                                                                                   positive_test = positive_test)
             else:
+                positive_test = (self.noisy_measurement and (np.random.random() < 1 - self.specificity))
                 measurements[node], uncertainty[node] = self.get_mean_and_variance(scale = scale,
-                                   positive_test =     (self.noisy_measurement and (np.random.random() < 1 - self.specificity)))
+                                                                                   positive_test = positive_test)
+            if positive_test:
+                positive_nodes.append(node)
 
-        return measurements, uncertainty
+        return measurements, uncertainty, positive_nodes
 
 #### Adding Observations in here
 
@@ -302,8 +307,8 @@ class StaticNeighborTransferObservation:
         """
         We add nodes from a list, so long as they are not on the omission list
         """
-        nodes = np.distinct(np.array(nodes))
-        admissible_nodes = [n for n in filter(lambda n: n not in self.nodes_to_omit.nodes))]
+        nodes = np.unique(np.array(nodes))
+        admissible_nodes = [n for n in filter(lambda n: n not in self.nodes_to_omit, nodes)]
         self.nodes_to_observe.extend(admissible_nodes)
         
     def omit_nodes(self):
@@ -324,6 +329,7 @@ class StaticNeighborTransferObservation:
         #Candidates for observations are those with a required state >= threshold
         candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
         #look on the nodes_to_observe list.
+        print("candidate_nodes for observation", self.nodes_to_observe)
         candidate_nbhd_states = candidate_states[self.nodes_to_observe]
         
         #If we have more neighbors than budget
@@ -337,7 +343,7 @@ class StaticNeighborTransferObservation:
         else: #candidate_nbhd_states.size < budget    
             other_idx = np.array([i for i in filter(lambda i: i not in self.nodes_to_observe, np.arange(candidate_states.size))])
             other_states = candidate_states[other_idx]
-            choice=np.random.choice(np.arange(other_size), size=self.obs_budget - cand_size, replace=False)
+            choice=np.random.choice(np.arange(other_states.size), size=self.obs_budget - candidate_nbhd_states.size, replace=False)
             self.obs_states = np.hstack([candidate_nbhd_states, other_states[choice]])
             
         #perform omissions:
@@ -464,7 +470,7 @@ class Observation(StateInformedObservation, TestMeasurement):
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
-                                                      scale)
+                                                      scale)[0,1]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -545,7 +551,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
-                                                      scale)
+                                                      scale)[0,1]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -619,9 +625,12 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data,
-                                                      scale)
+        true_infected = [node for node in observed_nodes if data[node] == 'I']
+        print("actually infected nodes", true_infected)
+        
+        mean, var, positive_nodes = TestMeasurement.take_measurements(self,
+                                                                      observed_data,
+                                                                      scale)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -630,16 +639,15 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         self.variance = observed_variance
         
         #Now to add nodes to the neighbors list
-        positive_results  = (observed_mean > (np.max(observed_mean) - (1e-8))) #if the test was positive,
-        positive_nodes = [id_node[1] for id_node in observed_nodes if positive_results[id_node[0]])] # store the nodes giving a positive result.
+        print("Nodes testing positive", positive_nodes)
         user_graph = network.get_graph()
         positive_nodes_nbhd = [] 
         for pn in positive_nodes:
             positive_nodes_nbhd.extend(user_graph.neighbors(pn))
        
-        #omit the poistive nodes from testing
-        StaticNeighborTransferObservation.add_nodes_to_omit(positive_nodes)
-        StaticNeighborTransferObservation.add_nbhds_to_observe(positive_nodes_nbhd)
+        #omit the positive nodes from testing
+        StaticNeighborTransferObservation.add_nodes_to_omit(self, positive_nodes)
+        StaticNeighborTransferObservation.add_nbhds_to_observe(self, positive_nodes_nbhd)
         
 
 #combine them together
