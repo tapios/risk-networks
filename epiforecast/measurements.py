@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 class TestMeasurement:
     def __init__(
@@ -150,7 +151,7 @@ class StateInformedObservation:
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -216,7 +217,7 @@ class BudgetedInformedObservation:
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -230,9 +231,10 @@ class BudgetedInformedObservation:
                                               (xmean<=self.obs_max_threshold)]
         other_states_ens=candidate_states[(xmean<self.obs_min_threshold) | \
                                           (xmean>self.obs_max_threshold)]
-
+        
         cand_size=candidate_states_ens.size
         other_size= other_states_ens.size
+        print("number of states within the threshold", cand_size)
         if cand_size == self.obs_budget:
             self.obs_states = candidate_states_ens
 
@@ -243,6 +245,105 @@ class BudgetedInformedObservation:
         else: #cand_size < self.obs_budget
             choice=np.random.choice(np.arange(other_size), size=self.obs_budget - cand_size, replace=False)
             self.obs_states = np.hstack([candidate_states_ens, other_states_ens[choice]])
+        
+
+class StaticNeighborTransferObservation:
+    """
+    We observe the status at nodes randomly, until a positive measurement is taken. Then we preferentially sample the neighbors of the positive node. 
+    The neighbours are taken from a static address book of the node (not a dynamically changing one)
+    We provide
+    - A status to observe at
+    - A maximum budget of observations per node 
+    E.g if we have a budget of 10 nodes in an assimilation, to observe status I.
+        Time T1 : We randomly observe 10 nodes. Then test them.
+        Assume we obtain a positive test at node x. We say the (e.g 6) neighbors of x.
+        On the next observation we test the 6 neighbors of x, and 
+        randomly observe 4 more nodes not on the list.
+    """
+    def __init__(
+            self,
+            N,
+            obs_budget,
+            obs_status,
+            ):
+
+       
+        #number of nodes in the graph
+        self.N = N
+        #number of different states a node can be in
+
+        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.n_status = len(self.status_catalog.keys())
+
+
+        #array of status to observe
+        self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
+
+        #The absolute number of nodes to observe
+        self.obs_budget = int(obs_budget)
+        
+        #default init observation
+        self.obs_states = np.empty(0)
+
+        #storage_lists
+        self.nodes_to_observe = []
+        self.nodes_to_omit = []
+    
+    def add_nodes_to_omit(self, nodes):
+        """
+        We omit nodes which have been tested already
+        """
+        if isinstance(nodes,np.ndarray):
+            nodes = nodes.tolist()
+
+        self.nodes_to_omit.extend(nodes)
+
+    def add_nbhds_to_observe(self, nodes):
+        """
+        We add nodes from a list, so long as they are not on the omission list
+        """
+        nodes = np.distinct(np.array(nodes))
+        admissible_nodes = [n for n in filter(lambda n: n not in self.nodes_to_omit.nodes))]
+        self.nodes_to_observe.extend(admissible_nodes)
+        
+    def omit_nodes(self):
+        """
+        We remove nodes from the observed list that are in the omission list
+        """
+        nodes_to_observe = copy.deepcopy(self.nodes_to_observe)
+        self.nodes_to_observe = [n for n in filter(lambda n: n not in self.nodes_to_omit, nodes_to_observe)] 
+
+    def find_observation_states(
+            self,
+            network,
+            state,
+            data):
+        """
+        Update the observation model when taking observation
+        """
+        #Candidates for observations are those with a required state >= threshold
+        candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
+        #look on the nodes_to_observe list.
+        candidate_nbhd_states = candidate_states[self.nodes_to_observe]
+        
+        #If we have more neighbors than budget
+        if candidate_nbhd_states.size == self.obs_budget:
+            self.obs_states = candidate_nbhd_states
+            
+        elif candidate_nbhd_states.size > self.obs_budget:
+            choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
+            self.obs_states = candidate_nbhd_states[choice]
+
+        else: #candidate_nbhd_states.size < budget    
+            other_idx = np.array([i for i in filter(lambda i: i not in self.nodes_to_observe, np.arange(candidate_states.size))])
+            other_states = candidate_states[other_idx]
+            choice=np.random.choice(np.arange(other_size), size=self.obs_budget - cand_size, replace=False)
+            self.obs_states = np.hstack([candidate_nbhd_states, other_states[choice]])
+            
+        #perform omissions:
+        self.add_nodes_to_omit(self.obs_states)
+        self.omit_nodes()
+
 
 class HighVarianceStateInformedObservation:
     def __init__(
@@ -269,7 +370,7 @@ class HighVarianceStateInformedObservation:
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -323,7 +424,7 @@ class Observation(StateInformedObservation, TestMeasurement):
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -333,13 +434,14 @@ class Observation(StateInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         StateInformedObservation.find_observation_states(self,
-                                                         nodes,
+                                                         network,
                                                          state,
                                                          data)
+    
 
     def observe(
             self,
-            nodes,
+            network,
             state,
             data,
             scale='log'):
@@ -353,6 +455,7 @@ class Observation(StateInformedObservation, TestMeasurement):
                                           state,
                                           scale)
 
+        nodes=network.get_nodes()
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
@@ -365,9 +468,12 @@ class Observation(StateInformedObservation, TestMeasurement):
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
-
+        
         self.mean     = observed_mean
         self.variance = observed_variance
+
+        
+
 
 class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
     def __init__(
@@ -400,7 +506,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -410,13 +516,13 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         BudgetedInformedObservation.find_observation_states(self,
-                                                         nodes,
+                                                         network,
                                                          state,
                                                          data)
 
     def observe(
             self,
-            nodes,
+            network,
             state,
             data,
             scale='log'):
@@ -430,6 +536,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
                                           state,
                                           scale)
 
+        nodes=network.get_nodes()
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
@@ -445,6 +552,95 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
         self.mean     = observed_mean
         self.variance = observed_variance
+                
+
+
+class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurement):
+    def __init__(
+            self,
+            N,
+            obs_budget,
+            obs_status,
+            obs_name,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=True,
+            obs_var_min = 1e-3):
+
+        self.name=obs_name
+        self.obs_var_min = obs_var_min
+
+        StaticNeighborTransferObservation.__init__(self,
+                                          N,
+                                          obs_budget,
+                                          obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
+
+    def find_observation_states(
+            self,
+            network,
+            state,
+            data):
+        """
+        Obtain where one should make an observation based on the current state,
+
+        Inputs:
+            state: np.array of size [self.N * n_status]
+        """
+        StaticNeighborTransferObservation.find_observation_states(self,
+                                                         network,
+                                                         state,
+                                                         data)
+
+    def observe(
+            self,
+            network,
+            state,
+            data,
+            scale='log'):
+        """
+        Inputs:
+            data: dictionary {node number : status}; data[i] = contact_network.node(i)
+        """
+
+        #make a measurement of the data
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
+
+        nodes=network.get_nodes()
+        #mean, var np.arrays of size state
+        observed_states = np.remainder(self.obs_states,self.N)
+        #convert from np.array indexing to the node id in the (sub)graph
+        observed_nodes = nodes[observed_states]
+        observed_data = {node : data[node] for node in observed_nodes}
+
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)
+
+        observed_mean     = np.array([mean[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+
+        self.mean     = observed_mean
+        self.variance = observed_variance
+        
+        #Now to add nodes to the neighbors list
+        positive_results  = (observed_mean > (np.max(observed_mean) - (1e-8))) #if the test was positive,
+        positive_nodes = [id_node[1] for id_node in observed_nodes if positive_results[id_node[0]])] # store the nodes giving a positive result.
+        user_graph = network.get_graph()
+        positive_nodes_nbhd = [] 
+        for pn in positive_nodes:
+            positive_nodes_nbhd.extend(user_graph.neighbors(pn))
+       
+        #omit the poistive nodes from testing
+        StaticNeighborTransferObservation.add_nodes_to_omit(positive_nodes)
+        StaticNeighborTransferObservation.add_nbhds_to_observe(positive_nodes_nbhd)
+        
 
 #combine them together
 class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurement):
@@ -474,7 +670,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -484,13 +680,13 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
             state: np.array of size [self.N * n_status]
         """
         HighVarianceStateInformedObservation.find_observation_states(self,
-                                                                     nodes,
+                                                                     network,
                                                                      state,
                                                                      data)
 
     def observe(
             self,
-            nodes,
+            network,
             state,
             data,
             scale='log'):
@@ -504,6 +700,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
                                           state,
                                           scale)
 
+        nodes=network.get_nodes()
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
@@ -540,14 +737,14 @@ class DataInformedObservation:
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
         Update the observation model when taking observation
         """
         # Obtain relevant data entries
-        user_nodes = nodes
+        user_nodes = network.get_nodes()
         user_data = {node : data[node] for node in user_nodes}
 
         candidate_nodes = []
@@ -595,7 +792,7 @@ class DataObservation(DataInformedObservation):
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -606,13 +803,13 @@ class DataObservation(DataInformedObservation):
             state: np.array of size [self.N * n_status]
         """
         DataInformedObservation.find_observation_states(self,
-                                                        nodes,
+                                                        network,
                                                         state,
                                                         data)
 
     def observe(
             self,
-            nodes,
+            network,
             state,
             data,
             scale='log'):
@@ -671,14 +868,14 @@ class DataNodeInformedObservation(DataInformedObservation):
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
         Update the observation model when taking observation
         """
         DataInformedObservation.find_observation_states(self,
-                                                        nodes,
+                                                        network,
                                                         state,
                                                         data)
         self.obs_nodes       = self.obs_states % self.N
@@ -711,7 +908,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
 
     def find_observation_states(
             self,
-            nodes,
+            network,
             state,
             data):
         """
@@ -722,13 +919,13 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             state: np.array of size [self.N * n_status]
         """
         DataNodeInformedObservation.find_observation_states(self,
-                                                            nodes,
+                                                            network,
                                                             state,
                                                             data)
 
     def observe(
             self,
-            nodes,
+            network,
             state,
             data,
             scale='log'):

@@ -33,6 +33,15 @@ budgeted_random_infection_test = BudgetedObservation(
         sensitivity=0.99,
         obs_var_min=1e-6)
 
+neighbor_transfer_infection_test = StaticNeighborObservation(
+        N=user_population,
+        obs_budget=arguments.observations_I_budget,
+        obs_status='I',
+        obs_name="Static Neighbor Transfer Infection Test",
+        noisy_measurement=True,
+        sensitivity=0.99,
+        obs_var_min=1e-6)
+
 high_var_infection_test = HighVarianceObservation(
         N=user_population,
         obs_frac=arguments.observations_I_fraction_tested,

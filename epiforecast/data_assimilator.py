@@ -104,7 +104,7 @@ class DataAssimilator:
 
     def find_observation_states(
             self,
-            user_nodes,
+            user_network,
             ensemble_state,
             data,
             current_time,
@@ -130,7 +130,7 @@ class DataAssimilator:
         else:
             observed_states = []
             for observation in self.observations:
-                observation.find_observation_states(user_nodes,
+                observation.find_observation_states(user_network,
                                                     ensemble_state,
                                                     data)
                 if observation.obs_states.size > 0:
@@ -148,7 +148,7 @@ class DataAssimilator:
 
     def observe(
             self,
-            user_nodes,
+            user_network,
             state,
             data,
             current_time,
@@ -165,7 +165,7 @@ class DataAssimilator:
             observed_variances = []
             for observation in self.observations:
                 if (observation.obs_states.size >0):
-                    observation.observe(user_nodes,
+                    observation.observe(user_network,
                                         state,
                                         data,
                                         scale)
@@ -191,7 +191,7 @@ class DataAssimilator:
             data,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            user_nodes,
+            user_network,
             current_time,
             verbose=False,
             print_error=False):
@@ -208,7 +208,7 @@ class DataAssimilator:
             dam = self.damethod
 
             # Generate states to observe
-            obs_states,obs_nodes = self.find_observation_states(user_nodes,
+            obs_states,obs_nodes = self.find_observation_states(user_network,
                                                                 ensemble_state,
                                                                 data,
                                                                 current_time,
@@ -228,7 +228,7 @@ class DataAssimilator:
                 print("[ Data assimilator ] Total parameters to be assimilated: ",np.hstack([ensemble_transition_rates,ensemble_transmission_rate]).shape[1])
 
                 # Get the truth indices, for the observation(s)
-                truth,var = self.observe(user_nodes,
+                truth,var = self.observe(user_network,
                                          ensemble_state,
                                          data,
                                          current_time,
