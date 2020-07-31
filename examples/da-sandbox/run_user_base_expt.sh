@@ -6,7 +6,7 @@
 #SBATCH --exclusive                     # exclusive use of the node
 #SBATCH --ntasks=1                      # number of processes (i.e. tasks)
 #SBATCH --cpus-per-task=56              # number of cores per process
-#SBATCH -J "risk_networks_true_rates"
+#SBATCH -J "risk_networks_user_base"
 #SBATCH --output=slurm_output/%A_%a.out
 #SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
