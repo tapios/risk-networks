@@ -98,6 +98,7 @@ class DataAssimilator:
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
+        self.stored_observed_nodes = {}
         self.stored_observed_means = {}
         self.stored_observed_variances = {}
  
@@ -124,7 +125,7 @@ class DataAssimilator:
 
         if current_time in self.stored_observed_states:
             observed_states = self.stored_observed_states[current_time]
-            observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
+            observed_nodes = self.stored_observed_nodes[current_time]
             return observed_states, observed_nodes
         
         else:
@@ -142,8 +143,10 @@ class DataAssimilator:
                               len(observation.obs_states))
 
             observed_states = np.array(observed_states)
-            self.stored_observed_states[current_time] = observed_states
             observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
+            self.stored_observed_states[current_time] = observed_states
+            self.stored_observed_nodes[current_time] = observed_nodes
+            
             return observed_states, observed_nodes
 
     def observe(
@@ -153,7 +156,7 @@ class DataAssimilator:
             data,
             current_time,
             scale='log',
-            noisy_measurement=False):
+            noisy_measurement=True):
 
         if current_time in self.stored_observed_means:
             observed_means = self.stored_observed_means[current_time]
@@ -179,7 +182,27 @@ class DataAssimilator:
             self.stored_observed_variances[current_time] = observed_variances
             return observed_means, observed_variances
 
-
+    def find_and_store_observations(
+            self,
+            ensemble_state,
+            data,
+            user_network,
+            current_time,
+            verbose=False):
+        
+        self.find_observation_states(user_network,
+                                     ensemble_state,
+                                     data,
+                                     current_time,
+                                     verbose)
+        
+        self.observe(user_network,
+                     ensemble_state,
+                     data,
+                     current_time,
+                     scale='log',
+                     noisy_measurement=True)
+        
     # ensemble_state np.array([ensemble size, num status * num nodes]
     # data np.array([num status * num nodes])
     # contact network networkx.graph (if provided)
@@ -204,15 +227,10 @@ class DataAssimilator:
             return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
         else:
+            # Load states to observe
+            obs_states = self.stored_observed_states[current_time]
+            obs_nodes = self.stored_observed_nodes[current_time]
 
-            dam = self.damethod
-
-            # Generate states to observe
-            obs_states,obs_nodes = self.find_observation_states(user_network,
-                                                                ensemble_state,
-                                                                data,
-                                                                current_time,
-                                                                verbose)
             if (obs_states.size > 0):
                 print("[ Data assimilator ] Total states to be assimilated: ",
                       obs_states.size)
@@ -227,18 +245,12 @@ class DataAssimilator:
                
                 print("[ Data assimilator ] Total parameters to be assimilated: ",np.hstack([ensemble_transition_rates,ensemble_transmission_rate]).shape[1])
 
-                # Get the truth indices, for the observation(s)
-                truth,var = self.observe(user_network,
-                                         ensemble_state,
-                                         data,
-                                         current_time,
-                                         scale = None)
+                # Load the truth, variances of the observation(s)
+                truth = self.stored_observed_means[current_time]
+                var = self.stored_observed_variances[current_time]
                 cov = np.diag(var)
 
-                # Get the covariances for the observation(s), with the minimum returned if two overlap
-                #cov = self.get_observation_cov()
-                # Perform da model update with ensemble_state: states, transition and transmission rates
-                
+                # Perform da model update with ensemble_state: states, transition and transmission rates 
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
                 # If batching is not required:
@@ -246,12 +258,12 @@ class DataAssimilator:
                     (ensemble_state[:, obs_states],
                      new_ensemble_transition_rates,
                      new_ensemble_transmission_rate
-                    ) = dam.update(ensemble_state[:, obs_states],
-                                   ensemble_transition_rates,
-                                   ensemble_transmission_rate,
-                                   truth,
-                                   cov,
-                                   print_error=print_error)
+                    ) = self.damethod.update(ensemble_state[:, obs_states],
+                                             ensemble_transition_rates,
+                                             ensemble_transmission_rate,
+                                             truth,
+                                             cov,
+                                             print_error=print_error)
                 else: #perform the EAKF in batches
                     
                     #create batches, with final batch larger due to rounding
@@ -266,12 +278,12 @@ class DataAssimilator:
                         (ensemble_state[:, obs_states[batch]],
                          new_ensemble_transition_rates,
                          new_ensemble_transmission_rate
-                        ) = dam.update(ensemble_state[:, obs_states[batch]],
-                                       ensemble_transition_rates,
-                                       ensemble_transmission_rate,
-                                       truth[batch],
-                                       cov_batch,
-                                       print_error=print_error)
+                        ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
+                                                 ensemble_transition_rates,
+                                                 ensemble_transmission_rate,
+                                                 truth[batch],
+                                                 cov_batch,
+                                                 print_error=print_error)
                     
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
@@ -287,7 +299,7 @@ class DataAssimilator:
                         obs_nodes)
 
                 if print_error:
-                    print("[ Data assimilator ] EAKF error:", dam.error[-1])
+                    print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])
             else:
                 print("[ Data assimilator ] No assimilation required")
 
