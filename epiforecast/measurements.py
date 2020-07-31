@@ -625,7 +625,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        true_infected = [node for node in observed_nodes if data[node] == 'I']
+        true_infected = [node for node in nodes if data[node] == 'I']
         print("actually infected nodes", true_infected)
         
         mean, var, positive_nodes = TestMeasurement.take_measurements(self,
