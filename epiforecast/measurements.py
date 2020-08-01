@@ -292,32 +292,33 @@ class StaticNeighborTransferObservation:
 
         #storage_lists
         self.nodes_to_observe = []
-        self.nodes_to_omit = []
+        self.positively_tested_nodes = []
     
-    def add_nodes_to_omit(self, nodes):
+    def add_positively_tested_nodes(self, nodes):
         """
-        We omit nodes which have been tested already
+        We store nodes which have provided a positive test
         """
         if isinstance(nodes,np.ndarray):
             nodes = nodes.tolist()
 
-        self.nodes_to_omit.extend(nodes)
+        self.positively_tested_nodes.extend(nodes)
 
     def add_nbhds_to_observe(self, nodes):
         """
         We add nodes from a list, so long as they are not on the omission list
         """
-        nodes = np.unique(np.array(nodes))
-        admissible_nodes = [n for n in filter(lambda n: n not in self.nodes_to_omit, nodes)]
+        admissible_nodes = [n for n in filter(lambda n: n not in self.positively_tested_nodes, nodes)]
         self.nodes_to_observe.extend(admissible_nodes)
+        self.nodes_to_observe = list(set(self.nodes_to_observe)) #uniqueness
         
-    def omit_nodes(self):
+    def omit_nodes(self, nodes):
         """
-        We remove nodes from the observed list that are in the omission list
+        We remove nodes from the list that have been provided 
         """
+        #Remove the inputed nodes
         nodes_to_observe = copy.deepcopy(self.nodes_to_observe)
-        self.nodes_to_observe = [n for n in filter(lambda n: n not in self.nodes_to_omit, nodes_to_observe)] 
-
+        self.nodes_to_observe = [n for n in filter(lambda n: n not in nodes, nodes_to_observe)] 
+                
     def find_observation_states(
             self,
             network,
@@ -326,17 +327,19 @@ class StaticNeighborTransferObservation:
         """
         Update the observation model when taking observation
         """
-        #Candidates for observations are those with a required state >= threshold
-        candidate_states = np.hstack([self.N*self.obs_status_idx+i for i in range(self.N)])
+        candidate_states = np.hstack([self.N * self.obs_status_idx + i for i in range(self.N)])
         #look on the nodes_to_observe list.
         print("candidate_nodes for observation", self.nodes_to_observe)
         candidate_nbhd_states = candidate_states[self.nodes_to_observe]
-        
+
+        xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
+
         #If we have more neighbors than budget
         if candidate_nbhd_states.size == self.obs_budget:
             self.obs_states = candidate_nbhd_states
             
         elif candidate_nbhd_states.size > self.obs_budget:
+            print("mean of candidates", xmean)
             choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
             self.obs_states = candidate_nbhd_states[choice]
 
@@ -347,8 +350,9 @@ class StaticNeighborTransferObservation:
             self.obs_states = np.hstack([candidate_nbhd_states, other_states[choice]])
             
         #perform omissions:
-        self.add_nodes_to_omit(self.obs_states)
-        self.omit_nodes()
+        obs_nodes= np.remainder(self.obs_states,self.N)
+        print(obs_nodes)
+        self.omit_nodes(obs_nodes)
 
 
 class HighVarianceStateInformedObservation:
@@ -470,7 +474,7 @@ class Observation(StateInformedObservation, TestMeasurement):
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
-                                                      scale)[0,1]
+                                                      scale)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -551,7 +555,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
-                                                      scale)[0,1]
+                                                      scale)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -595,12 +599,12 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         Obtain where one should make an observation based on the current state,
 
         Inputs:
-            state: np.array of size [self.N * n_status]
+            state: np.array of size [ensemble_size, self.N * n_status]
         """
         StaticNeighborTransferObservation.find_observation_states(self,
-                                                         network,
-                                                         state,
-                                                         data)
+                                                                  network,
+                                                                  state,
+                                                                  data)
 
     def observe(
             self,
@@ -646,7 +650,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
             positive_nodes_nbhd.extend(user_graph.neighbors(pn))
        
         #omit the positive nodes from testing
-        StaticNeighborTransferObservation.add_nodes_to_omit(self, positive_nodes)
+        StaticNeighborTransferObservation.add_positively_tested_nodes(self, positive_nodes)
         StaticNeighborTransferObservation.add_nbhds_to_observe(self, positive_nodes_nbhd)
         
 
@@ -717,7 +721,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
 
         mean, var = TestMeasurement.take_measurements(self,
                                                       observed_data,
-                                                      scale)
+                                                      scale)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])

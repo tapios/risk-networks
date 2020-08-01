@@ -214,7 +214,6 @@ class DataAssimilator:
             data,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            user_network,
             current_time,
             verbose=False,
             print_error=False):
