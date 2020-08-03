@@ -293,10 +293,15 @@ class StaticNeighborTransferObservation:
         #storage_lists
         self.nodes_to_observe = []
         self.positively_tested_nodes = []
-    
+        
+        #conversion from node id to np array index
+        self.node_to_idx = None
+        self.idx_to_node = None
+
     def add_positively_tested_nodes(self, nodes):
         """
         We store nodes which have provided a positive test
+        The nodes are stored by node id, and not by np.array index.
         """
         if isinstance(nodes,np.ndarray):
             nodes = nodes.tolist()
@@ -306,7 +311,9 @@ class StaticNeighborTransferObservation:
     def add_nbhds_to_observe(self, nodes):
         """
         We add nodes from a list, so long as they are not on the omission list
+        stored as nodes and not by np.array index
         """
+       
         admissible_nodes = [n for n in filter(lambda n: n not in self.positively_tested_nodes, nodes)]
         self.nodes_to_observe.extend(admissible_nodes)
         self.nodes_to_observe = list(set(self.nodes_to_observe)) #uniqueness
@@ -327,31 +334,41 @@ class StaticNeighborTransferObservation:
         """
         Update the observation model when taking observation
         """
+        if self.node_to_idx is None:
+            nodes = list(network.get_nodes())
+            #store the map from index : node number and vice versa
+            self.node_to_idx = {id_node[1] : id_node[0] for id_node in enumerate(nodes)} 
+            self.idx_to_node = {id_node[0] : id_node[1] for id_node in enumerate(nodes)}
+
         candidate_states = np.hstack([self.N * self.obs_status_idx + i for i in range(self.N)])
         #look on the nodes_to_observe list.
-        print("candidate_nodes for observation", self.nodes_to_observe)
-        candidate_nbhd_states = candidate_states[self.nodes_to_observe]
+        states_to_observe = [ self.node_to_idx[node] for node in self.nodes_to_observe]
+        candidate_nbhd_states = candidate_states[states_to_observe]
 
-        xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
-
+        print("number of candidates", candidate_nbhd_states.size, "budget", self.obs_budget)
         #If we have more neighbors than budget
         if candidate_nbhd_states.size == self.obs_budget:
             self.obs_states = candidate_nbhd_states
             
         elif candidate_nbhd_states.size > self.obs_budget:
-            print("mean of candidates", xmean)
-            choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
+            #ordered choice
+            xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
+            dec_sort_vector = np.argsort(-xmean)
+            choice = dec_sort_vector[:self.obs_budget]
+            print("chosen_states", choice, "mean value", xmean[choice])
+            #random choice
+            #choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
             self.obs_states = candidate_nbhd_states[choice]
 
         else: #candidate_nbhd_states.size < budget    
-            other_idx = np.array([i for i in filter(lambda i: i not in self.nodes_to_observe, np.arange(candidate_states.size))])
+            other_idx = np.array([i for i in filter(lambda i: i not in states_to_observe, np.arange(candidate_states.size))])
             other_states = candidate_states[other_idx]
             choice=np.random.choice(np.arange(other_states.size), size=self.obs_budget - candidate_nbhd_states.size, replace=False)
             self.obs_states = np.hstack([candidate_nbhd_states, other_states[choice]])
             
-        #perform omissions:
-        obs_nodes= np.remainder(self.obs_states,self.N)
-        print(obs_nodes)
+        #perform omissions: (must convert from indices to node ids)
+        obs_nodes= [ self.idx_to_node[idx] for idx in np.remainder(self.obs_states,self.N)]
+        print("observed_nodes", obs_nodes)
         self.omit_nodes(obs_nodes)
 
 
