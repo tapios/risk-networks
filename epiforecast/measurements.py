@@ -270,7 +270,8 @@ class StaticNeighborTransferObservation:
             N,
             obs_budget,
             obs_status,
-            ):
+            storage_type="temporary",
+            nbhd_sampling_method="random"):
 
        
         #number of nodes in the graph
@@ -294,6 +295,11 @@ class StaticNeighborTransferObservation:
         self.nodes_to_observe = []
         self.positively_tested_nodes = []
         
+        #storage_type: permanent, temporary
+        self.storage_type = storage_type
+        #nbhd_sampling_method to use: random, mean, variance
+        self.nbhd_sampling_method = nbhd_sampling_method
+        
         #conversion from node id to np array index
         self.node_to_idx = None
         self.idx_to_node = None
@@ -307,14 +313,14 @@ class StaticNeighborTransferObservation:
             nodes = nodes.tolist()
 
         self.positively_tested_nodes.extend(nodes)
-
+        print("history of positive nodes", self.positively_tested_nodes)
     def add_nbhds_to_observe(self, nodes):
         """
         We add nodes from a list, so long as they are not on the omission list
         stored as nodes and not by np.array index
         """
-       
         admissible_nodes = [n for n in filter(lambda n: n not in self.positively_tested_nodes, nodes)]
+
         self.nodes_to_observe.extend(admissible_nodes)
         self.nodes_to_observe = list(set(self.nodes_to_observe)) #uniqueness
         
@@ -351,20 +357,23 @@ class StaticNeighborTransferObservation:
             self.obs_states = candidate_nbhd_states
             
         elif candidate_nbhd_states.size > self.obs_budget:
-            # ordered choice - mean
-            #xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
-            #dec_sort_vector = np.argsort(-xmean)
-            #choice = dec_sort_vector[:self.obs_budget]
-            #print("chosen_states", choice, "variance value", xmean[choice])
-          
-            # ordered choice - var
-            xvar=np.var(state[:,candidate_nbhd_states], axis=0)
-            dec_sort_vector = np.argsort(-xvar)
-            choice = dec_sort_vector[:self.obs_budget]
-            print("chosen_states", choice, "variance value", xvar[choice])
-
-            #random choice
-            #choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
+            if self.nbhd_sampling_method == "mean":
+                # ordered choice - mean
+                xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
+                dec_sort_vector = np.argsort(-xmean)
+                choice = dec_sort_vector[:self.obs_budget]
+                print("chosen_states", choice, "mean value", xmean[choice])
+            elif self.nbhd_sampling_method == "variance":
+                # ordered choice - variance
+                xvar=np.var(state[:,candidate_nbhd_states], axis=0)
+                dec_sort_vector = np.argsort(-xvar)
+                choice = dec_sort_vector[:self.obs_budget]
+                print("chosen_states", choice, "variance value", xvar[choice])
+            elif self.nbhd_smapling_method == "random":
+                #random choice
+                choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
+            else:
+                raise ValueError("unknown nbhd_sampling_method. choose from 'random' (default), 'mean', 'variance' ")
 
             self.obs_states = candidate_nbhd_states[choice]
 
@@ -377,8 +386,13 @@ class StaticNeighborTransferObservation:
         #perform omissions: (must convert from indices to node ids)
         obs_nodes= [ self.idx_to_node[idx] for idx in np.remainder(self.obs_states,self.N)]
         print("observed_nodes", obs_nodes)
-        self.omit_nodes(obs_nodes)
-
+        
+        if self.storage_type == "permanent":
+            self.omit_nodes(obs_nodes)
+        elif self.storage_type == "temporary":
+            self.omit_nodes(np.remainder(candidate_nbhd_states, self.N).tolist() )
+        else:
+            raise ValueError("unknown storage_type. Choose from 'permanent', 'temporary'(default)")
 
 class HighVarianceStateInformedObservation:
     def __init__(
@@ -658,8 +672,8 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
 
         true_infected = [node for node in nodes if data[node] == 'I']
         print("actually infected nodes", true_infected)
-        for ti in true_infected:
-            print("neighborhood of ", ti, ": ", list(user_graph.neighbors(ti)))
+        #for ti in true_infected:
+        #    print("neighborhood of ", ti, ": ", list(user_graph.neighbors(ti)))
         
         mean, var, positive_nodes = TestMeasurement.take_measurements(self,
                                                                       observed_data,
