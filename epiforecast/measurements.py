@@ -369,7 +369,7 @@ class StaticNeighborTransferObservation:
                 dec_sort_vector = np.argsort(-xvar)
                 choice = dec_sort_vector[:self.obs_budget]
                 print("chosen_states", choice, "variance value", xvar[choice])
-            elif self.nbhd_smapling_method == "random":
+            elif self.nbhd_sampling_method == "random":
                 #random choice
                 choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
             else:
