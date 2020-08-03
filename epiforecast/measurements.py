@@ -351,13 +351,21 @@ class StaticNeighborTransferObservation:
             self.obs_states = candidate_nbhd_states
             
         elif candidate_nbhd_states.size > self.obs_budget:
-            #ordered choice
-            xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
-            dec_sort_vector = np.argsort(-xmean)
+            # ordered choice - mean
+            #xmean=np.mean(state[:,candidate_nbhd_states], axis=0)
+            #dec_sort_vector = np.argsort(-xmean)
+            #choice = dec_sort_vector[:self.obs_budget]
+            #print("chosen_states", choice, "variance value", xmean[choice])
+          
+            # ordered choice - var
+            xvar=np.var(state[:,candidate_nbhd_states], axis=0)
+            dec_sort_vector = np.argsort(-xvar)
             choice = dec_sort_vector[:self.obs_budget]
-            print("chosen_states", choice, "mean value", xmean[choice])
+            print("chosen_states", choice, "variance value", xvar[choice])
+
             #random choice
             #choice = np.random.choice(np.arange(candidate_nbhd_states.size), size=self.obs_budget, replace=False)
+
             self.obs_states = candidate_nbhd_states[choice]
 
         else: #candidate_nbhd_states.size < budget    
@@ -640,6 +648,8 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
                                           scale)
 
         nodes=network.get_nodes()
+        user_graph = network.get_graph()
+       
         #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
@@ -648,6 +658,8 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
 
         true_infected = [node for node in nodes if data[node] == 'I']
         print("actually infected nodes", true_infected)
+        for ti in true_infected:
+            print("neighborhood of ", ti, ": ", list(user_graph.neighbors(ti)))
         
         mean, var, positive_nodes = TestMeasurement.take_measurements(self,
                                                                       observed_data,
@@ -661,7 +673,6 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         
         #Now to add nodes to the neighbors list
         print("Nodes testing positive", positive_nodes)
-        user_graph = network.get_graph()
         positive_nodes_nbhd = [] 
         for pn in positive_nodes:
             positive_nodes_nbhd.extend(user_graph.neighbors(pn))
