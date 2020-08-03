@@ -1,17 +1,30 @@
+import numpy as np
 from epiforecast.measurements import (Observation,
+                                      FixedObservation,
                                       BudgetedObservation,
                                       StaticNeighborObservation,
                                       DataObservation,
                                       HighVarianceObservation)
 
 from _argparse_init import arguments
-from _user_network_init import user_population
+from _user_network_init import user_population, user_nodes
 from _utilities import print_start_of, print_end_of
 
 
 print_start_of(__name__)
 ################################################################################
 # imperfect observations #######################################################
+sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_I_budget, replace=False)
+continuous_infection_test = FixedObservation(
+    N=user_population,
+    obs_nodes=sensor_wearers,
+    obs_status='I',
+    obs_name="continuous_infection_test",
+    noisy_measurement=True,
+    sensitivity=0.5,
+    specificity=0.5,
+    obs_var_min=1e-6)
+
 random_infection_test = Observation(
         N=user_population,
         obs_frac=arguments.observations_I_fraction_tested,
