@@ -200,7 +200,7 @@ class DataAssimilator:
                      ensemble_state,
                      data,
                      current_time,
-                     scale='log',
+                     scale = None,
                      noisy_measurement=True)
         
     # ensemble_state np.array([ensemble size, num status * num nodes]
