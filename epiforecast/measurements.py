@@ -123,26 +123,69 @@ class TestMeasurement:
         return measurements, uncertainty, positive_nodes
 
 #### Adding Observations in here
+class FixedNodeObservation:
+    """
+    Performs an observation at a fixed set of nodes.
+    """
+    def __init__(
+            self,
+            N,
+            obs_nodes,
+            obs_status):
+        """
+        Args
+        ----
+        N (int): user population size
+        obs_nodes (list/np.array): collection of node id's from which we always observe
+        obs_status (string): status to observe
+        """
+       
+        #number of nodes in the graph
+        self.N = N
 
+        #statuses
+        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.n_status = len(self.status_catalog.keys())
+        self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
+        print("observed nodes", obs_nodes)
+        #fixed observation
+        self.obs_states = np.hstack([self.N*self.obs_status_idx+i for i in obs_nodes])
+        
+
+    def find_observation_states(
+            self,
+            network,
+            state,
+            data):
+        """
+        Update the observation model when taking observation
+        """
+        #Candidates for observations are those with a required state >= threshold
+        return self.obs_states
+            
 class StateInformedObservation:
     def __init__(
             self,
             N,
             obs_frac,
             obs_status,
-            min_threshold,
-            max_threshold):
-
-       
+            min_threshold=0.0,
+            max_threshold=1.0):
+        """
+        Args
+        ----
+        N (int): user population size
+        obs_frac (float): the fraction of the states satisfying the threshold to observe
+        obs_status (string): status to observe
+        min_threshold (float): mean of ensemble >= minimum threshold for observation to occur
+        max_threshold (float): mean of ensemble <= maximum threshold for observation to occur
+        """
         #number of nodes in the graph
         self.N = N
-        #number of different states a node can be in
 
+        #statuses
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         self.n_status = len(self.status_catalog.keys())
-
-
-        #array of status to observe
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
 
         #The fraction of states
@@ -199,6 +242,15 @@ class BudgetedInformedObservation:
             min_threshold,
             max_threshold):
 
+        """
+        Args
+        ----
+        N (int): user population size
+        obs_budget (int): the number of states to observe in every observation
+        obs_status (string): status to observe
+        min_threshold (float): mean of ensemble >= minimum threshold for observation preference
+        max_threshold (float): mean of ensemble <= maximum threshold for observation preference
+        """
        
         #number of nodes in the graph
         self.N = N
@@ -273,6 +325,19 @@ class StaticNeighborTransferObservation:
             storage_type="temporary",
             nbhd_sampling_method="random"):
 
+        """
+        Args
+        ----
+        N (int): user population size
+        obs_budget (int): the number of states to observe in every observation
+        obs_status (string): status to observe
+        storage_type (string): "temporary" we only store the nbhd nodes for 1 subsequent observation
+                               "permanent" we store the nbhd nodes until they are observed
+        nbhd_sampling_method (string): strategy to pick nodes when observing a neighborhood
+                                      "random" - random choice of the size of the budget
+                                      "mean" - order states by mean value of state and choose the largest
+                                      "variance" - order states by variance and choose the largest
+        """
        
         #number of nodes in the graph
         self.N = N
@@ -395,11 +460,22 @@ class StaticNeighborTransferObservation:
             raise ValueError("unknown storage_type. Choose from 'permanent', 'temporary'(default)")
 
 class HighVarianceStateInformedObservation:
+    """
+    We observe a given fraction of states which have the highest variance (in the ensemble).
+    """
     def __init__(
             self,
             N,
             obs_frac,
             obs_status):
+
+        """
+        Args
+        ----
+        N (int): user population size
+        obs_frac (float): the fraction of total states to observe
+        obs_status (string): status to observe
+        """
 
         #number of nodes in the graph
         self.N = N
@@ -602,6 +678,79 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
         self.mean     = observed_mean
         self.variance = observed_variance
                 
+class FixedObservation(FixedNodeObservation, TestMeasurement):
+    def __init__(
+            self,
+            N,
+            obs_nodes,
+            obs_status,
+            obs_name,
+            sensitivity=0.80,
+            specificity=0.99,
+            noisy_measurement=True,
+            obs_var_min = 1e-3):
+
+        self.name=obs_name
+        self.obs_var_min = obs_var_min
+
+        FixedNodeObservation.__init__(self,
+                                      N,
+                                      obs_nodes,
+                                      obs_status)
+        TestMeasurement.__init__(self,
+                                 obs_status,
+                                 sensitivity,
+                                 specificity,
+                                 noisy_measurement)
+
+    def find_observation_states(
+            self,
+            network,
+            state,
+            data):
+        """
+        Obtain where one should make an observation based on the current state,
+
+        Inputs:
+            state: np.array of size [self.N * n_status]
+        """
+        FixedNodeObservation.find_observation_states(self,
+                                                     network,
+                                                     state,
+                                                     data)
+
+    def observe(
+            self,
+            network,
+            state,
+            data,
+            scale='log'):
+        """
+        Inputs:
+            data: dictionary {node number : status}; data[i] = contact_network.node(i)
+        """
+
+        #make a measurement of the data
+        TestMeasurement.update_prevalence(self,
+                                          state,
+                                          scale)
+
+        nodes=network.get_nodes()
+        #mean, var np.arrays of size state
+        observed_states = np.remainder(self.obs_states,self.N)
+        #convert from np.array indexing to the node id in the (sub)graph
+        observed_nodes = nodes[observed_states]
+        observed_data = {node : data[node] for node in observed_nodes}
+
+        mean, var = TestMeasurement.take_measurements(self,
+                                                      observed_data,
+                                                      scale)[0:2]
+
+        observed_mean     = np.array([mean[node] for node in observed_nodes])
+        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+
+        self.mean     = observed_mean
+        self.variance = observed_variance
 
 
 class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurement):
