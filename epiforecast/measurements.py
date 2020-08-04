@@ -611,6 +611,8 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
             obs_budget,
             obs_status,
             obs_name,
+            storage_type="temporary",
+            nbhd_sampling_method="random",
             sensitivity=0.80,
             specificity=0.99,
             noisy_measurement=True,
@@ -620,9 +622,12 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         self.obs_var_min = obs_var_min
 
         StaticNeighborTransferObservation.__init__(self,
-                                          N,
-                                          obs_budget,
-                                          obs_status)
+                                                   N,
+                                                   obs_budget,
+                                                   obs_status,
+                                                   storage_type,
+                                                   nbhd_sampling_method)
+
         TestMeasurement.__init__(self,
                                  obs_status,
                                  sensitivity,
