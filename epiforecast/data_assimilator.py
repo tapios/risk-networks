@@ -155,7 +155,7 @@ class DataAssimilator:
             state,
             data,
             current_time,
-            scale='log',
+            scale=None,
             noisy_measurement=True):
 
         if current_time in self.stored_observed_means:
@@ -188,6 +188,8 @@ class DataAssimilator:
             data,
             user_network,
             current_time,
+            scale=None,
+            noisy_measurement=True,
             verbose=False):
         
         self.find_observation_states(user_network,
@@ -199,9 +201,7 @@ class DataAssimilator:
         self.observe(user_network,
                      ensemble_state,
                      data,
-                     current_time,
-                     scale = None,
-                     noisy_measurement=True)
+                     current_time)
         
     # ensemble_state np.array([ensemble size, num status * num nodes]
     # data np.array([num status * num nodes])
