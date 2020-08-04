@@ -14,7 +14,8 @@ from _utilities import print_start_of, print_end_of
 print_start_of(__name__)
 ################################################################################
 # imperfect observations #######################################################
-sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_I_budget, replace=False)
+
+sensor_wearers=np.random.choice(user_nodes, size=int(user_population/4), replace=False)
 continuous_infection_test = FixedObservation(
     N=user_population,
     obs_nodes=sensor_wearers,
