@@ -22,7 +22,7 @@ continuous_infection_test = FixedObservation(
     obs_name="continuous_infection_test",
     noisy_measurement=True,
     sensitivity=0.5,
-    specificity=0.5,
+    specificity=0.75,
     obs_var_min=1e-6)
 
 random_infection_test = Observation(
@@ -45,6 +45,7 @@ budgeted_random_infection_test = BudgetedObservation(
         max_threshold=arguments.observations_I_max_threshold,
         noisy_measurement=True,
         sensitivity=0.99,
+        specificity=0.99,
         obs_var_min=1e-6)
 
 neighbor_transfer_infection_test = StaticNeighborObservation(
@@ -52,8 +53,11 @@ neighbor_transfer_infection_test = StaticNeighborObservation(
         obs_budget=arguments.observations_I_budget,
         obs_status='I',
         obs_name="Static Neighbor Transfer Infection Test",
+        storage_type="temporary",
+        nbhd_sampling_method="random",
         noisy_measurement=True,
         sensitivity=0.99,
+        specificity=0.99,
         obs_var_min=1e-6)
 
 high_var_infection_test = HighVarianceObservation(
