@@ -48,6 +48,7 @@ from _user_network_init import user_network, user_nodes, user_population
 
 # observations #################################################################
 from _observations_init import (random_infection_test,
+                                continuous_infection_test,
                                 budgeted_random_infection_test,
                                 neighbor_transfer_infection_test,
                                 high_var_infection_test,
@@ -56,7 +57,8 @@ from _observations_init import (random_infection_test,
                                 positive_death_records,
                                 negative_death_records)
 
-imperfect_observations = [neighbor_transfer_infection_test]
+imperfect_observations = [continuous_infection_test,
+                          neighbor_transfer_infection_test]
 perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
