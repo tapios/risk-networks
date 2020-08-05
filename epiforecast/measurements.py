@@ -40,7 +40,7 @@ class TestMeasurement:
 
     def _set_ppv(
             self,
-            scale='log'):
+            scale=None):
 
         PPV = self.sensitivity * self.prevalence / \
              (self.sensitivity * self.prevalence + (1 - self.specificity) * (1 - self.prevalence))
@@ -68,7 +68,7 @@ class TestMeasurement:
     def update_prevalence(
             self,
             ensemble_states,
-            scale='log',
+            scale=None,
             fixed_prevalence=None):
 
         self._set_prevalence(ensemble_states, fixed_prevalence)
@@ -77,7 +77,7 @@ class TestMeasurement:
     def get_mean_and_variance(
             self,
             positive_test=True,
-            scale='log'):
+            scale=None):
 
         if scale == 'log':
             if positive_test:
@@ -93,7 +93,7 @@ class TestMeasurement:
     def take_measurements(
             self,
             nodes_state_dict,
-            scale='log'):
+            scale=None):
         """
         Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
         population with a certain prevelance (computed from an ensemble of master equations).
@@ -569,7 +569,7 @@ class Observation(StateInformedObservation, TestMeasurement):
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -650,7 +650,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -724,7 +724,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -804,7 +804,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -897,7 +897,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -1020,7 +1020,7 @@ class DataObservation(DataInformedObservation):
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -1136,7 +1136,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             network,
             state,
             data,
-            scale='log'):
+            scale=None):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
