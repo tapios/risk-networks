@@ -57,8 +57,7 @@ from _observations_init import (random_infection_test,
                                 positive_death_records,
                                 negative_death_records)
 
-imperfect_observations = [continuous_infection_test,
-                          neighbor_transfer_infection_test]
+imperfect_observations = [budgeted_random_infection_test]
 perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
@@ -79,7 +78,7 @@ assimilator_imperfect_observations = DataAssimilator(
 assimilator_perfect_observations = DataAssimilator(
         observations=perfect_observations,
         errors=[],
-        n_assimilation_batches = 4,
+        n_assimilation_batches = 40,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
@@ -112,12 +111,14 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 ################################################################################
 # constants ####################################################################
 
+#floats
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
-n_prediction_windows_spin_up = 12
+#ints
+n_prediction_windows_spin_up = 10
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
@@ -172,11 +173,11 @@ for j in range(spin_up_steps):
 
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
-        
         assimilate_I_now = modulo_is_close_to_zero(current_time,
                                                    I_assimilation_interval,
                                                    eps=static_contact_interval)
         if assimilate_I_now:
+            print("gather data at ", current_time)
             assimilator_imperfect_observations.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -242,6 +243,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                    I_assimilation_interval,
                                                    eps=static_contact_interval)
         if assimilate_I_now:
+            print("gather data at ", current_time)
+
             assimilator_imperfect_observations.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
