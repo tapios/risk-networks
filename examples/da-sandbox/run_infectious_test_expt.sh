@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --time=6:00:00                 # walltime
+#SBATCH --time=48:00:00                 # walltime
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
-#SBATCH --mem-per-cpu=4G               # 24G is needed for 10k full user base
+#SBATCH --mem-per-cpu=24G 
 #SBATCH -J "I_expt"
 #SBATCH --output=output/slurm_%j.out
 #SBATCH --error=output/slurm_%j.err  
@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="budget"
+EXP_NAME="test"
 
 # parameters & constants #######################################################
 # by fraction
@@ -31,7 +31,10 @@ EXP_NAME="budget"
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${tested}"
 
 # by number
+#for 1e3
 test_budgets=(982 491 98 49 39 29 19 9 4 0)  
+#for 1e4
+#test_budgets=(982 491 392 294 196 98 49 0)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
@@ -39,6 +42,7 @@ output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 #other params 
 network_size=1e3
 I_min_threshold=0.0
+I_max_threshold=1.0
 user_fraction=1.0
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -51,10 +55,11 @@ module load python3/3.7.0
 python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
-#  --observations-I-fraction-tested=${tested} \
-  --observation-I-budget=${budget} \
+  --observations-I-budget=${budget} \
   --observations-I-min-threshold=${I_min_threshold} \
+  --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
   >${stdout} 2>${stderr}
 
+#  --observations-I-fraction-tested=${tested} \
 
