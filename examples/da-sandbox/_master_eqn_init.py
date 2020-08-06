@@ -1,6 +1,6 @@
 import numpy as np
 
-from _argparse_init.py import arguments
+from _argparse_init import arguments
 
 if arguments.parallel_flag:
     #For parallel master equations
