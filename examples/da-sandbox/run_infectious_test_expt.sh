@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="test"
+EXP_NAME="test_serial"
 
 # parameters & constants #######################################################
 # by fraction
@@ -39,11 +39,13 @@ budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
 
-#other params 
+#parsed parameters 
 network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
+batches=4
+parflag=False
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -51,7 +53,6 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
-module load python3/3.7.0
 python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
@@ -59,7 +60,8 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
+  --assimilation-batches=${batches}
+  --parallel-flag=${parflag}
   >${stdout} 2>${stderr}
 
 #  --observations-I-fraction-tested=${tested} \
-

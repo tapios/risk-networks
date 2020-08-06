@@ -12,6 +12,7 @@ from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
 from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, PerformanceTracker
 from epiforecast.utilities import dict_slice
 
+from _argparse_init import arguments
 
 
 ################################################################################
@@ -78,7 +79,7 @@ assimilator_imperfect_observations = DataAssimilator(
 assimilator_perfect_observations = DataAssimilator(
         observations=perfect_observations,
         errors=[],
-        n_assimilation_batches = 40,
+        n_assimilation_batches = arguments.assimilation_batches,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 

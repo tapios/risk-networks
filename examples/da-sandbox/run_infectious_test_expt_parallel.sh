@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --time=6:00:00                 # walltime
+#SBATCH --time=24:00:00                 # walltime
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=16
 #SBATCH --exclusive
-#SBATCH --mem=192G                       
+#SBATCH --mem=48G                       
 #SBATCH -J "I_per_day_test"
 #SBATCH --output=output/slurm_%j.out
 #SBATCH --error=output/slurm_%j.err  
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="test_parallel"
+EXP_NAME="1e4_SD_long"
 
 
 # parameters & constants #######################################################
@@ -47,6 +47,8 @@ network_size=1e4
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
+batches=40
+parflag=True
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -54,7 +56,7 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
-module load python3/3.7.0
+#module load python3/3.7.0
 python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
@@ -62,6 +64,8 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
+  --assimilation-batchest=${batches} \
+  --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 
 
