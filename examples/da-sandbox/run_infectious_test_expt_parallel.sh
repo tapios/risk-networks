@@ -64,7 +64,7 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batchest=${batches} \
+  --assimilation-batches=${batches} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 
