@@ -12,6 +12,7 @@ from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
 from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, PerformanceTracker
 from epiforecast.utilities import dict_slice
 
+from _argparse_init import arguments
 
 
 ################################################################################
@@ -48,13 +49,16 @@ from _user_network_init import user_network, user_nodes, user_population
 
 # observations #################################################################
 from _observations_init import (random_infection_test,
+                                continuous_infection_test,
+                                budgeted_random_infection_test,
+                                neighbor_transfer_infection_test,
                                 high_var_infection_test,
                                 positive_hospital_records,
                                 negative_hospital_records,
                                 positive_death_records,
                                 negative_death_records)
 
-imperfect_observations = [random_infection_test]
+imperfect_observations = [budgeted_random_infection_test]
 perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
@@ -75,7 +79,7 @@ assimilator_imperfect_observations = DataAssimilator(
 assimilator_perfect_observations = DataAssimilator(
         observations=perfect_observations,
         errors=[],
-        n_assimilation_batches = 4,
+        n_assimilation_batches = arguments.assimilation_batches,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
@@ -108,17 +112,20 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 ################################################################################
 # constants ####################################################################
 
+#floats
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
-n_prediction_windows_spin_up = 12
+#ints
+n_prediction_windows_spin_up = 10
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
 
-assert n_prediction_windows_spin_up * prediction_window + prediction_window > da_window 
+assert n_prediction_windows_spin_up * prediction_window + prediction_window > da_window
+earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
 assert n_prediction_windows > n_prediction_windows_spin_up
 
 # storing ######################################################################
@@ -165,6 +172,32 @@ for j in range(spin_up_steps):
 
     current_time += static_contact_interval
 
+    #generate data to be assimilated later on
+    if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
+        assimilate_I_now = modulo_is_close_to_zero(current_time,
+                                                   I_assimilation_interval,
+                                                   eps=static_contact_interval)
+        if assimilate_I_now:
+            print("gather data at ", current_time)
+            assimilator_imperfect_observations.find_and_store_observations(
+                ensemble_state,
+                loaded_data.end_statuses,
+                user_network,
+                current_time)
+
+        assimilate_HD_now = modulo_is_close_to_zero(current_time,
+                                                    HD_assimilation_interval,
+                                                    eps=static_contact_interval)
+        if assimilate_HD_now:
+            assimilator_perfect_observations.find_and_store_observations(
+                ensemble_state,
+                loaded_data.end_statuses,
+                user_network,
+                current_time)
+
+       
+
+        
 print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 print_info("Spin-up ended: current time", current_time)
 
@@ -172,6 +205,7 @@ print_info("Spin-up ended: current time", current_time)
 # 3 stages per loop: 
 # 1) prediction (no assimilation) forwards steps_per_prediction_window
 #    - Save data during this window from [ start , end )
+#    - Make observations and store them in the assimilator
 # 2) backward assimilation for steps_per_da_window
 #    - assimilate first, then run eqn
 #    - a final assimilation for the end of window
@@ -206,6 +240,29 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                       min_steps=n_forward_steps)
         current_time += static_contact_interval
 
+        assimilate_I_now = modulo_is_close_to_zero(current_time,
+                                                   I_assimilation_interval,
+                                                   eps=static_contact_interval)
+        if assimilate_I_now:
+            print("gather data at ", current_time)
+
+            assimilator_imperfect_observations.find_and_store_observations(
+                ensemble_state,
+                loaded_data.end_statuses,
+                user_network,
+                current_time)
+
+        assimilate_HD_now = modulo_is_close_to_zero(current_time,
+                                                    HD_assimilation_interval,
+                                                    eps=static_contact_interval)
+        if assimilate_HD_now:
+            assimilator_perfect_observations.find_and_store_observations(
+                ensemble_state,
+                loaded_data.end_statuses,
+                user_network,
+                current_time)
+
+        
     print_info("Prediction ended: current time:", current_time)
 
     ## 2) backward run with data assimilation
@@ -219,6 +276,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         assimilate_I_now = modulo_is_close_to_zero(past_time,
                                                    I_assimilation_interval,
                                                    eps=static_contact_interval)
+
         delay_satisfied = past_time <= (current_time - I_observation_delay)
 
         if assimilate_I_now and delay_satisfied:
@@ -230,7 +288,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.end_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
-                    user_nodes,
                     past_time)
 
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
@@ -245,7 +302,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.end_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
-                    user_nodes,
                     past_time)
 
         # update ensemble after data assimilation
@@ -274,27 +330,25 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
          transition_rates_ensemble,
          community_transmission_rate_ensemble
         ) = assimilator_imperfect_observations.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                user_nodes,
-                past_time)
-
-    assimilate_HD_now = modulo_is_close_to_zero(past_time,
-                                                HD_assimilation_interval,
-                                                eps=static_contact_interval)
+            ensemble_state,
+            loaded_data.start_statuses,
+            transition_rates_ensemble,
+            community_transmission_rate_ensemble,
+            past_time)
+        
+        assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                    HD_assimilation_interval,
+                                                    eps=static_contact_interval)
     if assimilate_HD_now:
         (ensemble_state,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
         ) = assimilator_perfect_observations.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                user_nodes,
-                past_time)
+            ensemble_state,
+            loaded_data.start_statuses,
+            transition_rates_ensemble,
+            community_transmission_rate_ensemble,
+            past_time)
 
     # update ensemble after data assimilation
     if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
@@ -334,7 +388,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.end_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
-                    user_nodes,
                     past_time)
 
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
@@ -349,7 +402,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.end_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
-                    user_nodes,
                     past_time)
 
         # update ensemble after data assimilation

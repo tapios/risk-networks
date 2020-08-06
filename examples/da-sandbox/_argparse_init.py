@@ -10,6 +10,9 @@ parser = argparse.ArgumentParser()
 
 print_info_module(__name__, "parsing args of PID:", os.getpid())
 
+# parallel ####################################################################
+parser.add_argument('--parallel-flag', type=bool, default=True)
+
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
 
@@ -22,8 +25,12 @@ parser.add_argument('--user-network-seed-user', type=int, default=190)
 
 # observations #################################################################
 parser.add_argument('--observations-I-fraction-tested', type=float, default=0.01)
+parser.add_argument('--observations-I-budget', type=int, default=10)
 parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
+parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 
+# data assimilation ###########################################################
+parser.add_argument('--assimilation-batches', type=int, default=4)
 
 # parser setup #################################################################
 arguments = parser.parse_args()
