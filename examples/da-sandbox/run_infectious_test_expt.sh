@@ -8,7 +8,7 @@
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-9
+#SBATCH --array=0-6
 
 ##################################
 # Infectiousness test experiment #
@@ -22,24 +22,30 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="test_serial"
+EXP_NAME="sensor_poortest_5perc"
 
 # parameters & constants #######################################################
 # by fraction
-#fraction_tested=(1.0 0.5 0.1 0.05 0.04 0.03 0.02 0.01 0.005 0.0) #Make sure no. expts agrees with size of array. and no commas.
+#fraction_tested=(0.5 0.4 0.3 0.2 0.1 0.05 0.01 0.0) #Make sure no. expts agrees with size of array. and no commas.
 #tested=${fractions_tested[${SLURM_ARRAY_TASK_ID}]}
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${tested}"
 
 # by number
 #for 1e3
-test_budgets=(982 491 98 49 39 29 19 9 4 0)  
+#test_budgets=9  
 #for 1e4
 #test_budgets=(982 491 392 294 196 98 49 0)  
-budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
+#budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
+#output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
+#by sensor wearers
+sensor_wearers=(982 491 392 294 196 98 49)
+wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
+output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
 
 #parsed parameters 
+budget=49 #high quality tests 5% population
+tested=0
 network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
@@ -56,12 +62,13 @@ mkdir -p "${output_path}"
 python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
+  --observations-I-fraction-tested=${tested} \
   --observations-I-budget=${budget} \
+  --observations-sensor-wearers=${wearers} \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batches=${batches}
-  --parallel-flag=${parflag}
+  --assimilation-batches=${batches} \
+  --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 
-#  --observations-I-fraction-tested=${tested} \
