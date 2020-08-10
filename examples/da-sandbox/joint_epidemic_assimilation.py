@@ -25,8 +25,6 @@ from _constants import (static_contact_interval,
                         end_time,
                         total_time,
                         time_span,
-                        min_contact_rate,
-                        max_contact_rate,
                         distanced_max_contact_rate,
                         OUTPUT_PATH)
 
@@ -98,7 +96,6 @@ from _master_eqn_init import (master_eqn_ensemble,
 # post-processing ##############################################################
 from _post_process_init import axes
 
-
 # inverventions ################################################################
 from _intervention_init import (intervention,
                                 intervention_frequency,
@@ -135,7 +132,7 @@ I_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_prediction_windows_spin_up = 10
+n_prediction_windows_spin_up = 8
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
@@ -242,7 +239,49 @@ for j in range(spin_up_steps):
                 user_network,
                 current_time)
 
-       
+    #intervention if required
+    # first get the frequency
+    if intervention_frequency == "none":
+        intervene_now=False
+    elif intervention_frequency == "single":
+        intervene_now = modulo_is_close_to_zero(current_time,
+                                                intervention_start_time,
+                                                eps=static_contact_interval)
+    elif intervention_frequency == "interval":
+        if current_time > intervention_start_time - 0.1 * static_contact_interval:
+            intervene_now = modulo_is_close_to_zero(current_time,
+                                                    intervention_interval,
+                                                    eps=static_contact_interval)
+    else:
+        raise ValueError("unknown 'intervention_frequency', choose from 'none' (default), 'single', or 'interval' ")
+    
+    
+    if intervene_now:
+        # now see which nodes have intervention applied
+        if intervention_nodes == "all":
+            nodes_to_intervene = user_nodes
+            print("intervention applied to all {:d} nodes.".format(
+                network.get_node_count()))
+            
+        elif intervention_nodes == "sick":
+            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            print("intervention applied to sick nodes: {:d}/{:d}".format(
+                sick_nodes.size, network.get_node_count()))
+        else:
+            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
+
+        # Apply the the chosen form of intervention
+        if intervention_type == "isolate":
+            network.isolate(nodes_to_intervene) 
+
+        elif intervention_type == "social_distance":
+            λ_min, λ_max = network.get_lambdas()
+            λ_max[nodes_to_intervene] = distanced_max_contact_rate
+            network.set_lambdas(λ_min,λ_max)
+
+        else:
+            raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
+
 
         
 print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
@@ -516,7 +555,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
             nodes_to_intervene = user_nodes
-            print("intervention applied to sick nodes: {:d}".format(
+            print("intervention applied to all {:d} nodes".format(
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
@@ -532,7 +571,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas()
-            λ_min[nodes_to_intervene] = min_contact_rate
             λ_max[nodes_to_intervene] = distanced_max_contact_rate
             network.set_lambdas(λ_min,λ_max)
 
