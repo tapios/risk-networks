@@ -34,7 +34,11 @@ parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 parser.add_argument('--assimilation-batches', type=int, default=4)
 
 # interventions ###############################################################
-parser.add_argument('--intervention-E-min-threshold', type=float, default=0.999)
+parser.add_argument('--intervention-frequency', type=str, default='none')
+parser.add_argument('--intervention-nodes', type=str, default='all')
+parser.add_argument('--intervention-type', type=str, default='social_distance')
+
+parser.add_argument('--intervention-E-min-threshold', type=float, default=0.999)#1.0 not allowed...
 parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
 parser.add_argument('--intervention-start-time', type=float, default=10.0)
 parser.add_argument('--intervention-interval', type=float, default=1.0)

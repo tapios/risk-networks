@@ -13,3 +13,9 @@ intervention = Intervention(
         E_thr = arguments.intervention_E_min_threshold,
         I_thr = arguments.intervention_I_min_threshold)
 
+#intervention_frequency: 'none' (default), 'single', 'interval'
+intervention_frequency = arguments.intervention_frequency
+#intervention_nodes: 'all' (default), 'sick'
+intervention_nodes = arguments.intervention_nodes
+#intervention_type: 'social_distance' (default), 'isolate'
+intervention_type = arguments.intervention_type

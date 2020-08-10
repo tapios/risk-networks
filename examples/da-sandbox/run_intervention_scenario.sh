@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="982_sens_intervention_time"
+EXP_NAME="social_dist_intervention_time"
 
 # parameters & constants #######################################################
 #by sensor wearers
@@ -45,10 +45,7 @@ I_max_threshold=1.0
 user_fraction=1.0
 batches=4
 parflag=False
-intervention_E_min_threshold=0.999
-intervention_I_min_threshold=0.1
-intervention_interval=1.0
-
+int_freq='single'
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -67,9 +64,7 @@ python3 joint_epidemic_assimilation.py \
   --network-node-count=${network_size} \
   --assimilation-batches=${batches} \
   --parallel-flag=${parflag} \
-  --intervention-interval=${intervention_interval} \
-  --intervention-E-min-threshold=${intervention_E_min_threshold} \
-  --intervention-I-min-threshold=${intervention_I_min_threshold} \
+  --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \
   >${stdout} 2>${stderr}
 

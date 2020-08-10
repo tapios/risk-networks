@@ -8,7 +8,7 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
-from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
+from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states, plot_epidemic_data
 from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, PerformanceTracker
 from epiforecast.utilities import dict_slice, compartments_count
 
@@ -25,6 +25,9 @@ from _constants import (static_contact_interval,
                         end_time,
                         total_time,
                         time_span,
+                        min_contact_rate,
+                        max_contact_rate,
+                        distanced_max_contact_rate,
                         OUTPUT_PATH)
 
 # utilities ####################################################################
@@ -97,7 +100,10 @@ from _post_process_init import axes
 
 
 # inverventions ################################################################
-from _intervention_init import intervention
+from _intervention_init import (intervention,
+                                intervention_frequency,
+                                intervention_nodes, 
+                                intervention_type) 
 
 ################################################################################
 # epidemic setup ###############################################################
@@ -490,26 +496,58 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                "ended; elapsed:", timer() - timer_window, end='\n\n')
 
     #4) Intervention
-    if current_time > intervention_start_time - 0.1 * static_contact_interval:
+    # first get the frequency
+    if intervention_frequency == "none":
+        intervene_now=False
+    elif intervention_frequency == "single":
         intervene_now = modulo_is_close_to_zero(current_time,
-                                                   intervention_interval,
-                                                   eps=static_contact_interval)
-        if intervene_now:
-            sick_nodes = intervention.find_sick(ensemble_state)
-            network.isolate(sick_nodes)
-            print("Sick nodes: {:d}/{:d}".format(
+                                                intervention_start_time,
+                                                eps=static_contact_interval)
+    elif intervention_frequency == "interval":
+        if current_time > intervention_start_time - 0.1 * static_contact_interval:
+            intervene_now = modulo_is_close_to_zero(current_time,
+                                                    intervention_interval,
+                                                    eps=static_contact_interval)
+    else:
+        raise ValueError("unknown 'intervention_frequency', choose from 'none' (default), 'single', or 'interval' ")
+    
+    
+    if intervene_now:
+        # now see which nodes have intervention applied
+        if intervention_nodes == "all":
+            nodes_to_intervene = user_nodes
+            print("intervention applied to sick nodes: {:d}".format(
+                network.get_node_count()))
+            
+        elif intervention_nodes == "sick":
+            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            print("intervention applied to sick nodes: {:d}/{:d}".format(
                 sick_nodes.size, network.get_node_count()))
+        else:
+            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
+        # Apply the the chosen form of intervention
+        if intervention_type == "isolate":
+            network.isolate(nodes_to_intervene) 
+
+        elif intervention_type == "social_distance":
+            λ_min, λ_max = network.get_lambdas()
+            λ_min[nodes_to_intervene] = min_contact_rate
+            λ_max[nodes_to_intervene] = distanced_max_contact_rate
+            network.set_lambdas(λ_min,λ_max)
+
+        else:
+            raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
 
 
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
 
-
+print("finished assimilation")
 # save & plot ##################################################################
 
-import _post_process_epidemic
+axes = plot_epidemic_data(population, statuses_sum_trace, axes, time_span)
 
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
