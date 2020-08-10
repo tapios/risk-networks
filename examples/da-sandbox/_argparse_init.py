@@ -28,9 +28,17 @@ parser.add_argument('--observations-I-fraction-tested', type=float, default=0.01
 parser.add_argument('--observations-I-budget', type=int, default=10)
 parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
+parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 
 # data assimilation ###########################################################
 parser.add_argument('--assimilation-batches', type=int, default=4)
+
+# interventions ###############################################################
+parser.add_argument('--intervention-E-min-threshold', type=float, default=0.999)
+parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
+parser.add_argument('--intervention-start-time', type=float, default=10.0)
+parser.add_argument('--intervention-interval', type=float, default=1.0)
+
 
 # parser setup #################################################################
 arguments = parser.parse_args()
