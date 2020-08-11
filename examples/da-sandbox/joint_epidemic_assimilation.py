@@ -452,9 +452,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             community_transmission_rate_ensemble,
             past_time)
         
-        assimilate_HD_now = modulo_is_close_to_zero(past_time,
-                                                    HD_assimilation_interval,
-                                                    eps=static_contact_interval)
+    assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                HD_assimilation_interval,
+                                                eps=static_contact_interval)
     if assimilate_HD_now:
         (ensemble_state,
          transition_rates_ensemble,
