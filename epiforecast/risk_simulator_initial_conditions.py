@@ -15,6 +15,33 @@ def random_risk(population, fraction_infected = 0.01, ensemble_size=1):
 
     return states_ensemble, 'rrisk'+str(int(fraction_infected*100)).zfill(3)
 
+def random_risk_range(population, min_fraction_infected = None, max_fraction_infected=None, ensemble_size=1):
+    """
+    Initial ensemble states have a fraction of infected, given by a uniform distn between a provided min and max
+    """
+    if min_fraction_infected is None:
+        min_fraction_infected = 1.001/population #to avoid rounding errors
+    if max_fraction_infected is None:
+        max_fraction_infected = min_fraction_infected
+
+    assert (max_fraction_infected >= min_fraction_infected) 
+
+    fraction_infected = np.random.uniform(min_fraction_infected, max_fraction_infected, ensemble_size)
+
+    states_ensemble = np.zeros([ensemble_size, 5 * population])
+    for mm in range(ensemble_size):
+        infected = np.random.choice(population, replace = False, size = int(population * fraction_infected[mm]))
+        E, I, H, R, D = np.zeros([5, population])
+        S = np.ones(population,)
+        I[infected] = 1.
+        S[infected] = 0.
+
+        states_ensemble[mm, : ] = np.hstack((S, I, H, R, D))
+
+    return states_ensemble
+
+
+
 def uniform_risk(population, fraction_infected = 0.01, ensemble_size=1):
     states_ensemble = np.zeros([ensemble_size, 5 * population])
     for mm in range(ensemble_size):

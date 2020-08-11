@@ -1,6 +1,14 @@
 import numpy as np
 
-from epiforecast.risk_simulator import MasterEquationModelEnsemble
+from _argparse_init import arguments
+
+if arguments.parallel_flag:
+    #For parallel master equations
+    from epiforecast.risk_simulator_parallel import MasterEquationModelEnsemble
+
+else:
+    #For serial master equations
+    from epiforecast.risk_simulator import MasterEquationModelEnsemble
 
 from _constants import (start_time,
                         community_transmission_rate,

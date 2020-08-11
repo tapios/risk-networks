@@ -21,7 +21,7 @@ def print_info(*args, **kwargs):
 WALL_START_TIME = timer()
 SLEEP_INTERVAL_MAX = 60
 OUTPUT_PATH = 'output'
-EXEC = ['python3', 'true_rates_estimation.py']
+EXEC = ['python3', 'backward_forward_assimilation.py']
 CONST_ARGUMENTS = ['--observations-I-min-threshold', '0.0',
                    '--network-node-count', '1e4']
 

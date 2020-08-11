@@ -6,7 +6,7 @@
 #SBATCH --exclusive                     # exclusive use of the node
 #SBATCH --ntasks=1                      # number of processes (i.e. tasks)
 #SBATCH --cpus-per-task=56              # number of cores per process
-#SBATCH -J "risk_networks_true_rates"
+#SBATCH -J "risk_networks_user_base"
 #SBATCH --output=slurm_output/%A_%a.out
 #SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
@@ -18,7 +18,7 @@
 
 
 # create a directory named "slurm_output" and then submit with:
-#       sbatch --mail-user=mail@domain.com true_rates_estimation_sbatch.sh
+#       sbatch --mail-user=mail@domain.com run_user_base_expt.sh
 
 # preface ######################################################################
 set -euo pipefail
@@ -43,7 +43,7 @@ mkdir -p "${output_path}"
 
 # launch #######################################################################
 module load python3/3.8.5
-srun python3 true_rates_estimation.py \
+srun python3 backward_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-fraction-tested=${tested} \
