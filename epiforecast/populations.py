@@ -205,7 +205,6 @@ class TransitionRates:
         Output:
             None
         """
-        #apply relevant transforms
         lp  = self.transform_clinical_parameter(self.latent_periods,              self.lp_transform)
         cif = self.transform_clinical_parameter(self.community_infection_periods, self.cip_transform)
         hip = self.transform_clinical_parameter(self.hospital_infection_periods,  self.hip_transform)
@@ -213,12 +212,12 @@ class TransitionRates:
         cmf = self.transform_clinical_parameter(self.community_mortality_fraction,self.cmf_transform)
         hmf = self.transform_clinical_parameter(self.hospital_mortality_fraction, self.hmf_transform)
 
-        σ      = self.__broadcast_to_array(1 / lp)
-        γ      = self.__broadcast_to_array(1 / cif)
-        γ_prime= self.__broadcast_to_array(1 / hip)
-        h      = self.__broadcast_to_array(hf)
-        d      = self.__broadcast_to_array(cmf)
-        d_prime= self.__broadcast_to_array(hmf)
+        σ       = self.__broadcast_to_array(1 / lp)
+        γ       = self.__broadcast_to_array(1 / cif)
+        γ_prime = self.__broadcast_to_array(1 / hip)
+        h       = self.__broadcast_to_array(hf)
+        d       = self.__broadcast_to_array(cmf)
+        d_prime = self.__broadcast_to_array(hmf)
 
         self.exposed_to_infected      = dict(enumerate(σ))
         self.infected_to_resistant    = dict(enumerate((1 - h - d) * γ))
@@ -226,6 +225,20 @@ class TransitionRates:
         self.infected_to_deceased     = dict(enumerate(d * γ))
         self.hospitalized_to_resistant= dict(enumerate((1 - d_prime) * γ_prime))
         self.hospitalized_to_deceased = dict(enumerate(d_prime * γ_prime))
+
+    def get_rate(
+            self,
+            name):
+        """
+        Get a transition rate by its name as np.array
+
+        Input:
+            name (str): rate name, like 'exposed_to_infected'
+        Output:
+            rate (np.array): (self.population,) array of values
+        """
+        rate_dict = getattr(self, name)
+        return np.fromiter(rate_dict.values(), dtype=np.float_)
 
     def get_clinical_transforms(self):
         """
