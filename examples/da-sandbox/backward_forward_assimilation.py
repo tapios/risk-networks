@@ -439,10 +439,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
 
-    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
-               "elapsed:", timer() - timer_window, end='\n\n')
-
-
 # save & plot ##################################################################
 # plot trajectories
 axes = plot_ensemble_states(population,
