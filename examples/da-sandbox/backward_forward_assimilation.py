@@ -58,7 +58,8 @@ from _observations_init import (random_infection_test,
                                 positive_death_records,
                                 negative_death_records)
 
-imperfect_observations = [budgeted_random_infection_test]
+imperfect_observations = [continuous_infection_test,
+                          neighbor_transfer_infection_test]
 perfect_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
@@ -73,13 +74,14 @@ transmission_rate_to_update_flag = False
 assimilator_imperfect_observations = DataAssimilator(
         observations=imperfect_observations,
         errors=[],
+        n_assimilation_batches = arguments.assimilation_batches_imperfect,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
 assimilator_perfect_observations = DataAssimilator(
         observations=perfect_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches,
+        n_assimilation_batches = arguments.assimilation_batches_perfect,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
@@ -119,7 +121,7 @@ HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
 #ints
-n_prediction_windows_spin_up = 10
+n_prediction_windows_spin_up = 7
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)

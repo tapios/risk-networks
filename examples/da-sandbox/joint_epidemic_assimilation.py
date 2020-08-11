@@ -75,13 +75,14 @@ transmission_rate_to_update_flag = False
 assimilator_imperfect_observations = DataAssimilator(
         observations=imperfect_observations,
         errors=[],
+        n_assimilation_batches = arguments.assimilation_batches_imperfect,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
 assimilator_perfect_observations = DataAssimilator(
         observations=perfect_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches,
+        n_assimilation_batches = arguments.assimilation_batches_perfect,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 

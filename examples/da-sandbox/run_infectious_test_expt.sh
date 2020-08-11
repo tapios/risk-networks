@@ -50,7 +50,8 @@ network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
-batches=4
+batches_records=4
+batches_tests=1
 parflag=False
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -68,7 +69,8 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batches=${batches} \
+  --assimilation-batches-perfect=${batches_records} \
+  --assimilation-batches-imperfect=${batches_tests} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 

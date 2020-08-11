@@ -31,7 +31,8 @@ parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 
 # data assimilation ###########################################################
-parser.add_argument('--assimilation-batches', type=int, default=4)
+parser.add_argument('--assimilation-batches-perfect', type=int, default=1)
+parser.add_argument('--assimilation-batches-imperfect', type=int, default=1)
 
 # interventions ###############################################################
 parser.add_argument('--intervention-frequency', type=str, default='none')
