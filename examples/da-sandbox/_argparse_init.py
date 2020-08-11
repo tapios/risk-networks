@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 print_info_module(__name__, "parsing args of PID:", os.getpid())
 
 # parallel #####################################################################
-parser.add_argument('--parallel-flag', type=bool, default=True)
+parser.add_argument('--parallel-flag', type=bool, default=False)
 
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
