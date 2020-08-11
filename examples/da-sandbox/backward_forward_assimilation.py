@@ -202,8 +202,8 @@ for j in range(spin_up_steps):
         if assimilate_I_now or assimilate_HD_now:
             print_info("Gather data at current_time:", current_time)
 
-print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
-print_info("Spin-up ended; current_time:", current_time)
+print_info("Spin-up ended; elapsed:", timer() - timer_spin_up)
+print_info("Spin-up ended; current_time:", current_time, end='\n\n')
 
 # main loop: backward/forward/data assimilation ################################
 # 3 stages per loop: 
