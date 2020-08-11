@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 
 print_info_module(__name__, "parsing args of PID:", os.getpid())
 
-# parallel ####################################################################
+# parallel #####################################################################
 parser.add_argument('--parallel-flag', type=bool, default=True)
 
 # constants ####################################################################
@@ -30,6 +30,7 @@ parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 
+
 # data assimilation ###########################################################
 parser.add_argument('--assimilation-batches-perfect', type=int, default=1)
 parser.add_argument('--assimilation-batches-imperfect', type=int, default=1)
@@ -43,7 +44,6 @@ parser.add_argument('--intervention-E-min-threshold', type=float, default=0.999)
 parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
 parser.add_argument('--intervention-start-time', type=float, default=10.0)
 parser.add_argument('--intervention-interval', type=float, default=1.0)
-
 
 # parser setup #################################################################
 arguments = parser.parse_args()

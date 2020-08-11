@@ -114,20 +114,26 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 ################################################################################
 # constants ####################################################################
 
-#floats
+# floats
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
-#ints
+# ints
 n_prediction_windows_spin_up = 7
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
 
-assert n_prediction_windows_spin_up * prediction_window + prediction_window > da_window
-earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
+
+# floats
+earliest_assimilation_time = (
+        (n_prediction_windows_spin_up + 1) * prediction_window - da_window
+)
+
+# checks
+assert earliest_assimilation_time > 0.0
 assert n_prediction_windows > n_prediction_windows_spin_up
 
 # storing ######################################################################
@@ -332,32 +338,31 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
          transition_rates_ensemble,
          community_transmission_rate_ensemble
         ) = assimilator_imperfect_observations.update(
-            ensemble_state,
-            loaded_data.start_statuses,
-            transition_rates_ensemble,
-            community_transmission_rate_ensemble,
-            past_time)
-        
-        assimilate_HD_now = modulo_is_close_to_zero(past_time,
-                                                    HD_assimilation_interval,
-                                                    eps=static_contact_interval)
+                ensemble_state,
+                loaded_data.start_statuses,
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble,
+                past_time)
+    assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                HD_assimilation_interval,
+                                                eps=static_contact_interval)
     if assimilate_HD_now:
         (ensemble_state,
          transition_rates_ensemble,
          community_transmission_rate_ensemble
         ) = assimilator_perfect_observations.update(
-            ensemble_state,
-            loaded_data.start_statuses,
-            transition_rates_ensemble,
-            community_transmission_rate_ensemble,
-            past_time)
+                ensemble_state,
+                loaded_data.start_statuses,
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble,
+                past_time)
 
     # update ensemble after data assimilation
     if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
         master_eqn_ensemble.set_states_ensemble(ensemble_state)
         master_eqn_ensemble.update_ensemble(
-            new_transition_rates=transition_rates_ensemble,
-            new_transmission_rate=community_transmission_rate_ensemble)
+                new_transition_rates=transition_rates_ensemble,
+                new_transmission_rate=community_transmission_rate_ensemble)
 
     print_info("Backward assimilation ended; current time:", past_time)
 
