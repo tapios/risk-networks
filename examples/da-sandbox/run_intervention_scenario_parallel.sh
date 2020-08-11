@@ -4,7 +4,6 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
-#SBATCH --exclusive
 #SBATCH --mem=128G 
 #SBATCH -J "Intervention_scenario"
 #SBATCH --output=output/slurm_%j.out
