@@ -113,6 +113,7 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # constants ####################################################################
 
 # floats
+n_sweeps          = 1
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
@@ -270,114 +271,63 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         
     print_info("Prediction ended: current time:", current_time)
 
-    ## 2) backward run with data assimilation
-    past_time = current_time # until end of the loop 'current_time' is const
-    master_eqn_ensemble.set_start_time(past_time)
+    for i_sweep in range(n_sweeps):
+        print_info("Start the DA sweep: {}/{}".format(i_sweep+1, n_sweeps))
+        ## 2) backward run with data assimilation
+        past_time = current_time # until end of the loop 'current_time' is const
+        master_eqn_ensemble.set_start_time(past_time)
 
-    for j in range(steps_per_da_window):
-        loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
+        for j in range(steps_per_da_window):
+            loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
 
-        # data assimilation
-        assimilate_I_now = modulo_is_close_to_zero(past_time,
-                                                   I_assimilation_interval,
-                                                   eps=static_contact_interval)
+            # data assimilation
+            assimilate_I_now = modulo_is_close_to_zero(past_time,
+                                                       I_assimilation_interval,
+                                                       eps=static_contact_interval)
 
-        delay_satisfied = past_time <= (current_time - I_observation_delay)
+            delay_satisfied = past_time <= (current_time - I_observation_delay)
 
-        if assimilate_I_now and delay_satisfied:
-            (ensemble_state,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = assimilator_imperfect_observations.update(
-                    ensemble_state,
-                    loaded_data.end_statuses,
-                    transition_rates_ensemble,
-                    community_transmission_rate_ensemble,
-                    past_time)
+            if assimilate_I_now and delay_satisfied:
+                (ensemble_state,
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble
+                ) = assimilator_imperfect_observations.update(
+                        ensemble_state,
+                        loaded_data.end_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        past_time)
 
-        assimilate_HD_now = modulo_is_close_to_zero(past_time,
-                                                    HD_assimilation_interval,
-                                                    eps=static_contact_interval)
-        if assimilate_HD_now:
-            (ensemble_state,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = assimilator_perfect_observations.update(
-                    ensemble_state,
-                    loaded_data.end_statuses,
-                    transition_rates_ensemble,
-                    community_transmission_rate_ensemble,
-                    past_time)
+            assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                        HD_assimilation_interval,
+                                                        eps=static_contact_interval)
+            if assimilate_HD_now:
+                (ensemble_state,
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble
+                ) = assimilator_perfect_observations.update(
+                        ensemble_state,
+                        loaded_data.end_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        past_time)
 
-        # update ensemble after data assimilation
-        if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
-            master_eqn_ensemble.set_states_ensemble(ensemble_state)
-            master_eqn_ensemble.update_ensemble(
-                    new_transition_rates=transition_rates_ensemble,
-                    new_transmission_rate=community_transmission_rate_ensemble)
+            # update ensemble after data assimilation
+            if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
+                master_eqn_ensemble.set_states_ensemble(ensemble_state)
+                master_eqn_ensemble.update_ensemble(
+                        new_transition_rates=transition_rates_ensemble,
+                        new_transmission_rate=community_transmission_rate_ensemble)
 
-        # run ensemble backwards
-        user_network.update_from(loaded_data.contact_network)
-        master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+            # run ensemble backwards
+            user_network.update_from(loaded_data.contact_network)
+            master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
-        ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
-                                                                min_steps=n_backward_steps)
-        past_time -= static_contact_interval
+            ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
+                                                                    min_steps=n_backward_steps)
+            past_time -= static_contact_interval
 
-    # furthest-in-the-past assimilation (at the peak of the sweep)
-    assimilate_I_now = modulo_is_close_to_zero(past_time,
-                                               I_assimilation_interval,
-                                               eps=static_contact_interval)
-    delay_satisfied = past_time <= (current_time - I_observation_delay)
-
-    if assimilate_I_now and delay_satisfied:
-        (ensemble_state,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_imperfect_observations.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                past_time)
-    assimilate_HD_now = modulo_is_close_to_zero(past_time,
-                                                HD_assimilation_interval,
-                                                eps=static_contact_interval)
-    if assimilate_HD_now:
-        (ensemble_state,
-         transition_rates_ensemble,
-         community_transmission_rate_ensemble
-        ) = assimilator_perfect_observations.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                past_time)
-
-    # update ensemble after data assimilation
-    if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
-        master_eqn_ensemble.set_states_ensemble(ensemble_state)
-        master_eqn_ensemble.update_ensemble(
-                new_transition_rates=transition_rates_ensemble,
-                new_transmission_rate=community_transmission_rate_ensemble)
-
-    print_info("Backward assimilation ended; current time:", past_time)
-
-    ## 3) forward run with data assimilation
-    master_eqn_ensemble.set_start_time(past_time)
-
-    for j in range(steps_per_da_window):
-        loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
-
-        # run ensemble forward
-        user_network.update_from(loaded_data.contact_network)
-        master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
-
-        ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                      min_steps=n_forward_steps)
-        past_time += static_contact_interval
-
-        # data assimilation
+        # furthest-in-the-past assimilation (at the peak of the sweep)
         assimilate_I_now = modulo_is_close_to_zero(past_time,
                                                    I_assimilation_interval,
                                                    eps=static_contact_interval)
@@ -389,11 +339,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              community_transmission_rate_ensemble
             ) = assimilator_imperfect_observations.update(
                     ensemble_state,
-                    loaded_data.end_statuses,
+                    loaded_data.start_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     past_time)
-
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                     HD_assimilation_interval,
                                                     eps=static_contact_interval)
@@ -403,7 +352,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              community_transmission_rate_ensemble
             ) = assimilator_perfect_observations.update(
                     ensemble_state,
-                    loaded_data.end_statuses,
+                    loaded_data.start_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     past_time)
@@ -415,10 +364,64 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     new_transition_rates=transition_rates_ensemble,
                     new_transmission_rate=community_transmission_rate_ensemble)
 
-    print_info("Forward assimilation ended; current time", past_time)
+        print_info("Backward assimilation ended; current time:", past_time)
 
-    # DA should get back to the current time
-    assert are_close(past_time, current_time, eps=static_contact_interval)
+        ## 3) forward run with data assimilation
+        master_eqn_ensemble.set_start_time(past_time)
+
+        for j in range(steps_per_da_window):
+            loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
+
+            # run ensemble forward
+            user_network.update_from(loaded_data.contact_network)
+            master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+
+            ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
+                                                          min_steps=n_forward_steps)
+            past_time += static_contact_interval
+
+            # data assimilation
+            assimilate_I_now = modulo_is_close_to_zero(past_time,
+                                                       I_assimilation_interval,
+                                                       eps=static_contact_interval)
+            delay_satisfied = past_time <= (current_time - I_observation_delay)
+
+            if assimilate_I_now and delay_satisfied:
+                (ensemble_state,
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble
+                ) = assimilator_imperfect_observations.update(
+                        ensemble_state,
+                        loaded_data.end_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        past_time)
+
+            assimilate_HD_now = modulo_is_close_to_zero(past_time,
+                                                        HD_assimilation_interval,
+                                                        eps=static_contact_interval)
+            if assimilate_HD_now:
+                (ensemble_state,
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble
+                ) = assimilator_perfect_observations.update(
+                        ensemble_state,
+                        loaded_data.end_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        past_time)
+
+            # update ensemble after data assimilation
+            if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
+                master_eqn_ensemble.set_states_ensemble(ensemble_state)
+                master_eqn_ensemble.update_ensemble(
+                        new_transition_rates=transition_rates_ensemble,
+                        new_transmission_rate=community_transmission_rate_ensemble)
+
+        print_info("Forward assimilation ended; current time", past_time)
+
+        # DA should get back to the current time
+        assert are_close(past_time, current_time, eps=static_contact_interval)
 
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
                "ended; elapsed:", timer() - timer_window, end='\n\n')
