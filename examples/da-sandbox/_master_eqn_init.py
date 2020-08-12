@@ -33,14 +33,25 @@ for i in range(ensemble_size):
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
 
-master_eqn_ensemble = MasterEquationModelEnsemble(
-        population=user_population,
-        transition_rates=transition_rates_ensemble,
-        transmission_rate=community_transmission_rate_ensemble,
-        hospital_transmission_reduction=hospital_transmission_reduction,
-        ensemble_size=ensemble_size,
-        start_time=start_time
-)
+if arguments.parallel_flag:
+    master_eqn_ensemble = MasterEquationModelEnsemble(
+            population=user_population,
+            transition_rates=transition_rates_ensemble,
+            transmission_rate=community_transmission_rate_ensemble,
+            hospital_transmission_reduction=hospital_transmission_reduction,
+            ensemble_size=ensemble_size,
+            start_time=start_time,
+            ncores=arguments.num_cores
+    )
+else:
+    master_eqn_ensemble = MasterEquationModelEnsemble(
+            population=user_population,
+            transition_rates=transition_rates_ensemble,
+            transmission_rate=community_transmission_rate_ensemble,
+            hospital_transmission_reduction=hospital_transmission_reduction,
+            ensemble_size=ensemble_size,
+            start_time=start_time
+    )
 
 ################################################################################
 print_end_of(__name__)

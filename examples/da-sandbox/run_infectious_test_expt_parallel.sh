@@ -49,6 +49,7 @@ I_max_threshold=1.0
 user_fraction=1.0
 batches=40
 parflag=True
+num_cores=16
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -66,6 +67,7 @@ python3 backward_forward_assimilation.py \
   --network-node-count=${network_size} \
   --assimilation-batches=${batches} \
   --parallel-flag=${parflag} \
+  --num-cores=${num_cores} \
   >${stdout} 2>${stderr}
 
 
