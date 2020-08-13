@@ -113,13 +113,13 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # constants ####################################################################
 
 # floats
-n_sweeps          = 1
 da_window         = 7.0
 prediction_window = 1.0
 HD_assimilation_interval = 1.0 # assimilate H and D data every .. days
 I_assimilation_interval  = 1.0 # same for I
 
 # ints
+n_sweeps                     = 1
 n_prediction_windows_spin_up = 10
 n_prediction_windows         = int(total_time/prediction_window)
 steps_per_da_window          = int(da_window/static_contact_interval)
