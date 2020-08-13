@@ -55,6 +55,7 @@ user_fraction=1.0
 batches_records=40
 batches_tests=20
 parflag=True
+num_cores=16
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -75,6 +76,7 @@ python3 backward_forward_assimilation.py \
   --assimilation-batches-perfect=${batches_records} \
   --assimilation-batches-imperfect=${batches_tests} \
   --parallel-flag=${parflag} \
+  --num-cores=${num_cores} \
   >${stdout} 2>${stderr}
 
 

@@ -86,7 +86,8 @@ class MasterEquationModelEnsemble:
             transmission_rate,
             hospital_transmission_reduction = 0.25,
             ensemble_size = 1,
-            start_time = 0.0):
+            start_time = 0.0,
+            ncores=16):
         """
         Args:
         -------
@@ -101,7 +102,7 @@ class MasterEquationModelEnsemble:
 
         self.ensemble = []
 
-        self.pool = ProcessPool()
+        self.pool = ProcessPool(nodes=ncores)
 
         for mm in range(self.M):
             member = NetworkCompartmentalModel(N = self.N,

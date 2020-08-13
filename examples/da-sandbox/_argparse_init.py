@@ -12,6 +12,7 @@ print_info_module(__name__, "parsing args of PID:", os.getpid())
 
 # parallel #####################################################################
 parser.add_argument('--parallel-flag', type=bool, default=True)
+parser.add_argument('--num-cores', type=int, default=1)
 
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
