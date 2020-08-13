@@ -4,14 +4,13 @@
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
-#SBATCH --exclusive
 #SBATCH --mem=128G                       
 #SBATCH -J "I_per_day_test"
 #SBATCH --output=output/slurm_%j.out
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-2
+#SBATCH --array=0-7
 
 ##################################
 # Infectiousness test experiment #
@@ -25,7 +24,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e4_sensor_5perc"
+EXP_NAME="1e4_sensor_itest_rand"
 
 
 # parameters & constants #######################################################
@@ -37,23 +36,24 @@ EXP_NAME="1e4_sensor_5perc"
 #for 1e3
 #test_budgets=9  
 #for 1e4
-#test_budgets=(982 491 392 294 196 98 49 0)  
-#budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-#output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
+test_budgets=(982 491 392 294 196 98 49 0)  
+budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
+output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
 #by sensor wearers
-sensor_wearers=(1961 981 491)
-wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}}"
+#sensor_wearers=9807
+#wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
+#output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}}"
 
 #parsed parameters 
-budget=491 #high quality tests 5% population
+wearers=9807
+tested=0
 network_size=1e4
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
 batches_records=40
-batches_tests=1
+batches_tests=20
 parflag=True
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"

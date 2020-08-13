@@ -46,7 +46,7 @@ budgeted_random_infection_test = BudgetedObservation(
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
         noisy_measurement=True,
-        sensitivity=0.99,
+        sensitivity=0.9,
         specificity=0.99,
         obs_var_min=1e-6)
 
@@ -58,8 +58,8 @@ neighbor_transfer_infection_test = StaticNeighborObservation(
         storage_type="temporary",
         nbhd_sampling_method="random",
         noisy_measurement=True,
-        sensitivity=0.9999,
-        specificity=0.9999,
+        sensitivity=0.9,
+        specificity=0.99,
         obs_var_min=1e-6)
 
 high_var_infection_test = HighVarianceObservation(

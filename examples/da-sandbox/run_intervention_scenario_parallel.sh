@@ -21,7 +21,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e4_sd_245sens_intervention_time"
+EXP_NAME="1e4_sd_2451sens_491rand"
 
 # parameters & constants #######################################################
 #by sensor wearers
