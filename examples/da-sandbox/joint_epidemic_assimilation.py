@@ -66,7 +66,7 @@ sensor_observations = [sensor_readings]
 viral_test_observations = [MDT_neighbor_test]
 test_result_delay = MDT_result_delay # delay to results of the virus test
 
-perfect_observations   = [positive_hospital_records,
+record_observations   = [positive_hospital_records,
                           negative_hospital_records,
                           positive_death_records,
                           negative_death_records]
@@ -80,7 +80,7 @@ transmission_rate_to_update_flag = False
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_imperfect,
+        n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
@@ -93,9 +93,9 @@ viral_test_assimilator = DataAssimilator(
 
 
 record_assimilator = DataAssimilator(
-        observations=perfect_observations,
+        observations=record_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_perfect,
+        n_assimilation_batches = arguments.assimilation_batches_record,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 

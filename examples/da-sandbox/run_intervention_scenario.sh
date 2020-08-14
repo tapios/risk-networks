@@ -60,8 +60,8 @@ python3 joint_epidemic_assimilation.py \
   --observations-I-max-threshold=${I_max_threshold} \
   --observations-sensor-wearers=${wearers} \
   --network-node-count=${network_size} \
-  --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_sensors} \
+  --assimilation-batches-record=${batches_records} \
+  --assimilation-batches-sensor=${batches_sensors} \
   --parallel-flag=${parflag} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \

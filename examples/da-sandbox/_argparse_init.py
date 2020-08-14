@@ -33,8 +33,8 @@ parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 
 
 # data assimilation ###########################################################
-parser.add_argument('--assimilation-batches-perfect', type=int, default=1)
-parser.add_argument('--assimilation-batches-imperfect', type=int, default=1)
+parser.add_argument('--assimilation-batches-record', type=int, default=1)
+parser.add_argument('--assimilation-batches-sensor', type=int, default=1)
 
 # interventions ###############################################################
 parser.add_argument('--intervention-frequency', type=str, default='none')

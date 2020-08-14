@@ -73,8 +73,8 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_sensors} \
+  --assimilation-batches-record=${batches_records} \
+  --assimilation-batches-sensor=${batches_sensors} \
   --parallel-flag=${parflag} \
   --num-cores=${num_cores} \
   >${stdout} 2>${stderr}
