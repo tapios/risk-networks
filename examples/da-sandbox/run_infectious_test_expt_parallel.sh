@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-7
+#SBATCH --array=0-4
 
 ##################################
 # Infectiousness test experiment #
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e4_sensor_itest_rand"
+EXP_NAME="1e4_RDT_delay0_rand"
 
 
 # parameters & constants #######################################################
@@ -33,10 +33,9 @@ EXP_NAME="1e4_sensor_itest_rand"
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${tested}"
 
 # by number
-#for 1e3
-#test_budgets=9  
-#for 1e4
-test_budgets=(982 491 392 294 196 98 49 0)  
+#test_budgets=(0 4 9 25 49)  #MDT
+test_budgets=( 9 25 49)  
+
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
@@ -46,14 +45,15 @@ output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}}"
 
 #parsed parameters 
-wearers=9807
+wearers=0
 tested=0
 network_size=1e4
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
-batches_records=40
 batches_sensors=20
+batches_tests=40
+batches_records=40
 parflag=True
 num_cores=16
 stdout="${output_path}/stdout"
@@ -73,8 +73,9 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batches-record=${batches_records} \
   --assimilation-batches-sensor=${batches_sensors} \
+  --assimilation-batches-test=${batches_tests} \
+  --assimilation-batches-record=${batches_records} \
   --parallel-flag=${parflag} \
   --num-cores=${num_cores} \
   >${stdout} 2>${stderr}

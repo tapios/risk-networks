@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e3_sensor982_MDT"
+EXP_NAME="1e3_MDT_nbhd"
 
 # parameters & constants #######################################################
 # by fraction
@@ -45,14 +45,14 @@ output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
 #parsed parameters 
 #budget=49 #high quality tests 5% population
-tested=0
-wearers=982
+wearers=0
 network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
-batches_records=4
 batches_sensors=1
+batches_tests=1
+batches_records=4
 parflag=False
 stdout="${output_path}/stdout"
 5stderr="${output_path}/stderr"
@@ -70,8 +70,9 @@ python3 backward_forward_assimilation.py \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
+  --assimilation-batches-sensor=${batches_sensors} \ 
+  --assimilation-batches-test=${batches_tests} \ 
   --assimilation-batches-record=${batches_records} \
-  --assimilation-batches-sensor=${batches_sensors} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 

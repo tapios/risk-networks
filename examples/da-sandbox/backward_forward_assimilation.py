@@ -61,8 +61,8 @@ from _observations_init import (sensor_readings,
 
 sensor_observations = [sensor_readings]
 
-viral_test_observations = [MDT_neighbor_test]
-test_result_delay = MDT_result_delay # delay to results of the virus test
+viral_test_observations = [RDT_budget_random_test]
+test_result_delay = RDT_result_delay # delay to results of the virus test
 
 record_observations   = [positive_hospital_records,
                           negative_hospital_records,
@@ -85,7 +85,7 @@ sensor_assimilator = DataAssimilator(
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
-        n_assimilation_batches = 1,
+        n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 

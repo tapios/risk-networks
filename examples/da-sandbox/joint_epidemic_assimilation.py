@@ -86,7 +86,7 @@ sensor_assimilator = DataAssimilator(
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
-        n_assimilation_batches = 1,
+        n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
