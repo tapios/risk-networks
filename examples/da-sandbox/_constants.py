@@ -30,7 +30,7 @@ static_contact_interval = 3 * hour
 mean_contact_lifetime = 0.5 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    = 30.0  # the ultimate end time
+end_time    = 50.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
@@ -48,6 +48,7 @@ assert sum(age_distribution) == 1.0
 
 min_contact_rate = 2
 max_contact_rate = 22
+distanced_max_contact_rate=8
 
 latent_periods               = 3.7 # == 1/σ
 community_infection_periods  = 3.2 # == 1/γ
