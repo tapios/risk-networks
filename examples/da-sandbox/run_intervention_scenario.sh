@@ -41,7 +41,7 @@ I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
 batches_records=4
-batches_tests=1
+batches_sensors=1
 parflag=False
 int_freq='single'
 stdout="${output_path}/stdout"
@@ -61,7 +61,7 @@ python3 joint_epidemic_assimilation.py \
   --observations-sensor-wearers=${wearers} \
   --network-node-count=${network_size} \
   --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_tests} \
+  --assimilation-batches-imperfect=${batches_sensors} \
   --parallel-flag=${parflag} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \

@@ -1,4 +1,4 @@
-#!/bin/bash
+5#!/bin/bash
 
 #SBATCH --time=24:00:00                 # walltime
 #SBATCH --ntasks=1
@@ -43,7 +43,7 @@ I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
 batches_records=40
-batches_tests=6
+batches_sensors=6
 parflag=True
 int_freq='single'
 stdout="${output_path}/stdout"
@@ -63,7 +63,7 @@ python3 joint_epidemic_assimilation.py \
   --observations-sensor-wearers=${wearers} \
   --network-node-count=${network_size} \
   --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_tests} \
+  --assimilation-batches-imperfect=${batches_sensors} \
   --parallel-flag=${parflag} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \
