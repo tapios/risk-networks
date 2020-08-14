@@ -149,8 +149,11 @@ class FixedNodeObservation:
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
         print("observed nodes", obs_nodes)
         #fixed observation
-        self.obs_states = np.hstack([self.N*self.obs_status_idx+i for i in obs_nodes])
-        
+        obs_states = [self.N*self.obs_status_idx+i for i in obs_nodes]
+        if len(obs_states)>0:
+            self.obs_states = np.hstack(obs_states)
+        else:
+            self.obs_states = np.array([])
 
     def find_observation_states(
             self,
