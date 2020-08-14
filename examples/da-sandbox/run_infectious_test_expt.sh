@@ -8,7 +8,7 @@
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-6
+#SBATCH --array=0-4
 
 ##################################
 # Infectiousness test experiment #
@@ -22,7 +22,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="sensor_poortest_5perc"
+EXP_NAME="1e3_sensor982_MDT"
 
 # parameters & constants #######################################################
 # by fraction
@@ -32,26 +32,27 @@ EXP_NAME="sensor_poortest_5perc"
 
 # by number
 #for 1e3
-#test_budgets=9  
+test_budgets=(0 4 9 25 49)  
 #for 1e4
 #test_budgets=(982 491 392 294 196 98 49 0)  
-#budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-#output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
+budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
+output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
 #by sensor wearers
-sensor_wearers=(982 491 392 294 196 98 49)
-wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
+#sensor_wearers=(982 491 392 294 196 98 49)
+#wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
+#output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
 
 #parsed parameters 
-budget=49 #high quality tests 5% population
+#budget=49 #high quality tests 5% population
 tested=0
+wearers=982
 network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
 batches_records=4
-batches_tests=1
+batches_sensors=1
 parflag=False
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -70,7 +71,7 @@ python3 backward_forward_assimilation.py \
   --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
   --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_tests} \
+  --assimilation-batches-imperfect=${batches_sensors} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 
