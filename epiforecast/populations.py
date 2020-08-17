@@ -195,7 +195,10 @@ class TransitionRates:
         """
         for (lvl,par_str) in zip(noise_level,parameter_str):
             clinical_parameter = self.get_clinical_parameter(par_str)
-            noise = np.random.normal(0,lvl,clinical_parameter.shape)
+            if isinstance(clinical_parameter, (int, float)):
+                noise = np.random.normal(0,lvl,1)[0]
+            elif isinstance(clinical_parameter, np.ndarray):
+                noise = np.random.normal(0,lvl,clinical_parameter.shape)
             setattr(self, par_str, clinical_parameter + noise)
 
     def calculate_from_clinical(self):

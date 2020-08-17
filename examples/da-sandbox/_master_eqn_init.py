@@ -1,4 +1,5 @@
 import numpy as np
+import pdb
 
 from _argparse_init import arguments
 
@@ -24,14 +25,29 @@ ensemble_size = 100
 n_forward_steps  = 1 # minimum amount of steps per time step: forward run
 n_backward_steps = 5 # minimum amount of steps per time step: backward run
 
+learn_transition_rates = False 
+parameter_str = ['latent_periods']
+noise_level = [0.1]
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_particle = transition_rates[user_nodes]
+    if learn_transition_rates == True:
+        transition_rates_particle.add_noise_to_clinical_parameters(
+                parameter_str, noise_level)
     transition_rates_particle.calculate_from_clinical()
     transition_rates_ensemble.append(transition_rates_particle)
 
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
+
+learn_transmission_rate = False 
+transmission_rate_bias = 0.0
+transmission_rate_std = 0.1 * community_transmission_rate
+if learn_transmission_rate == True:
+    community_transmission_rate_ensemble += np.random.normal(
+                           transmission_rate_bias,
+                           transmission_rate_std,
+                           community_transmission_rate_ensemble.shape)
 
 if arguments.parallel_flag:
     master_eqn_ensemble = MasterEquationModelEnsemble(

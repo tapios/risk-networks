@@ -90,6 +90,8 @@ from _master_eqn_init import (master_eqn_ensemble,
                               ensemble_size,
                               transition_rates_ensemble,
                               community_transmission_rate_ensemble,
+                              learn_transition_rates,
+                              learn_transmission_rate,
                               n_forward_steps,
                               n_backward_steps)
 
@@ -321,6 +323,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
+                if learn_transmission_rate == True:
+                    master_eqn_ensemble.update_transmission_rate(
+                            community_transmission_rate_ensemble)
+                if learn_transition_rates == True:
+                    master_eqn_ensemble.update_transition_rates(
+                            transition_rates_ensemble)
 
             # run ensemble backwards
             user_network.update_from(loaded_data.contact_network)
@@ -366,6 +374,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             master_eqn_ensemble.update_ensemble(
                     new_transition_rates=transition_rates_ensemble,
                     new_transmission_rate=community_transmission_rate_ensemble)
+            if learn_transmission_rate == True:
+                master_eqn_ensemble.update_transmission_rate(
+                        community_transmission_rate_ensemble)
+            if learn_transition_rates == True:
+                master_eqn_ensemble.update_transition_rates(
+                        transition_rates_ensemble)
 
         print_info("Backward assimilation ended; current time:", past_time)
 
@@ -420,6 +434,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
+                if learn_transmission_rate == True:
+                    master_eqn_ensemble.update_transmission_rate(
+                            community_transmission_rate_ensemble)
+                if learn_transition_rates == True:
+                    master_eqn_ensemble.update_transition_rates(
+                            transition_rates_ensemble)
 
         print_info("Forward assimilation ended; current time", past_time)
 
