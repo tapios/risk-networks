@@ -149,6 +149,8 @@ transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                               1,
                                               time_span.size)
 
+transition_rates_timeseries = []
+
 # initial conditions ###########################################################
 loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
@@ -174,7 +176,12 @@ timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
     master_states_timeseries.push_back(ensemble_state) # storage
-    transmission_rate_timeseries.push_back(community_transmission_rate_ensemble)
+    if learn_transmission_rate == True:
+        transmission_rate_timeseries.push_back(
+                community_transmission_rate_ensemble)
+    if learn_transition_rates == True:
+        transition_rates_timeseries.append(
+                transition_rates_ensemble)
 
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
@@ -246,8 +253,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     for j in range(steps_per_prediction_window):
         # storage of data first (we do not store end of prediction window)
         master_states_timeseries.push_back(ensemble_state)
-        transmission_rate_timeseries.push_back(
-                community_transmission_rate_ensemble)
+        if learn_transmission_rate == True:
+            transmission_rate_timeseries.push_back(
+                    community_transmission_rate_ensemble)
+        if learn_transition_rates == True:
+            transition_rates_timeseries.append(
+                    transition_rates_ensemble)
         
         loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=current_time)
 
@@ -459,9 +470,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
-transmission_rate_timeseries.push_back(
-        community_transmission_rate_ensemble)
-
+if learn_transmission_rate == True:
+    transmission_rate_timeseries.push_back(
+            community_transmission_rate_ensemble)
+if learn_transition_rates == True:
+    transition_rates_timeseries.append(
+            transition_rates_ensemble)
 
 # save & plot ##################################################################
 # plot trajectories
@@ -478,9 +492,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
 # save full the data we require:
 master_eqns_mean_states = master_states_timeseries.get_mean()
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
-pickle.dump(transmission_rate_timeseries,
-            open(os.path.join(OUTPUT_PATH, 'transmission_rate.pkl'), 'wb'))
-        
+if learn_transmission_rate == True:
+    pickle.dump(transmission_rate_timeseries,
+                open(os.path.join(OUTPUT_PATH, 'transmission_rate.pkl'), 'wb'))
+if learn_transition_rates == True:
+    pickle.dump(transition_rates_timeseries,
+                open(os.path.join(OUTPUT_PATH, 'transition_rates.pkl'), 'wb'))
 
 kinetic_eqns_statuses = []
 for kinetic_state in kinetic_states_timeseries:
