@@ -25,9 +25,9 @@ ensemble_size = 100
 n_forward_steps  = 1 # minimum amount of steps per time step: forward run
 n_backward_steps = 5 # minimum amount of steps per time step: backward run
 
-learn_transition_rates = False 
-parameter_str = ['latent_periods']
-noise_level = [0.1]
+learn_transition_rates = arguments.learn_transition_rates
+parameter_str = arguments.transition_rates_str.split(',') 
+noise_level = [float(value) for value in arguments.transition_rates_noise.split(',')]
 transition_rates_ensemble = []
 for i in range(ensemble_size):
     transition_rates_particle = transition_rates[user_nodes]
@@ -40,9 +40,9 @@ for i in range(ensemble_size):
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
 
-learn_transmission_rate = False 
-transmission_rate_bias = 0.0
-transmission_rate_std = 0.1 * community_transmission_rate
+learn_transmission_rate = arguments.learn_transmission_rate
+transmission_rate_bias = arguments.transmission_rate_bias
+transmission_rate_std = arguments.transmission_rate_noise * community_transmission_rate
 if learn_transmission_rate == True:
     community_transmission_rate_ensemble += np.random.normal(
                            transmission_rate_bias,

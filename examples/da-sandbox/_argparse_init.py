@@ -46,6 +46,14 @@ parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
 parser.add_argument('--intervention-start-time', type=float, default=10.0)
 parser.add_argument('--intervention-interval', type=float, default=1.0)
 
+# parameters learning ########################################################## 
+parser.add_argument('--learn-transition-rates', type=bool, default=False)
+parser.add_argument('--transition-rates-str', type=str, default='latent_periods')
+parser.add_argument('--transition-rates-noise', type=str, default='0.1')
+parser.add_argument('--learn-transmission-rate', type=bool, default=True)
+parser.add_argument('--transmission-rate-bias', type=float, default=0.0)
+parser.add_argument('--transmission-rate-noise', type=float, default=0.1)
+
 # parser setup #################################################################
 arguments = parser.parse_args()
 print_info_module(__name__, arguments)
