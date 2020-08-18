@@ -34,7 +34,8 @@ from _constants import (static_contact_interval,
 from _utilities import (print_info,
                         list_of_transition_rates_to_array,
                         modulo_is_close_to_zero,
-                        are_close)
+                        are_close,
+                        update_transition_rates)
 
 # general init #################################################################
 import _general_init
@@ -93,6 +94,7 @@ from _master_eqn_init import (master_eqn_ensemble,
                               community_transmission_rate_ensemble,
                               learn_transition_rates,
                               learn_transmission_rate,
+                              parameter_str,
                               n_forward_steps,
                               n_backward_steps)
 
@@ -313,7 +315,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_I_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = assimilator_imperfect_observations.update(
                         ensemble_state,
@@ -322,12 +324,17 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
+
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,
                                                         eps=static_contact_interval)
             if assimilate_HD_now:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = assimilator_perfect_observations.update(
                         ensemble_state,
@@ -335,6 +342,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
                         past_time)
+
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
             # update ensemble after data assimilation
             if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
@@ -365,7 +377,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         if assimilate_I_now and delay_satisfied:
             (ensemble_state,
-             transition_rates_ensemble,
+             transition_rates_ensemble_da,
              community_transmission_rate_ensemble
             ) = assimilator_imperfect_observations.update(
                     ensemble_state,
@@ -373,12 +385,18 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     past_time)
+
+            transition_rates_ensemble = update_transition_rates(
+                    transition_rates_ensemble,
+                    transition_rates_ensemble_da,
+                    parameter_str)
+
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                     HD_assimilation_interval,
                                                     eps=static_contact_interval)
         if assimilate_HD_now:
             (ensemble_state,
-             transition_rates_ensemble,
+             transition_rates_ensemble_da,
              community_transmission_rate_ensemble
             ) = assimilator_perfect_observations.update(
                     ensemble_state,
@@ -386,6 +404,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
                     past_time)
+
+            transition_rates_ensemble = update_transition_rates(
+                    transition_rates_ensemble,
+                    transition_rates_ensemble_da,
+                    parameter_str)
 
         # update ensemble after data assimilation
         if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
@@ -424,7 +447,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_I_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = assimilator_imperfect_observations.update(
                         ensemble_state,
@@ -433,12 +456,17 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
+
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,
                                                         eps=static_contact_interval)
             if assimilate_HD_now:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = assimilator_perfect_observations.update(
                         ensemble_state,
@@ -446,6 +474,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
                         past_time)
+
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
             # update ensemble after data assimilation
             if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):

@@ -127,4 +127,15 @@ def are_close(
     """
     return isclose(time1, time2, abs_tol=eps/2)
 
-
+def update_transition_rates(
+        transition_rates_ensemble,
+        transition_rates_ensemble_da,
+        parameter_str):
+    ensemble_size = len(transition_rates_ensemble)
+    for i in range(ensemble_size):
+        for par_str in parameter_str:
+            setattr(transition_rates_ensemble[i],
+                    par_str,
+                    transition_rates_ensemble_da[i].get_clinical_parameter(par_str)
+                    )
+    return transition_rates_ensemble
