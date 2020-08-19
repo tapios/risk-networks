@@ -46,11 +46,13 @@ if learn_transition_rates == True:
         )
         transition_rates.calculate_from_clinical()
         transition_rates_particle = transition_rates[user_nodes]
+        transition_rates_particle.calculate_from_clinical()
         transition_rates_ensemble.append(transition_rates_particle)
 
 else:
     for i in range(ensemble_size):
         transition_rates_particle = transition_rates[user_nodes]
+        transition_rates_particle.calculate_from_clinical()
         transition_rates_ensemble.append(transition_rates_particle)
 
 # Prior of transmission rate ###################################################
