@@ -1,3 +1,5 @@
+from timeit import default_timer as timer
+
 from epiforecast.utilities import compartments_count, dict_slice
 
 from _constants import start_time, total_time, static_contact_interval
@@ -27,13 +29,18 @@ statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 kinetic_states_timeseries = []
 kinetic_states_timeseries.append(kinetic_state) # storing ic
 
+walltime_epidemic_simulator = 0.0
+walltime_data_storage = 0.0
+timer_run_and_store = timer()
 for i in range(int(total_time/static_contact_interval)):
-    # run
+    timer_epidemic_simulator = timer()
     network = epidemic_simulator.run(
             stop_time=epidemic_simulator.time + static_contact_interval,
             current_network=network)
+    walltime_epidemic_simulator += timer() - timer_epidemic_simulator
 
     # store for further usage (master equations etc)
+    timer_data_storage = timer()
     epidemic_data_storage.save_network_by_start_time(
             start_time=time,
             contact_network=network)
@@ -47,6 +54,7 @@ for i in range(int(total_time/static_contact_interval)):
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=time,
             end_statuses=kinetic_state)
+    walltime_data_storage += timer() - timer_data_storage
 
     # store for plotting
     user_state = dict_slice(kinetic_state, user_nodes)
@@ -54,6 +62,17 @@ for i in range(int(total_time/static_contact_interval)):
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
     kinetic_states_timeseries.append(kinetic_state)
+
+print_info_module(__name__,
+                  "Simulation done; elapsed:",
+                  timer() - timer_run_and_store)
+print_info_module(__name__,
+                  "Simulation done; epidemic simulator walltime:",
+                  walltime_epidemic_simulator)
+print_info_module(__name__,
+                  "Simulation done; data storage walltime:",
+                  walltime_data_storage,
+                  end='\n\n')
 
 ################################################################################
 print_end_of(__name__)
