@@ -24,7 +24,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e4_sensor_itest_rand"
+EXP_NAME="1e4_sensor_itest_rand_learn_transmission_rate"
 
 
 # parameters & constants #######################################################
@@ -61,7 +61,7 @@ transition_rates_str='latent_periods,community_infection_periods'
 transition_rates_noise='0.1,0.1'
 learn_transimission_rate=True
 transmission_rate_bias=0.0
-transmission_rate_noise=0.1
+transmission_rate_noise=0.25
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 

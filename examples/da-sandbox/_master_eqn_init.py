@@ -44,9 +44,9 @@ learn_transmission_rate = arguments.learn_transmission_rate
 transmission_rate_bias = arguments.transmission_rate_bias
 transmission_rate_std = arguments.transmission_rate_noise * community_transmission_rate
 if learn_transmission_rate == True:
-    community_transmission_rate_ensemble += np.random.normal(
-                           transmission_rate_bias,
-                           transmission_rate_std,
+    community_transmission_rate_ensemble = np.random.lognormal(
+                           np.log(community_transmission_rate + transmission_rate_bias),
+                           np.log(transmission_rate_std),
                            community_transmission_rate_ensemble.shape)
 
 if arguments.parallel_flag:
