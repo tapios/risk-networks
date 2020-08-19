@@ -1,13 +1,10 @@
 from timeit import default_timer as timer
 
-from epiforecast.utilities import compartments_count, dict_slice
-
 from _constants import start_time, total_time, static_contact_interval
 from _network_init import network
 from _stochastic_init import (epidemic_simulator,
                               epidemic_data_storage,
                               kinetic_ic)
-from _user_network_init import user_nodes
 from _utilities import print_start_of, print_end_of, print_info_module
 
 
@@ -20,11 +17,6 @@ print_info_module(__name__,
 
 time = start_time          # float
 kinetic_state = kinetic_ic # dict { node : compartment }
-
-user_state = dict_slice(kinetic_state, user_nodes)
-n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
-statuses_sum_trace = []
-statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
 kinetic_states_timeseries = []
 kinetic_states_timeseries.append(kinetic_state) # storing ic
@@ -57,10 +49,6 @@ for i in range(int(total_time/static_contact_interval)):
     walltime_data_storage += timer() - timer_data_storage
 
     # store for plotting
-    user_state = dict_slice(kinetic_state, user_nodes)
-    n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
-    statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
-
     kinetic_states_timeseries.append(kinetic_state)
 
 print_info_module(__name__,
