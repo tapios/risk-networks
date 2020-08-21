@@ -69,9 +69,20 @@ perfect_observations   = [positive_hospital_records,
 
 I_observation_delay = 0.0
 
+# master equations #############################################################
+from _master_eqn_init import (master_eqn_ensemble,
+                              ensemble_size,
+                              transition_rates_ensemble,
+                              community_transmission_rate_ensemble,
+                              learn_transition_rates,
+                              learn_transmission_rate,
+                              parameter_str,
+                              n_forward_steps,
+                              n_backward_steps)
+
 # assimilator ##################################################################
-transition_rates_to_update_str   = []
-transmission_rate_to_update_flag = False
+transition_rates_to_update_str   = parameter_str 
+transmission_rate_to_update_flag = learn_transmission_rate 
 
 assimilator_imperfect_observations = DataAssimilator(
         observations=imperfect_observations,
@@ -86,17 +97,6 @@ assimilator_perfect_observations = DataAssimilator(
         n_assimilation_batches = arguments.assimilation_batches_perfect,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag)
-
-# master equations #############################################################
-from _master_eqn_init import (master_eqn_ensemble,
-                              ensemble_size,
-                              transition_rates_ensemble,
-                              community_transmission_rate_ensemble,
-                              learn_transition_rates,
-                              learn_transmission_rate,
-                              parameter_str,
-                              n_forward_steps,
-                              n_backward_steps)
 
 # post-processing ##############################################################
 from _post_process_init import axes
