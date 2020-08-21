@@ -21,6 +21,11 @@ else:
     OUTPUT_PATH = os.path.join('output',
                                datetime.now().strftime('%y%m%d-%H-%M'))
 
+if len(arguments.constants_save_path) > 0:
+    SAVE_PATH = arguments.constants_save_path
+else:
+    SAVE_PATH = os.path.join('save')
+
 # time & intervals #############################################################
 minute = 1 / 60 / 24
 hour = 60 * minute
