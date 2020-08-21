@@ -15,7 +15,7 @@ print_start_of(__name__)
 ################################################################################
 # imperfect observations #######################################################
 
-sensor_wearers=np.random.choice(user_nodes, size=int(user_population/4), replace=False)
+sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 continuous_infection_test = FixedObservation(
     N=user_population,
     obs_nodes=sensor_wearers,
@@ -34,7 +34,8 @@ random_infection_test = Observation(
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
         noisy_measurement=True,
-        sensitivity=0.99,
+        sensitivity=0.95,
+        specificity=0.99,
         obs_var_min=1e-6)
 
 budgeted_random_infection_test = BudgetedObservation(
@@ -45,7 +46,7 @@ budgeted_random_infection_test = BudgetedObservation(
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
         noisy_measurement=True,
-        sensitivity=0.99,
+        sensitivity=0.95,
         specificity=0.99,
         obs_var_min=1e-6)
 
@@ -57,7 +58,7 @@ neighbor_transfer_infection_test = StaticNeighborObservation(
         storage_type="temporary",
         nbhd_sampling_method="random",
         noisy_measurement=True,
-        sensitivity=0.99,
+        sensitivity=0.95,
         specificity=0.99,
         obs_var_min=1e-6)
 
