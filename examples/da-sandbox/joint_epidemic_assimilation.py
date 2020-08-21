@@ -156,7 +156,8 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
 ensemble_ic = random_risk_range(population,
                                 0.001,
                                 0.01,
-                                ensemble_size)
+                                ensemble_size,
+                                seed=10958)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)

@@ -12,9 +12,8 @@ print_start_of(__name__)
 # numba ########################################################################
 set_num_threads(1)
 
-# random seeds for reproducibility #############################################
-seed = 942395
-seed_three_random_states(seed)
+# seeding ######################################################################
+seed_three_random_states(942395)
 
 # create an output directory ###################################################
 if not os.path.exists(OUTPUT_PATH):

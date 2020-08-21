@@ -23,6 +23,10 @@ from _utilities import print_start_of, print_end_of
 
 print_start_of(__name__)
 ################################################################################
+SEED1 = 4669
+SEED2 = 31415
+SEED3 = 271828
+
 # transition rates a.k.a. independent rates (σ, γ etc.) ########################
 # constructor takes clinical parameter samplers which are then used to draw real
 # clinical parameters, and those are used to calculate transition rates
@@ -41,25 +45,28 @@ transition_rates.calculate_from_clinical()
 network.set_transition_rates_for_kinetic_model(transition_rates)
 
 # health service ###############################################################
-health_service = HealthService(original_contact_network = network,
-                               health_workers = network.get_health_workers())
+health_service = HealthService(original_contact_network=network,
+                               health_workers=network.get_health_workers(),
+                               seed=SEED1)
 
 # epidemic simulator ###########################################################
 epidemic_simulator = EpidemicSimulator(
-                 contact_network = network,
-     community_transmission_rate = community_transmission_rate,
- hospital_transmission_reduction = hospital_transmission_reduction,
-         static_contact_interval = static_contact_interval,
-           mean_contact_lifetime = mean_contact_lifetime,
-              day_inception_rate = max_contact_rate,
-            night_inception_rate = min_contact_rate,
-                  health_service = health_service,
-                      start_time = start_time
+        network,
+        community_transmission_rate,
+        hospital_transmission_reduction,
+        static_contact_interval,
+        mean_contact_lifetime,
+        day_inception_rate=max_contact_rate,
+        night_inception_rate=min_contact_rate,
+        health_service=health_service,
+        start_time=start_time,
+        seed=SEED2
 )
 
 kinetic_ic = random_epidemic(population,
                              populace,
-                             fraction_infected=0.01)
+                             fraction_infected=0.01,
+                             seed=SEED3)
 epidemic_simulator.set_statuses(kinetic_ic)
 
 # epidemic storage #############################################################

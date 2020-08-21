@@ -118,7 +118,8 @@ epidemic_simulator = EpidemicSimulator(
 statuses = random_epidemic(
         network.get_node_count(),
         network.get_nodes(),
-        fraction_infected=0.05)
+        fraction_infected=0.05,
+        seed=seed)
 
 epidemic_simulator.set_statuses(statuses)
 
