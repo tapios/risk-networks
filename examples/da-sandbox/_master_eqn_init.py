@@ -31,7 +31,6 @@ n_backward_steps = 5 # minimum amount of steps per time step: backward run
 # Prior of transition rates ####################################################
 learn_transition_rates = arguments.learn_transition_rates
 parameter_str = arguments.transition_rates_str.split(',') 
-noise_level = [float(value) for value in arguments.transition_rates_noise.split(',')]
 transition_rates_ensemble = []
 if learn_transition_rates == True:
     for i in range(ensemble_size):

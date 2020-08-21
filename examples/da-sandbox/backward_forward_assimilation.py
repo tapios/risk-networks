@@ -324,10 +324,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,
@@ -343,10 +344,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             # update ensemble after data assimilation
             if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
@@ -386,10 +388,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     past_time)
 
-            transition_rates_ensemble = update_transition_rates(
-                    transition_rates_ensemble,
-                    transition_rates_ensemble_da,
-                    parameter_str)
+            if learn_transition_rates == True:
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                     HD_assimilation_interval,
@@ -405,10 +408,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     past_time)
 
-            transition_rates_ensemble = update_transition_rates(
-                    transition_rates_ensemble,
-                    transition_rates_ensemble_da,
-                    parameter_str)
+            if learn_transition_rates == True:
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
         # update ensemble after data assimilation
         if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
@@ -456,10 +460,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,
@@ -475,10 +480,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         past_time)
 
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             # update ensemble after data assimilation
             if (assimilate_I_now and delay_satisfied) or (assimilate_HD_now):
