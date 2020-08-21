@@ -247,6 +247,9 @@ class EnsembleAdjustmentKalmanFilter:
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
             U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            # Padding the diagonal of matrix B with zeros
+            if D_vec.shape[0] < Dp_vec.shape[0]:
+                D_vec = np.hstack([D_vec,np.zeros(Dp_vec.shape[0]-D_vec.shape[0])])
             D_vec = D_vec**2
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
             A = np.linalg.multi_dot([F, 
