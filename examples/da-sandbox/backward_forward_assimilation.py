@@ -102,8 +102,7 @@ from _post_process_init import axes
 ################################################################################
 # epidemic data ################################################################
 ################################################################################
-from _run_and_store_epidemic import (epidemic_data_storage,
-                                     kinetic_states_timeseries)
+from _get_epidemic_data import epidemic_data_storage, kinetic_states_timeseries
 import _post_process_epidemic
 
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
