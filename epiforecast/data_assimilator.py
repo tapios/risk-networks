@@ -142,8 +142,13 @@ class DataAssimilator:
                               ":",
                               len(observation.obs_states))
 
-            observed_states = np.array(observed_states)
+            observed_states = np.unique(np.array(observed_states))
             observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
+            #observed_nodes_raw = np.remainder(observed_states,self.observations[0].N)
+            #if int(observed_nodes_raw.size / 2) == np.unique(observed_nodes_raw).size:
+            #    observed_nodes = np.unique(observed_nodes_raw)
+            #else:
+            #    observed_nodes = observed_nodes_raw
             self.stored_observed_states[current_time] = observed_states
             self.stored_observed_nodes[current_time] = observed_nodes
             
@@ -266,23 +271,47 @@ class DataAssimilator:
                 else: #perform the EAKF in batches
                     
                     #create batches, with final batch larger due to rounding
-                    batch_size = int(obs_states.size / self.n_assimilation_batches)
-                    permuted_idx = np.random.permutation(np.arange(obs_states.size))
-                    batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] if i < (self.n_assimilation_batches - 1)
-                               else permuted_idx[i * batch_size:]
-                               for i in np.arange(self.n_assimilation_batches)]
+                    if obs_states.size == obs_nodes.size:
+                        batch_size = int(obs_states.size / self.n_assimilation_batches)
+                        permuted_idx = np.random.permutation(np.arange(obs_states.size))
+                        batches = [ permuted_idx[i * batch_size:(i + 1) * batch_size] \
+                                    if i < (self.n_assimilation_batches - 1)
+                                    else permuted_idx[i * batch_size:]
+                                    for i in np.arange(self.n_assimilation_batches)]
+                    else:
+                        batch_size = int(obs_nodes.size / self.n_assimilation_batches)
+                        permuted_idx = np.random.permutation(np.arange(obs_nodes.size))
+                        batches = [ permuted_idx[i * batch_size:(i + 1) * batch_size] \
+                                    if i < (self.n_assimilation_batches - 1)
+                                    else permuted_idx[i * batch_size:]
+                                    for i in np.arange(self.n_assimilation_batches)]
+                        batches = [np.hstack([batch, batch + obs_nodes.size]) for batch in batches]
+
+                    ensemble_size = ensemble_transition_rates.shape[0] 
+                    ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
+                            ensemble_size,
+                            obs_nodes.shape[0],
+                            -1)
                     
                     for batch in batches:
+                        if obs_states.size == obs_nodes.size:
+                            batch_params = batch[:obs_nodes.size]
+                        else:
+                            batch_params = batch[:int(batch.shape[0]/2)]
                         cov_batch = np.diag(np.diag(cov)[batch])
                         (ensemble_state[:, obs_states[batch]],
-                         new_ensemble_transition_rates,
+                         new_ensemble_transition_rates_batch,
                          new_ensemble_transmission_rate
                         ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
-                                                 ensemble_transition_rates,
+                            ensemble_transition_rates_reshaped[:,batch_params,:].reshape(ensemble_size,-1),
                                                  ensemble_transmission_rate,
                                                  truth[batch],
                                                  cov_batch,
                                                  print_error=print_error)
+                        ensemble_transition_rates_reshaped[:,batch_params,:] = \
+                        new_ensemble_transition_rates_batch.reshape(ensemble_size, batch_params.size, -1)
+                    new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
+                            ensemble_size,-1)
                     
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 

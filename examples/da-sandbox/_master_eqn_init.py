@@ -49,7 +49,7 @@ if learn_transition_rates == True:
         transition_rates_ensemble.append(transition_rates_particle)
 
 else:
-    parameter_str = [] 
+    parameter_str = None 
     for i in range(ensemble_size):
         transition_rates_particle = transition_rates[user_nodes]
         transition_rates_particle.calculate_from_clinical()
