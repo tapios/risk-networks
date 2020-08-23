@@ -12,14 +12,12 @@ from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
 from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate
 from epiforecast.utilities import dict_slice
 
-from _argparse_init import arguments
-
 
 ################################################################################
 # initialization ###############################################################
 ################################################################################
 # arguments parsing ############################################################
-import _argparse_init
+from _argparse_init import arguments
 
 # constants ####################################################################
 from _constants import (static_contact_interval,
@@ -226,6 +224,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
     timer_window = timer()
     walltime_master_eqn = 0.0
+    master_eqn_ensemble.reset_walltimes()
 
     assert are_close(current_time,
                      k * prediction_window,
@@ -431,16 +430,20 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
 
-        print_info("Forward assimilation ended; current time", past_time)
+        print_info("Forward assimilation ended; current_time", current_time)
 
         # DA should get back to the current time
         assert are_close(past_time, current_time, eps=static_contact_interval)
 
-    print_info("Forward assimilation ended; current_time", past_time)
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
-               "ended; elapsed:", timer() - timer_window)
+               "ended; elapsed:",
+               timer() - timer_window)
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
-               "master equations walltime:", walltime_master_eqn, end='\n\n')
+               "eval_closure walltime:",
+               master_eqn_ensemble.get_walltime_eval_closure())
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "master equations walltime:",
+               walltime_master_eqn, end='\n\n')
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)

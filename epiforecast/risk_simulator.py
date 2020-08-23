@@ -2,6 +2,7 @@ import scipy.sparse as sps
 from scipy.integrate  import solve_ivp
 import numpy as np
 import networkx as nx
+from timeit import default_timer as timer
 
 class NetworkCompartmentalModel:
     """
@@ -114,6 +115,7 @@ class MasterEquationModelEnsemble:
             self.ensemble.append(member)
 
         self.PM = np.identity(self.M) - 1./self.M * np.ones([self.M,self.M])
+        self.walltime_eval_closure = 0.0
 
     #  Set methods -------------------------------------------------------------
     def set_start_time(
@@ -231,7 +233,9 @@ class MasterEquationModelEnsemble:
         stop_time = self.start_time + time_window
         maxdt = abs(time_window) / min_steps
 
+        timer_eval_closure = timer()
         self.eval_closure(self.y0, closure = closure)
+        self.walltime_eval_closure += timer() - timer_eval_closure
 
         for mm, member in enumerate(self.ensemble):
             result = solve_ivp(
@@ -265,5 +269,18 @@ class MasterEquationModelEnsemble:
         return self.simulate(-positive_time_window,
                              min_steps,
                              closure)
+
+    def reset_walltimes(self):
+        """
+        Reset walltimes to zero
+        """
+        self.walltime_eval_closure = 0.0
+
+    def get_walltime_eval_closure(self):
+        """
+        Get walltime of the 'eval_closure' calls
+        """
+        return self.walltime_eval_closure
+
 
 
