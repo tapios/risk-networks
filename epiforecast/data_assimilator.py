@@ -142,13 +142,13 @@ class DataAssimilator:
                               ":",
                               len(observation.obs_states))
 
-            observed_states = np.unique(np.array(observed_states))
-            observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
-            #observed_nodes_raw = np.remainder(observed_states,self.observations[0].N)
-            #if int(observed_nodes_raw.size / 2) == np.unique(observed_nodes_raw).size:
-            #    observed_nodes = np.unique(observed_nodes_raw)
-            #else:
-            #    observed_nodes = observed_nodes_raw
+            observed_states = np.array(observed_states)
+            observed_nodes_raw = np.remainder(observed_states,self.observations[0].N)
+            obs_num = observed_nodes_raw.shape[0]
+            if np.array_equal(observed_nodes_raw[:int(obs_num/2)], observed_nodes_raw[int(obs_num/2):]):
+                observed_nodes = observed_nodes_raw[:int(obs_num/2)]
+            else:
+                observed_nodes = observed_nodes_raw
             self.stored_observed_states[current_time] = observed_states
             self.stored_observed_nodes[current_time] = observed_nodes
             
