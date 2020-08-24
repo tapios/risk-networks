@@ -12,7 +12,7 @@ print_info_module(__name__, "parsing args of PID:", os.getpid())
 
 # parallel #####################################################################
 parser.add_argument('--parallel-flag', default=False, action='store_true')
-parser.add_argument('--num-cores', type=int, default=1)
+parser.add_argument('--parallel-num-cpus', type=int, default=1)
 
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
@@ -34,8 +34,8 @@ parser.add_argument('--observations-sensor-wearers', type=int, default=10)
 
 
 # data assimilation ############################################################
-parser.add_argument('--assimilation-batches-perfect', type=int, default=1)
-parser.add_argument('--assimilation-batches-imperfect', type=int, default=1)
+parser.add_argument('--assimilation-batches-perfect', type=int, default=4)
+parser.add_argument('--assimilation-batches-imperfect', type=int, default=4)
 
 # interventions ################################################################
 parser.add_argument('--intervention-frequency', type=str, default='none')

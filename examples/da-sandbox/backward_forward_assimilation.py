@@ -472,4 +472,7 @@ for kinetic_state in kinetic_states_timeseries:
 np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'),
         kinetic_eqns_statuses)
 
+# wrap-up ######################################################################
+master_eqn_ensemble.wrap_up()
+
 
