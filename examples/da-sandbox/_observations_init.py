@@ -182,35 +182,6 @@ negative_death_records = DataObservation(
         obs_status='D',
         obs_name="negative_death_records")
 
-
-
-################################################################################
-def transition_function(x, y, transition_steps, total_steps):
-    """
-    linear transition, stays at final value
-    f(0) = x, 
-    f(transition_steps) = y,
-    f(transition_steps + k ) = y 
-
-    Args
-    ----
-    x (float): initial value
-    y (float): final value
-    transition_steps (int): number of steps to transition over
-    total_steps 
-
-    """
-    assert (total_steps >= transition_steps)
-    output=np.zeros(total_steps)
-    T=transition_steps-1
-    output[:T] = np.array([ (T - step)/T * x + step/T * y for step in range(T)])
-    output[T:] = y
-    
-    return output
-
-
-
-
 ################################################################################
 print_end_of(__name__)
 
