@@ -9,7 +9,6 @@ from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
 from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
-from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate
 from epiforecast.utilities import dict_slice
 
 
