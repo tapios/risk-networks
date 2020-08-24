@@ -53,7 +53,6 @@ user_fraction=1.0
 batches_sensors=1
 batches_tests=1
 batches_records=4
-parflag=False
 stdout="${output_path}/stdout"
 5stderr="${output_path}/stderr"
 
@@ -73,6 +72,5 @@ python3 backward_forward_assimilation.py \
   --assimilation-batches-sensor=${batches_sensors} \ 
   --assimilation-batches-test=${batches_tests} \ 
   --assimilation-batches-record=${batches_records} \
-  --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
 

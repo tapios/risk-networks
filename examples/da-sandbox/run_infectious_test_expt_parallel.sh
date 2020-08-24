@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%j.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-2
+#SBATCH --array=0-0
 
 ##################################
 # Infectiousness test experiment #
@@ -24,8 +24,9 @@
 set -euo pipefail
 
 OUTPUT_DIR="output"
-EXP_NAME="1e4_RDT_FOR_to_PPV_low_981"
+EXP_NAME="1e4_RDT_DAsweep_3"
 
+output_path="${OUTPUT_DIR}/${EXP_NAME}"
 # parameters & constants #######################################################
 #fraction_tested=(0.5 0.4 0.3 0.2 0.1 0.05 0.01 0.0) #Make sure no. expts agrees with size of array. and no commas.
 #tested=${fractions_tested[${SLURM_ARRAY_TASK_ID}]}
@@ -40,25 +41,24 @@ tested=0
 #batches_tests=(1 2 5)
 #batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
-batches_test=2
-budget=981
+batches_test=5
+budget=2451
 
 #by sensor wearers
-sensor_wearers=(2451 4903 9807)
-batches_sensors=(5 10 20)
-batches_sensor=${batches_sensors[${SLURM_ARRAY_TASK_ID}]}
-wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
-#wearers=0
-#batches_sensor=1
+#sensor_wearers=(2451 4903 9807)
+#batches_sensors=(5 10 20)
+#batches_sensor=${batches_sensors[${SLURM_ARRAY_TASK_ID}]}
+#wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
+#output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
+wearers=0
+batches_sensor=1
 
 #parsed parameters 
 network_size=1e4
-I_min_threshold=0.01
-I_max_threshold=0.05
+I_min_threshold=0.0
+I_max_threshold=1.0
 user_fraction=1.0
 batches_records=40
-parflag=True
 num_cores=16
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -80,7 +80,7 @@ python3 backward_forward_assimilation.py \
   --assimilation-batches-sensor=${batches_sensor} \
   --assimilation-batches-test=${batches_test} \
   --assimilation-batches-record=${batches_records} \
-  --parallel-flag=${parflag} \
+  --parallel-flag \
   --num-cores=${num_cores} \
   >${stdout} 2>${stderr}
 
