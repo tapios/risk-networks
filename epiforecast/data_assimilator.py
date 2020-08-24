@@ -101,7 +101,21 @@ class DataAssimilator:
         self.stored_observed_nodes = {}
         self.stored_observed_means = {}
         self.stored_observed_variances = {}
+
+        # range of transition rates
+        self.transition_rates_min = {'latent_periods': 2,
+                                     'community_infection_periods': 1,
+                                     'hospital_infection_periods': 1,
+                                     'hospitalization_fraction': 0,
+                                     'community_mortality_fraction': 0,
+                                     'hospital_mortality_fraction': 0}
  
+        self.transition_rates_max = {'latent_periods': 12,
+                                     'community_infection_periods': 15,
+                                     'hospital_infection_periods': 10,
+                                     'hospitalization_fraction': 1,
+                                     'community_mortality_fraction': 1,
+                                     'hospital_mortality_fraction': 1}
 
     def find_observation_states(
             self,
@@ -257,6 +271,7 @@ class DataAssimilator:
                 # Perform da model update with ensemble_state: states, transition and transmission rates 
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
+                ensemble_size = ensemble_transition_rates.shape[0] 
                 # If batching is not required:
                 if self.n_assimilation_batches==1:
                     (ensemble_state[:, obs_states],
@@ -287,7 +302,6 @@ class DataAssimilator:
                                     for i in np.arange(self.n_assimilation_batches)]
                         batches = [np.hstack([batch, batch + obs_nodes.size]) for batch in batches]
 
-                    ensemble_size = ensemble_transition_rates.shape[0] 
                     ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
                             ensemble_size,
                             obs_nodes.shape[0],
@@ -312,6 +326,9 @@ class DataAssimilator:
                         new_ensemble_transition_rates_batch.reshape(ensemble_size, batch_params.size, -1)
                     new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
                             ensemble_size,-1)
+
+                new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
+                                                                           obs_nodes.size)
                     
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
@@ -533,4 +550,24 @@ class DataAssimilator:
 
         return full_ensemble_transition_rates, full_ensemble_transmission_rate
 
+    def clip_transition_rates(self, ensemble_transition_rates, obs_nodes_num):
+        """
+        Clip the values of tranistion rates into pre-defined ranges 
 
+        Input:
+            ensemble_transition_rates (np.array): (n_ensemble,k) array
+            obs_nodes_num (int): number of observed nodes
+
+        Output:
+            ensemble_transition_rates (np.array): (n_ensemble,k) array
+        """
+        ensemble_size = ensemble_transition_rates.shape[0]
+        ensemble_transition_rates = ensemble_transition_rates.reshape(ensemble_size,
+                                                                      obs_nodes_num,
+                                                                      -1)
+        for i, transition_rates_str in enumerate(self.transition_rates_to_update_str):
+            ensemble_transition_rates[:,:,i] = np.clip(ensemble_transition_rates[:,:,i],
+                                                       self.transition_rates_min[transition_rates_str],
+                                                       self.transition_rates_max[transition_rates_str])
+        
+        return ensemble_transition_rates.reshape(ensemble_size, -1)
