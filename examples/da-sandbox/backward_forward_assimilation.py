@@ -13,7 +13,6 @@ from epiforecast.utilities import dict_slice
 
 from _argparse_init import arguments
 
-
 ################################################################################
 # initialization ###############################################################
 ################################################################################
@@ -50,8 +49,11 @@ from _user_network_init import user_network, user_nodes, user_population
 from _observations_init import (sensor_readings,
                                 MDT_neighbor_test,
                                 MDT_budget_random_test,
+                                MDT_high_var_test,
                                 MDT_result_delay,
                                 RDT_budget_random_test,
+                                poor_RDT_budget_random_test,
+                                RDT_high_var_test,
                                 RDT_result_delay,
                                 positive_hospital_records,
                                 negative_hospital_records,
@@ -196,13 +198,12 @@ for j in range(spin_up_steps):
 
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
-
+        
         observe_sensor_now = modulo_is_close_to_zero(current_time,
                                                         sensor_assimilation_interval,
                                                         eps=static_contact_interval)
 
         if observe_sensor_now:
-            print("gather sensor data at ", current_time)
             sensor_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -213,7 +214,6 @@ for j in range(spin_up_steps):
                                                    test_assimilation_interval,
                                                    eps=static_contact_interval)
         if observe_test_now:
-            print("gather test data at ", current_time)
             viral_test_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -224,7 +224,6 @@ for j in range(spin_up_steps):
                                                     record_assimilation_interval,
                                                     eps=static_contact_interval)
         if observe_record_now:
-            print("gather records at ", current_time)
             record_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -280,7 +279,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                         eps=static_contact_interval)
 
         if observe_sensor_now:
-            print("gather sensor data at ", current_time)
             sensor_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -291,7 +289,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                    test_assimilation_interval,
                                                    eps=static_contact_interval)
         if observe_test_now:
-            print("gather test data at ", current_time)
             viral_test_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -302,7 +299,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                     record_assimilation_interval,
                                                     eps=static_contact_interval)
         if observe_record_now:
-            print("gather records at ", current_time)
             record_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -310,7 +306,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 current_time)
 
         
-    print_info("Prediction ended: current time:", current_time)
+    print_info("Prediction ended: current time: " , current_time)
 
     for i_sweep in range(n_sweeps):
         print_info("Start the DA sweep: {}/{}".format(i_sweep+1, n_sweeps))

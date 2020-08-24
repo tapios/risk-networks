@@ -237,7 +237,6 @@ for j in range(spin_up_steps):
                                                    sensor_assimilation_interval,
                                                    eps=static_contact_interval)
         if observe_sensor_now:
-            print("gather sensor data at ", current_time)
             sensor_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -249,7 +248,6 @@ for j in range(spin_up_steps):
                                                    test_assimilation_interval,
                                                    eps=static_contact_interval)
         if observe_test_now:
-            print("gather test data at ", current_time)
             viral_test_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -260,7 +258,6 @@ for j in range(spin_up_steps):
                                                     record_assimilation_interval,
                                                     eps=static_contact_interval)
         if observe_record_now:
-            print("gather records at ", current_time) 
             record_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -388,7 +385,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                      eps=static_contact_interval)
 
         if observe_sensor_now:
-            print("gather sensor data at ", current_time)
             sensor_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -400,8 +396,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                    test_assimilation_interval,
                                                    eps=static_contact_interval)
         if observe_test_now:
-            print("gather test data at ", current_time)
-
             viral_test_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
@@ -412,7 +406,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                     record_assimilation_interval,
                                                     eps=static_contact_interval)
         if observe_record_now:
-            print("gather records at ", current_time) 
             record_assimilator.find_and_store_observations(
                 ensemble_state,
                 loaded_data.end_statuses,
