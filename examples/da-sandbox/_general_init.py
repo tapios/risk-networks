@@ -3,7 +3,7 @@ from numba import set_num_threads
 
 from epiforecast.utilities import seed_three_random_states
 
-from _constants import OUTPUT_PATH, SAVE_PATH
+from _constants import OUTPUT_PATH, SAVE_PATH, SEED_GENERAL_INIT
 from _utilities import print_start_of, print_end_of
 
 
@@ -12,9 +12,8 @@ print_start_of(__name__)
 # numba ########################################################################
 set_num_threads(1)
 
-# random seeds for reproducibility #############################################
-seed = 942395
-seed_three_random_states(seed)
+# seeding ######################################################################
+seed_three_random_states(SEED_GENERAL_INIT)
 
 # create directories ###########################################################
 if not os.path.exists(OUTPUT_PATH):

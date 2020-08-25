@@ -1,17 +1,8 @@
 import copy
 import numpy as np
 import networkx as nx
-from functools import singledispatch
 
 from .utilities import normalize, not_involving
-
-@singledispatch
-def recruit_health_workers(workers, all_people):
-    return np.array(workers)
-
-@recruit_health_workers.register(int)
-def recruit_health_workers_randomly(workers, all_people):
-    return np.random.choice(all_people, workers)
 
 class HealthService:
     """
@@ -68,7 +59,8 @@ class HealthService:
             self,
             original_contact_network,
             health_workers,
-            health_workers_per_patient=5):
+            health_workers_per_patient=5,
+            seed=None):
         """
         Constructor
 
@@ -80,14 +72,42 @@ class HealthService:
                 * (list or array): denotes the address of `health_workers`
 
         """
+        self.rng = np.random.default_rng(seed)
+
         self.original_contact_network = copy.deepcopy(original_contact_network)
         self.all_people = original_contact_network.get_nodes()
 
         self.health_workers = set(
-                recruit_health_workers(health_workers, self.all_people))
+                self.__recruit_health_workers(health_workers, self.all_people))
 
         self.health_workers_per_patient = health_workers_per_patient
         self.patients = set()
+
+    def __recruit_health_workers(
+            self,
+            workers,
+            all_people):
+        """
+        Choose which nodes represent health workers
+
+        Input:
+            workers (int): number of health workers that are chosen randomly
+                           from all_people
+                    (list),
+                    (np.array): worker indices to use; returned without change
+            all_people (np.array): (n_nodes,) array of node indices
+        Output:
+            workers_chosen (np.array): array of indices chosen for workers
+        """
+        if isinstance(workers, (list, np.ndarray)):
+            return np.array(workers)
+        elif isinstance(workers, int):
+            return self.rng.choice(all_people, workers, replace=False)
+        else:
+            raise ValueError(
+                    self.__class__.__name__
+                    + ": this type of argument is not supported: "
+                    + workers.__class__.__name__)
 
     def current_patient_addresses(self):
         return set(p.address for p in self.patients)
@@ -98,11 +118,13 @@ class HealthService:
         """
         if self.health_workers_per_patient < len(viable_health_workers):
             # binomial degree distribution
-            size = np.random.binomial(len(viable_health_workers), self.health_workers_per_patient/len(viable_health_workers))
-            assigned = np.random.choice(list(viable_health_workers),
-                                        size = size,
-                                        replace = False)
+            size = self.rng.binomial(
+                    len(viable_health_workers),
+                    self.health_workers_per_patient / len(viable_health_workers))
 
+            assigned = self.rng.choice(list(viable_health_workers),
+                                       size=size,
+                                       replace=False)
         else:
             assigned = viable_health_workers
 

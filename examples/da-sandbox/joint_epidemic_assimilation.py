@@ -26,7 +26,8 @@ from _constants import (static_contact_interval,
                         total_time,
                         time_span,
                         distanced_max_contact_rate,
-                        OUTPUT_PATH)
+                        OUTPUT_PATH,
+                        SEED_JOINT_EPIDEMIC)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -156,7 +157,8 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
 ensemble_ic = random_risk_range(population,
                                 0.001,
                                 0.01,
-                                ensemble_size)
+                                ensemble_size,
+                                seed=SEED_JOINT_EPIDEMIC)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
