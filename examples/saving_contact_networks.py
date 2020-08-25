@@ -38,7 +38,8 @@ population = network.get_node_count()
 populace = network.get_nodes()
 statuses = random_epidemic(population,
                            populace,
-                           fraction_infected=0.01)
+                           fraction_infected=0.01,
+                           seed=seed)
 
 print("saving all the networks")
 current_infected = [node for node in populace if statuses[node] == 'I']
@@ -56,7 +57,8 @@ for i in range(int(simulation_length/static_contact_interval)):
     populace = network.get_nodes()
     statuses = random_epidemic(population,
                                populace,
-                               fraction_infected=0.01)
+                               fraction_infected=0.01,
+                               seed=(i+2)*seed)
     time = time + static_contact_interval
     current_infected = [node for node in populace if statuses[node] == 'I']
     print("infected at time", time, current_infected)

@@ -24,7 +24,8 @@ from _constants import (static_contact_interval,
                         end_time,
                         total_time,
                         time_span,
-                        OUTPUT_PATH)
+                        OUTPUT_PATH,
+                        SEED_BACKWARD_FORWARD)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -146,7 +147,8 @@ loaded_kinetic_ic = loaded_data.start_statuses
 ensemble_ic = random_risk_range(population,
                                 0.001,
                                 0.01,
-                                ensemble_size)
+                                ensemble_size,
+                                seed=SEED_BACKWARD_FORWARD)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)

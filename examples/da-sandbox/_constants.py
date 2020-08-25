@@ -10,6 +10,15 @@ from _utilities import print_start_of, print_end_of
 
 print_start_of(__name__)
 ################################################################################
+# seeds ########################################################################
+SEED_GENERAL_INIT      = 942395
+SEED_STOCHASTIC_INIT_1 = 4669
+SEED_STOCHASTIC_INIT_2 = 31415
+SEED_STOCHASTIC_INIT_3 = 271828
+SEED_BACKWARD_FORWARD  = 10958
+SEED_JOINT_EPIDEMIC    = 10958
+
+
 # paths, flags etc #############################################################
 NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
 SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')

@@ -67,8 +67,12 @@ assert sum(age_distribution) == 1.0
 set_num_threads(1)
 
 # Set random seeds for reproducibility
-seed = 942395
-seed_three_random_states(seed)
+SEED1 = 942395
+SEED2 = 10958
+SEED3 = 4669201
+SEED4 = 2502907
+
+seed_three_random_states(SEED1)
 
 # contact network ##############################################################
 edges_filename = os.path.join(NETWORKS_PATH, 'edge_list_SBM_1e5_nobeds.txt')
@@ -99,7 +103,8 @@ network.set_transition_rates_for_kinetic_model(transition_rates)
 
 health_service = HealthService(
         network,
-        network.get_health_workers())
+        network.get_health_workers(),
+        seed=SEED2)
 
 epidemic_simulator = EpidemicSimulator(
         network,
@@ -110,7 +115,8 @@ epidemic_simulator = EpidemicSimulator(
         day_inception_rate = λ_max,
         night_inception_rate = λ_min,
         health_service = health_service,
-        start_time = start_time)
+        start_time = start_time,
+        seed = SEED3)
 
 ################################################################################
 # run simulation ###############################################################
@@ -119,7 +125,8 @@ epidemic_simulator = EpidemicSimulator(
 statuses = random_epidemic(
         network.get_node_count(),
         network.get_nodes(),
-        fraction_infected=0.0025)
+        fraction_infected=0.0025,
+        seed=SEED4)
 
 epidemic_simulator.set_statuses(statuses)
 

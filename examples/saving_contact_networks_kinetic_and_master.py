@@ -133,7 +133,8 @@ time = start_time
 
 statuses = random_epidemic(population,
                            populace,
-                           fraction_infected=0.01)
+                           fraction_infected=0.01,
+                           seed=seed)
 
 
 epidemic_simulator.set_statuses(statuses)

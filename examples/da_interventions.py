@@ -208,7 +208,8 @@ intervention = Intervention(
 statuses = random_epidemic(
         network.get_node_count(),
         network.get_nodes(),
-        0.01)
+        0.01,
+        seed=seed)
 ensemble_states = random_risk(
         network.get_node_count(),
         fraction_infected=0.01,

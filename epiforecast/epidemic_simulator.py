@@ -27,7 +27,8 @@ class EpidemicSimulator:
             day_inception_rate = None,
             night_inception_rate = None,
             health_service = None,
-            start_time = 0.0):
+            start_time = 0.0,
+            seed = None):
         """
         Build a tool that simulates epidemics.
 
@@ -73,7 +74,8 @@ class EpidemicSimulator:
                                                   night_inception_rate = night_inception_rate,
                                                   mean_event_lifetime = mean_contact_lifetime,
                                                   buffer_margin = buffer_margin,
-                                                  start_time = start_time)
+                                                  start_time = start_time,
+                                                  seed = seed)
 
         diagram_indep = contact_network.generate_diagram_indep()
         diagram_neigh = contact_network.generate_diagram_neigh(

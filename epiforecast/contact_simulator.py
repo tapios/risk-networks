@@ -46,11 +46,14 @@ def add_edges(edge_state, edge_list):
         edge_state.update({ edge: (False, 0.0, 0.0) for edge in map(normalize, edge_list) })
 
 @njit
-def calculate_inception_rates(day_inception_rate, night_inception_rate,
-                              nodal_day_inception_rate, nodal_night_inception_rate,
-                              edge_state):
+def calculate_inception_rates(
+        day_inception_rate,
+        night_inception_rate,
+        nodal_day_inception_rate,
+        nodal_night_inception_rate,
+        edge_state):
     """
-    Calculate the inspection rates for each contact given the settings for each node.
+    Calculate inception rates for each contact given the settings for each node
     """
 
     for i, edge in enumerate(edge_state):
@@ -88,7 +91,8 @@ class ContactSimulator:
             mean_event_lifetime = None,
             start_time = 0.0,
             buffer_margin = 1,
-            rate_integral_increment = 0.05):
+            rate_integral_increment = 0.05,
+            seed = None):
         """
         Args
         ----
@@ -124,6 +128,8 @@ class ContactSimulator:
         self.mean_event_lifetime = mean_event_lifetime
         self.rate_integral_increment = rate_integral_increment
 
+        self.rng = np.random.default_rng(seed)
+
         # Initialize the active contacts
         self.active_contacts = np.zeros(self.buffer, dtype=bool)
 
@@ -136,9 +142,9 @@ class ContactSimulator:
             active_probability = initial_fraction_active_contacts
             inactive_probability = 1 - active_probability
 
-            active_contacts = np.random.choice([False, True],
-                                               size = n_contacts,
-                                               p = [inactive_probability, active_probability])
+            active_contacts = self.rng.choice([False, True],
+                                              size=n_contacts,
+                                              p=[inactive_probability, active_probability])
 
             self.active_contacts[:n_contacts] = active_contacts
 
@@ -209,8 +215,7 @@ class ContactSimulator:
 
         # Simulate contacts using a time-dependent Gillespie algorithm for a birth death process
         # with varying birth rate.
-        simulate_contacts(
-                          n_contacts,
+        simulate_contacts(n_contacts,
                           stop_time,
                           self.event_time,
                           self.contact_duration,
@@ -219,8 +224,7 @@ class ContactSimulator:
                           self.night_inception_rate,
                           self.day_inception_rate,
                           self.mean_event_lifetime,
-                          self.rate_integral_increment
-                         )
+                          self.rate_integral_increment)
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time
@@ -262,56 +266,56 @@ def diurnal_inception_rate(λnight, λday, t):
 
 @njit
 def simulate_contacts(
-                      n_contacts,
-                      stop_time,
-                      event_time,
-                      contact_duration,
-                      overshoot_duration,
-                      active_contacts,
-                      night_inception_rate,
-                      day_inception_rate,
-                      mean_event_lifetime,
-                      rate_integral_increment
-                     ):
-
+        n_contacts,
+        stop_time,
+        event_time,
+        contact_duration,
+        overshoot_duration,
+        active_contacts,
+        night_inception_rate,
+        day_inception_rate,
+        mean_event_lifetime,
+        rate_integral_increment):
+    """
+    """
     for i in range(n_contacts):
-
         (event_time[i],
          active_contacts[i],
          contact_duration[i],
-         overshoot_duration[i]) = simulate_contact(
-                                                   stop_time,
-                                                   event_time[i],
-                                                   contact_duration[i],
-                                                   overshoot_duration[i],
-                                                   active_contacts[i],
-                                                   night_inception_rate[i],
-                                                   day_inception_rate[i],
-                                                   mean_event_lifetime,
-                                                   rate_integral_increment
-                                                  )
+         overshoot_duration[i]
+        ) = simulate_contact(stop_time,
+                             event_time[i],
+                             contact_duration[i],
+                             overshoot_duration[i],
+                             active_contacts[i],
+                             night_inception_rate[i],
+                             day_inception_rate[i],
+                             mean_event_lifetime,
+                             rate_integral_increment)
 
 @njit
 def simulate_contact(
-                     stop_time,
-                     event_time,
-                     contact_duration,
-                     overshoot_duration,
-                     active_contact,
-                     night_inception_rate,
-                     day_inception_rate,
-                     mean_event_lifetime,
-                     rate_integral_increment
-                    ):
-
+        stop_time,
+        event_time,
+        contact_duration,
+        overshoot_duration,
+        active_contact,
+        night_inception_rate,
+        day_inception_rate,
+        mean_event_lifetime,
+        rate_integral_increment):
+    """
+    """
     contact_duration = overshoot_duration
 
     while event_time < stop_time:
+        # Compute "normalized" random step τ, with τ ~ Exp(1)
+        τ = - np.log(np.random.random())
 
         if active_contact: # compute contact deactivation time.
 
             # Contact is deactivated after
-            time_step = - np.log(np.random.random()) * mean_event_lifetime
+            time_step = τ * mean_event_lifetime
 
             # Record duration of contact prior to deactivation
             contact_duration += time_step
@@ -321,9 +325,6 @@ def simulate_contact(
             active_contact = False
 
         else: # compute next contact inception.
-
-            # Compute "normalized" random step τ, with τ ~ Exp(1)
-            τ = - np.log(np.random.random())
 
             # Solve
             #
