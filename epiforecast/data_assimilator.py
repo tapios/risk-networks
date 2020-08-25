@@ -117,6 +117,10 @@ class DataAssimilator:
                                      'community_mortality_fraction': 1,
                                      'hospital_mortality_fraction': 1}
 
+        # range of transmission rate
+        self.transmission_rate_min = 3
+        self.transmission_rate_max = 21 
+
     def find_observation_states(
             self,
             user_network,
@@ -272,6 +276,7 @@ class DataAssimilator:
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
                 ensemble_size = ensemble_transition_rates.shape[0] 
+                total_nodes_num = int(ensemble_state.shape[1]/5)
                 # If batching is not required:
                 if self.n_assimilation_batches==1:
                     (ensemble_state[:, obs_states],
@@ -283,6 +288,17 @@ class DataAssimilator:
                                              truth,
                                              cov,
                                              print_error=print_error)
+
+                    # Clip transmission rate into a reasonable range
+                    new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                             self.transmission_rate_min,
+                                                             self.transmission_rate_max)
+
+                    # Weighted-averaging based on ratio of observed nodes 
+                    new_ensemble_transmission_rate = (ensemble_transmission_rate*(total_nodes_num-obs_nodes.size) \
+                                                    + new_ensemble_transmission_rate*obs_nodes.size) \
+                                                    / total_nodes_num
+
                 else: #perform the EAKF in batches
                     
                     #create batches, with final batch larger due to rounding
@@ -324,6 +340,18 @@ class DataAssimilator:
                                                  print_error=print_error)
                         ensemble_transition_rates_reshaped[:,batch_params,:] = \
                         new_ensemble_transition_rates_batch.reshape(ensemble_size, batch_params.size, -1)
+
+                        # Clip transmission rate into a reasonable range
+                        new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                                 self.transmission_rate_min,
+                                                                 self.transmission_rate_max)
+
+                        # Weighted-averaging based on ratio of observed nodes 
+                        new_ensemble_transmission_rate = (ensemble_transmission_rate \
+                                                          *(total_nodes_num-batch_params.size) \
+                                                        + new_ensemble_transmission_rate*batch_params.size) \
+                                                        / total_nodes_num
+
                     new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
                             ensemble_size,-1)
 
