@@ -286,50 +286,56 @@ class MasterEquationModelEnsemble:
 
     def eval_closure(
             self,
-            ensemble_state,
             closure_name):
         """
-        Evaluate closure from full ensemble state
+        Evaluate closure from full ensemble state 'self.y0'
 
         Input:
-            ensemble_state (np.array): (M, 5*N) array of states
             closure_name (str): which closure to evaluate; only 'independent'
                                 and 'full' are supported at this time
         Output:
-            closure (np.array): (M, N) array of coefficients for S_i's
+            None
         """
         if closure_name == 'independent':
             iS, iI, iH = self.S_slice, self.I_slice, self.H_slice
-            y = ensemble_state
+            y = self.y0
 
-            numSI = y[:,iS].T.dot(y[:,iI])/(self.M)
-            denSI = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iI].mean(axis = 0).reshape(1,-1))
+            numSI = y[:,iS].T @ y[:,iI]
+            numSI /= self.M
 
-            numSH = y[:,iS].T.dot(y[:,iH])/(self.M)
-            denSH = y[:,iS].mean(axis = 0).reshape(-1,1).dot(y[:,iH].mean(axis = 0).reshape(1,-1))
+            numSH = y[:,iS].T @ y[:,iH]
+            numSH /= self.M
 
-            CM_SI = self.L.multiply(numSI/(denSI+1e-8)).dot(y[:,iI].T)
-            CM_SH = self.L.multiply(numSH/(denSH+1e-8)).dot(y[:,iH].T)
+            H_ensemble_mean = y[:,iH].mean(axis=0)
+            S_ensemble_mean = y[:,iS].mean(axis=0)
+            I_ensemble_mean = y[:,iI].mean(axis=0)
 
-            closure = (  CM_SI.T * self.ensemble_beta_infected
-                       + CM_SH.T * self.ensemble_beta_hospital)
+            denSI = np.outer(S_ensemble_mean, I_ensemble_mean) + 1e-8
+            denSH = np.outer(S_ensemble_mean, H_ensemble_mean) + 1e-8
+
+            CM_SI = self.L.multiply(numSI/denSI).tocsr()
+            CM_SH = self.L.multiply(numSH/denSH).tocsr()
+
+            CM_SI @= y[:,iI].T
+            CM_SH @= y[:,iH].T
+
+            self.closure[:] = (  CM_SI.T * self.ensemble_beta_infected
+                               + CM_SH.T * self.ensemble_beta_hospital)
 
         elif closure_name == 'full':
             # XXX this only works for betas of shape (M, 1) for sure
-            ensemble_I_substate = ensemble_state[:, self.I_slice] # (M, N)
-            ensemble_H_substate = ensemble_state[:, self.H_slice] # (M, N)
+            ensemble_I_substate = self.y0[:, self.I_slice] # (M, N)
+            ensemble_H_substate = self.y0[:, self.H_slice] # (M, N)
 
             closure_I = ensemble_I_substate @ self.L
             closure_H = ensemble_H_substate @ self.L
-            closure = (  closure_I * self.ensemble_beta_infected,
-                       + closure_H * self.ensemble_beta_hospital)
+            self.closure[:] = (  closure_I * self.ensemble_beta_infected,
+                               + closure_H * self.ensemble_beta_hospital)
         else:
             raise ValueError(
                     self.__class__.__name__
                     + ": this value of 'closure_name' is not supported: "
                     + closure_name)
-
-        return closure
 
     def simulate(
             self,
@@ -351,7 +357,7 @@ class MasterEquationModelEnsemble:
         maxdt = abs(time_window) / min_steps
 
         timer_eval_closure = timer()
-        self.closure[:] = self.eval_closure(self.y0, closure_name)
+        self.eval_closure(closure_name)
         self.walltime_eval_closure += timer() - timer_eval_closure
 
         if self.parallel_cpu:
