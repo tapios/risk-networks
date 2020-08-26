@@ -273,6 +273,24 @@ class ContactNetwork:
         """
         return self.graph
 
+    def get_neighbors(
+            self,
+            nodes):
+        """
+        Get neighbors of nodes
+
+        Input:
+            nodes (np.array): (K1,) array of nodes whose neighbors to retrieve
+
+        Output:
+            neighbors (np.array): (K2,) array of unique neighbors, sorted
+        """
+        adjacency_matrix = self.get_edge_weights()
+        sliced_adjacency_matrix = adjacency_matrix[nodes,:]
+        unsorted_neighbors = sliced_adjacency_matrix.nonzero()[1]
+
+        return np.unique(unsorted_neighbors)
+
     def get_nodes(self):
         """
         Get all nodes of the graph
