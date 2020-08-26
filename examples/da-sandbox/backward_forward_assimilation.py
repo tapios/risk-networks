@@ -300,7 +300,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
-                        past_time)
+                        past_time,
+                        global_update=True)
 
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,
@@ -346,7 +347,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.start_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
-                    past_time)
+                    past_time,
+                    global_update=True)
         assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                     HD_assimilation_interval,
                                                     eps=static_contact_interval)
@@ -399,7 +401,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
-                        past_time)
+                        past_time,
+                        global_update=True)
 
             assimilate_HD_now = modulo_is_close_to_zero(past_time,
                                                         HD_assimilation_interval,

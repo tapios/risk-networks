@@ -254,27 +254,32 @@ class DataAssimilator:
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
                 if global_update == True:
-                    total_nodes_num = int(ensemble_state.shape[1]/5)
-                    update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) * total_nodes_num)
-                    update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) * total_nodes_num)
-                    update_states_num = update_states_index_max - update_states_index_min
-                    H_obs = np.zeros([obs_nodes.size, update_states_num])
-                    H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
+                    # If batching is not required:
+                    if self.n_assimilation_batches==1:
+                        total_nodes_num = int(ensemble_state.shape[1]/5)
+                        update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
+                                                      * total_nodes_num)
+                        update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
+                                                      * total_nodes_num)
+                        update_states_num = update_states_index_max - update_states_index_min
+                        H_obs = np.zeros([obs_nodes.size, update_states_num])
+                        H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
 
-                    (ensemble_state[:, update_states_index_min:update_states_index_max],
-                     new_ensemble_transition_rates,
-                     new_ensemble_transmission_rate
-                    ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
-                                             ensemble_transition_rates,
-                                             ensemble_transmission_rate,
-                                             truth,
-                                             cov,
-                                             H_obs,
-                                             print_error=print_error)
+                        (ensemble_state[:, update_states_index_min:update_states_index_max],
+                         new_ensemble_transition_rates,
+                         new_ensemble_transmission_rate
+                        ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
+                                                 ensemble_transition_rates,
+                                                 ensemble_transmission_rate,
+                                                 truth,
+                                                 cov,
+                                                 H_obs,
+                                                 print_error=print_error)
 
                 else:
                     # If batching is not required:
                     if self.n_assimilation_batches==1:
+                        H_obs = np.eye(obs_states.size)
                         (ensemble_state[:, obs_states],
                          new_ensemble_transition_rates,
                          new_ensemble_transmission_rate
@@ -283,6 +288,7 @@ class DataAssimilator:
                                                  ensemble_transmission_rate,
                                                  truth,
                                                  cov,
+                                                 H_obs,
                                                  print_error=print_error)
                     else: #perform the EAKF in batches
                         
@@ -294,6 +300,7 @@ class DataAssimilator:
                                    for i in np.arange(self.n_assimilation_batches)]
                         
                         for batch in batches:
+                            H_obs = np.eye(batch.size)
                             cov_batch = np.diag(np.diag(cov)[batch])
                             (ensemble_state[:, obs_states[batch]],
                              new_ensemble_transition_rates,
@@ -303,20 +310,21 @@ class DataAssimilator:
                                                      ensemble_transmission_rate,
                                                      truth[batch],
                                                      cov_batch,
+                                                     H_obs,
                                                      print_error=print_error)
                         
-                    self.sum_to_one(prev_ensemble_state, ensemble_state)
+                self.sum_to_one(prev_ensemble_state, ensemble_state)
 
-                    # set the updated rates in the TransitionRates object and
-                    # return the full rates.
-                    (full_ensemble_transition_rates,
-                     full_ensemble_transmission_rate
-                    ) = self.assign_updated_model_parameters(
-                            new_ensemble_transition_rates,
-                            new_ensemble_transmission_rate,
-                            full_ensemble_transition_rates,
-                            full_ensemble_transmission_rate,
-                            obs_nodes)
+                # set the updated rates in the TransitionRates object and
+                # return the full rates.
+                (full_ensemble_transition_rates,
+                 full_ensemble_transmission_rate
+                ) = self.assign_updated_model_parameters(
+                        new_ensemble_transition_rates,
+                        new_ensemble_transmission_rate,
+                        full_ensemble_transition_rates,
+                        full_ensemble_transmission_rate,
+                        obs_nodes)
 
                 if print_error:
                     print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])
