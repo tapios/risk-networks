@@ -3,7 +3,6 @@ import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import time
 import warnings
-import pdb
  
 class EnsembleAdjustmentKalmanFilter:
 
@@ -67,6 +66,7 @@ class EnsembleAdjustmentKalmanFilter:
             transmission_rates,
             truth,
             cov,
+            H_obs,
             print_error=False,
             r=1.0):
 
@@ -136,11 +136,13 @@ class EnsembleAdjustmentKalmanFilter:
         # Sizes of q and x
         pqs = q[0].size +p[0].size
         xs = x[0].size
+        xt = truth.size
 
         zp_bar = np.mean(zp, 0)
 
-        H = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
+        H = np.hstack([np.zeros((xt, pqs)), H_obs])
         Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
+        Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
         
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         if not self.prior_svd_reduced:
@@ -247,6 +249,9 @@ class EnsembleAdjustmentKalmanFilter:
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
             U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            # Padding the diagonal of matrix B with zeros
+            if D_vec.shape[0] < Dp_vec.shape[0]:
+                D_vec = np.hstack([D_vec,np.zeros(Dp_vec.shape[0]-D_vec.shape[0])])
             D_vec = D_vec**2
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
             A = np.linalg.multi_dot([F, 
@@ -280,7 +285,7 @@ class EnsembleAdjustmentKalmanFilter:
         zu = np.dot(zp - zp_bar, A.T) + zu_bar
 
         # Store updated parameters and states
-        x_logit = np.dot(zu, H.T)
+        x_logit = np.dot(zu, Hs.T)
 
         # Avoid overflow for exp
         x_logit = np.minimum(x_logit, 1e2)

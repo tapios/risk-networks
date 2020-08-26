@@ -216,7 +216,8 @@ class DataAssimilator:
             full_ensemble_transmission_rate,
             current_time,
             verbose=False,
-            print_error=False):
+            print_error=False,
+            global_update=False):
         """
         Input:
             ...
@@ -252,50 +253,70 @@ class DataAssimilator:
                 # Perform da model update with ensemble_state: states, transition and transmission rates 
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
-                # If batching is not required:
-                if self.n_assimilation_batches==1:
-                    (ensemble_state[:, obs_states],
+                if global_update == True:
+                    total_nodes_num = int(ensemble_state.shape[1]/5)
+                    update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) * total_nodes_num)
+                    update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) * total_nodes_num)
+                    update_states_num = update_states_index_max - update_states_index_min
+                    H_obs = np.zeros([obs_nodes.size, update_states_num])
+                    H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
+
+                    (ensemble_state[:, update_states_index_min:update_states_index_max],
                      new_ensemble_transition_rates,
                      new_ensemble_transmission_rate
-                    ) = self.damethod.update(ensemble_state[:, obs_states],
+                    ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
                                              ensemble_transition_rates,
                                              ensemble_transmission_rate,
                                              truth,
                                              cov,
+                                             H_obs,
                                              print_error=print_error)
-                else: #perform the EAKF in batches
-                    
-                    #create batches, with final batch larger due to rounding
-                    batch_size = int(obs_states.size / self.n_assimilation_batches)
-                    permuted_idx = np.random.permutation(np.arange(obs_states.size))
-                    batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] if i < (self.n_assimilation_batches - 1)
-                               else permuted_idx[i * batch_size:]
-                               for i in np.arange(self.n_assimilation_batches)]
-                    
-                    for batch in batches:
-                        cov_batch = np.diag(np.diag(cov)[batch])
-                        (ensemble_state[:, obs_states[batch]],
+
+                else:
+                    # If batching is not required:
+                    if self.n_assimilation_batches==1:
+                        (ensemble_state[:, obs_states],
                          new_ensemble_transition_rates,
                          new_ensemble_transmission_rate
-                        ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
+                        ) = self.damethod.update(ensemble_state[:, obs_states],
                                                  ensemble_transition_rates,
                                                  ensemble_transmission_rate,
-                                                 truth[batch],
-                                                 cov_batch,
+                                                 truth,
+                                                 cov,
                                                  print_error=print_error)
-                    
-                self.sum_to_one(prev_ensemble_state, ensemble_state)
+                    else: #perform the EAKF in batches
+                        
+                        #create batches, with final batch larger due to rounding
+                        batch_size = int(obs_states.size / self.n_assimilation_batches)
+                        permuted_idx = np.random.permutation(np.arange(obs_states.size))
+                        batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] if i < (self.n_assimilation_batches - 1)
+                                   else permuted_idx[i * batch_size:]
+                                   for i in np.arange(self.n_assimilation_batches)]
+                        
+                        for batch in batches:
+                            cov_batch = np.diag(np.diag(cov)[batch])
+                            (ensemble_state[:, obs_states[batch]],
+                             new_ensemble_transition_rates,
+                             new_ensemble_transmission_rate
+                            ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
+                                                     ensemble_transition_rates,
+                                                     ensemble_transmission_rate,
+                                                     truth[batch],
+                                                     cov_batch,
+                                                     print_error=print_error)
+                        
+                    self.sum_to_one(prev_ensemble_state, ensemble_state)
 
-                # set the updated rates in the TransitionRates object and
-                # return the full rates.
-                (full_ensemble_transition_rates,
-                 full_ensemble_transmission_rate
-                ) = self.assign_updated_model_parameters(
-                        new_ensemble_transition_rates,
-                        new_ensemble_transmission_rate,
-                        full_ensemble_transition_rates,
-                        full_ensemble_transmission_rate,
-                        obs_nodes)
+                    # set the updated rates in the TransitionRates object and
+                    # return the full rates.
+                    (full_ensemble_transition_rates,
+                     full_ensemble_transmission_rate
+                    ) = self.assign_updated_model_parameters(
+                            new_ensemble_transition_rates,
+                            new_ensemble_transmission_rate,
+                            full_ensemble_transition_rates,
+                            full_ensemble_transmission_rate,
+                            obs_nodes)
 
                 if print_error:
                     print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])
