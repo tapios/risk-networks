@@ -38,30 +38,20 @@ EXP_NAME="kinetic_ensemble"
 #budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 #output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 
-#by sensor wearers
-sensor_wearers=(982 491 392 294 196 98 49)
-wearers=${sensor_wearers[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${wearers}"
-
 #parsed parameters
-budget=49 #high quality tests 5% population
-tested=0
-network_size=1e3
-I_min_threshold=0.0
-I_max_threshold=1.0
-user_fraction=1.0
-batches_records=4
-batches_tests=1
 parflag=False
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
+array_num=$(printf "%04d" ${SLURM_ARRAY_TASK_ID})
+epidemic_storage="epidemic_storage_$array_num.pkl"
 
 mkdir -p "${output_path}"
-
 
 # launch #######################################################################
 python3 run_kinetic_model.py \
   --constants-output-path=${output_path} \
+  --kinetic_seed=${SLURM_ARRAY_TASK_ID} \
+  --epidemic-storage-name=${epidemic_storage} \
   --network-node-count=${network_size} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
