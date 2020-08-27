@@ -221,6 +221,7 @@ class DataAssimilator:
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
             current_time,
+            user_network=None,
             verbose=False,
             print_error=False,
             global_update=False):
@@ -262,25 +263,43 @@ class DataAssimilator:
                 if global_update == True:
                     # If batching is not required:
                     if self.n_assimilation_batches==1:
-                        total_nodes_num = int(ensemble_state.shape[1]/5)
-                        update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
-                                                      * total_nodes_num)
-                        update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
-                                                      * total_nodes_num)
-                        update_states_num = update_states_index_max - update_states_index_min
-                        H_obs = np.zeros([obs_nodes.size, update_states_num])
-                        H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
+                        if user_network == None:
+                            total_nodes_num = int(ensemble_state.shape[1]/5)
+                            update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
+                                                          * total_nodes_num)
+                            update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
+                                                          * total_nodes_num)
+                            update_states_num = update_states_index_max - update_states_index_min
+                            H_obs = np.zeros([obs_nodes.size, update_states_num])
+                            H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
 
-                        (ensemble_state[:, update_states_index_min:update_states_index_max],
-                         new_ensemble_transition_rates,
-                         new_ensemble_transmission_rate
-                        ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
-                                                 ensemble_transition_rates,
-                                                 ensemble_transmission_rate,
-                                                 truth,
-                                                 cov,
-                                                 H_obs,
-                                                 print_error=print_error)
+                            (ensemble_state[:, update_states_index_min:update_states_index_max],
+                             new_ensemble_transition_rates,
+                             new_ensemble_transmission_rate
+                            ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
+                                                     ensemble_transition_rates,
+                                                     ensemble_transmission_rate,
+                                                     truth,
+                                                     cov,
+                                                     H_obs,
+                                                     print_error=print_error)
+                        else:
+                            neighbour_nodes = user_network.get_neighbors(obs_nodes)
+                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes]) 
+                            update_states_num = update_states_nodes.size
+                            H_obs = np.hstack([np.zeros((obs_nodes.size,neighbour_nodes.size)), 
+                                               np.eye(obs_nodes.size)])
+
+                            (ensemble_state[:, update_states_nodes],
+                             new_ensemble_transition_rates,
+                             new_ensemble_transmission_rate
+                            ) = self.damethod.update(ensemble_state[:, update_states_nodes],
+                                                     ensemble_transition_rates,
+                                                     ensemble_transmission_rate,
+                                                     truth,
+                                                     cov,
+                                                     H_obs,
+                                                     print_error=print_error)
 
                 else:
                     # If batching is not required:
