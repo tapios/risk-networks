@@ -24,6 +24,10 @@ SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
 FIGURES_PATH = os.path.join('..', '..', 'figs')
 ENSEMBLE_PATH = os.path.join('..', '..', 'ensembles')
 
+#if ensemble path doesn't exist
+if not os.path.isdir(ENSEMBLE_PATH):
+    os.mkdir(ENSEMBLE_PATH)
+
 
 if len(arguments.constants_output_path) > 0:
     OUTPUT_PATH = arguments.constants_output_path
