@@ -1,12 +1,18 @@
 import os, sys; sys.path.append(os.path.join("../.."))
 from timeit import default_timer as timer
+import pickle
 
-from _constants import start_time, total_time, static_contact_interval
+from _constants import (start_time,
+                        total_time,
+                        static_contact_interval,
+                        ENSEMBLE_PATH)
 from _network_init import network
 from _stochastic_init import (epidemic_simulator,
                               epidemic_data_storage,
                               kinetic_ic)
 from _utilities import print_start_of, print_end_of, print_info_module
+
+from _argparse_init import arguments
 
 
 print_start_of(__name__)
@@ -51,6 +57,20 @@ for i in range(int(total_time/static_contact_interval)):
 
     # store for plotting
     kinetic_states_timeseries.append(kinetic_state)
+
+# store epidemic data to file
+pickle.dump(epidemic_data_storage,
+            open(os.path.join(ENSEMBLE_PATH, arguments.epidemic_storage_name), "wb" ),
+            protocol=pickle.HIGHEST_PROTOCOL)
+            
+print_info_module(__name__,
+                  "You can find the kinetic ensemble at:",
+                  ENSEMBLE_PATH)
+
+print_info_module(__name__,
+                  "You can find the kinetic timeseries as:",
+                  arguments.epidemic_storage_name)
+
 
 print_info_module(__name__,
                   "Simulation done; elapsed:",

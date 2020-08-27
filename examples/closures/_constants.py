@@ -12,17 +12,18 @@ print_start_of(__name__)
 ################################################################################
 # seeds ########################################################################
 SEED_GENERAL_INIT      = 942395
-SEED_STOCHASTIC_INIT_1 = 4669
-SEED_STOCHASTIC_INIT_2 = 31415
-SEED_STOCHASTIC_INIT_3 = 271828
+SEED_STOCHASTIC_INIT_1 = 4669                     # Seed for health service
+SEED_STOCHASTIC_INIT_2 = arguments.kinetic_seed   # Seed for kinetic simulations
+SEED_STOCHASTIC_INIT_3 = 271828                   # Seed for initial conditions
 SEED_BACKWARD_FORWARD  = 10958
 SEED_JOINT_EPIDEMIC    = 10958
-
 
 # paths, flags etc #############################################################
 NETWORKS_PATH = os.path.join('..', '..', 'data', 'networks')
 SIMULATION_PATH = os.path.join('..', '..', 'data', 'simulation_data')
 FIGURES_PATH = os.path.join('..', '..', 'figs')
+ENSEMBLE_PATH = os.path.join('..', '..', 'ensembles')
+
 
 if len(arguments.constants_output_path) > 0:
     OUTPUT_PATH = arguments.constants_output_path
@@ -40,11 +41,11 @@ minute = 1 / 60 / 24
 hour = 60 * minute
 day = 1.0
 
-static_contact_interval = 3 * hour
+static_contact_interval = 6 * hour
 mean_contact_lifetime = 0.5 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    = 50.0  # the ultimate end time
+end_time    = 5.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
@@ -76,5 +77,3 @@ hospital_transmission_reduction = 0.1 # == α
 
 ################################################################################
 print_end_of(__name__)
-
-

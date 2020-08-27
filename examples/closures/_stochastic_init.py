@@ -72,5 +72,3 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 
 ################################################################################
 print_end_of(__name__)
-
-

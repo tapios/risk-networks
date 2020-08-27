@@ -14,6 +14,9 @@ print_info_module(__name__, "parsing args of PID:", os.getpid())
 parser.add_argument('--parallel-flag', default=False, action='store_true')
 parser.add_argument('--num-cores', type=int, default=1)
 
+# seeds ########################################################################
+parser.add_argument('--kinetic-seed', type=int, default=31415)
+
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
 parser.add_argument('--constants-save-path', type=str, default='')
@@ -63,4 +66,3 @@ print_info_module(__name__, arguments)
 
 ################################################################################
 print_end_of(__name__)
-

@@ -60,16 +60,8 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
-python3 backward_forward_assimilation.py \
-  --user-network-user-fraction=${user_fraction} \
+python3 run_kinetic_model.py \
   --constants-output-path=${output_path} \
-  --observations-I-fraction-tested=${tested} \
-  --observations-I-budget=${budget} \
-  --observations-sensor-wearers=${wearers} \
-  --observations-I-min-threshold=${I_min_threshold} \
-  --observations-I-max-threshold=${I_max_threshold} \
   --network-node-count=${network_size} \
-  --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_tests} \
   --parallel-flag=${parflag} \
   >${stdout} 2>${stderr}
