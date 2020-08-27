@@ -28,7 +28,6 @@ ENSEMBLE_PATH = os.path.join('..', '..', 'ensembles')
 if not os.path.isdir(ENSEMBLE_PATH):
     os.mkdir(ENSEMBLE_PATH)
 
-
 if len(arguments.constants_output_path) > 0:
     OUTPUT_PATH = arguments.constants_output_path
 else:
@@ -45,11 +44,11 @@ minute = 1 / 60 / 24
 hour = 60 * minute
 day = 1.0
 
-static_contact_interval = 6 * hour
+static_contact_interval = 3 * hour
 mean_contact_lifetime = 0.5 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    = 5.0  # the ultimate end time
+end_time    = 30.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 

@@ -9,7 +9,7 @@
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err
 
-#SBATCH --array=0-10
+#SBATCH --array=0-100
 
 ##################################
 # Infectiousness test experiment #
@@ -20,6 +20,7 @@
 # submit with: sbatch run_infectious_test_expt.sh
 
 # preface ######################################################################
+source activate risknet
 set -euo pipefail
 
 OUTPUT_DIR="output"
@@ -29,13 +30,14 @@ output_path=${OUTPUT_DIR}/${EXP_NAME}
 
 
 # parameters & constants #######################################################
-
 #parsed parameters
 stdout="${output_path}/stdout_${SLURM_ARRAY_TASK_ID}"
 stderr="${output_path}/stderr_${SLURM_ARRAY_TASK_ID}"
 network_size=1e3
 epidemic_storage="epidemic_storage_${array_num}.pkl"
 
+echo "Hello, old friend"
+echo $epidemic_storage
 mkdir -p "${output_path}"
 
 # launch #######################################################################
