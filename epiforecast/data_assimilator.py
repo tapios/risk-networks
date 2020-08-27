@@ -300,6 +300,31 @@ class DataAssimilator:
                                                      cov,
                                                      H_obs,
                                                      print_error=print_error)
+                    else: #perform the EAKF in batches
+                        batch_size = int(obs_states.size / self.n_assimilation_batches)
+                        permuted_idx = np.random.permutation(np.arange(obs_states.size))
+                        batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] \
+                                   if i < (self.n_assimilation_batches - 1)
+                                   else permuted_idx[i * batch_size:]
+                                   for i in np.arange(self.n_assimilation_batches)]
+                        for batch in batches:
+                            cov_batch = np.diag(np.diag(cov)[batch])
+                            neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
+                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes[batch]]) 
+                            update_states_num = update_states_nodes.size
+                            H_obs = np.hstack([np.zeros((obs_nodes[batch].size,neighbour_nodes.size)), 
+                                               np.eye(obs_nodes[batch].size)])
+
+                            (ensemble_state[:, update_states_nodes],
+                             new_ensemble_transition_rates,
+                             new_ensemble_transmission_rate
+                            ) = self.damethod.update(ensemble_state[:, update_states_nodes],
+                                                     ensemble_transition_rates,
+                                                     ensemble_transmission_rate,
+                                                     truth[batch],
+                                                     cov_batch,
+                                                     H_obs,
+                                                     print_error=print_error)
 
                 else:
                     # If batching is not required:
