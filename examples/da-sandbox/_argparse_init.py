@@ -26,16 +26,16 @@ parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
 parser.add_argument('--user-network-seed-user', type=int, default=190)
 
 # observations #################################################################
-parser.add_argument('--observations-I-fraction-tested', type=float, default=0.01)
-parser.add_argument('--observations-I-budget', type=int, default=10)
+parser.add_argument('--observations-I-fraction-tested', type=float, default=0)
+parser.add_argument('--observations-I-budget', type=int, default=0)
 parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
-parser.add_argument('--observations-sensor-wearers', type=int, default=10)
-
+parser.add_argument('--observations-sensor-wearers', type=int, default=0)
 
 # data assimilation ############################################################
-parser.add_argument('--assimilation-batches-perfect', type=int, default=4)
-parser.add_argument('--assimilation-batches-imperfect', type=int, default=4)
+parser.add_argument('--assimilation-batches-sensor', type=int, default=1)
+parser.add_argument('--assimilation-batches-test', type=int, default=1)
+parser.add_argument('--assimilation-batches-record', type=int, default=1)
 
 # interventions ################################################################
 parser.add_argument('--intervention-frequency', type=str, default='none')
