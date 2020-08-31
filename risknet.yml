@@ -125,4 +125,3 @@ dependencies:
     - seaborn==0.10.1
     - tqdm==4.46.0
 prefix: /Users/gregorywagner/opt/anaconda3/envs/risknet
-
