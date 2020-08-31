@@ -226,7 +226,7 @@ class TransitionRates:
         self.hospitalized_to_resistant= dict(enumerate((1 - d_prime) * γ_prime))
         self.hospitalized_to_deceased = dict(enumerate(d_prime * γ_prime))
 
-    def get_rate(
+    def get_transition_rate(
             self,
             name):
         """

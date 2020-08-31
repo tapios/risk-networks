@@ -18,6 +18,8 @@ class MasterEquationModelEnsemble:
             parallel_cpu=False,
             num_cpus=1):
         """
+        Constructor
+
         Input:
             population (int): population count
             transition_rates (TransitionRates): same rates for each ensemble
@@ -34,6 +36,7 @@ class MasterEquationModelEnsemble:
             ensemble_size (int): number of ensemble members
             start_time (float): start time of the simulation
             parallel_cpu (bool): whether to run computation in parallel on CPU
+            num_cpus (int): number of CPUs available; only used in parallel mode
         """
         assert len(transmission_rate) == ensemble_size
 
@@ -106,25 +109,31 @@ class MasterEquationModelEnsemble:
             self,
             transition_rates):
         """
-        """
-        sigma  = transition_rates.get_rate('exposed_to_infected')
-        delta  = transition_rates.get_rate('infected_to_hospitalized')
-        theta  = transition_rates.get_rate('infected_to_resistant')
-        thetap = transition_rates.get_rate('hospitalized_to_resistant')
-        mu     = transition_rates.get_rate('infected_to_deceased')
-        mup    = transition_rates.get_rate('hospitalized_to_deceased')
+        Extract coefficients from TransitionRates object into np.array
 
-        gamma  = theta  + mu  + delta
-        gammap = thetap + mup
+        Input:
+            transition_rates (TransitionRates): transition rates of a member
+        Output:
+            coefficients (np.array): (8*N,) array of master equations coeffs
+        """
+        sigma= transition_rates.get_transition_rate('exposed_to_infected')
+        delta= transition_rates.get_transition_rate('infected_to_hospitalized')
+        xi   = transition_rates.get_transition_rate('infected_to_resistant')
+        xip  = transition_rates.get_transition_rate('hospitalized_to_resistant')
+        mu   = transition_rates.get_transition_rate('infected_to_deceased')
+        mup  = transition_rates.get_transition_rate('hospitalized_to_deceased')
+
+        gamma  = xi  + mu  + delta
+        gammap = xip + mup
 
         return np.hstack((
                 sigma,
                 gamma,
                 delta,
-                theta,
+                xi,
                 mu,
                 gammap,
-                thetap,
+                xip,
                 mup
         ))
 
@@ -228,6 +237,8 @@ class MasterEquationModelEnsemble:
             j,
             member_state):
         """
+        Compute right-hand side of master equations
+
         Input:
             j (int): index of the ensemble member
             member_state (np.array): (5*N,) array of states
@@ -242,10 +253,10 @@ class MasterEquationModelEnsemble:
         (sigma,
          gamma,
          delta,
-         theta,
+         xi,
          mu,
          gammap,
-         thetap,
+         xip,
          mup
         ) = self.coefficients[j].reshape( (8, -1) )
 
@@ -254,33 +265,8 @@ class MasterEquationModelEnsemble:
         rhs[self.S_slice] = -self.closure[j] * S_substate
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
-        rhs[self.R_slice] = theta * I_substate + thetap * H_substate
+        rhs[self.R_slice] = xi    * I_substate + xip    * H_substate
         rhs[self.D_slice] = mu    * I_substate + mup    * H_substate
-
-        return rhs
-
-    def compute_rhs_sparse(
-            self,
-            member_coeffs,
-            member_sigma,
-            member_state,
-            member_closure):
-        """
-        Legacy function to compute RHS using sparse matrix coefficients
-
-        Input:
-            member_coeffs (scipy.sparse): coefficients in a sparse matrix
-            member_sigma (np.array): (N,) array of sigma coefficients separately
-            member_state (np.array): (5*N,) array of states
-            member_closure (np.array): (N,) array of coefficients for S_i's
-        Output:
-            rhs (np.array): (5*N,) right-hand side of master equations
-        """
-        S_substate = member_state[self.S_slice]
-
-        rhs               = member_coeffs.dot(member_state)
-        rhs[self.I_slice] += member_sigma
-        rhs[self.S_slice] = -member_closure * S_substate
 
         return rhs
 
@@ -323,7 +309,7 @@ class MasterEquationModelEnsemble:
                                + CM_SH.T * self.ensemble_beta_hospital)
 
         elif closure_name == 'full':
-            # XXX this only works for betas of shape (M, 1) for sure
+            # XXX this only works for betas of shape (M, 1); untested for others
             ensemble_I_substate = self.y0[:, self.I_slice] # (M, N)
             ensemble_H_substate = self.y0[:, self.H_slice] # (M, N)
 
@@ -421,6 +407,16 @@ class MasterEquationModelEnsemble:
         return self.walltime_eval_closure
 
     def wrap_up(self):
+        """
+        Take care of the shared memory objects
+
+        This should be called only once at the end of object's lifetime;
+        unfortunately, destructor doesn't work for this (some memory is already
+        being freed, so it throws an exception).
+
+        Output:
+            None
+        """
         if self.parallel_cpu:
             self.y0_shm.close()
             self.closure_shm.close()
@@ -443,6 +439,15 @@ class RemoteIntegrator:
             closure_shared_memory_name):
         """
         Constructor
+
+        Input:
+            members_to_compute (np.array): indices of members that are assigned
+                                           to this integrator
+            M (int): total number of ensemble members
+            N (int): total number of nodes (population)
+            ensemble_state_shared_memory_name (str): shared memory name (state)
+            coefficients_shared_memory_name (str): shared memory name (coeffs)
+            closure_shared_memory_name (str): shared memory name (closure)
         """
         self.M = M
         self.N = N
@@ -466,7 +471,16 @@ class RemoteIntegrator:
             stop_time,
             maxdt):
         """
-        Standalone function to perform asynchronous integration
+        Integrate members assigned to the current integrator
+
+        All three arguments are arguments to scipy.integrate.solve_ivp
+
+        Input:
+            start_time (float): start time of the integration interval
+            stop_time (float): stop time of the integration interval
+            maxdt (float): maximum timestep
+        Output:
+            None
         """
         y0_shm = shared_memory.SharedMemory(
                 name=self.shared_memory_names['ensemble_state'])
@@ -517,6 +531,8 @@ class RemoteIntegrator:
             member_coefficients,
             member_closure):
         """
+        Compute right-hand side of master equations
+
         Input:
             member_state (np.array): (5*N,) array of states
             member_coefficients (np.array): (8*N,) array of coefficients of the
@@ -533,10 +549,10 @@ class RemoteIntegrator:
         (sigma,
          gamma,
          delta,
-         theta,
+         xi,
          mu,
          gammap,
-         thetap,
+         xip,
          mup
         ) = member_coefficients.reshape( (8, -1) )
 
@@ -545,7 +561,7 @@ class RemoteIntegrator:
         rhs[self.S_slice] = -member_closure * S_substate
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
-        rhs[self.R_slice] = theta * I_substate + thetap * H_substate
+        rhs[self.R_slice] = xi    * I_substate + xip    * H_substate
         rhs[self.D_slice] = mu    * I_substate + mup    * H_substate
 
         return rhs
