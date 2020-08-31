@@ -330,6 +330,8 @@ print_info("Spin-up ended: current time", current_time)
 for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
     timer_window = timer()
+    walltime_master_eqn = 0.0
+    master_eqn_ensemble.reset_walltimes()
 
     assert are_close(current_time,
                      k * prediction_window,
@@ -376,8 +378,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
         # run ensemble forward
+        timer_master_eqn = timer()
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
                                                       min_steps=n_forward_steps)
+        walltime_master_eqn += timer() - timer_master_eqn
+
         current_time += static_contact_interval
 
 
@@ -484,8 +489,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
                                                                     min_steps=n_backward_steps)
+            walltime_master_eqn += timer() - timer_master_eqn
+
             past_time -= static_contact_interval
 
         # furthest-in-the-past assimilation (at the peak of the sweep)
@@ -538,10 +546,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
             master_eqn_ensemble.set_states_ensemble(ensemble_state)
             master_eqn_ensemble.update_ensemble(
-                new_transition_rates=transition_rates_ensemble,
-                new_transmission_rate=community_transmission_rate_ensemble)
+                    new_transition_rates=transition_rates_ensemble,
+                    new_transmission_rate=community_transmission_rate_ensemble)
 
-        print_info("Backward assimilation ended; current time:", past_time)
+        print_info("Backward assimilation ended; past_time:", past_time)
 
         ## 3) forward run with data assimilation
         master_eqn_ensemble.set_start_time(past_time)
@@ -553,8 +561,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
                                                           min_steps=n_forward_steps)
+            walltime_master_eqn += timer() - timer_master_eqn
+
             past_time += static_contact_interval
 
             # data assimilation
@@ -610,13 +621,20 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
 
-        print_info("Forward assimilation ended; current time", past_time)
+        print_info("Forward assimilation ended; current_time", current_time)
 
         # DA should get back to the current time
         assert are_close(past_time, current_time, eps=static_contact_interval)
     
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
-               "ended; elapsed:", timer() - timer_window, end='\n\n')
+               "ended; elapsed:",
+               timer() - timer_window)
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "eval_closure walltime:",
+               master_eqn_ensemble.get_walltime_eval_closure())
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "master equations walltime:",
+               walltime_master_eqn, end='\n\n')
 
     #4) Intervention
     # first get the frequency

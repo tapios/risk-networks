@@ -11,13 +11,12 @@ from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same
 from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
 from epiforecast.utilities import dict_slice
 
-from _argparse_init import arguments
 
 ################################################################################
 # initialization ###############################################################
 ################################################################################
 # arguments parsing ############################################################
-import _argparse_init
+from _argparse_init import arguments
 
 # constants ####################################################################
 from _constants import (static_contact_interval,
@@ -231,9 +230,8 @@ for j in range(spin_up_steps):
                 user_network,
                 current_time)
 
-        
-print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
-print_info("Spin-up ended: current time", current_time)
+print_info("Spin-up ended; elapsed:", timer() - timer_spin_up)
+print_info("Spin-up ended; current_time:", current_time, end='\n\n')
 
 # main loop: backward/forward/data assimilation ################################
 # 3 stages per loop: 
@@ -252,6 +250,8 @@ print_info("Spin-up ended: current time", current_time)
 for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
     timer_window = timer()
+    walltime_master_eqn = 0.0
+    master_eqn_ensemble.reset_walltimes()
 
     assert are_close(current_time,
                      k * prediction_window,
@@ -270,14 +270,17 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
         # run ensemble forward
+        timer_master_eqn = timer()
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
                                                       min_steps=n_forward_steps)
+        walltime_master_eqn += timer() - timer_master_eqn
+
         current_time += static_contact_interval
         
         # collect data for later assimilation
         observe_sensor_now = modulo_is_close_to_zero(current_time,
-                                                        sensor_assimilation_interval,
-                                                        eps=static_contact_interval)
+                                                     sensor_assimilation_interval,
+                                                     eps=static_contact_interval)
 
         if observe_sensor_now:
             sensor_assimilator.find_and_store_observations(
@@ -306,8 +309,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 user_network,
                 current_time)
 
-        
-    print_info("Prediction ended: current time: " , current_time)
+
+    print_info("Prediction ended; current_time:", current_time)
 
     for i_sweep in range(n_sweeps):
         print_info("Start the DA sweep: {}/{}".format(i_sweep+1, n_sweeps))
@@ -376,8 +379,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
                                                                     min_steps=n_backward_steps)
+            walltime_master_eqn += timer() - timer_master_eqn
+
             past_time -= static_contact_interval
 
         # furthest-in-the-past assimilation (at the peak of the sweep)
@@ -432,7 +438,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     new_transition_rates=transition_rates_ensemble,
                     new_transmission_rate=community_transmission_rate_ensemble)
 
-        print_info("Backward assimilation ended; current time:", past_time)
+        print_info("Backward assimilation ended; past_time:", past_time)
 
         ## 3) forward run with data assimilation
         master_eqn_ensemble.set_start_time(past_time)
@@ -444,8 +450,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
                                                           min_steps=n_forward_steps)
+            walltime_master_eqn += timer() - timer_master_eqn
+
             past_time += static_contact_interval
 
             # data assimilation
@@ -502,17 +511,23 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
 
-        print_info("Forward assimilation ended; current time", past_time)
+        print_info("Forward assimilation ended; current_time", current_time)
 
         # DA should get back to the current time
         assert are_close(past_time, current_time, eps=static_contact_interval)
 
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
-               "ended; elapsed:", timer() - timer_window, end='\n\n')
+               "ended; elapsed:",
+               timer() - timer_window)
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "eval_closure walltime:",
+               master_eqn_ensemble.get_walltime_eval_closure())
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "master equations walltime:",
+               walltime_master_eqn, end='\n\n')
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
-
 
 # save & plot ##################################################################
 # plot trajectories
@@ -528,12 +543,17 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
 
 # save full the data we require:
 master_eqns_mean_states = master_states_timeseries.get_mean()
-np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
+np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
+        master_eqns_mean_states)
 
 kinetic_eqns_statuses = []
 for kinetic_state in kinetic_states_timeseries:
     kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
 
-np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
+np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'),
+        kinetic_eqns_statuses)
+
+# wrap-up ######################################################################
+master_eqn_ensemble.wrap_up()
 
 

@@ -1,14 +1,23 @@
 import os
 from numba import set_num_threads
+import ray
 
 from epiforecast.utilities import seed_three_random_states
 
+from _argparse_init import arguments
 from _constants import OUTPUT_PATH, SAVE_PATH, SEED_GENERAL_INIT
 from _utilities import print_start_of, print_end_of
 
 
 print_start_of(__name__)
 ################################################################################
+# parallel #####################################################################
+if arguments.parallel_flag:
+    ray.init(num_cpus=arguments.parallel_num_cpus,
+             #memory=2_000_000_000,
+             #object_store_memory=2_000_000_000
+    )
+
 # numba ########################################################################
 set_num_threads(1)
 
