@@ -13,7 +13,9 @@ class DataAssimilator:
             *,
             n_assimilation_batches=1,
             transition_rates_to_update_str=None,
-            transmission_rate_to_update_flag=None):
+            transmission_rate_to_update_flag=None,
+            full_svd = False,
+            joint_cov_noise = 1e-2):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjustment Kalman filter (EAKF) method.
@@ -84,8 +86,16 @@ class DataAssimilator:
         self.observations = observations
 
         # the data assimilation models (One for each observation model)
-        self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=True, \
-                                                       observation_svd_reduced=False)
+        if full_svd == False:
+            self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=True, \
+                                                           observation_svd_reduced=False, \
+                                                           joint_cov_noise=joint_cov_noise)
+        else:
+            self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=False, \
+                                                           observation_svd_regularized=False, \
+                                                           observation_svd_reduced=False,
+                                                           joint_cov_noise=joint_cov_noise)
+
         # number of batches to assimilate data ('localization')
         self.n_assimilation_batches=n_assimilation_batches
         
@@ -263,8 +273,8 @@ class DataAssimilator:
                 if global_update == True:
                     # If batching is not required:
                     if self.n_assimilation_batches==1:
+                        total_nodes_num = int(ensemble_state.shape[1]/5)
                         if user_network == None:
-                            total_nodes_num = int(ensemble_state.shape[1]/5)
                             update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
                                                           * total_nodes_num)
                             update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
@@ -285,15 +295,19 @@ class DataAssimilator:
                                                      print_error=print_error)
                         else:
                             neighbour_nodes = user_network.get_neighbors(obs_nodes)
+                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
+                                                           np.intersect1d(obs_nodes,neighbour_nodes))
                             update_states_nodes = np.hstack([neighbour_nodes,obs_nodes]) 
                             update_states_num = update_states_nodes.size
                             H_obs = np.hstack([np.zeros((obs_nodes.size,neighbour_nodes.size)), 
                                                np.eye(obs_nodes.size)])
 
-                            (ensemble_state[:, update_states_nodes],
+                            update_states_index = update_states_nodes + total_nodes_num
+
+                            (ensemble_state[:, update_states_index],
                              new_ensemble_transition_rates,
                              new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, update_states_nodes],
+                            ) = self.damethod.update(ensemble_state[:, update_states_index],
                                                      ensemble_transition_rates,
                                                      ensemble_transmission_rate,
                                                      truth,
@@ -301,6 +315,7 @@ class DataAssimilator:
                                                      H_obs,
                                                      print_error=print_error)
                     else: #perform the EAKF in batches
+                        total_nodes_num = int(ensemble_state.shape[1]/5)
                         batch_size = int(obs_states.size / self.n_assimilation_batches)
                         permuted_idx = np.random.permutation(np.arange(obs_states.size))
                         batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] \
@@ -310,15 +325,20 @@ class DataAssimilator:
                         for batch in batches:
                             cov_batch = np.diag(np.diag(cov)[batch])
                             neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
+                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
+                                                           np.intersect1d(obs_nodes[batch],
+                                                                          neighbour_nodes))
                             update_states_nodes = np.hstack([neighbour_nodes,obs_nodes[batch]]) 
                             update_states_num = update_states_nodes.size
                             H_obs = np.hstack([np.zeros((obs_nodes[batch].size,neighbour_nodes.size)), 
                                                np.eye(obs_nodes[batch].size)])
 
-                            (ensemble_state[:, update_states_nodes],
+                            update_states_index = update_states_nodes + total_nodes_num
+
+                            (ensemble_state[:, update_states_index],
                              new_ensemble_transition_rates,
                              new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, update_states_nodes],
+                            ) = self.damethod.update(ensemble_state[:, update_states_index],
                                                      ensemble_transition_rates,
                                                      ensemble_transmission_rate,
                                                      truth[batch],
