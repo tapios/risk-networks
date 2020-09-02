@@ -127,4 +127,28 @@ def are_close(
     """
     return isclose(time1, time2, abs_tol=eps/2)
 
+def transition_function(x, y, transition_steps, total_steps):
+    """
+    linear transition, stays at final value
+    f(0) = x,
+    f(transition_steps) = y,
+    f(transition_steps + k ) = y
 
+    Usage: two observations A and B, with combined observation budget,
+    Initially we have budget of A = 1.0, B=0.0. over a transition period we
+    wish to convert to using A=0.1, B=0.9. E.g moving from random to intelligent
+    Observations over a period of time.
+
+    Args
+    ----
+    x (float): initial value
+    y (float): final value
+    transition_steps (int): number of steps to transition over
+    total_steps
+
+    """
+    assert (total_steps >= transition_steps)
+
+    output = y * np.ones(total_steps)
+    output[:transition_steps] = np.linspace(x, y, transition_steps)
+    return output

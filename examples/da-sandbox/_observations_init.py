@@ -13,9 +13,95 @@ from _utilities import print_start_of, print_end_of
 
 print_start_of(__name__)
 ################################################################################
-# imperfect observations #######################################################
-
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
+
+
+# imperfect observations #######################################################
+# sensor type observation
+sensor_readings = FixedObservation(
+    N=user_population,
+    obs_nodes=sensor_wearers,
+    obs_status='I',
+    obs_name="continuous_infection_test",
+    noisy_measurement=True,
+    sensitivity=0.5,
+    specificity=0.75,
+    obs_var_min=1e-6)
+
+# virus test type observations
+# Molecular Diagnostic Test
+MDT_result_delay = 1.0 # delay to results of the virus test
+MDT_neighbor_test = StaticNeighborObservation(
+        N=user_population,
+        obs_budget=arguments.observations_I_budget,
+        obs_status='I',
+        obs_name="Static Neighbor Transfer Infection Test",
+        storage_type="temporary",
+        nbhd_sampling_method="random",
+        noisy_measurement=True,
+        sensitivity=0.95,
+        specificity=0.99,
+        obs_var_min=1e-6)
+MDT_budget_random_test = BudgetedObservation(
+        N=user_population,
+        obs_budget=arguments.observations_I_budget,
+        obs_status='I',
+        obs_name="Budgeted Infection Test",
+        min_threshold=arguments.observations_I_min_threshold,
+        max_threshold=arguments.observations_I_max_threshold,
+        noisy_measurement=True,
+        sensitivity=0.95,
+        specificity=0.99,
+        obs_var_min=1e-6)
+
+MDT_high_var_test = HighVarianceObservation(
+        N=user_population,
+        obs_frac=arguments.observations_I_fraction_tested,
+        obs_status='I',
+        obs_name="Test maximal variance infected MDT",
+        noisy_measurement=True,
+        sensitivity=0.95,
+        specificity=0.99,
+        obs_var_min=1e-6)
+
+# Rapid Diagnostic Test
+RDT_result_delay = 0.0 # delay to results of the virus test
+RDT_budget_random_test = BudgetedObservation(
+        N=user_population,
+        obs_budget=arguments.observations_I_budget,
+        obs_status='I',
+        obs_name="85% sensitive Budgeted RDT",
+        min_threshold=arguments.observations_I_min_threshold,
+        max_threshold=arguments.observations_I_max_threshold,
+        noisy_measurement=True,
+        sensitivity=0.85,
+        specificity=0.99,
+        obs_var_min=1e-6)
+
+poor_RDT_budget_random_test = BudgetedObservation(
+        N=user_population,
+        obs_budget=arguments.observations_I_budget,
+        obs_status='I',
+        obs_name="60% sensitive Budgeted RDT",
+        min_threshold=arguments.observations_I_min_threshold,
+        max_threshold=arguments.observations_I_max_threshold,
+        noisy_measurement=True,
+        sensitivity=0.6,
+        specificity=0.99,
+        obs_var_min=1e-6)
+
+RDT_high_var_test = HighVarianceObservation(
+        N=user_population,
+        obs_frac=arguments.observations_I_fraction_tested,
+        obs_status='I',
+        obs_name="Test maximal variance infected RDT",
+        noisy_measurement=True,
+        sensitivity=0.85,
+        specificity=0.99,
+        obs_var_min=1e-6)
+
+
+# generic test templates
 continuous_infection_test = FixedObservation(
     N=user_population,
     obs_nodes=sensor_wearers,
@@ -98,4 +184,5 @@ negative_death_records = DataObservation(
 
 ################################################################################
 print_end_of(__name__)
+
 

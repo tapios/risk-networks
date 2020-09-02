@@ -1,15 +1,8 @@
 import numpy as np
 
+from epiforecast.risk_simulator import MasterEquationModelEnsemble
+
 from _argparse_init import arguments
-
-if arguments.parallel_flag:
-    #For parallel master equations
-    from epiforecast.risk_simulator_parallel import MasterEquationModelEnsemble
-
-else:
-    #For serial master equations
-    from epiforecast.risk_simulator import MasterEquationModelEnsemble
-
 from _constants import (start_time,
                         community_transmission_rate,
                         hospital_transmission_reduction)
@@ -22,7 +15,7 @@ print_start_of(__name__)
 ################################################################################
 ensemble_size = 100
 n_forward_steps  = 1 # minimum amount of steps per time step: forward run
-n_backward_steps = 5 # minimum amount of steps per time step: backward run
+n_backward_steps = 8 # minimum amount of steps per time step: backward run
 
 transition_rates_ensemble = []
 for i in range(ensemble_size):
@@ -33,25 +26,16 @@ for i in range(ensemble_size):
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
 
-if arguments.parallel_flag:
-    master_eqn_ensemble = MasterEquationModelEnsemble(
-            population=user_population,
-            transition_rates=transition_rates_ensemble,
-            transmission_rate=community_transmission_rate_ensemble,
-            hospital_transmission_reduction=hospital_transmission_reduction,
-            ensemble_size=ensemble_size,
-            start_time=start_time,
-            ncores=arguments.num_cores
-    )
-else:
-    master_eqn_ensemble = MasterEquationModelEnsemble(
-            population=user_population,
-            transition_rates=transition_rates_ensemble,
-            transmission_rate=community_transmission_rate_ensemble,
-            hospital_transmission_reduction=hospital_transmission_reduction,
-            ensemble_size=ensemble_size,
-            start_time=start_time
-    )
+master_eqn_ensemble = MasterEquationModelEnsemble(
+        population=user_population,
+        transition_rates=transition_rates_ensemble,
+        transmission_rate=community_transmission_rate_ensemble,
+        hospital_transmission_reduction=hospital_transmission_reduction,
+        ensemble_size=ensemble_size,
+        start_time=start_time,
+        parallel_cpu=arguments.parallel_flag,
+        num_cpus=arguments.parallel_num_cpus
+)
 
 ################################################################################
 print_end_of(__name__)

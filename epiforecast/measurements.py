@@ -149,8 +149,11 @@ class FixedNodeObservation:
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
         print("observed nodes", obs_nodes)
         #fixed observation
-        self.obs_states = np.hstack([self.N*self.obs_status_idx+i for i in obs_nodes])
-        
+        obs_states = [self.N*self.obs_status_idx+i for i in obs_nodes]
+        if len(obs_states)>0:
+            self.obs_states = np.hstack(obs_states)
+        else:
+            self.obs_states = np.array([])
 
     def find_observation_states(
             self,
@@ -196,6 +199,9 @@ class StateInformedObservation:
 
         #default init observation
         self.obs_states = np.empty(0)
+
+    def set_obs_frac(self, obs_frac):
+        self.obs_frac=np.clip(obs_frac,0.0,1.0)
 
     def find_observation_states(
             self,
@@ -271,6 +277,9 @@ class BudgetedInformedObservation:
 
         #default init observation
         self.obs_states = np.empty(0)
+
+    def set_obs_budget(self, obs_budget):
+        self.obs_budget=int(obs_budget)
 
     def find_observation_states(
             self,
@@ -368,6 +377,9 @@ class StaticNeighborTransferObservation:
         #conversion from node id to np array index
         self.node_to_idx = None
         self.idx_to_node = None
+
+    def set_obs_budget(self, obs_budget):
+        self.obs_budget=int(obs_budget)
 
     def add_positively_tested_nodes(self, nodes):
         """
@@ -493,6 +505,9 @@ class HighVarianceStateInformedObservation:
         #default init observation
         self.obs_states = np.empty(0)
 
+    def set_obs_frac(self, obs_frac):
+        self.obs_frac=np.clip(obs_frac,0.0,1.0)
+
     def find_observation_states(
             self,
             network,
@@ -546,6 +561,13 @@ class Observation(StateInformedObservation, TestMeasurement):
                                  sensitivity,
                                  specificity,
                                  noisy_measurement)
+
+            
+    def set_obs_frac(self, obs_frac):
+        """
+        Set the observation fraction/budget
+        """
+        StateInformedObservation.set_obs_frac(self, obs_frac)
 
     def find_observation_states(
             self,
@@ -629,6 +651,12 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
                                  specificity,
                                  noisy_measurement)
 
+    def set_obs_budget(self, obs_budget):
+        """
+        Set the observation budget
+        """
+        BudgetedInformedObservation.set_obs_budget(self, obs_budget)
+
     def find_observation_states(
             self,
             network,
@@ -702,7 +730,6 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
                                  sensitivity,
                                  specificity,
                                  noisy_measurement)
-
     def find_observation_states(
             self,
             network,
@@ -782,6 +809,12 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
                                  sensitivity,
                                  specificity,
                                  noisy_measurement)
+
+    def set_obs_budget(self, obs_budget):
+        """
+        Set the observation budget
+        """
+        StaticNeighborTransferObservation.set_obs_budget(self, obs_budget)
 
     def find_observation_states(
             self,
@@ -875,6 +908,12 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
                                  sensitivity,
                                  specificity,
                                  noisy_measurement)
+
+    def set_obs_frac(self, obs_frac):
+        """
+        Set the observation fraction/budget
+        """
+        HighVarianceStateInformedObservation.set_obs_frac(self, obs_frac)
 
     def find_observation_states(
             self,
