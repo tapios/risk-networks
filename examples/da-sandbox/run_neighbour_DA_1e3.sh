@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=24:00:00                 # walltime
+#SBATCH --time=04:00:00                 # walltime
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
@@ -35,8 +35,11 @@ network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
+
+batches_sensors=1
 batches_records=4
 batches_tests=1
+
 num_cpus=${SLURM_CPUS_PER_TASK}
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -55,8 +58,9 @@ srun python3 backward_forward_assimilation_neighbour.py \
   --observations-I-fraction-tested=${tested} \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
-  --assimilation-batches-perfect=${batches_records} \
-  --assimilation-batches-imperfect=${batches_tests} \
+  --assimilation-batches-sensor=${batches_sensors} \
+  --assimilation-batches-record=${batches_records} \
+  --assimilation-batches-test=${batches_tests} \
   --parallel-num-cpus=${num_cpus} \
   --parallel-flag
 
