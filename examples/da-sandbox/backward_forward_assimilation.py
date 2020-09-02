@@ -81,8 +81,7 @@ sensor_assimilator = DataAssimilator(
         errors=[],
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
-        full_svd=True)
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
@@ -90,8 +89,8 @@ viral_test_assimilator = DataAssimilator(
         n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
-        joint_cov_noise=arguments.assimilation_regularization)
-
+        joint_cov_noise=arguments.assimilation_regularization,
+        full_svd=True)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
