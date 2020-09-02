@@ -37,7 +37,7 @@ I_max_threshold=1.0
 user_fraction=1.0
 
 batches_sensors=1
-batches_records=4
+batches_records=10
 batches_tests=1
 
 num_cpus=${SLURM_CPUS_PER_TASK}

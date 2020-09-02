@@ -14,8 +14,8 @@ class DataAssimilator:
             n_assimilation_batches=1,
             transition_rates_to_update_str=None,
             transmission_rate_to_update_flag=None,
-            full_svd = False,
-            joint_cov_noise = 1e-2):
+            full_svd=False,
+            joint_cov_noise=1e-2):
         """
            A data assimilator, to perform updates of model parameters and states using an
            ensemble adjustment Kalman filter (EAKF) method.
