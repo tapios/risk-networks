@@ -161,11 +161,11 @@ loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
 loaded_kinetic_ic = loaded_data.start_statuses
 
-ensemble_ic = random_risk_range(population,
-                                0.001,
-                                0.01,
-                                ensemble_size,
-                                seed=SEED_BACKWARD_FORWARD)
+ensemble_ic = np.zeros([ensemble_size, 5*population])
+ensemble_ic[:,population:2*population] = np.random.beta(arguments.ic_alpha,
+                                                        arguments.ic_beta,
+                                                        (ensemble_size, population))
+ensemble_ic[:,:population] = 1 - ensemble_ic[:,population:2*population]
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)

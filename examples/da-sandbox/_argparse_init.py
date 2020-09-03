@@ -57,6 +57,10 @@ parser.add_argument('--epidemic-kinetic-states-name',
                     type=str,
                     default='epidemic_kinetic_states.pkl')
 
+# initial condition ############################################################
+parser.add_argument('--ic-alpha', type=float, default=0.04)
+parser.add_argument('--ic-beta', type=float, default=4)
+
 # parser setup #################################################################
 arguments = parser.parse_args()
 print_info_module(__name__, arguments)
