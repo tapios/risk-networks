@@ -102,6 +102,7 @@ record_assimilator = DataAssimilator(
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
                               ensemble_size,
+                              ensemble_ic,
                               transition_rates_ensemble,
                               community_transmission_rate_ensemble,
                               n_forward_steps,
@@ -160,12 +161,6 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
 loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
 loaded_kinetic_ic = loaded_data.start_statuses
-
-ensemble_ic = np.zeros([ensemble_size, 5*population])
-ensemble_ic[:,population:2*population] = np.random.beta(arguments.ic_alpha,
-                                                        arguments.ic_beta,
-                                                        (ensemble_size, population))
-ensemble_ic[:,:population] = 1 - ensemble_ic[:,population:2*population]
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
