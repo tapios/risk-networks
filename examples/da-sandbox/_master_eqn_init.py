@@ -37,6 +37,12 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         num_cpus=arguments.parallel_num_cpus
 )
 
+ensemble_ic = np.zeros([ensemble_size, 5*user_population])
+ensemble_ic[:,user_population:2*user_population] = np.random.beta(arguments.ic_alpha,
+                                                                  arguments.ic_beta,
+                                                                  (ensemble_size, user_population))
+ensemble_ic[:,:user_population] = 1 - ensemble_ic[:,user_population:2*user_population]
+
 ################################################################################
 print_end_of(__name__)
 
