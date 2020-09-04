@@ -102,6 +102,7 @@ record_assimilator = DataAssimilator(
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
                               ensemble_size,
+                              ensemble_ic,
                               transition_rates_ensemble,
                               community_transmission_rate_ensemble,
                               n_forward_steps,
@@ -160,12 +161,6 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
 loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
 loaded_kinetic_ic = loaded_data.start_statuses
-
-ensemble_ic = random_risk_range(population,
-                                0.001,
-                                0.01,
-                                ensemble_size,
-                                seed=SEED_BACKWARD_FORWARD)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
