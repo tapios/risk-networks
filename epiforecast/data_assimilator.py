@@ -5,7 +5,9 @@ import copy
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
 class DataAssimilator:
-
+    """
+    Collect and store observations, and provide DA updates given state and data
+    """
     def __init__(
             self,
             observations,
@@ -14,64 +16,53 @@ class DataAssimilator:
             n_assimilation_batches=1,
             transition_rates_to_update_str=None,
             transmission_rate_to_update_flag=None,
+            update_type='global',
             full_svd=False,
             joint_cov_noise=1e-2):
         """
-           A data assimilator, to perform updates of model parameters and states using an
-           ensemble adjustment Kalman filter (EAKF) method.
+        Constructor
 
-           Positional Args
-           ---------------
-           observations (list, [], or Observation): A list of Observations, or a single Observation.
-                                                     Generates the indices and covariances of observations
+        Input:
+            observations (list of Observation, [], Observation): observations
+                    Generates the indices and covariances of observations.
 
-           errors (list, [],  or Observation): Observation for the purpose of error checking. Error
-                                                observations are used to compute online differences at
-                                                the observed (according to Errors) between Kinetic and
-                                                Master Equation models
-           Keyword Args
-           ------------
-           n_assimilation_batches (int) : Default = 1, the number of random batches over which we assimilate.
-                                          At the cost of information loss, one can batch assimilation updates into random even-sized batches,
-                                          the update scales with O(num observation states^3) and is memory intensive.
-                                          Thus performing n x m-sized updates is far cheaper than an nm-sized update. 
-         
-                                          
-           transition_rates_to_update_str (list): list of strings naming the transition_rates we would like
-                                                  update with data. must coincide with naming found in
-                                                  epiforecast/populations.py.
-                                                  If not provided, will set []
+            errors (list of Observation, [], Observation): error-checking observations
+                    Error observations are used to compute online differences at
+                    the observed (according to Errors) between Kinetic and
+                    Master Equation models.
 
-           transmission_rate_to_update_flag (boolean): bool to update transmission rate with data
-                                                       If not provided will set False
-           Methods
-           -------
+            n_assimilation_batches (int): number of random batches over which to
+                                          assimilate
+                    At the cost of information loss, one can batch assimilation
+                    updates into random even-sized batches, the update scales
+                    with O(num observation states^3) and is memory intensive.
+                    Thus performing n x m-sized updates is far cheaper than an
+                    nm-sized update.
 
-           update(ensemble_state, data, contact_network=[], full_ensemble_transition_rates, full_ensemble_transmission_rate):
-               Perform an update of the ensemble states `ensemble_state`, and if provided, ensemble
-               parameters `full_ensemble_transition_rates`, `full_ensemble_transmission_rate` and the network
-               `contact network`. Returns the updated model parameters and updated states.
+            transition_rates_to_update_str (list of str): which rates to update
+                    Must coincide with naming found in TransitionRates.
+                    If not provided, will set to [].
 
-           make_new_observation(state): For every Observation model, update the list of indices at which to observe (given by observations.obs_states).
-                                        Returns a concatenated list of indices `observed_states` with duplicates removed.
+            transmission_rate_to_update_flag (bool): whether to update transmission rate
+                    If not provided will set False.
 
-           get_observation_cov(): For every Observation model, obtain the relevant variances when taking a measurement of data. Note we account for multiple node
-                                  measurements by using the minimum variance at that node (I.e if same node is queried twice in a time interval we take the most
-                                  accurate test). Returns a diagonal covariance matrix for the distinct observed states, with the minimum variances on the diagonal.
+            update_type (str): how to perform updates
+                    Three values are supported: 'global', 'local', 'neighbor'.
 
-           sum_to_one(state): Takes the state `state` and enforces that all statuses at a node sum to one. Does this by distributing the mass (1-(I+H+R+D)) into S and E, where
-                              the mass is divided based on the previous state's relative mass in S and E. i.e Snew= S/(S+E)*(1-(I+H+R+D)), Enew = E/(S+E)*(1-(I+H+R+D))
+            full_svd (bool): whether to use full or reduced SVD in EAKF
 
-           error_to_truth_state(state,data): updates emodel.obs_states and measures (user prescribed) differences between the data and state online.
-                                             #Current implementation sums the difference in number of predicted states
-                                             #and actual states in an given interval e.g 0.5 <= I <= 1.0
+            joint_cov_noise (float): Tikhonov-regularization noise
         """
-
-        if not isinstance(observations, list): # if it's a scalar, not array
+        if not isinstance(observations, list):
             observations = [observations]
 
-        if not isinstance(errors, list): # if it's a scalar, not array
-            observations = [errors]
+        if not isinstance(errors, list):
+            errors = [errors]
+
+        self.observations = observations
+        self.online_emodel = errors # online evaluations of errors
+
+        self.n_assimilation_batches = n_assimilation_batches
 
         if transition_rates_to_update_str is None:
             transition_rates_to_update_str = []
@@ -79,39 +70,31 @@ class DataAssimilator:
         if transmission_rate_to_update_flag is None:
             transmission_rate_to_update_flag = False
 
-        if not isinstance(transition_rates_to_update_str,list):#if it's a string, not array
+        if not isinstance(transition_rates_to_update_str, list):
             transition_rates_to_update_str = [transition_rates_to_update_str]
 
-        # observation models(s)
-        self.observations = observations
-
-        # the data assimilation models (One for each observation model)
-        if full_svd == False:
-            self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=True, \
-                                                           observation_svd_reduced=False, \
-                                                           joint_cov_noise=joint_cov_noise)
-        else:
-            self.damethod = EnsembleAdjustmentKalmanFilter(prior_svd_reduced=False, \
-                                                           observation_svd_regularized=False, \
-                                                           observation_svd_reduced=False,
-                                                           joint_cov_noise=joint_cov_noise)
-
-        # number of batches to assimilate data ('localization')
-        self.n_assimilation_batches=n_assimilation_batches
-        
-        # online evaluations of errors, one needs an observation class to check differences in data
-        self.online_emodel= errors
-
-        # which parameter to assimilate joint with the state
         self.transition_rates_to_update_str = transition_rates_to_update_str
         self.transmission_rate_to_update_flag = transmission_rate_to_update_flag
+
+        self.update_type = update_type
+
+        if full_svd:
+            self.damethod = EnsembleAdjustmentKalmanFilter(
+                    prior_svd_reduced=False,
+                    observation_svd_regularized=False,
+                    observation_svd_reduced=False,
+                    joint_cov_noise=joint_cov_noise)
+        else:
+            self.damethod = EnsembleAdjustmentKalmanFilter(
+                    prior_svd_reduced=True,
+                    observation_svd_reduced=False,
+                    joint_cov_noise=joint_cov_noise)
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
         self.stored_observed_nodes = {}
         self.stored_observed_means = {}
         self.stored_observed_variances = {}
- 
 
     def find_observation_states(
             self,
@@ -135,35 +118,29 @@ class DataAssimilator:
 
         if current_time in self.stored_observed_states:
             observed_states = self.stored_observed_states[current_time]
-            observed_nodes = self.stored_observed_nodes[current_time]
-            return observed_states, observed_nodes
-        
+            observed_nodes  = self.stored_observed_nodes[current_time]
         else:
-            observed_states = []
+            observed_states_list = []
             for observation in self.observations:
                 observation.find_observation_states(user_network,
                                                     ensemble_state,
                                                     data)
                 if observation.obs_states.size > 0:
-                    observed_states.extend(observation.obs_states)
+                    observed_states_list.extend(observation.obs_states)
                     if verbose:
                         print("[ Data assimilator ]",
                               observation.name,
                               ":",
                               len(observation.obs_states))
 
-            observed_states = np.array(observed_states)
-            #observed_nodes = np.unique(np.remainder(observed_states,self.observations[0].N))
-            observed_nodes_raw = np.remainder(observed_states,self.observations[0].N)
-            obs_num = observed_nodes_raw.shape[0]
-            if np.array_equal(observed_nodes_raw[:int(obs_num/2)], observed_nodes_raw[int(obs_num/2):]):
-                observed_nodes = observed_nodes_raw[:int(obs_num/2)]
-            else:
-                observed_nodes = observed_nodes_raw
+            n_user_nodes = user_network.get_node_count()
+            observed_states = np.unique(observed_states_list)
+            observed_nodes  = np.unique(observed_states % n_user_nodes)
+
             self.stored_observed_states[current_time] = observed_states
-            self.stored_observed_nodes[current_time] = observed_nodes
-            
-            return observed_states, observed_nodes
+            self.stored_observed_nodes[current_time]  = observed_nodes
+
+        return observed_states, observed_nodes
 
     def observe(
             self,
@@ -230,11 +207,10 @@ class DataAssimilator:
             data,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
+            user_network,
             current_time,
-            user_network=None,
             verbose=False,
-            print_error=False,
-            global_update=False):
+            print_error=False):
         """
         Input:
             ...
@@ -249,9 +225,6 @@ class DataAssimilator:
             obs_nodes = self.stored_observed_nodes[current_time]
 
             if (obs_states.size > 0):
-                print("[ Data assimilator ] Total states to be assimilated: ",
-                      obs_states.size)
-
                 # extract only those rates which we wish to update with DA
                 (ensemble_transition_rates,
                  ensemble_transmission_rate
@@ -259,22 +232,27 @@ class DataAssimilator:
                         full_ensemble_transition_rates,
                         full_ensemble_transmission_rate,
                         obs_nodes)
-               
-                print("[ Data assimilator ] Total parameters to be assimilated: ",np.hstack([ensemble_transition_rates,ensemble_transmission_rate]).shape[1])
+
+                if verbose:
+                    print("[ Data assimilator ] Total states to be assimilated: ",
+                          obs_states.size)
+                    print("[ Data assimilator ] Total parameters to be assimilated: ",
+                            ensemble_transition_rates.shape[1]
+                          + ensemble_transmission_rate.shape[1])
 
                 # Load the truth, variances of the observation(s)
                 truth = self.stored_observed_means[current_time]
                 var = self.stored_observed_variances[current_time]
                 cov = np.diag(var)
 
-                # Perform da model update with ensemble_state: states, transition and transmission rates 
+                # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
-                if global_update == True:
+                if self.update_type in ('global', 'neighbor'):
                     # If batching is not required:
                     if self.n_assimilation_batches==1:
                         total_nodes_num = int(ensemble_state.shape[1]/5)
-                        if user_network == None:
+                        if self.update_type == 'global':
                             update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
                                                           * total_nodes_num)
                             update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
@@ -383,6 +361,7 @@ class DataAssimilator:
                                                      H_obs,
                                                      print_error=print_error)
                         
+
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
                 # set the updated rates in the TransitionRates object and
@@ -407,7 +386,6 @@ class DataAssimilator:
 
             # Return ensemble_state, transition rates, and transmission rate
             return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
-
 
     #defines a method to take a difference to the data state
     def error_to_truth_state(
