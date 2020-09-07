@@ -40,6 +40,8 @@ batches_sensors=1
 batches_records=10
 batches_tests=1
 
+update_test="neighbor"
+
 num_cpus=${SLURM_CPUS_PER_TASK}
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
@@ -49,7 +51,7 @@ mkdir -p "${output_path}"
 
 # launch #######################################################################
 module load python3/3.8.5
-srun python3 backward_forward_assimilation_neighbour.py \
+srun python3 backward_forward_assimilation.py \
   >${stdout} 2>${stderr} \
   --network-node-count=${network_size} \
   --user-network-user-fraction=${user_fraction} \
@@ -61,6 +63,7 @@ srun python3 backward_forward_assimilation_neighbour.py \
   --assimilation-batches-sensor=${batches_sensors} \
   --assimilation-batches-record=${batches_records} \
   --assimilation-batches-test=${batches_tests} \
+  --assimilation-update-test=${update_test} \
   --parallel-num-cpus=${num_cpus} \
   --parallel-flag
 
