@@ -184,18 +184,133 @@ class DataAssimilator:
             scale=None,
             noisy_measurement=True,
             verbose=False):
-        
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,
                                      current_time,
                                      verbose)
-        
+
         self.observe(user_network,
                      ensemble_state,
                      data,
                      current_time)
-        
+
+    def compute_update_indices(
+            self,
+            user_network,
+            obs_states,
+            obs_nodes):
+        """
+        Compute state vector indices for DA update according to the update type
+
+        Input:
+            user_network (ContactNetwork): user network
+            obs_states (np.array): (n_obs_states,) array of state indices
+            obs_nodes (np.array): (n_obs_nodes,) array of node indices
+        Output:
+            update_states (np.array): (k,) array of state indices
+        """
+        if self.update_type == 'global':
+            n_user_nodes = user_network.get_node_count()
+            update_states = self.__compute_global_update_indices(
+                    n_user_nodes,
+                    obs_states)
+        elif self.update_type == 'neighbor':
+            update_states = self.__compute_neighbor_update_indices(
+                    user_network,
+                    obs_states,
+                    obs_nodes)
+        elif self.update_type == 'local':
+            update_states = obs_states
+
+        return update_states
+
+    def __compute_global_update_indices(
+            self,
+            n_user_nodes,
+            obs_states):
+        """
+        Compute state vector indices for DA update when performing global update
+
+        This method returns state vector indices that correspond to the 'global'
+        type of update, i.e. if there's at least one state from a compartment,
+        that whole compartment should be updated.
+
+        Input:
+            n_user_nodes (int): total number of nodes in user_network
+            obs_states (np.array): (n_obs_states,) array of state indices
+        Output:
+            update_states (np.array): (k,) array of state indices
+        """
+        compartment_indices = np.arange(n_user_nodes)
+
+        update_compartments = np.unique( obs_states // n_user_nodes )
+        update_states_2d = np.add.outer(n_user_nodes * update_compartments,
+                                        compartment_indices)
+
+        return update_states_2d.ravel()
+
+    def __compute_neighbor_update_indices(
+            self,
+            user_network,
+            obs_states,
+            obs_nodes):
+        """
+        Compute state vector indices for DA update when performing neighbor update
+
+        This method returns state vector indices that correspond to the
+        'neighbor' type of update, i.e. first, adjacent to 'obs_nodes' nodes are
+        added to the set of updated nodes; then, if there's at least one state
+        from a compartment, that compartment is added to the set of updated
+        compartments; finally, state vector indices that should be updated are
+        the ones from each updated compartment for all updated nodes.
+
+        Input:
+            user_network (ContactNetwork): user network
+            obs_states (np.array): (n_obs_states,) array of state indices
+            obs_nodes (np.array): (n_obs_nodes,) array of node indices
+        Output:
+            update_states (np.array): (k,) array of state indices
+        """
+        neighbor_nodes = user_network.get_neighbors(obs_nodes)
+        update_nodes = np.unique( (neighbor_nodes, obs_nodes) )
+
+        update_compartments = np.unique( obs_states // n_user_nodes )
+
+        n_user_nodes = user_network.get_node_count()
+        update_states_2d = np.add.outer(n_user_nodes * update_compartments,
+                                        update_nodes)
+
+        return update_states_2d.ravel()
+
+    def generate_state_observation_operator(
+            self,
+            obs_states,
+            update_states):
+        """
+        Generate the state observation operator (a.k.a. H_obs)
+
+        Input:
+            obs_states (np.array): (n_obs_states,) array of state indices
+            update_states (np.array): (n_update_states,) array of state indices
+        Output:
+            H_obs (np.array): (n_obs_states, n_update_states) array of {0,1}
+                              values
+        """
+        # XXX why was this obs_nodes.size, not obs_states.size?
+        H_obs = np.zeros([obs_states.size, update_states.size])
+
+        # obs_states is always a subset of update_states;
+        # H_obs is (obs_states.size, update_states.size) matrix;
+        # hence, the following mask is used to find correct indices
+        # of obs_states when viewed as a subset of update_states
+        obs_states_in_update_states_mask = np.isin(update_states,
+                                                   obs_states)
+        H_obs[np.arange(obs_states.size),
+              obs_states_in_update_states_mask] = 1
+
+        return H_obs
+
     # ensemble_state np.array([ensemble size, num status * num nodes]
     # data np.array([num status * num nodes])
     # contact network networkx.graph (if provided)
@@ -248,119 +363,48 @@ class DataAssimilator:
                 # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
-                if self.update_type in ('global', 'neighbor'):
-                    # If batching is not required:
-                    if self.n_assimilation_batches==1:
-                        total_nodes_num = int(ensemble_state.shape[1]/5)
-                        if self.update_type == 'global':
-                            update_states_index_min = int(np.round(np.min(obs_states/total_nodes_num)) \
-                                                          * total_nodes_num)
-                            update_states_index_max = int(np.ceil(np.max(obs_states/total_nodes_num)) \
-                                                          * total_nodes_num)
-                            update_states_num = update_states_index_max - update_states_index_min
-                            H_obs = np.zeros([obs_nodes.size, update_states_num])
-                            H_obs[list(range(obs_nodes.size)),obs_nodes] = 1
+                if self.n_assimilation_batches == 1:
+                    update_states = self.compute_update_indices(
+                            user_network,
+                            obs_states,
+                            obs_nodes)
+                    H_obs = self.generate_state_observation_operator(
+                            obs_states,
+                            update_states)
 
-                            (ensemble_state[:, update_states_index_min:update_states_index_max],
-                             new_ensemble_transition_rates,
-                             new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, update_states_index_min:update_states_index_max],
-                                                     ensemble_transition_rates,
-                                                     ensemble_transmission_rate,
-                                                     truth,
-                                                     cov,
-                                                     H_obs,
-                                                     print_error=print_error)
-                        else:
-                            neighbour_nodes = user_network.get_neighbors(obs_nodes)
-                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
-                                                           np.intersect1d(obs_nodes,neighbour_nodes))
-                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes]) 
-                            update_states_num = update_states_nodes.size
-                            H_obs = np.hstack([np.zeros((obs_nodes.size,neighbour_nodes.size)), 
-                                               np.eye(obs_nodes.size)])
+                    (ensemble_state[:, update_states],
+                     new_ensemble_transition_rates,
+                     new_ensemble_transmission_rate
+                    ) = self.damethod.update(ensemble_state[:, update_states],
+                                             ensemble_transition_rates,
+                                             ensemble_transmission_rate,
+                                             truth,
+                                             cov,
+                                             H_obs,
+                                             print_error=print_error)
+                else: # perform DA update in batches
+                    if self.update_type in ('global', 'neighbor'):
+                        raise NotImplementedError(
+                                self.__class__.__name__
+                                + ": batching is not implemented yet for: "
+                                + "'global', 'neighbor'")
 
-                            update_states_index = update_states_nodes + total_nodes_num
-
-                            (ensemble_state[:, update_states_index],
-                             new_ensemble_transition_rates,
-                             new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, update_states_index],
-                                                     ensemble_transition_rates,
-                                                     ensemble_transmission_rate,
-                                                     truth,
-                                                     cov,
-                                                     H_obs,
-                                                     print_error=print_error)
-                    else: #perform the EAKF in batches
-                        total_nodes_num = int(ensemble_state.shape[1]/5)
-                        batch_size = int(obs_states.size / self.n_assimilation_batches)
-                        permuted_idx = np.random.permutation(np.arange(obs_states.size))
-                        batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] \
-                                   if i < (self.n_assimilation_batches - 1)
-                                   else permuted_idx[i * batch_size:]
-                                   for i in np.arange(self.n_assimilation_batches)]
-                        for batch in batches:
-                            cov_batch = np.diag(np.diag(cov)[batch])
-                            neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
-                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
-                                                           np.intersect1d(obs_nodes[batch],
-                                                                          neighbour_nodes))
-                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes[batch]]) 
-                            update_states_num = update_states_nodes.size
-                            H_obs = np.hstack([np.zeros((obs_nodes[batch].size,neighbour_nodes.size)), 
-                                               np.eye(obs_nodes[batch].size)])
-
-                            update_states_index = update_states_nodes + total_nodes_num
-
-                            (ensemble_state[:, update_states_index],
-                             new_ensemble_transition_rates,
-                             new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, update_states_index],
-                                                     ensemble_transition_rates,
-                                                     ensemble_transmission_rate,
-                                                     truth[batch],
-                                                     cov_batch,
-                                                     H_obs,
-                                                     print_error=print_error)
-
-                else:
-                    # If batching is not required:
-                    if self.n_assimilation_batches==1:
-                        H_obs = np.eye(obs_states.size)
-                        (ensemble_state[:, obs_states],
+                    permuted_idx = np.random.permutation(np.arange(obs_states.size))
+                    batches = np.array_split(permuted_idx,
+                                             self.n_assimilation_batches)
+                    for batch in batches:
+                        H_obs = np.eye(batch.size)
+                        cov_batch = np.diag(np.diag(cov)[batch])
+                        (ensemble_state[:, obs_states[batch]],
                          new_ensemble_transition_rates,
                          new_ensemble_transmission_rate
-                        ) = self.damethod.update(ensemble_state[:, obs_states],
+                        ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
                                                  ensemble_transition_rates,
                                                  ensemble_transmission_rate,
-                                                 truth,
-                                                 cov,
+                                                 truth[batch],
+                                                 cov_batch,
                                                  H_obs,
                                                  print_error=print_error)
-                    else: #perform the EAKF in batches
-                        
-                        #create batches, with final batch larger due to rounding
-                        batch_size = int(obs_states.size / self.n_assimilation_batches)
-                        permuted_idx = np.random.permutation(np.arange(obs_states.size))
-                        batches =[ permuted_idx[i * batch_size:(i + 1) * batch_size] if i < (self.n_assimilation_batches - 1)
-                                   else permuted_idx[i * batch_size:]
-                                   for i in np.arange(self.n_assimilation_batches)]
-                        
-                        for batch in batches:
-                            H_obs = np.eye(batch.size)
-                            cov_batch = np.diag(np.diag(cov)[batch])
-                            (ensemble_state[:, obs_states[batch]],
-                             new_ensemble_transition_rates,
-                             new_ensemble_transmission_rate
-                            ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
-                                                     ensemble_transition_rates,
-                                                     ensemble_transmission_rate,
-                                                     truth[batch],
-                                                     cov_batch,
-                                                     H_obs,
-                                                     print_error=print_error)
-                        
 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
