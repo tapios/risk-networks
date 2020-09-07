@@ -40,7 +40,8 @@ network_size=1e3
 I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
-da_type_test='local'
+
+update_test="neighbor"
 
 batches_tests=1
 batches_sensors=1
@@ -53,6 +54,7 @@ mkdir -p "${output_path}"
 
 
 # launch #######################################################################
+module load python3/3.8.5
 python3 joint_epidemic_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
@@ -67,7 +69,7 @@ python3 joint_epidemic_assimilation.py \
   --assimilation-batches-record=${batches_records} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \
-  --assimilation-update-test=${da_type_test} \
+  --assimilation-update-test=${update_test} \
   >${stdout} 2>${stderr}
 
 
