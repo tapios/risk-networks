@@ -422,7 +422,8 @@ class DataAssimilator:
                 if print_error:
                     print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])
             else:
-                print("[ Data assimilator ] No assimilation required")
+                if verbose:
+                    print("[ Data assimilator ] No assimilation required")
 
             # Error to truth
             if len(self.online_emodel)>0:

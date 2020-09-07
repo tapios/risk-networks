@@ -303,7 +303,7 @@ class EnsembleAdjustmentKalmanFilter:
 
         # Compute error
         if print_error:
-            self.compute_error(x_logit,x_t,cov)
+            self.compute_error(np.dot(x_logit, H_obs.T),x_t,cov)
 
         #print("new_clinical_statistics", new_clinical_statistics)
         #print("new_transmission_rates", new_transmission_rates)
