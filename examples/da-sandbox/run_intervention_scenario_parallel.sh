@@ -17,53 +17,71 @@
 ################################
 # submit with: sbatch run_intervention_scenario_parallel.sh
 
-# preface ######################################################################
 set -euo pipefail
 
-OUTPUT_DIR="output"
-EXP_NAME="new_script"
 
 # Experimental series parameters ###############################################
 # intervention start time experiment
-intervention_start_times=(10 20)
-start_time=${intervention_start_times[${SLURM_ARRAY_TASK_ID}]}
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${start_time}"
+
+#intervention_start_times=(10 20)
+#start_time=${intervention_start_times[${SLURM_ARRAY_TASK_ID}]}
+
+start_time=18 
 
 # parameters & constants #######################################################
 
-#network 
-network_size=1e4
+# network  + sensor wearers
 
-#user base
+#EXP_NAME="NYC_1e3"
+#network_size=1e3
+#wearers=245
+#batches_sensors=5
+#batches_records=4
+#budget=491
+#batches_tests=1
+#tested=0
+
+#EXP_NAME="NYC_1e4"
+#network_size=1e4
+#wearers=2451
+#batches_sensors=5
+#batches_records=40
+#budget=491
+#batches_tests=1
+#tested=0
+
+EXP_NAME="NYC_1e5"
+network_size=1e5
+wearers=0
+batches_sensors=1
+batches_records=400
+budget=25000
+batches_tests=50
+tested=0
+
+# parallelization
+num_cpus=16
+
+# user base
 user_fraction=1.0
 
-#testing: virus tests
+# testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
-budget=491
-tested=0
-batches_tests=1
 
-#testing: sensor wearers
-wearers=2451
-batches_sensors=5
-
-#testing: hospital/death records
-batches_records=40
-
-#intervention
+# intervention
 int_freq='single'
 
-#other
+# other
 update_test="local"
 
-
-#output parameters
+# output parameters
+OUTPUT_DIR="output"
+output_path="${OUTPUT_DIR}/${EXP_NAME}_${start_time}"
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
 mkdir -p "${output_path}"
-
 
 # launch #######################################################################
 python3 joint_epidemic_assimilation.py \
@@ -79,9 +97,7 @@ python3 joint_epidemic_assimilation.py \
   --assimilation-batches-test=${batches_tests} \
   --assimilation-batches-record=${batches_records} \
   --parallel-flag \
+  --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \
-  --assimilation-update-test=${update_test} \
-  >${stdout} 2>${stderr}
-
-
+  --assimilation-update-test=${update_test}
