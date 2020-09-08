@@ -12,10 +12,13 @@ from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same
 from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states, plot_epidemic_data
 from epiforecast.utilities import dict_slice, compartments_count
 
+def get_start_time(start_end_time):
+    return start_end_time.start
 
 ################################################################################
 # initialization ###############################################################
 ################################################################################
+
 # arguments parsing ############################################################
 from _argparse_init import arguments
 
@@ -640,17 +643,27 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
                "ended; elapsed:",
                timer() - timer_window)
+
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "eval_closure walltime:",
                master_eqn_ensemble.get_walltime_eval_closure())
+
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "master equations walltime:",
                walltime_master_eqn, end='\n\n')
 
+    start_end_times = [k for k in epidemic_data_storage.static_network_series.keys()]
+
+    first_start_end_time = min(start_end_times, key=get_start_time)
+    last_start_end_time = max(start_end_times, key=get_start_time)
+
+    print_info("First network start-end time: ", first_start_end_time.start, first_start_end_time.end)
+    print_info("Last network start-end time: ", last_start_end_time.start, last_start_end_time.end)
+
     #4) Intervention
     # first get the frequency
     if intervention_frequency == "none":
-        intervene_now=False
+        intervene_now = False
     elif intervention_frequency == "single":
         intervene_now = (abs(current_time - intervention_start_time) < 0.1*static_contact_interval)
     elif intervention_frequency == "interval":
@@ -667,7 +680,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         if intervention_nodes == "all":
             nodes_to_intervene = user_nodes
             print("intervention applied to all {:d} nodes".format(
-                network.get_node_count()))
+                  network.get_node_count()))
             
         elif intervention_nodes == "sick":
             nodes_to_intervene = intervention.find_sick(ensemble_state)
