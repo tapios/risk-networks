@@ -6,6 +6,7 @@ LEFT_PAD = 3
 def print_start_of(module_name):
     """
     Announce the start of a module
+
     Input:
         module_name (str): name of the module
     Output:
@@ -17,6 +18,7 @@ def print_start_of(module_name):
 def print_end_of(module_name):
     """
     Announce the end of a module
+
     Input:
         module_name (str): name of the module
     Output:
@@ -31,6 +33,7 @@ def print_info_module(
         **kwargs):
     """
     Print info in a module
+
     Input:
         module_name (str): name of the module
         *args, **kwargs: to be passed to the 'print' function
@@ -46,6 +49,7 @@ def print_warning_module(
         **kwargs):
     """
     Print warning in a module
+
     Input:
         module_name (str): name of the module
         *args, **kwargs: to be passed to the 'print' function
@@ -60,6 +64,7 @@ def print_info(
         **kwargs):
     """
     Print info in the main program
+
     Input:
         *args, **kwargs: to be passed to the 'print' function
     Output:
@@ -71,6 +76,7 @@ def print_info(
 def list_of_transition_rates_to_array(list_of_rates):
     """
     Convert a list of TransitionRates into np.array
+
     Input:
         list_of_rates (list): list of same-sized TransitionRates
     Output:
@@ -91,6 +97,7 @@ def modulo_is_close_to_zero(
         eps=0.125):
     """
     Determine if (time mod modulo_interval) ≈ 0
+
     Input:
         time (int),
              (float): time, real number (positive or negative)
@@ -108,6 +115,7 @@ def are_close(
         eps=0.125):
     """
     Determine if |time1 - time2| ≤ eps/2
+
     Input:
         time1 (int),
               (float): time, real number (positive or negative)
@@ -122,13 +130,13 @@ def are_close(
 def transition_function(x, y, transition_steps, total_steps):
     """
     linear transition, stays at final value
-    f(0) = x, 
+    f(0) = x,
     f(transition_steps) = y,
-    f(transition_steps + k ) = y 
+    f(transition_steps + k ) = y
 
-    Usage: two observations A and B, with combined observation budget, 
-    Initially we have budget of A = 1.0, B=0.0. over a transition period we 
-    wish to convert to using A=0.1, B=0.9. E.g moving from random to intelligent 
+    Usage: two observations A and B, with combined observation budget,
+    Initially we have budget of A = 1.0, B=0.0. over a transition period we
+    wish to convert to using A=0.1, B=0.9. E.g moving from random to intelligent
     Observations over a period of time.
 
     Args
@@ -136,11 +144,11 @@ def transition_function(x, y, transition_steps, total_steps):
     x (float): initial value
     y (float): final value
     transition_steps (int): number of steps to transition over
-    total_steps 
+    total_steps
 
     """
     assert (total_steps >= transition_steps)
 
     output = y * np.ones(total_steps)
-    output[:transition_steps] = np.linspace(x, y, transition_steps)    
+    output[:transition_steps] = np.linspace(x, y, transition_steps)
     return output

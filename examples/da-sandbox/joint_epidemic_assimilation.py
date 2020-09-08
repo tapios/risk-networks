@@ -76,32 +76,35 @@ record_observations   = [positive_hospital_records,
 transition_rates_to_update_str   = []
 transmission_rate_to_update_flag = False
 
-
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_sensor)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
         n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
-
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_test,
+        joint_cov_noise=arguments.assimilation_regularization)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_record,
+        n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_record)
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
                               ensemble_size,
+                              ensemble_ic,
                               transition_rates_ensemble,
                               community_transmission_rate_ensemble,
                               n_forward_steps,
@@ -166,12 +169,6 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
 #loaded_data = epidemic_data_storage.get_network_from_start_time(
 #        start_time=start_time)
 #loaded_kinetic_ic = loaded_data.start_statuses
-
-ensemble_ic = random_risk_range(population,
-                                0.001,
-                                0.01,
-                                ensemble_size,
-                                seed=SEED_JOINT_EPIDEMIC)
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
@@ -445,6 +442,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
@@ -462,6 +460,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
@@ -476,6 +475,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             # update ensemble after data assimilation
@@ -510,6 +510,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 loaded_data.end_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
+                user_network,
                 past_time)
 
         assimilate_test_now = modulo_is_close_to_zero(past_time,
@@ -526,6 +527,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 loaded_data.start_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
+                user_network,
                 past_time)
             
         assimilate_record_now = modulo_is_close_to_zero(past_time,
@@ -540,6 +542,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 loaded_data.start_statuses,
                 transition_rates_ensemble,
                 community_transmission_rate_ensemble,
+                user_network,
                 past_time)
 
         # update ensemble after data assimilation
@@ -582,6 +585,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.end_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
+                    user_network,
                     past_time)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
@@ -598,6 +602,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
@@ -612,6 +617,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             # update ensemble after data assimilation

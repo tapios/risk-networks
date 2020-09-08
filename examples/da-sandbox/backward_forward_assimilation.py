@@ -7,8 +7,7 @@ from matplotlib import pyplot as plt
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
-from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
-from epiforecast.epiplots import plot_roc_curve, plot_ensemble_states
+from epiforecast.epiplots import plot_ensemble_states
 from epiforecast.utilities import dict_slice
 
 
@@ -60,44 +59,46 @@ from _observations_init import (sensor_readings,
                                 positive_death_records,
                                 negative_death_records)
 
-
 sensor_observations = [sensor_readings]
 
 viral_test_observations = [RDT_budget_random_test]
 test_result_delay = RDT_result_delay # delay to results of the virus test
 
-record_observations   = [positive_hospital_records,
-                          negative_hospital_records,
-                          positive_death_records,
-                          negative_death_records]
+record_observations = [positive_hospital_records,
+                       negative_hospital_records,
+                       positive_death_records,
+                       negative_death_records]
 
 
 # assimilator ##################################################################
 transition_rates_to_update_str   = []
 transmission_rate_to_update_flag = False
 
-
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_sensor,
+        n_assimilation_batches=arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_sensor)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_test,
+        n_assimilation_batches=arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
-
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_test,
+        joint_cov_noise=arguments.assimilation_regularization,
+        full_svd=True)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
-        n_assimilation_batches = arguments.assimilation_batches_record,
+        n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag)
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        update_type=arguments.assimilation_update_record)
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -193,10 +194,9 @@ for j in range(spin_up_steps):
 
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
-        
         observe_sensor_now = modulo_is_close_to_zero(current_time,
-                                                        sensor_assimilation_interval,
-                                                        eps=static_contact_interval)
+                                                     sensor_assimilation_interval,
+                                                     eps=static_contact_interval)
 
         if observe_sensor_now:
             sensor_assimilator.find_and_store_observations(
@@ -271,7 +271,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         walltime_master_eqn += timer() - timer_master_eqn
 
         current_time += static_contact_interval
-        
+
         # collect data for later assimilation
         observe_sensor_now = modulo_is_close_to_zero(current_time,
                                                      sensor_assimilation_interval,
@@ -330,6 +330,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
@@ -347,6 +348,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
@@ -361,6 +363,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             # update ensemble after data assimilation
@@ -382,24 +385,27 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             past_time -= static_contact_interval
 
         # furthest-in-the-past assimilation (at the peak of the sweep)
-        assimilate_sensor_now = modulo_is_close_to_zero(past_time,
-                                                        sensor_assimilation_interval,
-                                                        eps=static_contact_interval)
+        assimilate_sensor_now = modulo_is_close_to_zero(
+                past_time,
+                sensor_assimilation_interval,
+                eps=static_contact_interval)
 
         if assimilate_sensor_now:
             (ensemble_state,
              transition_rates_ensemble,
              community_transmission_rate_ensemble
             ) = sensor_assimilator.update(
-                ensemble_state,
-                loaded_data.end_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                past_time)
+                    ensemble_state,
+                    loaded_data.end_statuses,
+                    transition_rates_ensemble,
+                    community_transmission_rate_ensemble,
+                    user_network,
+                    past_time)
 
-        assimilate_test_now = modulo_is_close_to_zero(past_time,
-                                                   test_assimilation_interval,
-                                                   eps=static_contact_interval)
+        assimilate_test_now = modulo_is_close_to_zero(
+                past_time,
+                test_assimilation_interval,
+                eps=static_contact_interval)
         delay_satisfied = past_time <= (current_time - test_result_delay)
 
         if assimilate_test_now and delay_satisfied:
@@ -411,10 +417,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.start_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
+                    user_network,
                     past_time)
-        assimilate_record_now = modulo_is_close_to_zero(past_time,
-                                                    record_assimilation_interval,
-                                                    eps=static_contact_interval)
+
+        assimilate_record_now = modulo_is_close_to_zero(
+                past_time,
+                record_assimilation_interval,
+                eps=static_contact_interval)
+
         if assimilate_record_now:
             (ensemble_state,
              transition_rates_ensemble,
@@ -424,6 +434,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data.start_statuses,
                     transition_rates_ensemble,
                     community_transmission_rate_ensemble,
+                    user_network,
                     past_time)
 
         # update ensemble after data assimilation
@@ -467,6 +478,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
@@ -483,6 +495,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
@@ -497,6 +510,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
+                        user_network,
                         past_time)
 
             # update ensemble after data assimilation
