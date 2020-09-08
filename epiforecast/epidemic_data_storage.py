@@ -28,14 +28,10 @@ class StaticIntervalData:
         self.start_statuses = None
         self.end_statuses   = None
 
-    def set_end_statuses(
-            self,
-            end_statuses):
+    def set_end_statuses(self, end_statuses):
         self.end_statuses = copy.deepcopy(end_statuses)
 
-    def set_start_statuses(
-            self,
-            start_statuses):
+    def set_start_statuses(self, start_statuses):
         self.start_statuses = copy.deepcopy(start_statuses)
 
 def start_time(start_end_time):
