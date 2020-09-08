@@ -1,7 +1,6 @@
 from epiforecast.populations import TransitionRates
 from epiforecast.health_service import HealthService
 from epiforecast.epidemic_simulator import EpidemicSimulator
-from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.scenarios import random_epidemic
 
 from _constants import (latent_periods,
