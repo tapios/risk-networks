@@ -273,11 +273,11 @@ class DataAssimilator:
             update_states (np.array): (k,) array of state indices
         """
         neighbor_nodes = user_network.get_neighbors(obs_nodes)
-        update_nodes = np.unique( (neighbor_nodes, obs_nodes) )
-
-        update_compartments = np.unique( obs_states // n_user_nodes )
+        update_nodes = np.union1d(neighbor_nodes, obs_nodes)
 
         n_user_nodes = user_network.get_node_count()
+        update_compartments = np.unique( obs_states // n_user_nodes )
+
         update_states_2d = np.add.outer(n_user_nodes * update_compartments,
                                         update_nodes)
 

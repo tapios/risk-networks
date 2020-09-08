@@ -297,7 +297,7 @@ class BudgetedInformedObservation:
                                               (xmean<=self.obs_max_threshold)]
         other_states_ens=candidate_states[(xmean<self.obs_min_threshold) | \
                                           (xmean>self.obs_max_threshold)]
-        
+
         cand_size=candidate_states_ens.size
         other_size= other_states_ens.size
         print("number of states within the threshold", cand_size)
@@ -311,7 +311,9 @@ class BudgetedInformedObservation:
         else: #cand_size < self.obs_budget
             choice=np.random.choice(np.arange(other_size), size=self.obs_budget - cand_size, replace=False)
             self.obs_states = np.hstack([candidate_states_ens, other_states_ens[choice]])
-        
+
+        self.obs_states = np.unique(self.obs_states)
+
 
 class StaticNeighborTransferObservation:
     """
