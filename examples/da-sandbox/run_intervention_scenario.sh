@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1                      # number of processor cores (i.e. tasks)
 #SBATCH --mem-per-cpu=24G 
 #SBATCH -J "Intervention_scenario"
-#SBATCH --output=output/slurm_%j.out
-#SBATCH --error=output/slurm_%j.err  
+#SBATCH --output=slurm_output/%A_%a.out
+#SBATCH --error=slurm_output/%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --array=0-6
@@ -41,7 +41,7 @@ I_min_threshold=0.0
 I_max_threshold=1.0
 user_fraction=1.0
 
-update_test="neighbor"
+update_test="local"
 
 batches_tests=1
 batches_sensors=1
