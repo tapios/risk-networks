@@ -67,9 +67,6 @@ kinetic_ic = random_epidemic(population,
                              seed=SEED_STOCHASTIC_INIT_3)
 epidemic_simulator.set_statuses(kinetic_ic)
 
-# epidemic storage #############################################################
-epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
-
 ################################################################################
 print_end_of(__name__)
 

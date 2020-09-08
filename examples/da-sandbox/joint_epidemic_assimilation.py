@@ -42,8 +42,7 @@ from _network_init import population, network
 
 # stochastic model #############################################################
 from _stochastic_init import (kinetic_ic, 
-                              epidemic_simulator,
-                              epidemic_data_storage)
+                              epidemic_simulator)
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
@@ -159,6 +158,11 @@ steps_per_prediction_window = int(prediction_window/static_contact_interval)
 assert n_prediction_windows_spin_up * prediction_window + prediction_window > da_window
 earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
 assert n_prediction_windows > n_prediction_windows_spin_up
+
+# epidemic storage #############################################################
+# Set an upper limit on number of stored contact networks:
+max_networks = steps_per_da_window + steps_per_prediction_window 
+epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
 master_states_timeseries = EnsembleTimeSeries(ensemble_size,
