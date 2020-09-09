@@ -30,7 +30,8 @@ from _constants import (static_contact_interval,
 from _utilities import (print_info,
                         list_of_transition_rates_to_array,
                         modulo_is_close_to_zero,
-                        are_close)
+                        are_close,
+                        update_transition_rates)
 
 # general init #################################################################
 import _general_init
@@ -69,10 +70,21 @@ record_observations = [positive_hospital_records,
                        positive_death_records,
                        negative_death_records]
 
+# master equations #############################################################
+from _master_eqn_init import (master_eqn_ensemble,
+                              ensemble_size,
+                              ensemble_ic,
+                              transition_rates_ensemble,
+                              community_transmission_rate_ensemble,
+                              learn_transition_rates,
+                              learn_transmission_rate,
+                              parameter_str,
+                              n_forward_steps,
+                              n_backward_steps)
 
 # assimilator ##################################################################
-transition_rates_to_update_str   = []
-transmission_rate_to_update_flag = False
+transition_rates_to_update_str   = parameter_str 
+transmission_rate_to_update_flag = learn_transmission_rate 
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
@@ -96,18 +108,9 @@ record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
         n_assimilation_batches=arguments.assimilation_batches_record,
-        transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        transition_rates_to_update_str=[],
+        transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record)
-
-# master equations #############################################################
-from _master_eqn_init import (master_eqn_ensemble,
-                              ensemble_size,
-                              ensemble_ic,
-                              transition_rates_ensemble,
-                              community_transmission_rate_ensemble,
-                              n_forward_steps,
-                              n_backward_steps)
 
 # post-processing ##############################################################
 from _post_process_init import axes
@@ -138,8 +141,8 @@ sensor_assimilation_interval  = 1.0 # same for I
 
 # ints
 
-n_sweeps                     = 1
-n_prediction_windows_spin_up = 7
+n_sweeps                     = 7
+n_prediction_windows_spin_up = 1
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
@@ -323,7 +326,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_sensor_now:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = sensor_assimilator.update(
                         ensemble_state,
@@ -332,6 +335,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
                                                        test_assimilation_interval,
@@ -341,7 +349,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_test_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = viral_test_assimilator.update(
                         ensemble_state,
@@ -350,6 +358,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
                                                         record_assimilation_interval,
@@ -372,6 +385,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
+                if learn_transmission_rate == True:
+                    master_eqn_ensemble.update_transmission_rate(
+                            community_transmission_rate_ensemble)
+                if learn_transition_rates == True:
+                    master_eqn_ensemble.update_transition_rates(
+                            transition_rates_ensemble)
 
             # run ensemble backwards
             user_network.update_from(loaded_data.contact_network)
@@ -392,7 +411,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         if assimilate_sensor_now:
             (ensemble_state,
-             transition_rates_ensemble,
+             transition_rates_ensemble_da,
              community_transmission_rate_ensemble
             ) = sensor_assimilator.update(
                     ensemble_state,
@@ -401,6 +420,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     user_network,
                     past_time)
+            if learn_transition_rates == True:
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
         assimilate_test_now = modulo_is_close_to_zero(
                 past_time,
@@ -410,7 +434,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         if assimilate_test_now and delay_satisfied:
             (ensemble_state,
-             transition_rates_ensemble,
+             transition_rates_ensemble_da,
              community_transmission_rate_ensemble
             ) = viral_test_assimilator.update(
                     ensemble_state,
@@ -419,6 +443,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     user_network,
                     past_time)
+            if learn_transition_rates == True:
+                transition_rates_ensemble = update_transition_rates(
+                        transition_rates_ensemble,
+                        transition_rates_ensemble_da,
+                        parameter_str)
 
         assimilate_record_now = modulo_is_close_to_zero(
                 past_time,
@@ -443,6 +472,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             master_eqn_ensemble.update_ensemble(
                     new_transition_rates=transition_rates_ensemble,
                     new_transmission_rate=community_transmission_rate_ensemble)
+            if learn_transmission_rate == True:
+                master_eqn_ensemble.update_transmission_rate(
+                        community_transmission_rate_ensemble)
+            if learn_transition_rates == True:
+                master_eqn_ensemble.update_transition_rates(
+                        transition_rates_ensemble)
 
         print_info("Backward assimilation ended; past_time:", past_time)
 
@@ -471,7 +506,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_sensor_now:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = sensor_assimilator.update(
                         ensemble_state,
@@ -480,6 +515,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
                                                        test_assimilation_interval,
@@ -488,7 +528,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_test_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble,
+                 transition_rates_ensemble_da,
                  community_transmission_rate_ensemble
                 ) = viral_test_assimilator.update(
                         ensemble_state,
@@ -497,6 +537,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                if learn_transition_rates == True:
+                    transition_rates_ensemble = update_transition_rates(
+                            transition_rates_ensemble,
+                            transition_rates_ensemble_da,
+                            parameter_str)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
                                                         record_assimilation_interval,
@@ -519,6 +564,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
+                if learn_transmission_rate == True:
+                    master_eqn_ensemble.update_transmission_rate(
+                            community_transmission_rate_ensemble)
+                if learn_transition_rates == True:
+                    master_eqn_ensemble.update_transition_rates(
+                            transition_rates_ensemble)
 
         print_info("Forward assimilation ended; current_time", current_time)
 
@@ -537,6 +588,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
+if learn_transmission_rate == True:
+    transmission_rate_timeseries.push_back(
+            community_transmission_rate_ensemble)
+if learn_transition_rates == True:
+    transition_rates_timeseries.append(
+            transition_rates_ensemble)
 
 # save & plot ##################################################################
 # plot trajectories
@@ -554,6 +611,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
 master_eqns_mean_states = master_states_timeseries.get_mean()
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
         master_eqns_mean_states)
+if learn_transmission_rate == True:
+    pickle.dump(transmission_rate_timeseries,
+                open(os.path.join(OUTPUT_PATH, 'transmission_rate.pkl'), 'wb'))
+if learn_transition_rates == True:
+    pickle.dump(transition_rates_timeseries,
+                open(os.path.join(OUTPUT_PATH, 'transition_rates.pkl'), 'wb'))
 
 kinetic_eqns_statuses = []
 for kinetic_state in kinetic_states_timeseries:

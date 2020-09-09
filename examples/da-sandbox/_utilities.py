@@ -152,3 +152,16 @@ def transition_function(x, y, transition_steps, total_steps):
     output = y * np.ones(total_steps)
     output[:transition_steps] = np.linspace(x, y, transition_steps)
     return output
+
+def update_transition_rates(
+        transition_rates_ensemble,
+        transition_rates_ensemble_da,
+        parameter_str):
+    ensemble_size = len(transition_rates_ensemble)
+    for i in range(ensemble_size):
+        for par_str in parameter_str:
+            setattr(transition_rates_ensemble[i],
+                    par_str,
+                    transition_rates_ensemble_da[i].get_clinical_parameter(par_str)
+                    )
+    return transition_rates_ensemble
