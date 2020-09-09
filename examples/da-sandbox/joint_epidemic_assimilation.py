@@ -195,9 +195,12 @@ for j in range(spin_up_steps):
 
     #Run kinetic model
     # run
+    print("start epidemic simulator",flush=True)
+    
     network = epidemic_simulator.run(
             stop_time=current_time + static_contact_interval,
             current_network=network)
+    print("after epidemic simulator",flush=True)
 
     # store for further usage (master equations etc)
     epidemic_data_storage.save_network_by_start_time(
@@ -206,22 +209,22 @@ for j in range(spin_up_steps):
     epidemic_data_storage.save_start_statuses_to_network(
             start_time=current_time,
             start_statuses=kinetic_state)
-
+    
     kinetic_state = epidemic_simulator.kinetic_model.current_statuses
-
+    
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
             end_statuses=kinetic_state)
 
+    print("after saving epidemic",flush=True)
     # store for plotting
     user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
     kinetic_states_timeseries.append(kinetic_state)
-
-
-
+    print("after storing kinetic time series")
+    
     #Run master eqn mode
     master_states_timeseries.push_back(ensemble_state) # storage
 
