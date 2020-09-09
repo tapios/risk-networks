@@ -13,6 +13,8 @@ print_info_module(__name__, "parsing args of PID:", os.getpid())
 # parallel #####################################################################
 parser.add_argument('--parallel-flag', default=False, action='store_true')
 parser.add_argument('--parallel-num-cpus', type=int, default=1)
+parser.add_argument('--parallel-memory', type=int, default=4_000_000_000) # 4GB
+parser.add_argument('--parallel-temp-dir', type=str, default='')
 
 # constants ####################################################################
 parser.add_argument('--constants-output-path', type=str, default='')
