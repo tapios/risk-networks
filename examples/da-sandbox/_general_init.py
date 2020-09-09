@@ -13,9 +13,18 @@ print_start_of(__name__)
 ################################################################################
 # parallel #####################################################################
 if arguments.parallel_flag:
+    object_store_memory = min(arguments.parallel_memory // 2, 2_000_000_000)
+    memory = arguments.parallel_memory - object_store_memory
+
+    if len(arguments.parallel_temp_dir) > 0:
+        temp_dir = arguments.parallel_temp_dir
+    else:
+        temp_dir = None # this is the default in ray's method
+
     ray.init(num_cpus=arguments.parallel_num_cpus,
-             #memory=2_000_000_000,
-             #object_store_memory=2_000_000_000
+             memory=memory,
+             object_store_memory=object_store_memory,
+             temp_dir=temp_dir
     )
 
 # numba ########################################################################
