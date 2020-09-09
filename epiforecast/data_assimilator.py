@@ -383,22 +383,38 @@ class DataAssimilator:
                                              H_obs,
                                              print_error=print_error)
                 else: # perform DA update in batches
-                    if self.update_type in ('global', 'neighbor'):
+                    if self.update_type == 'global':
                         raise NotImplementedError(
                                 self.__class__.__name__
                                 + ": batching is not implemented yet for: "
-                                + "'global', 'neighbor'")
+                                + "'global'")
 
                     permuted_idx = np.random.permutation(np.arange(obs_states.size))
                     batches = np.array_split(permuted_idx,
                                              self.n_assimilation_batches)
                     for batch in batches:
-                        H_obs = np.eye(batch.size)
                         cov_batch = np.diag(np.diag(cov)[batch])
-                        (ensemble_state[:, obs_states[batch]],
+                        if self.update_type == 'local':
+                            H_obs = np.eye(batch.size)
+                            update_states = obs_states[batch]
+                        elif self.update_type == 'neighbor':
+                            neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
+                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
+                                                           np.intersect1d(obs_nodes[batch],
+                                                                          neighbour_nodes))
+                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes[batch]])
+                            update_states_num = update_states_nodes.size
+                            H_obs = np.hstack([np.zeros((obs_nodes[batch].size,neighbour_nodes.size)),
+                                               np.eye(obs_nodes[batch].size)])
+
+                            # current implementation only works for neighbor updating of "I"
+                            total_nodes_num = user_network.get_node_count()
+                            update_states = update_states_nodes + total_nodes_num
+
+                        (ensemble_state[:, update_states],
                          new_ensemble_transition_rates,
                          new_ensemble_transmission_rate
-                        ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
+                        ) = self.damethod.update(ensemble_state[:, update_states],
                                                  ensemble_transition_rates,
                                                  ensemble_transmission_rate,
                                                  truth[batch],
