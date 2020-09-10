@@ -165,3 +165,14 @@ def update_transition_rates(
                     transition_rates_ensemble_da[i].get_clinical_parameter(par_str)
                     )
     return transition_rates_ensemble
+
+def extract_ensemble_transition_rates(
+        transition_rates_ensemble,
+        num_params=6):
+    ensemble_size = len(transition_rates_ensemble)
+    ensemble_transition_rates_array = np.zeros((ensemble_size, num_params))
+    for i in range(ensemble_size):
+        ensemble_transition_rates_array[i,:] = np.mean(
+                transition_rates_ensemble[i].get_clinical_parameters_as_array().reshape(num_params,-1), 
+                axis=1)
+    return ensemble_transition_rates_array

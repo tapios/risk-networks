@@ -426,10 +426,10 @@ class DataAssimilator:
                                              self.n_assimilation_batches)
 
                     ensemble_size = ensemble_transition_rates.shape[0]
-                    ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
+                    ensemble_transition_rates_reshaped = np.copy(ensemble_transition_rates.reshape(
                             ensemble_size,
                             obs_nodes.shape[0],
-                            -1)
+                            -1))
 
                     total_nodes_num = user_network.get_node_count()
                     for batch in batches:

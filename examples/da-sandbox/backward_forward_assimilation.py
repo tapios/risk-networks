@@ -9,7 +9,7 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epiplots import plot_ensemble_states
-from epiforecast.epiplots import plot_transmission_rate, plot_transition_rates
+from epiforecast.epiplots import plot_transmission_rate, plot_clinical_parameters
 from epiforecast.utilities import dict_slice
 
 
@@ -33,7 +33,8 @@ from _utilities import (print_info,
                         list_of_transition_rates_to_array,
                         modulo_is_close_to_zero,
                         are_close,
-                        update_transition_rates)
+                        update_transition_rates,
+                        extract_ensemble_transition_rates)
 
 # general init #################################################################
 import _general_init
@@ -167,7 +168,9 @@ transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                               1,
                                               time_span.size)
 
-transition_rates_timeseries = []
+transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
+                                              6,
+                                              time_span.size)
 
 # initial conditions ###########################################################
 loaded_data = epidemic_data_storage.get_network_from_start_time(
@@ -193,8 +196,8 @@ for j in range(spin_up_steps):
         transmission_rate_timeseries.push_back(
                 community_transmission_rate_ensemble)
     if learn_transition_rates == True:
-        transition_rates_timeseries.append(
-                transition_rates_ensemble)
+        transition_rates_timeseries.push_back(
+                extract_ensemble_transition_rates(transition_rates_ensemble))
 
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
@@ -279,8 +282,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             transmission_rate_timeseries.push_back(
                     community_transmission_rate_ensemble)
         if learn_transition_rates == True:
-            transition_rates_timeseries.append(
-                    transition_rates_ensemble)
+            transition_rates_timeseries.push_back(
+                    extract_ensemble_transition_rates(transition_rates_ensemble))
         
         loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=current_time)
 
@@ -346,7 +349,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_sensor_now:
                 (ensemble_state,
-                 transition_rates_ensemble_da,
+                 transition_rates_ensemble,
                  community_transmission_rate_ensemble
                 ) = sensor_assimilator.update(
                         ensemble_state,
@@ -355,11 +358,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
-                if learn_transition_rates == True:
-                    transition_rates_ensemble = update_transition_rates(
-                            transition_rates_ensemble,
-                            transition_rates_ensemble_da,
-                            parameter_str)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
                                                        test_assimilation_interval,
@@ -369,7 +367,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_test_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble_da,
+                 transition_rates_ensemble,
                  community_transmission_rate_ensemble
                 ) = viral_test_assimilator.update(
                         ensemble_state,
@@ -378,11 +376,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
-                if learn_transition_rates == True:
-                    transition_rates_ensemble = update_transition_rates(
-                            transition_rates_ensemble,
-                            transition_rates_ensemble_da,
-                            parameter_str)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
                                                         record_assimilation_interval,
@@ -431,7 +424,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         if assimilate_sensor_now:
             (ensemble_state,
-             transition_rates_ensemble_da,
+             transition_rates_ensemble,
              community_transmission_rate_ensemble
             ) = sensor_assimilator.update(
                     ensemble_state,
@@ -440,11 +433,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     user_network,
                     past_time)
-            if learn_transition_rates == True:
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
 
         assimilate_test_now = modulo_is_close_to_zero(
                 past_time,
@@ -454,7 +442,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         if assimilate_test_now and delay_satisfied:
             (ensemble_state,
-             transition_rates_ensemble_da,
+             transition_rates_ensemble,
              community_transmission_rate_ensemble
             ) = viral_test_assimilator.update(
                     ensemble_state,
@@ -463,11 +451,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     community_transmission_rate_ensemble,
                     user_network,
                     past_time)
-            if learn_transition_rates == True:
-                transition_rates_ensemble = update_transition_rates(
-                        transition_rates_ensemble,
-                        transition_rates_ensemble_da,
-                        parameter_str)
 
         assimilate_record_now = modulo_is_close_to_zero(
                 past_time,
@@ -526,7 +509,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_sensor_now:
                 (ensemble_state,
-                 transition_rates_ensemble_da,
+                 transition_rates_ensemble,
                  community_transmission_rate_ensemble
                 ) = sensor_assimilator.update(
                         ensemble_state,
@@ -535,11 +518,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
-                if learn_transition_rates == True:
-                    transition_rates_ensemble = update_transition_rates(
-                            transition_rates_ensemble,
-                            transition_rates_ensemble_da,
-                            parameter_str)
 
             assimilate_test_now = modulo_is_close_to_zero(past_time,
                                                        test_assimilation_interval,
@@ -548,7 +526,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             if assimilate_test_now and delay_satisfied:
                 (ensemble_state,
-                 transition_rates_ensemble_da,
+                 transition_rates_ensemble,
                  community_transmission_rate_ensemble
                 ) = viral_test_assimilator.update(
                         ensemble_state,
@@ -557,11 +535,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
-                if learn_transition_rates == True:
-                    transition_rates_ensemble = update_transition_rates(
-                            transition_rates_ensemble,
-                            transition_rates_ensemble_da,
-                            parameter_str)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
                                                         record_assimilation_interval,
@@ -612,8 +585,8 @@ if learn_transmission_rate == True:
     transmission_rate_timeseries.push_back(
             community_transmission_rate_ensemble)
 if learn_transition_rates == True:
-    transition_rates_timeseries.append(
-            transition_rates_ensemble)
+    transition_rates_timeseries.push_back(
+            extract_ensemble_transition_rates(transition_rates_ensemble))
 
 # save & plot ##################################################################
 # plot trajectories
@@ -635,7 +608,7 @@ if learn_transmission_rate == True:
             OUTPUT_PATH=OUTPUT_PATH)
 
 if learn_transition_rates == True:
-    plot_transition_rates(transition_rates_timeseries,
+    plot_clinical_parameters(transition_rates_timeseries.container,
             time_span,
             a_min=0.0,
             OUTPUT_PATH=OUTPUT_PATH)
