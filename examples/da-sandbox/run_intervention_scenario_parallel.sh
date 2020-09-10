@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=1500G
+#SBATCH --mem=386G
 #SBATCH -J "Intervention_scenario"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
@@ -46,7 +46,7 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 #batches_tests=1
 #tested=0
 
-EXP_NAME="NYC_1e5"
+EXP_NAME="memtest"#"NYC_1e5"
 network_size=1e5
 wearers=0
 batches_sensors=1

@@ -199,10 +199,8 @@ for j in range(spin_up_steps):
                                                  eps=static_contact_interval)
     if update_closure_now:
         update_closure_flag=True
-        print("evaluate closure at", current_time,flush=True)
     else:
         update_closure_flag=False
-        print("do not evaluate closure at", current_time,flush=True)
 
 
     walltime_master_eqn = 0.0
@@ -373,11 +371,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                      eps=static_contact_interval)
         if update_closure_now:
             update_closure_flag=True
-            print("evaluate closure at", current_time,flush=True)
-
         else:
             update_closure_flag=False
-            print("do not evaluate closure at", current_time,flush=True)
         
         # run epidemic_simulator
         network = epidemic_simulator.run(
@@ -471,10 +466,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                          eps=static_contact_interval)
             if update_closure_now:
                 update_closure_flag=True
-                print("evaluate closure at", past_time,flush=True)
             else:
                 update_closure_flag=False
-                print("do not evaluate closure at", past_time,flush=True)
         
             
             loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
@@ -617,11 +610,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                          eps=static_contact_interval)
             if update_closure_now:
                 update_closure_flag=True
-                print("evaluate closure at", past_time,flush=True)
-
             else:
                 update_closure_flag=False
-                print("do not evaluate closure at", past_time,flush=True)
 
             loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
 

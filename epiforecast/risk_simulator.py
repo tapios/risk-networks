@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.sparse import coo_matrix
 from multiprocessing import shared_memory
 from timeit import default_timer as timer
 
@@ -104,7 +105,7 @@ class MasterEquationModelEnsemble:
         self.update_transmission_rate(transmission_rate)
 
         #NOTE these are HUGE matrices - here for preallocation speedup
-        self.NbyNcontainer=np.zeros((self.N,self.N), dtype='float64')
+        #self.NbyNcontainer=np.zeros((self.N,self.N), dtype='float64')
         #self.denS=np.zeros((self.N,self.N), dtype='float64')
         self.walltime_eval_closure = 0.0
 
@@ -302,43 +303,76 @@ class MasterEquationModelEnsemble:
             #CM_SI = self.L.multiply(numSI/self.denSI).tocsr()
             #CM_SH = self.L.multiply(numSH/self.denSH).tocsr()
 
-            #preallocation one-by-one, halves mem requirements
+            # #preallocation one-by-one, halves mem requirements
+            # S_ensemble_mean = y[:,iS].mean(axis=0)
+            # I_ensemble_mean = y[:,iI].mean(axis=0)
+            # H_ensemble_mean = y[:,iH].mean(axis=0)
+            
+            # ## first do SI
+            # np.matmul(y[:,iS].T, y[:,iI], out=self.NbyNcontainer)
+            # self.NbyNcontainer /= self.M
+            # # create outer prod and divide
+            # #np.outer(S_ensemble_mean, I_ensemble_mean, out=self.denS)
+            # #self.denS+=1e-8
+            # #self.NbyNcontainer/=self.denS
+            # #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            # # avoid outer product a/outer(b,c) = (a/c)/b[:,None]  
+            # self.NbyNcontainer/=(I_ensemble_mean+1e-8)
+            # self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
+            # CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            
+            # CM_S @= y[:,iI].T
+            # self.closure[:] =  CM_S.T * self.ensemble_beta_infected
+           
+            # ## then do SH
+            # np.matmul(y[:,iS].T, y[:,iH], out=self.NbyNcontainer)
+            # self.NbyNcontainer /= self.M
+            # # create outer prod and divide
+            # #np.outer(S_ensemble_mean, H_ensemble_mean, out=self.denS)
+            # #self.denS+=1e-8
+            # #self.NbyNcontainer/=self.denS
+            # #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            # # avoid outer product a/outer(b,c) = (a/c).T/b[;,None] 
+            # self.NbyNcontainer/=(H_ensemble_mean+1e-8)
+            # self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
+            # CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            # CM_S @= y[:,iH].T
+            # self.closure[:] +=  CM_S.T * self.ensemble_beta_hospital
+
+            # closure using nbhd structure loop
+            # using nonzero is slow, so we convert to coo sparse matrix first 
+            # scipy sparse recommends constructing coo and converting to csr
             S_ensemble_mean = y[:,iS].mean(axis=0)
             I_ensemble_mean = y[:,iI].mean(axis=0)
             H_ensemble_mean = y[:,iH].mean(axis=0)
-            
-            ## first do SI
-            np.matmul(y[:,iS].T, y[:,iI], out=self.NbyNcontainer)
-            self.NbyNcontainer /= self.M
-            # create outer prod and divide
-            #np.outer(S_ensemble_mean, I_ensemble_mean, out=self.denS)
-            #self.denS+=1e-8
-            #self.NbyNcontainer/=self.denS
-            #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            # avoid outer product a/outer(b,c) = (a/c)/b[:,None]  
-            self.NbyNcontainer/=(I_ensemble_mean+1e-8)
-            self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
-            CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            
+            yS = y[:,iS]
+            yI = y[:,iI]
+            yH = y[:,iH]
+
+            cooL = self.L.tocoo()
+            nonzeros = len(cooL.row)
+
+            CM_SI_data=np.zeros(nonzeros)
+            CM_SH_data=np.zeros(nonzeros)
+
+            for k,i,j,v in zip(range(nonzeros), cooL.row, cooL.col, cooL.data):
+                #for SI interactions
+                CM_SI_data[k] = yS[:,i].dot(yI[:,j])/self.M                 #create bar{<S_i,I_j>}
+                CM_SI_data[k] /= S_ensemble_mean[i]*I_ensemble_mean[j]+1e-8 #divide by <S_i><I_j>+eps
+                CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
+
+                #for SH interactions
+                CM_SH_data[k] = yS[:,i].dot(yH[:,j])/self.M
+                CM_SH_data[k] /= S_ensemble_mean[i]*H_ensemble_mean[j]+1e-8
+                CM_SH_data[k] *= v
+                            
+            CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iI].T
             self.closure[:] =  CM_S.T * self.ensemble_beta_infected
-           
-            ## then do SH
-            np.matmul(y[:,iS].T, y[:,iH], out=self.NbyNcontainer)
-            self.NbyNcontainer /= self.M
-            # create outer prod and divide
-            #np.outer(S_ensemble_mean, H_ensemble_mean, out=self.denS)
-            #self.denS+=1e-8
-            #self.NbyNcontainer/=self.denS
-            #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            # avoid outer product a/outer(b,c) = (a/c).T/b[;,None] 
-            self.NbyNcontainer/=(H_ensemble_mean+1e-8)
-            self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
-            CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            
+
+            CM_S = coo_matrix((np.array(CM_SH_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iH].T
             self.closure[:] +=  CM_S.T * self.ensemble_beta_hospital
-
 
         elif closure_name == 'full':
             # XXX this only works for betas of shape (M, 1); untested for others
