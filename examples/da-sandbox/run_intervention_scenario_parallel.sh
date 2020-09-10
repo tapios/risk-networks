@@ -46,7 +46,7 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 #batches_tests=1
 #tested=0
 
-EXP_NAME="memtest"#"NYC_1e5"
+EXP_NAME="NYC_1e5"
 network_size=1e5
 wearers=0
 batches_sensors=1
