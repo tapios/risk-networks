@@ -33,7 +33,6 @@ from _utilities import (print_info,
                         list_of_transition_rates_to_array,
                         modulo_is_close_to_zero,
                         are_close,
-                        update_transition_rates,
                         extract_ensemble_transition_rates)
 
 # general init #################################################################
@@ -100,6 +99,7 @@ sensor_assimilator = DataAssimilator(
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_sensor,
+        full_svd=True,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -410,12 +410,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
-                if learn_transmission_rate == True:
-                    master_eqn_ensemble.update_transmission_rate(
-                            community_transmission_rate_ensemble)
-                if learn_transition_rates == True:
-                    master_eqn_ensemble.update_transition_rates(
-                            transition_rates_ensemble)
 
             # run ensemble backwards
             user_network.update_from(loaded_data.contact_network)
@@ -487,12 +481,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             master_eqn_ensemble.update_ensemble(
                     new_transition_rates=transition_rates_ensemble,
                     new_transmission_rate=community_transmission_rate_ensemble)
-            if learn_transmission_rate == True:
-                master_eqn_ensemble.update_transmission_rate(
-                        community_transmission_rate_ensemble)
-            if learn_transition_rates == True:
-                master_eqn_ensemble.update_transition_rates(
-                        transition_rates_ensemble)
 
         print_info("Backward assimilation ended; past_time:", past_time)
 
@@ -569,12 +557,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
-                if learn_transmission_rate == True:
-                    master_eqn_ensemble.update_transmission_rate(
-                            community_transmission_rate_ensemble)
-                if learn_transition_rates == True:
-                    master_eqn_ensemble.update_transition_rates(
-                            transition_rates_ensemble)
 
         print_info("Forward assimilation ended; current_time", current_time)
 
@@ -630,12 +612,12 @@ master_eqns_mean_states = master_states_timeseries.get_mean()
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
         master_eqns_mean_states)
 if learn_transmission_rate == True:
-    pickle.dump(transmission_rate_timeseries,
-                open(os.path.join(OUTPUT_PATH, 'transmission_rate.pkl'), 'wb'))
+    np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
+            transmission_rate_timeseries.container)
 
 if learn_transition_rates == True:
-    pickle.dump(transition_rates_timeseries,
-                open(os.path.join(OUTPUT_PATH, 'transition_rates.pkl'), 'wb'))
+    np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
+            transition_rates_timeseries.container)
 
 kinetic_eqns_statuses = []
 for kinetic_state in kinetic_states_timeseries:

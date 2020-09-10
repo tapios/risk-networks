@@ -53,7 +53,7 @@ class DataAssimilator:
             update_type (str): how to perform updates
                     Three values are supported: 'global', 'local', 'neighbor'.
 
-            full_svd (bool): whether to use full or reduced SVD in EAKF
+            full_svd (bool): whether to use full or reduced second SVD in EAKF
 
             joint_cov_noise (float): Tikhonov-regularization noise
         """
@@ -403,11 +403,11 @@ class DataAssimilator:
                                                                  self.transmission_rate_max)
 
                         # Weighted-averaging based on ratio of observed nodes 
-                        total_nodes_num = user_network.get_node_count()
+                        n_user_nodes = user_network.get_node_count()
                         new_ensemble_transmission_rate = ( \
-                                ensemble_transmission_rate*(total_nodes_num-obs_nodes.size) \
+                                ensemble_transmission_rate*(n_user_nodes-obs_nodes.size) \
                                                         + new_ensemble_transmission_rate*obs_nodes.size) \
-                                                        / total_nodes_num
+                                                        / n_user_nodes
 
                 else: # perform DA update in batches
                     if self.update_type == 'global':
@@ -421,12 +421,12 @@ class DataAssimilator:
                                              self.n_assimilation_batches)
 
                     ensemble_size = ensemble_transition_rates.shape[0]
-                    ensemble_transition_rates_reshaped = np.copy(ensemble_transition_rates.reshape(
+                    ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
                             ensemble_size,
                             obs_nodes.shape[0],
-                            -1))
+                            -1)
 
-                    total_nodes_num = user_network.get_node_count()
+                    n_user_nodes = user_network.get_node_count()
                     for batch in batches:
                         cov_batch = np.diag(np.diag(cov)[batch])
                         if self.update_type == 'local':
@@ -443,7 +443,7 @@ class DataAssimilator:
                                                np.eye(obs_nodes[batch].size)])
 
                             # current implementation only works for neighbor updating of "I"
-                            update_states = update_states_nodes + total_nodes_num
+                            update_states = update_states_nodes + n_user_nodes
 
                         (ensemble_state[:, update_states],
                          new_ensemble_transition_rates_batch,
@@ -467,9 +467,9 @@ class DataAssimilator:
 
                             # Weighted-averaging based on ratio of observed nodes 
                             new_ensemble_transmission_rate = (ensemble_transmission_rate \
-                                                              *(total_nodes_num-batch.size) \
+                                                              *(n_user_nodes-batch.size) \
                                                             + new_ensemble_transmission_rate*batch.size) \
-                                                            / total_nodes_num
+                                                            / n_user_nodes
 
                     new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
                             ensemble_size,-1)

@@ -7,12 +7,11 @@ from _constants import (start_time,
                         community_transmission_rate,
                         hospital_transmission_reduction)
 from _stochastic_init import transition_rates
-from _user_network_init import user_nodes, user_population
+from _user_network_init import user_nodes, user_population, user_network
 from _utilities import print_start_of, print_end_of
 
 from epiforecast.populations import TransitionRates
 from epiforecast.samplers import BetaSampler, GammaSampler
-from _network_init import network
 
 
 print_start_of(__name__)
@@ -22,13 +21,13 @@ n_forward_steps  = 1 # minimum amount of steps per time step: forward run
 n_backward_steps = 8 # minimum amount of steps per time step: backward run
 
 # Prior of transition rates ####################################################
-learn_transition_rates = arguments.learn_transition_rates
+learn_transition_rates = arguments.params_learn_transition_rates
 transition_rates_ensemble = []
 if learn_transition_rates == True:
-    parameter_str = arguments.transition_rates_str.split(',')
+    parameter_str = arguments.params_transition_rates_str.split(',')
     for i in range(ensemble_size):
         transition_rates = TransitionRates.from_samplers(
-                population=network.get_node_count(),
+                population=user_network.get_node_count(),
                 lp_sampler=GammaSampler(1.7,2.,1.),
                 cip_sampler=GammaSampler(1.5,2.,1.),
                 hip_sampler=GammaSampler(1.5,3.,1.),
@@ -66,9 +65,9 @@ transition_rates_max = {'latent_periods': 12,
 # Prior of transmission rate ###################################################
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
-learn_transmission_rate = arguments.learn_transmission_rate
-transmission_rate_bias = arguments.transmission_rate_bias
-transmission_rate_std = arguments.transmission_rate_noise * community_transmission_rate
+learn_transmission_rate = arguments.params_learn_transmission_rate
+transmission_rate_bias = arguments.params_transmission_rate_bias
+transmission_rate_std = arguments.params_transmission_rate_noise * community_transmission_rate
 if learn_transmission_rate == True:
     community_transmission_rate_ensemble = np.random.lognormal(
                            np.log(community_transmission_rate + transmission_rate_bias),
