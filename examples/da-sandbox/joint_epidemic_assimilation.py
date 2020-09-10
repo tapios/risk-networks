@@ -146,6 +146,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 #floats
 da_window         = 7.0
 prediction_window = 1.0
+closure_update_interval = 5.0 # the frequency at which we update the closure
 record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 test_assimilation_interval  = 1.0 # same for I
 sensor_assimilation_interval  = 1.0 # same for I
@@ -190,17 +191,28 @@ spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
 ensemble_state = ensemble_ic
 
 timer_spin_up = timer()
+
 print_info("Spin-up started")
 for j in range(spin_up_steps):
+    update_closure_now = modulo_is_close_to_zero(current_time,
+                                                 closure_update_interval,
+                                                 eps=static_contact_interval)
+    if update_closure_now:
+        update_closure_flag=True
+        print("evaluate closure at", current_time,flush=True)
+    else:
+        update_closure_flag=False
+        print("do not evaluate closure at", current_time,flush=True)
 
+
+    walltime_master_eqn = 0.0
+    master_eqn_ensemble.reset_walltimes()
     #Run kinetic model
     # run
-    print("start epidemic simulator",flush=True)
     
     network = epidemic_simulator.run(
             stop_time=current_time + static_contact_interval,
             current_network=network)
-    print("after epidemic simulator",flush=True)
 
     # store for further usage (master equations etc)
     epidemic_data_storage.save_network_by_start_time(
@@ -216,14 +228,12 @@ for j in range(spin_up_steps):
             end_time=current_time+static_contact_interval,
             end_statuses=kinetic_state)
 
-    print("after saving epidemic",flush=True)
     # store for plotting
     user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
     kinetic_states_timeseries.append(kinetic_state)
-    print("after storing kinetic time series")
     
     #Run master eqn mode
     master_states_timeseries.push_back(ensemble_state) # storage
@@ -234,12 +244,18 @@ for j in range(spin_up_steps):
     user_network.update_from(loaded_data.contact_network)
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
-
+    timer_master_eqn = timer()
     ensemble_state = master_eqn_ensemble.simulate(
             static_contact_interval,
-            min_steps=n_forward_steps)
+            min_steps=n_forward_steps,
+    closure_flag=update_closure_flag)
 
     current_time += static_contact_interval
+
+    walltime_master_eqn += timer() - timer_master_eqn
+
+    print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
+    print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
 
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
@@ -345,12 +361,24 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                      k * prediction_window,
                      eps=static_contact_interval)
     current_time = k * prediction_window # to avoid build-up of errors
+
     
     ## 1a) Run epidemic simulator
     ## 1b) forward run w/o data assimilation; prediction
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
+        
+        update_closure_now = modulo_is_close_to_zero(current_time,
+                                                     closure_update_interval,
+                                                     eps=static_contact_interval)
+        if update_closure_now:
+            update_closure_flag=True
+            print("evaluate closure at", current_time,flush=True)
 
+        else:
+            update_closure_flag=False
+            print("do not evaluate closure at", current_time,flush=True)
+        
         # run epidemic_simulator
         network = epidemic_simulator.run(
             stop_time=current_time + static_contact_interval,
@@ -388,11 +416,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         # run ensemble forward
         timer_master_eqn = timer()
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                      min_steps=n_forward_steps)
+                                                      min_steps=n_forward_steps,
+                                                      closure_flag=update_closure_flag)
         walltime_master_eqn += timer() - timer_master_eqn
 
         current_time += static_contact_interval
-
 
         # collect data for later assimilation
         observe_sensor_now = modulo_is_close_to_zero(current_time,
@@ -437,6 +465,18 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_eqn_ensemble.set_start_time(past_time)
 
         for j in range(steps_per_da_window):
+        
+            update_closure_now = modulo_is_close_to_zero(past_time,
+                                                         closure_update_interval,
+                                                         eps=static_contact_interval)
+            if update_closure_now:
+                update_closure_flag=True
+                print("evaluate closure at", past_time,flush=True)
+            else:
+                update_closure_flag=False
+                print("do not evaluate closure at", past_time,flush=True)
+        
+            
             loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
 
             # data assimilation
@@ -502,7 +542,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
-                                                                    min_steps=n_backward_steps)
+                                                                    min_steps=n_backward_steps,
+                                                                    closure_flag=update_closure_flag)
+
             walltime_master_eqn += timer() - timer_master_eqn
 
             past_time -= static_contact_interval
@@ -569,6 +611,18 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_eqn_ensemble.set_start_time(past_time)
 
         for j in range(steps_per_da_window):
+            
+            update_closure_now = modulo_is_close_to_zero(past_time,
+                                                         closure_update_interval,
+                                                         eps=static_contact_interval)
+            if update_closure_now:
+                update_closure_flag=True
+                print("evaluate closure at", past_time,flush=True)
+
+            else:
+                update_closure_flag=False
+                print("do not evaluate closure at", past_time,flush=True)
+
             loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
 
             # run ensemble forward
@@ -577,7 +631,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
             timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                          min_steps=n_forward_steps)
+                                                          min_steps=n_forward_steps,
+                                                          closure_flag=update_closure_flag)
+
             walltime_master_eqn += timer() - timer_master_eqn
 
             past_time += static_contact_interval

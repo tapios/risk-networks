@@ -72,7 +72,7 @@ class MasterEquationModelEnsemble:
             self.closure = np.ndarray((self.M, self.N),
                                       dtype=np.float_,
                                       buffer=self.closure_shm.buf)
-
+            
             coefficients_nbytes = self.M * self.N * 8 * float_nbytes
             self.coefficients_shm = shared_memory.SharedMemory(
                     create=True,
@@ -103,6 +103,9 @@ class MasterEquationModelEnsemble:
         self.ensemble_beta_hospital = np.empty( (self.M, n_beta_per_member) )
         self.update_transmission_rate(transmission_rate)
 
+        #NOTE these are HUGE matrices - here for preallocation speedup
+        self.NbyNcontainer=np.zeros((self.N,self.N), dtype='float64')
+        #self.denS=np.zeros((self.N,self.N), dtype='float64')
         self.walltime_eval_closure = 0.0
 
     def __extract_coefficients(
@@ -286,27 +289,56 @@ class MasterEquationModelEnsemble:
             iS, iI, iH = self.S_slice, self.I_slice, self.H_slice
             y = self.y0
 
-            numSI = y[:,iS].T @ y[:,iI]
-            numSI /= self.M
+            #no prealloc:
+            #numSI = y[:,iS].T @ y[:,iI]
+            #numSI /= self.M
+            #numSH = y[:,iS].T @ y[:,iH]
+            #numSH /= self.M
+            #H_ensemble_mean = y[:,iH].mean(axis=0)
+            #S_ensemble_mean = y[:,iS].mean(axis=0)
+            #I_ensemble_mean = y[:,iI].mean(axis=0)
+            #denSI = np.outer(S_ensemble_mean, I_ensemble_mean) + 1e-8
+            #denSH = np.outer(S_ensemble_mean, H_ensemble_mean) + 1e-8
+            #CM_SI = self.L.multiply(numSI/self.denSI).tocsr()
+            #CM_SH = self.L.multiply(numSH/self.denSH).tocsr()
 
-            numSH = y[:,iS].T @ y[:,iH]
-            numSH /= self.M
-
-            H_ensemble_mean = y[:,iH].mean(axis=0)
+            #preallocation one-by-one, halves mem requirements
             S_ensemble_mean = y[:,iS].mean(axis=0)
             I_ensemble_mean = y[:,iI].mean(axis=0)
+            H_ensemble_mean = y[:,iH].mean(axis=0)
+            
+            ## first do SI
+            np.matmul(y[:,iS].T, y[:,iI], out=self.NbyNcontainer)
+            self.NbyNcontainer /= self.M
+            # create outer prod and divide
+            #np.outer(S_ensemble_mean, I_ensemble_mean, out=self.denS)
+            #self.denS+=1e-8
+            #self.NbyNcontainer/=self.denS
+            #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            # avoid outer product a/outer(b,c) = (a/c)/b[:,None]  
+            self.NbyNcontainer/=(I_ensemble_mean+1e-8)
+            self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
+            CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            
+            CM_S @= y[:,iI].T
+            self.closure[:] =  CM_S.T * self.ensemble_beta_infected
+           
+            ## then do SH
+            np.matmul(y[:,iS].T, y[:,iH], out=self.NbyNcontainer)
+            self.NbyNcontainer /= self.M
+            # create outer prod and divide
+            #np.outer(S_ensemble_mean, H_ensemble_mean, out=self.denS)
+            #self.denS+=1e-8
+            #self.NbyNcontainer/=self.denS
+            #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            # avoid outer product a/outer(b,c) = (a/c).T/b[;,None] 
+            self.NbyNcontainer/=(H_ensemble_mean+1e-8)
+            self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
+            CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
+            
+            CM_S @= y[:,iH].T
+            self.closure[:] +=  CM_S.T * self.ensemble_beta_hospital
 
-            denSI = np.outer(S_ensemble_mean, I_ensemble_mean) + 1e-8
-            denSH = np.outer(S_ensemble_mean, H_ensemble_mean) + 1e-8
-
-            CM_SI = self.L.multiply(numSI/denSI).tocsr()
-            CM_SH = self.L.multiply(numSH/denSH).tocsr()
-
-            CM_SI @= y[:,iI].T
-            CM_SH @= y[:,iH].T
-
-            self.closure[:] = (  CM_SI.T * self.ensemble_beta_infected
-                               + CM_SH.T * self.ensemble_beta_hospital)
 
         elif closure_name == 'full':
             # XXX this only works for betas of shape (M, 1); untested for others
@@ -327,7 +359,8 @@ class MasterEquationModelEnsemble:
             self,
             time_window,
             min_steps=1,
-            closure_name='independent'):
+            closure_name='independent',
+            closure_flag=True):
         """
         Simulate master equations for the whole ensemble forward in time
 
@@ -336,15 +369,17 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
+           closure_flag: whether to evaluate closure during this simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
         stop_time = self.start_time + time_window
         maxdt = abs(time_window) / min_steps
 
-        timer_eval_closure = timer()
-        self.eval_closure(closure_name)
-        self.walltime_eval_closure += timer() - timer_eval_closure
+        if closure_flag:
+            timer_eval_closure = timer()
+            self.eval_closure(closure_name)
+            self.walltime_eval_closure += timer() - timer_eval_closure
 
         if self.parallel_cpu:
             futures = []
@@ -376,7 +411,9 @@ class MasterEquationModelEnsemble:
             self,
             time_window,
             min_steps=1,
-            closure_name='independent'):
+            closure_name='independent',
+            closure_flag=True):
+
         """
         Simulate master equations for the whole ensemble backward in time
 
@@ -385,6 +422,7 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
+           closure_flag: whether to evaluate closure during this simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
@@ -392,7 +430,8 @@ class MasterEquationModelEnsemble:
         
         return self.simulate(-positive_time_window,
                              min_steps,
-                             closure_name)
+                             closure_name,
+                             closure_flag)
 
     def reset_walltimes(self):
         """
