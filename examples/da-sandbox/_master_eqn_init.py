@@ -48,6 +48,21 @@ else:
         transition_rates_particle.calculate_from_clinical()
         transition_rates_ensemble.append(transition_rates_particle)
 
+# range of transition rates
+transition_rates_min = {'latent_periods': 2,
+                             'community_infection_periods': 1,
+                             'hospital_infection_periods': 1,
+                             'hospitalization_fraction': 1e-5,
+                             'community_mortality_fraction': 0,
+                             'hospital_mortality_fraction': 0}
+
+transition_rates_max = {'latent_periods': 12,
+                             'community_infection_periods': 15,
+                             'hospital_infection_periods': 10,
+                             'hospitalization_fraction': 0.99999,
+                             'community_mortality_fraction': 1,
+                             'hospital_mortality_fraction': 1}
+
 # Prior of transmission rate ###################################################
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
@@ -59,6 +74,10 @@ if learn_transmission_rate == True:
                            np.log(community_transmission_rate + transmission_rate_bias),
                            np.log(transmission_rate_std),
                            community_transmission_rate_ensemble.shape)
+
+# range of transmission rate
+transmission_rate_min = 3
+transmission_rate_max = 21
 
 # Set up master equation solver ################################################
 master_eqn_ensemble = MasterEquationModelEnsemble(

@@ -18,7 +18,11 @@ class DataAssimilator:
             transmission_rate_to_update_flag=None,
             update_type='global',
             full_svd=False,
-            joint_cov_noise=1e-2):
+            joint_cov_noise=1e-2,
+            transition_rates_min=None,
+            transition_rates_max=None,
+            transmission_rate_min=None,
+            transmission_rate_max=None):
         """
         Constructor
 
@@ -97,23 +101,12 @@ class DataAssimilator:
         self.stored_observed_variances = {}
 
         # range of transition rates
-        self.transition_rates_min = {'latent_periods': 2,
-                                     'community_infection_periods': 1,
-                                     'hospital_infection_periods': 1,
-                                     'hospitalization_fraction': 1e-5,
-                                     'community_mortality_fraction': 0,
-                                     'hospital_mortality_fraction': 0}
-
-        self.transition_rates_max = {'latent_periods': 12,
-                                     'community_infection_periods': 15,
-                                     'hospital_infection_periods': 10,
-                                     'hospitalization_fraction': 0.99999,
-                                     'community_mortality_fraction': 1,
-                                     'hospital_mortality_fraction': 1}
+        self.transition_rates_min = transition_rates_min
+        self.transition_rates_max = transition_rates_max 
 
         # range of transmission rate
-        self.transmission_rate_min = 3
-        self.transmission_rate_max = 21
+        self.transmission_rate_min = transmission_rate_min 
+        self.transmission_rate_max = transmission_rate_max 
 
 
     def find_observation_states(
@@ -403,16 +396,18 @@ class DataAssimilator:
                                              H_obs,
                                              print_error=print_error)
 
-                    # Clip transmission rate into a reasonable range
-                    new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
-                                                             self.transmission_rate_min,
-                                                             self.transmission_rate_max)
+                    if self.transmission_rate_to_update_flag:
+                        # Clip transmission rate into a reasonable range
+                        new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                                 self.transmission_rate_min,
+                                                                 self.transmission_rate_max)
 
-                    # Weighted-averaging based on ratio of observed nodes 
-                    total_nodes_num = user_network.get_node_count()
-                    new_ensemble_transmission_rate = (ensemble_transmission_rate*(total_nodes_num-obs_nodes.size) \
-                                                    + new_ensemble_transmission_rate*obs_nodes.size) \
-                                                    / total_nodes_num
+                        # Weighted-averaging based on ratio of observed nodes 
+                        total_nodes_num = user_network.get_node_count()
+                        new_ensemble_transmission_rate = ( \
+                                ensemble_transmission_rate*(total_nodes_num-obs_nodes.size) \
+                                                        + new_ensemble_transmission_rate*obs_nodes.size) \
+                                                        / total_nodes_num
 
                 else: # perform DA update in batches
                     if self.update_type == 'global':
@@ -464,22 +459,24 @@ class DataAssimilator:
                         ensemble_transition_rates_reshaped[:,batch,:] = \
                         new_ensemble_transition_rates_batch.reshape(ensemble_size, batch.size, -1)
 
-                        # Clip transmission rate into a reasonable range
-                        new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
-                                                                 self.transmission_rate_min,
-                                                                 self.transmission_rate_max)
+                        if self.transmission_rate_to_update_flag:
+                            # Clip transmission rate into a reasonable range
+                            new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                                     self.transmission_rate_min,
+                                                                     self.transmission_rate_max)
 
-                        # Weighted-averaging based on ratio of observed nodes 
-                        new_ensemble_transmission_rate = (ensemble_transmission_rate \
-                                                          *(total_nodes_num-batch.size) \
-                                                        + new_ensemble_transmission_rate*batch.size) \
-                                                        / total_nodes_num
+                            # Weighted-averaging based on ratio of observed nodes 
+                            new_ensemble_transmission_rate = (ensemble_transmission_rate \
+                                                              *(total_nodes_num-batch.size) \
+                                                            + new_ensemble_transmission_rate*batch.size) \
+                                                            / total_nodes_num
 
                     new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
                             ensemble_size,-1)
 
-                new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
-                                                                           obs_nodes.size)
+                if len(self.transition_rates_to_update_str) > 0:
+                    new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
+                                                                               obs_nodes.size)
 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 

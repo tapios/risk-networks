@@ -82,6 +82,10 @@ from _master_eqn_init import (master_eqn_ensemble,
                               learn_transition_rates,
                               learn_transmission_rate,
                               parameter_str,
+                              transition_rates_min,
+                              transition_rates_max,
+                              transmission_rate_min,
+                              transmission_rate_max,
                               n_forward_steps,
                               n_backward_steps)
 
@@ -95,7 +99,11 @@ sensor_assimilator = DataAssimilator(
         n_assimilation_batches=arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
-        update_type=arguments.assimilation_update_sensor)
+        update_type=arguments.assimilation_update_sensor,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
@@ -105,7 +113,11 @@ viral_test_assimilator = DataAssimilator(
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.assimilation_regularization,
-        full_svd=True)
+        full_svd=True,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,

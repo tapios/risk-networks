@@ -361,7 +361,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
         plt.close()
 
-def plot_transition_rates(transition_rates_timeseries,
+def plot_transition_rates(transition_rates_obj_timeseries,
         t,
         color='b',
         a_min=None,
@@ -369,18 +369,18 @@ def plot_transition_rates(transition_rates_timeseries,
         num_rates=6,
         OUTPUT_PATH='.'):
 
-    num_time = len(transition_rates_timeseries)
-    num_ensemble = len(transition_rates_timeseries[0])
+    num_time = len(transition_rates_obj_timeseries)
+    num_ensemble = len(transition_rates_obj_timeseries[0])
 
     rate_timeseries = np.zeros((num_ensemble, num_rates, num_time))
     for i in range(num_time):
         for j in range(num_ensemble):
-            rate_timeseries[j,0,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('exposed_to_infected')) 
-            rate_timeseries[j,1,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('infected_to_hospitalized')) 
-            rate_timeseries[j,2,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('infected_to_resistant')) 
-            rate_timeseries[j,3,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('hospitalized_to_resistant')) 
-            rate_timeseries[j,4,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('infected_to_deceased')) 
-            rate_timeseries[j,5,i] = np.mean(transition_rates_timeseries[i][j].get_transition_rate('hospitalized_to_deceased')) 
+            rate_timeseries[j,0,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('exposed_to_infected')) 
+            rate_timeseries[j,1,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_hospitalized')) 
+            rate_timeseries[j,2,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_resistant')) 
+            rate_timeseries[j,3,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('hospitalized_to_resistant')) 
+            rate_timeseries[j,4,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_deceased')) 
+            rate_timeseries[j,5,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('hospitalized_to_deceased')) 
 
     rate_perc = np.percentile(rate_timeseries, 
             q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
