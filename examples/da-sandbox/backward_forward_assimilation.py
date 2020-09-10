@@ -9,6 +9,7 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epiplots import plot_ensemble_states
+from epiforecast.epiplots import plot_transmission_rate, plot_transition_rates
 from epiforecast.utilities import dict_slice
 
 
@@ -625,6 +626,19 @@ axes = plot_ensemble_states(population,
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
+plt.close()
+
+if learn_transmission_rate == True:
+    plot_transmission_rate(transmission_rate_timeseries.container,
+            time_span,
+            a_min=0.0,
+            OUTPUT_PATH=OUTPUT_PATH)
+
+if learn_transition_rates == True:
+    plot_transition_rates(transition_rates_timeseries,
+            time_span,
+            a_min=0.0,
+            OUTPUT_PATH=OUTPUT_PATH)
 
 # save full the data we require:
 master_eqns_mean_states = master_states_timeseries.get_mean()
@@ -633,6 +647,7 @@ np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
 if learn_transmission_rate == True:
     pickle.dump(transmission_rate_timeseries,
                 open(os.path.join(OUTPUT_PATH, 'transmission_rate.pkl'), 'wb'))
+
 if learn_transition_rates == True:
     pickle.dump(transition_rates_timeseries,
                 open(os.path.join(OUTPUT_PATH, 'transition_rates.pkl'), 'wb'))
