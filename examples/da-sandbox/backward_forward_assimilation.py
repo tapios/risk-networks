@@ -141,8 +141,8 @@ sensor_assimilation_interval  = 1.0 # same for I
 
 # ints
 
-n_sweeps                     = 7
-n_prediction_windows_spin_up = 1
+n_sweeps                     = 1
+n_prediction_windows_spin_up = 7
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
