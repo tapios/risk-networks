@@ -326,7 +326,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.fill_between(t, np.clip(rate_perc[2,0], a_min, a_max), np.clip(rate_perc[-3,0], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
     plt.plot(t, rate_perc[3,0], color = color)
     plt.xlabel('Time (days)')
-    plt.ylabel('community_transmission_rate')
+    plt.ylabel('1/community_transmission_rate')
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_PATH,'transmission_rate.png'))
     plt.close()

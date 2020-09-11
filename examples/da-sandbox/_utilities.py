@@ -153,13 +153,3 @@ def transition_function(x, y, transition_steps, total_steps):
     output[:transition_steps] = np.linspace(x, y, transition_steps)
     return output
 
-def extract_ensemble_transition_rates(
-        transition_rates_ensemble,
-        num_params=6):
-    ensemble_size = len(transition_rates_ensemble)
-    ensemble_transition_rates_array = np.zeros((ensemble_size, num_params))
-    for i in range(ensemble_size):
-        ensemble_transition_rates_array[i,:] = np.mean(
-                transition_rates_ensemble[i].get_clinical_parameters_as_array().reshape(num_params,-1), 
-                axis=1)
-    return ensemble_transition_rates_array

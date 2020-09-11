@@ -11,6 +11,7 @@ from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epiplots import plot_ensemble_states
 from epiforecast.epiplots import plot_transmission_rate, plot_clinical_parameters
 from epiforecast.utilities import dict_slice
+from epiforecast.populations import extract_ensemble_transition_rates
 
 
 ################################################################################
@@ -32,8 +33,7 @@ from _constants import (static_contact_interval,
 from _utilities import (print_info,
                         list_of_transition_rates_to_array,
                         modulo_is_close_to_zero,
-                        are_close,
-                        extract_ensemble_transition_rates)
+                        are_close)
 
 # general init #################################################################
 import _general_init
