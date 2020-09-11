@@ -6,7 +6,25 @@ from multiprocessing import shared_memory
 from timeit import default_timer as timer
 
 import ray
+from numba import jit 
 
+@jit
+def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
+    CM_SI_data=np.zeros(nonzeros)
+    CM_SH_data=np.zeros(nonzeros)
+    for k,i,j,v in zip(range(nonzeros), rows, cols, data):
+        #for SI interactions
+        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M                 #create bar{<S_i,I_j>}
+        CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
+        CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
+        
+        #for SH interactions
+        CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
+        CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
+        CM_SH_data[k] *= v
+    
+    return CM_SI_data, CM_SH_data
+ 
 class MasterEquationModelEnsemble:
     def __init__(
             self,
@@ -351,21 +369,36 @@ class MasterEquationModelEnsemble:
 
             cooL = self.L.tocoo()
             nonzeros = len(cooL.row)
+            cooL_rows=cooL.row
+            cooL_cols=cooL.col
+            cooL_data=cooL.data
 
-            CM_SI_data=np.zeros(nonzeros)
-            CM_SH_data=np.zeros(nonzeros)
+            CM_SI_data,CM_SH_data = create_CM_data(
+                nonzeros,
+                cooL_rows,
+                cooL_cols,
+                cooL_data, 
+                self.M,
+                yS,
+                yI,
+                yH,
+                S_ensemble_mean,
+                I_ensemble_mean,
+                H_ensemble_mean)
+        
+            # CM_SI_data=np.zeros(nonzeros)
+            # CM_SH_data=np.zeros(nonzeros)
+            # for k,i,j,v in zip(range(nonzeros), cooL.row, cooL.col, cooL.data):
+            #     #for SI interactions
+            #     CM_SI_data[k] = yS[:,i].dot(yI[:,j])/self.M                 #create bar{<S_i,I_j>}
+            #     CM_SI_data[k] /= S_ensemble_mean[i]*I_ensemble_mean[j]+1e-8 #divide by <S_i><I_j>+eps
+            #     CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
 
-            for k,i,j,v in zip(range(nonzeros), cooL.row, cooL.col, cooL.data):
-                #for SI interactions
-                CM_SI_data[k] = yS[:,i].dot(yI[:,j])/self.M                 #create bar{<S_i,I_j>}
-                CM_SI_data[k] /= S_ensemble_mean[i]*I_ensemble_mean[j]+1e-8 #divide by <S_i><I_j>+eps
-                CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
-
-                #for SH interactions
-                CM_SH_data[k] = yS[:,i].dot(yH[:,j])/self.M
-                CM_SH_data[k] /= S_ensemble_mean[i]*H_ensemble_mean[j]+1e-8
-                CM_SH_data[k] *= v
-                            
+            #     #for SH interactions
+            #     CM_SH_data[k] = yS[:,i].dot(yH[:,j])/self.M
+            #     CM_SH_data[k] /= S_ensemble_mean[i]*H_ensemble_mean[j]+1e-8
+            #     CM_SH_data[k] *= v
+                           
             CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iI].T
             self.closure[:] =  CM_S.T * self.ensemble_beta_infected
