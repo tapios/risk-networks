@@ -86,12 +86,10 @@ class DataAssimilator:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
                     observation_svd_regularized=False,
-                    observation_svd_reduced=False,
                     joint_cov_noise=joint_cov_noise)
         else:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
-                    observation_svd_reduced=False,
                     joint_cov_noise=joint_cov_noise)
 
         # storage for observations time : obj 
@@ -376,6 +374,7 @@ class DataAssimilator:
                 # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
+                n_user_nodes = user_network.get_node_count()
                 if self.n_assimilation_batches == 1:
                     update_states = self.compute_update_indices(
                             user_network,
@@ -403,11 +402,11 @@ class DataAssimilator:
                                                                  self.transmission_rate_max)
 
                         # Weighted-averaging based on ratio of observed nodes 
-                        n_user_nodes = user_network.get_node_count()
-                        new_ensemble_transmission_rate = ( \
-                                ensemble_transmission_rate*(n_user_nodes-obs_nodes.size) \
-                                                        + new_ensemble_transmission_rate*obs_nodes.size) \
-                                                        / n_user_nodes
+                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                                new_ensemble_transmission_rate,
+                                ensemble_transmission_rate,
+                                n_user_nodes,
+                                obs_nodes.size)
 
                 else: # perform DA update in batches
                     if self.update_type == 'global':
@@ -426,12 +425,11 @@ class DataAssimilator:
                             obs_nodes.shape[0],
                             -1)
 
-                    n_user_nodes = user_network.get_node_count()
                     for batch in batches:
                         cov_batch = np.diag(np.diag(cov)[batch])
                         if self.update_type == 'local':
-                            H_obs = np.eye(batch.size)
                             update_states = obs_states[batch]
+                            H_obs = np.eye(batch.size)
                         elif self.update_type == 'neighbor':
                             neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
                             neighbour_nodes = np.setdiff1d(neighbour_nodes,
@@ -466,10 +464,11 @@ class DataAssimilator:
                                                                      self.transmission_rate_max)
 
                             # Weighted-averaging based on ratio of observed nodes 
-                            new_ensemble_transmission_rate = (ensemble_transmission_rate \
-                                                              *(n_user_nodes-batch.size) \
-                                                            + new_ensemble_transmission_rate*batch.size) \
-                                                            / n_user_nodes
+                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                                    new_ensemble_transmission_rate,
+                                    ensemble_transmission_rate,
+                                    n_user_nodes,
+                                    batch.size)
 
                     new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
                             ensemble_size,-1)
@@ -719,3 +718,14 @@ class DataAssimilator:
                                                        self.transition_rates_max[transition_rates_str])
 
         return ensemble_transition_rates.reshape(ensemble_size, -1)
+
+    def weighted_averaged_transmission_rate(self,
+            new_ensemble_transmission_rate,
+            old_ensemble_transmission_rate,
+            n_user_nodes,
+            n_obs_nodes):
+        new_ensemble_transmission_rate = ( \
+                old_ensemble_transmission_rate*(n_user_nodes-n_obs_nodes) \
+                                        + new_ensemble_transmission_rate*n_obs_nodes) \
+                                        / n_user_nodes
+        return new_ensemble_transmission_rate
