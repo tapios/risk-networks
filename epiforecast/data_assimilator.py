@@ -426,22 +426,18 @@ class DataAssimilator:
                             -1)
 
                     for batch in batches:
+                        batch.sort()
                         cov_batch = np.diag(np.diag(cov)[batch])
                         if self.update_type == 'local':
                             update_states = obs_states[batch]
                             H_obs = np.eye(batch.size)
                         elif self.update_type == 'neighbor':
-                            neighbour_nodes = user_network.get_neighbors(obs_nodes[batch])
-                            neighbour_nodes = np.setdiff1d(neighbour_nodes,
-                                                           np.intersect1d(obs_nodes[batch],
-                                                                          neighbour_nodes))
-                            update_states_nodes = np.hstack([neighbour_nodes,obs_nodes[batch]])
-                            update_states_num = update_states_nodes.size
-                            H_obs = np.hstack([np.zeros((obs_nodes[batch].size,neighbour_nodes.size)),
-                                               np.eye(obs_nodes[batch].size)])
-
-                            # current implementation only works for neighbor updating of "I"
-                            update_states = update_states_nodes + n_user_nodes
+                            update_states = self.compute_update_indices(user_network,
+                                    obs_states[batch],
+                                    obs_nodes[batch])
+                            H_obs = self.generate_state_observation_operator(
+                                    obs_states[batch], 
+                                    update_states)
 
                         (ensemble_state[:, update_states],
                          new_ensemble_transition_rates_batch,
