@@ -18,7 +18,11 @@ class DataAssimilator:
             transmission_rate_to_update_flag=None,
             update_type='global',
             full_svd=False,
-            joint_cov_noise=1e-2):
+            joint_cov_noise=1e-2,
+            transition_rates_min=None,
+            transition_rates_max=None,
+            transmission_rate_min=None,
+            transmission_rate_max=None):
         """
         Constructor
 
@@ -49,7 +53,7 @@ class DataAssimilator:
             update_type (str): how to perform updates
                     Three values are supported: 'global', 'local', 'neighbor'.
 
-            full_svd (bool): whether to use full or reduced SVD in EAKF
+            full_svd (bool): whether to use full or reduced second SVD in EAKF
 
             joint_cov_noise (float): Tikhonov-regularization noise
         """
@@ -80,14 +84,12 @@ class DataAssimilator:
 
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
-                    prior_svd_reduced=False,
+                    prior_svd_reduced=True,
                     observation_svd_regularized=False,
-                    observation_svd_reduced=False,
                     joint_cov_noise=joint_cov_noise)
         else:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
-                    observation_svd_reduced=False,
                     joint_cov_noise=joint_cov_noise)
 
         # storage for observations time : obj 
@@ -95,6 +97,15 @@ class DataAssimilator:
         self.stored_observed_nodes = {}
         self.stored_observed_means = {}
         self.stored_observed_variances = {}
+
+        # range of transition rates
+        self.transition_rates_min = transition_rates_min
+        self.transition_rates_max = transition_rates_max 
+
+        # range of transmission rate
+        self.transmission_rate_min = transmission_rate_min 
+        self.transmission_rate_max = transmission_rate_max 
+
 
     def find_observation_states(
             self,
@@ -363,6 +374,7 @@ class DataAssimilator:
                 # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
+                n_user_nodes = user_network.get_node_count()
                 if self.n_assimilation_batches == 1:
                     update_states = self.compute_update_indices(
                             user_network,
@@ -382,29 +394,84 @@ class DataAssimilator:
                                              cov,
                                              H_obs,
                                              print_error=print_error)
+
+                    if self.transmission_rate_to_update_flag:
+                        # Clip transmission rate into a reasonable range
+                        new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                                 self.transmission_rate_min,
+                                                                 self.transmission_rate_max)
+
+                        # Weighted-averaging based on ratio of observed nodes 
+                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                                new_ensemble_transmission_rate,
+                                ensemble_transmission_rate,
+                                n_user_nodes,
+                                obs_nodes.size)
+
                 else: # perform DA update in batches
-                    if self.update_type in ('global', 'neighbor'):
+                    if self.update_type == 'global':
                         raise NotImplementedError(
                                 self.__class__.__name__
                                 + ": batching is not implemented yet for: "
-                                + "'global', 'neighbor'")
+                                + "'global'")
 
                     permuted_idx = np.random.permutation(np.arange(obs_states.size))
                     batches = np.array_split(permuted_idx,
                                              self.n_assimilation_batches)
+
+                    ensemble_size = ensemble_transition_rates.shape[0]
+                    ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
+                            ensemble_size,
+                            obs_nodes.shape[0],
+                            -1)
+
                     for batch in batches:
-                        H_obs = np.eye(batch.size)
+                        batch.sort()
                         cov_batch = np.diag(np.diag(cov)[batch])
-                        (ensemble_state[:, obs_states[batch]],
-                         new_ensemble_transition_rates,
+                        if self.update_type == 'local':
+                            update_states = obs_states[batch]
+                            H_obs = np.eye(batch.size)
+                        elif self.update_type == 'neighbor':
+                            update_states = self.compute_update_indices(user_network,
+                                    obs_states[batch],
+                                    obs_nodes[batch])
+                            H_obs = self.generate_state_observation_operator(
+                                    obs_states[batch], 
+                                    update_states)
+
+                        (ensemble_state[:, update_states],
+                         new_ensemble_transition_rates_batch,
                          new_ensemble_transmission_rate
-                        ) = self.damethod.update(ensemble_state[:, obs_states[batch]],
-                                                 ensemble_transition_rates,
+                        ) = self.damethod.update(ensemble_state[:, update_states],
+                                ensemble_transition_rates_reshaped[:,batch,:].reshape(ensemble_size,-1),
                                                  ensemble_transmission_rate,
                                                  truth[batch],
                                                  cov_batch,
                                                  H_obs,
                                                  print_error=print_error)
+
+                        ensemble_transition_rates_reshaped[:,batch,:] = \
+                        new_ensemble_transition_rates_batch.reshape(ensemble_size, batch.size, -1)
+
+                        if self.transmission_rate_to_update_flag:
+                            # Clip transmission rate into a reasonable range
+                            new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                                     self.transmission_rate_min,
+                                                                     self.transmission_rate_max)
+
+                            # Weighted-averaging based on ratio of observed nodes 
+                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                                    new_ensemble_transmission_rate,
+                                    ensemble_transmission_rate,
+                                    n_user_nodes,
+                                    batch.size)
+
+                    new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
+                            ensemble_size,-1)
+
+                if len(self.transition_rates_to_update_str) > 0:
+                    new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
+                                                                               obs_nodes.size)
 
                 self.sum_to_one(prev_ensemble_state, ensemble_state)
 
@@ -626,4 +693,35 @@ class DataAssimilator:
 
         return full_ensemble_transition_rates, full_ensemble_transmission_rate
 
+    def clip_transition_rates(self, ensemble_transition_rates, obs_nodes_num):
+        """
+        Clip the values of tranistion rates into pre-defined ranges 
 
+        Input:
+            ensemble_transition_rates (np.array): (n_ensemble,k) array
+            obs_nodes_num (int): number of observed nodes
+
+        Output:
+            ensemble_transition_rates (np.array): (n_ensemble,k) array
+        """
+        ensemble_size = ensemble_transition_rates.shape[0]
+        ensemble_transition_rates = ensemble_transition_rates.reshape(ensemble_size,
+                                                                      obs_nodes_num,
+                                                                      -1)
+        for i, transition_rates_str in enumerate(self.transition_rates_to_update_str):
+            ensemble_transition_rates[:,:,i] = np.clip(ensemble_transition_rates[:,:,i],
+                                                       self.transition_rates_min[transition_rates_str],
+                                                       self.transition_rates_max[transition_rates_str])
+
+        return ensemble_transition_rates.reshape(ensemble_size, -1)
+
+    def weighted_averaged_transmission_rate(self,
+            new_ensemble_transmission_rate,
+            old_ensemble_transmission_rate,
+            n_user_nodes,
+            n_obs_nodes):
+        new_ensemble_transmission_rate = ( \
+                old_ensemble_transmission_rate*(n_user_nodes-n_obs_nodes) \
+                                        + new_ensemble_transmission_rate*n_obs_nodes) \
+                                        / n_user_nodes
+        return new_ensemble_transmission_rate

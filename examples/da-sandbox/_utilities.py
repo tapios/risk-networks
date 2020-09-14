@@ -152,3 +152,4 @@ def transition_function(x, y, transition_steps, total_steps):
     output = y * np.ones(total_steps)
     output[:transition_steps] = np.linspace(x, y, transition_steps)
     return output
+
