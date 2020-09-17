@@ -22,7 +22,7 @@ set -euo pipefail
 
 # parallelization
 num_cpus=${SLURM_CPUS_PER_TASK}
-bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 4)) #MB -> bytes
+bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 8)) #MB -> bytes
 echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory available"
 # parameters & constants #######################################################
 

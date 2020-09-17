@@ -15,6 +15,7 @@ from epiforecast.utilities import dict_slice, compartments_count
 def get_start_time(start_end_time):
     return start_end_time.start
 
+
 ################################################################################
 # initialization ###############################################################
 ################################################################################
@@ -66,8 +67,8 @@ from _observations_init import (sensor_readings,
 
 sensor_observations = [sensor_readings]
 
-viral_test_observations = [MDT_neighbor_test]
-test_result_delay = MDT_result_delay # delay to results of the virus test
+viral_test_observations = [RDT_budget_random_test]
+test_result_delay = RDT_result_delay # delay to results of the virus test
 
 record_observations   = [positive_hospital_records,
                           negative_hospital_records,
@@ -114,13 +115,15 @@ from _master_eqn_init import (master_eqn_ensemble,
                               n_backward_steps)
 
 # post-processing ##############################################################
-from _post_process_init import axes
+#from _post_process_init import axes
+fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 
 # inverventions ################################################################
 from _intervention_init import (intervention,
                                 intervention_frequency,
                                 intervention_nodes, 
-                                intervention_type) 
+                                intervention_type,
+                                query_intervention) 
 
 ################################################################################
 # epidemic setup ###############################################################
@@ -144,9 +147,10 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 # constants ####################################################################
 
 #floats
-da_window         = 7.0
+da_window         = 5.0
 prediction_window = 1.0
-closure_update_interval = 5.0 # the frequency at which we update the closure
+closure_update_interval = static_contact_interval # the frequency at which we update the closure
+save_to_file_interval = 5.0
 record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 test_assimilation_interval  = 1.0 # same for I
 sensor_assimilation_interval  = 1.0 # same for I
@@ -154,7 +158,8 @@ sensor_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                    = 1
+n_sweeps                    = 0
+print("No DA")
 n_prediction_windows_spin_up = 8
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
@@ -188,6 +193,7 @@ master_eqn_ensemble.set_start_time(start_time)
 # spin-up w/o data assimilation ################################################
 current_time = start_time
 spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
+prediction_steps = n_prediction_windows * steps_per_prediction_window
 ensemble_state = ensemble_ic
 
 timer_spin_up = timer()
@@ -201,18 +207,19 @@ for j in range(spin_up_steps):
         update_closure_flag=True
     else:
         update_closure_flag=False
-
+        
 
     walltime_master_eqn = 0.0
     master_eqn_ensemble.reset_walltimes()
     #Run kinetic model
     # run
-    
+    KE_timer = timer()
     network = epidemic_simulator.run(
             stop_time=current_time + static_contact_interval,
             current_network=network)
-
+    print("KE runtime", timer()-KE_timer, flush=True)
     # store for further usage (master equations etc)
+    DS_timer = timer()
     epidemic_data_storage.save_network_by_start_time(
             start_time=current_time,
             contact_network=network)
@@ -220,22 +227,43 @@ for j in range(spin_up_steps):
             start_time=current_time,
             start_statuses=kinetic_state)
     
+    # save kinetic data if required, note current time has advanced since saving ensemble state:
+    save_kinetic_state_now = modulo_is_close_to_zero(current_time, 
+                                                     save_to_file_interval, 
+                                                     eps=static_contact_interval)
+    if save_kinetic_state_now:
+        kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(j)+'.npy')
+        kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
+        np.save(kinetic_state_path, kinetic_eqns_statuses)
+  
     kinetic_state = epidemic_simulator.kinetic_model.current_statuses
-    
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
             end_statuses=kinetic_state)
-
+    print("network and data storage runtime",timer()-DS_timer,flush=True) 
     # store for plotting
+    PS_timer = timer() 
     user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
     kinetic_states_timeseries.append(kinetic_state)
-    
-    #Run master eqn mode
+    print("saving KE statuses and timeseries runtime", timer() - PS_timer,flush=True)
+  
+  
+
+    #now for the master eqn
     master_states_timeseries.push_back(ensemble_state) # storage
 
+    #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
+    save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
+                                                      save_to_file_interval, 
+                                                      eps=static_contact_interval)
+    if save_ensemble_state_now:
+        ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(j-1)+'.npy')
+        master_eqns_mean_states = ensemble_state.mean(axis=0)
+        np.save(ensemble_state_path,master_eqns_mean_states)
+            
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
 
@@ -248,8 +276,9 @@ for j in range(spin_up_steps):
             min_steps=n_forward_steps,
     closure_flag=update_closure_flag)
 
+    #move to new time
     current_time += static_contact_interval
-
+    current_time_span = [time for time in time_span if time < current_time+static_contact_interval]
     walltime_master_eqn += timer() - timer_master_eqn
 
     print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
@@ -287,23 +316,29 @@ for j in range(spin_up_steps):
                 loaded_data.end_statuses,
                 user_network,
                 current_time)
+    
+    #plots on the fly
+    plt.close(fig)
+    fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+    axes = plot_epidemic_data(population, statuses_sum_trace, axes, current_time_span)
+
+    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+
+    axes = plot_ensemble_states(population,
+                                master_states_timeseries.container[:,:, :len(current_time_span)],
+                                current_time_span,
+                                axes=axes,
+                                xlims=(-0.1, current_time),
+                                a_min=0.0)
+    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                rasterized=True,
+                dpi=150)
 
     #intervention if required
-    # first get the frequency
-    if intervention_frequency == "none":
-        intervene_now=False
-    elif intervention_frequency == "single":
-        intervene_now = (abs(current_time - intervention_start_time) < 0.1*static_contact_interval)
-    elif intervention_frequency == "interval":
-        if current_time > intervention_start_time - 0.1 * static_contact_interval:
-            intervene_now = modulo_is_close_to_zero(current_time,
-                                                    intervention_interval,
-                                                    eps=static_contact_interval)
-    else:
-        raise ValueError("unknown 'intervention_frequency', choose from 'none' (default), 'single', or 'interval' ")
-    
+    intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
     
     if intervene_now:
+        
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
             nodes_to_intervene = user_nodes
@@ -329,7 +364,7 @@ for j in range(spin_up_steps):
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
 
-
+    
         
 print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 print_info("Spin-up ended: current time", current_time)
@@ -386,9 +421,17 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         epidemic_data_storage.save_start_statuses_to_network(
             start_time=current_time,
             start_statuses=kinetic_state)
+
+        # save kinetic data if required:
+        save_kinetic_state_now = modulo_is_close_to_zero(current_time, 
+                                                         save_to_file_interval,                                                     
+                                                         eps=static_contact_interval)
+        if save_kinetic_state_now:
+            kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(spin_up_steps+j)+'.npy')
+            kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
+            np.save(kinetic_state_path, kinetic_eqns_statuses)
         
         kinetic_state = epidemic_simulator.kinetic_model.current_statuses
-
         epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
             end_statuses=kinetic_state)
@@ -402,7 +445,16 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         # storage of data first (we do not store end of prediction window)
         master_states_timeseries.push_back(ensemble_state)
-        
+
+        #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
+        save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
+                                                          save_to_file_interval, 
+                                                          eps=static_contact_interval)
+        if save_ensemble_state_now:
+            ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(spin_up_steps+j-1)+'.npy')
+            master_eqns_mean_states = ensemble_state.mean(axis=0)
+            np.save(ensemble_state_path,master_eqns_mean_states)
+                
         loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=current_time)
 
         user_network.update_from(loaded_data.contact_network)
@@ -416,7 +468,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         walltime_master_eqn += timer() - timer_master_eqn
 
         current_time += static_contact_interval
-
+        current_time_span = [time for time in time_span if time < current_time+static_contact_interval]
+   
         # collect data for later assimilation
         observe_sensor_now = modulo_is_close_to_zero(current_time,
                                                      sensor_assimilation_interval,
@@ -450,7 +503,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 user_network,
                 current_time)
 
-        
+
     print_info("Prediction ended: current time:", current_time)
 
     for i_sweep in range(n_sweeps):
@@ -709,21 +762,30 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("First network start-end time: ", first_start_end_time.start, first_start_end_time.end)
     print_info("Last network start-end time: ", last_start_end_time.start, last_start_end_time.end)
 
+
+    #plots on the fly    
+    plt.close(fig)
+    fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+    axes = plot_epidemic_data(population, statuses_sum_trace, axes, current_time_span)
+    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+
+
+    # plot trajectories
+    axes = plot_ensemble_states(population,
+                                master_states_timeseries.container[:,:, :len(current_time_span)],
+                                current_time_span,
+                                axes=axes,
+                                xlims=(-0.1, current_time),
+                                a_min=0.0)
+    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                rasterized=True,
+                dpi=150)
+
+
+
     #4) Intervention
-    # first get the frequency
-    if intervention_frequency == "none":
-        intervene_now = False
-    elif intervention_frequency == "single":
-        intervene_now = (abs(current_time - intervention_start_time) < 0.1*static_contact_interval)
-    elif intervention_frequency == "interval":
-        if current_time > intervention_start_time - 0.1 * static_contact_interval:
-            intervene_now = modulo_is_close_to_zero(current_time,
-                                                    intervention_interval,
-                                                    eps=static_contact_interval)
-    else:
-        raise ValueError("unknown 'intervention_frequency', choose from 'none' (default), 'single', or 'interval' ")
-    
-    
+    intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
+        
     if intervene_now:
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
@@ -755,11 +817,30 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
 
+
+## Final save after last step
+save_kinetic_state_now = modulo_is_close_to_zero(current_time, 
+                                                 save_to_file_interval,                                                     
+                                                 eps=static_contact_interval)
+if save_kinetic_state_now:
+    kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(prediction_steps)+'.npy')
+    kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
+    np.save(kinetic_state_path, kinetic_eqns_statuses)
+
+save_ensemble_state_now = modulo_is_close_to_zero(current_time,
+                                                  save_to_file_interval,  
+                                                  eps=static_contact_interval)
+if save_ensemble_state_now:
+    ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(prediction_steps)+'.npy')
+    master_eqns_mean_states = ensemble_state.mean(axis=0)
+    np.save(ensemble_state_path,master_eqns_mean_states)
+
+
 print("finished assimilation")
 # save & plot ##################################################################
-
+plt.close(fig)
+fig, axes = plt.subplots(1, 3, figsize = (16, 4))
 axes = plot_epidemic_data(population, statuses_sum_trace, axes, time_span)
-
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
 
@@ -774,14 +855,14 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
 
-# save full the data we require:
-master_eqns_mean_states = master_states_timeseries.get_mean()
-np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
+# Too intensive for large networks: save full the data we require:
+#master_eqns_mean_states = master_states_timeseries.get_mean()
+#np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
 
-kinetic_eqns_statuses = []
-for kinetic_state in kinetic_states_timeseries:
-    kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
+#kinetic_eqns_statuses = []
+#for kinetic_state in kinetic_states_timeseries:
+#    kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
 
-np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
+#np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
 
 

@@ -8,13 +8,13 @@ from timeit import default_timer as timer
 import ray
 from numba import jit 
 
-@jit
+@jit(nopython=True)
 def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
     CM_SI_data=np.zeros(nonzeros)
     CM_SH_data=np.zeros(nonzeros)
     for k,i,j,v in zip(range(nonzeros), rows, cols, data):
         #for SI interactions
-        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M                 #create bar{<S_i,I_j>}
+        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
         CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
         CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
         
