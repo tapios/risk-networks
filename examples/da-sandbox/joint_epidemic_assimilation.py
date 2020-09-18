@@ -158,7 +158,7 @@ sensor_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                    = 0
+n_sweeps                    = 1
 print("No DA")
 n_prediction_windows_spin_up = 8
 n_prediction_windows        = int(total_time/prediction_window)
