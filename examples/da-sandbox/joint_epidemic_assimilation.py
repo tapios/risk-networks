@@ -318,24 +318,28 @@ for j in range(spin_up_steps):
                 current_time)
     
     #plots on the fly
-    plt.close(fig)
-    fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-    axes = plot_epidemic_data(population, 
-                              statuses_sum_trace, 
-                              axes, 
-                              current_time_span)
+    plot_and_save_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
+                                                save_to_file_interval, 
+                                                eps=static_contact_interval)
+    if plot_and_save_now:
+        plt.close(fig)
+        fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+        axes = plot_epidemic_data(population, 
+                                  statuses_sum_trace, 
+                                  axes, 
+                                  current_time_span)
 
-    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
-
-    axes = plot_ensemble_states(population,
-                                master_states_timeseries.container[:,:, :len(current_time_span)],
-                                current_time_span,
-                                axes=axes,
-                                xlims=(-0.1, current_time),
-                                a_min=0.0)
-    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-                rasterized=True,
-                dpi=150)
+        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+        
+        axes = plot_ensemble_states(population,
+                                    master_states_timeseries.container[:,:, :len(current_time_span)],
+                                    current_time_span,
+                                    axes=axes,
+                                    xlims=(-0.1, current_time),
+                                    a_min=0.0)
+        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                    rasterized=True,
+                    dpi=150)
 
     #intervention if required
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
@@ -430,7 +434,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                          save_to_file_interval,                                                     
                                                          eps=static_contact_interval)
         if save_kinetic_state_now:
-            kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(spin_up_steps+j)+'.npy')
+            kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(k*steps_per_prediction_window+j)+'.npy')
             kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
             np.save(kinetic_state_path, kinetic_eqns_statuses)
         
@@ -454,7 +458,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                           save_to_file_interval, 
                                                           eps=static_contact_interval)
         if save_ensemble_state_now:
-            ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(spin_up_steps+j-1)+'.npy')
+            ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(k*steps_per_prediction_window+j-1)+'.npy')
             master_eqns_mean_states = ensemble_state.mean(axis=0)
             np.save(ensemble_state_path,master_eqns_mean_states)
                 
@@ -767,25 +771,29 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 
     #plots on the fly    
-    plt.close(fig)
-    fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-    axes = plot_epidemic_data(population, 
-                              statuses_sum_trace, 
-                              axes, 
-                              current_time_span)
-    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+    plot_and_save_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
+                                                save_to_file_interval, 
+                                                eps=static_contact_interval)
+    if plot_and_save_now:
+        plt.close(fig)
+        fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+        axes = plot_epidemic_data(population, 
+                                  statuses_sum_trace, 
+                                  axes, 
+                                  current_time_span)
+        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
 
-    # plot trajectories
-    axes = plot_ensemble_states(population,
-                                master_states_timeseries.container[:,:, :len(current_time_span)],
-                                current_time_span,
-                                axes=axes,
-                                xlims=(-0.1, current_time),
-                                a_min=0.0)
-    plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-                rasterized=True,
-                dpi=150)
+        # plot trajectories
+        axes = plot_ensemble_states(population,
+                                    master_states_timeseries.container[:,:, :len(current_time_span)],
+                                    current_time_span,
+                                    axes=axes,
+                                    xlims=(-0.1, current_time),
+                                    a_min=0.0)
+        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                    rasterized=True,
+                    dpi=150)
 
 
 
