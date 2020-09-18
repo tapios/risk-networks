@@ -232,7 +232,7 @@ for j in range(spin_up_steps):
                                                      save_to_file_interval, 
                                                      eps=static_contact_interval)
     if save_kinetic_state_now:
-        kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(j)+'.npy')
+        kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(j)+'.npy')
         kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
         np.save(kinetic_state_path, kinetic_eqns_statuses)
   
@@ -260,7 +260,7 @@ for j in range(spin_up_steps):
                                                       save_to_file_interval, 
                                                       eps=static_contact_interval)
     if save_ensemble_state_now:
-        ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(j-1)+'.npy')
+        ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(j-1)+'.npy')
         master_eqns_mean_states = ensemble_state.mean(axis=0)
         np.save(ensemble_state_path,master_eqns_mean_states)
             
@@ -320,7 +320,10 @@ for j in range(spin_up_steps):
     #plots on the fly
     plt.close(fig)
     fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-    axes = plot_epidemic_data(population, statuses_sum_trace, axes, current_time_span)
+    axes = plot_epidemic_data(population, 
+                              statuses_sum_trace, 
+                              axes, 
+                              current_time_span)
 
     plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
@@ -427,7 +430,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                          save_to_file_interval,                                                     
                                                          eps=static_contact_interval)
         if save_kinetic_state_now:
-            kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(spin_up_steps+j)+'.npy')
+            kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(spin_up_steps+j)+'.npy')
             kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
             np.save(kinetic_state_path, kinetic_eqns_statuses)
         
@@ -451,7 +454,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                           save_to_file_interval, 
                                                           eps=static_contact_interval)
         if save_ensemble_state_now:
-            ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(spin_up_steps+j-1)+'.npy')
+            ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(spin_up_steps+j-1)+'.npy')
             master_eqns_mean_states = ensemble_state.mean(axis=0)
             np.save(ensemble_state_path,master_eqns_mean_states)
                 
@@ -766,7 +769,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     #plots on the fly    
     plt.close(fig)
     fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-    axes = plot_epidemic_data(population, statuses_sum_trace, axes, current_time_span)
+    axes = plot_epidemic_data(population, 
+                              statuses_sum_trace, 
+                              axes, 
+                              current_time_span)
     plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
 
@@ -785,7 +791,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
     #4) Intervention
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
-        
+
     if intervene_now:
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
@@ -823,7 +829,7 @@ save_kinetic_state_now = modulo_is_close_to_zero(current_time,
                                                  save_to_file_interval,                                                     
                                                  eps=static_contact_interval)
 if save_kinetic_state_now:
-    kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_after_step_'+str(prediction_steps)+'.npy')
+    kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(prediction_steps)+'.npy')
     kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
     np.save(kinetic_state_path, kinetic_eqns_statuses)
 
@@ -831,7 +837,7 @@ save_ensemble_state_now = modulo_is_close_to_zero(current_time,
                                                   save_to_file_interval,  
                                                   eps=static_contact_interval)
 if save_ensemble_state_now:
-    ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_after_step_'+str(prediction_steps)+'.npy')
+    ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(prediction_steps)+'.npy')
     master_eqns_mean_states = ensemble_state.mean(axis=0)
     np.save(ensemble_state_path,master_eqns_mean_states)
 

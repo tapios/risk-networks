@@ -10,8 +10,8 @@ from numba import jit
 
 @jit(nopython=True)
 def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
-    CM_SI_data=np.zeros(nonzeros)
-    CM_SH_data=np.zeros(nonzeros)
+    CM_SI_data = np.zeros(nonzeros)
+    CM_SH_data = np.zeros(nonzeros)
     for k,i,j,v in zip(range(nonzeros), rows, cols, data):
         #for SI interactions
         CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
@@ -369,9 +369,9 @@ class MasterEquationModelEnsemble:
 
             cooL = self.L.tocoo()
             nonzeros = len(cooL.row)
-            cooL_rows=cooL.row
-            cooL_cols=cooL.col
-            cooL_data=cooL.data
+            cooL_rows = cooL.row
+            cooL_cols = cooL.col
+            cooL_data = cooL.data
 
             CM_SI_data,CM_SH_data = create_CM_data(
                 nonzeros,
