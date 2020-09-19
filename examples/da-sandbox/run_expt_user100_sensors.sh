@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-2
+#SBATCH --array=0-1
 
 ################################
 # Intervention test experiment #
@@ -51,9 +51,9 @@ update_test="local"
 
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(979 4897 24486)  
+test_budgets=(979 4897) # 24486)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-batches_tests=(1 5 25) #so no batch > 1000 nodes
+batches_tests=(1 5) # 25) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
@@ -79,6 +79,7 @@ python3 joint_epidemic_assimilation.py \
   --assimilation-batches-record=${batches_records} \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
+  --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
   --assimilation-update-test=${update_test} \

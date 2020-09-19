@@ -78,6 +78,7 @@ python3 joint_epidemic_assimilation.py \
   --assimilation-batches-record=${batches_records} \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
+  --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
   --assimilation-update-test=${update_test} \

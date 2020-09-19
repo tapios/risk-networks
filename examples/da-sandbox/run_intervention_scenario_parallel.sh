@@ -37,23 +37,23 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 #batches_tests=1
 #tested=0
 
-#EXP_NAME="NYC_1e4"
-#network_size=1e4
-#wearers=2451
-#batches_sensors=5
-#batches_records=40
-#budget=491
-#batches_tests=1
-#tested=0
-
-EXP_NAME="NYC_1e5"
-network_size=1e5
-wearers=0
-batches_sensors=1
-batches_records=400
-budget=25000
-batches_tests=50
+EXP_NAME="noDA_NYC_1e4"
+network_size=1e4
+wearers=2451
+batches_sensors=5
+batches_records=40
+budget=491
+batches_tests=1
 tested=0
+
+# EXP_NAME="noDA_NYC_1e5"
+# network_size=1e5
+# wearers=0
+# batches_sensors=1
+# batches_records=400
+# budget=25000
+# batches_tests=50
+# tested=0
 
 
 # user base
@@ -99,6 +99,7 @@ python3 joint_epidemic_assimilation.py \
   --assimilation-batches-record=${batches_records} \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
+  --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${start_time} \
   --assimilation-update-test=${update_test} \
