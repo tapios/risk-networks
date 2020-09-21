@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.autonotebook import tqdm
@@ -309,3 +310,97 @@ def plot_tpr_curve(predicted_positive_fraction,
         plt.show()
         
     return fig, ax
+
+def plot_transmission_rate(transmission_rate_timeseries,
+        t,
+        color='b',
+        a_min=None,
+        a_max=None,
+        OUTPUT_PATH='.'):
+
+    rate_perc = np.percentile(transmission_rate_timeseries, 
+            q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+    plt.fill_between(t, np.clip(rate_perc[0,0], a_min, a_max), np.clip(rate_perc[-1,0], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+    plt.fill_between(t, np.clip(rate_perc[1,0], a_min, a_max), np.clip(rate_perc[-2,0], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+    plt.fill_between(t, np.clip(rate_perc[2,0], a_min, a_max), np.clip(rate_perc[-3,0], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+    plt.plot(t, rate_perc[3,0], color = color)
+    plt.xlabel('Time (days)')
+    plt.ylabel('1/community_transmission_rate')
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_PATH,'transmission_rate.png'))
+    plt.close()
+
+def plot_clinical_parameters(transition_rates_timeseries,
+        t,
+        color='b',
+        a_min=None,
+        a_max=None,
+        num_rates=6,
+        OUTPUT_PATH='.'):
+
+    rate_timeseries = transition_rates_timeseries
+    rate_perc = np.percentile(rate_timeseries, 
+            q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+    ylabel_list = ['latent_periods',
+            'community_infection_periods',
+            'hospital_infection_periods',
+            'hospitalization_fraction',
+            'community_mortality_fraction',
+            'hospital_mortality_fraction']
+
+    for k in range(num_rates):
+        plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.plot(t, rate_perc[3,k], color = color)
+        plt.xlabel('Time (days)')
+        plt.ylabel(ylabel_list[k])
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.close()
+
+def plot_transition_rates(transition_rates_obj_timeseries,
+        t,
+        color='b',
+        a_min=None,
+        a_max=None,
+        num_rates=6,
+        OUTPUT_PATH='.'):
+
+    num_time = len(transition_rates_obj_timeseries)
+    num_ensemble = len(transition_rates_obj_timeseries[0])
+
+    rate_timeseries = np.zeros((num_ensemble, num_rates, num_time))
+    for i in range(num_time):
+        for j in range(num_ensemble):
+            rate_timeseries[j,0,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('exposed_to_infected')) 
+            rate_timeseries[j,1,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_hospitalized')) 
+            rate_timeseries[j,2,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_resistant')) 
+            rate_timeseries[j,3,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('hospitalized_to_resistant')) 
+            rate_timeseries[j,4,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('infected_to_deceased')) 
+            rate_timeseries[j,5,i] = np.mean(transition_rates_obj_timeseries[i][j].get_transition_rate('hospitalized_to_deceased')) 
+
+    rate_perc = np.percentile(rate_timeseries, 
+            q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+    ylabel_list = ['exposed_to_infected',
+        'infected_to_hospitalized',
+        'infected_to_resistant',
+        'hospitalized_to_resistant',
+        'infected_to_deceased',
+        'hospitalized_to_deceased']
+
+    for k in range(num_rates):
+        plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.plot(t, rate_perc[3,k], color = color)
+        plt.xlabel('Time (days)')
+        plt.ylabel(ylabel_list[k])
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.close()
+
+

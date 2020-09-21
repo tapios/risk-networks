@@ -3,12 +3,15 @@ import os, sys; sys.path.append(os.path.join('..', '..'))
 from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
+import pickle
 
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epiplots import plot_ensemble_states
+from epiforecast.epiplots import plot_transmission_rate, plot_clinical_parameters
 from epiforecast.utilities import dict_slice
+from epiforecast.populations import extract_ensemble_transition_rates
 
 
 ################################################################################
@@ -69,10 +72,25 @@ record_observations = [positive_hospital_records,
                        positive_death_records,
                        negative_death_records]
 
+# master equations #############################################################
+from _master_eqn_init import (master_eqn_ensemble,
+                              ensemble_size,
+                              ensemble_ic,
+                              transition_rates_ensemble,
+                              community_transmission_rate_ensemble,
+                              learn_transition_rates,
+                              learn_transmission_rate,
+                              parameter_str,
+                              transition_rates_min,
+                              transition_rates_max,
+                              transmission_rate_min,
+                              transmission_rate_max,
+                              n_forward_steps,
+                              n_backward_steps)
 
 # assimilator ##################################################################
-transition_rates_to_update_str   = []
-transmission_rate_to_update_flag = False
+transition_rates_to_update_str   = parameter_str 
+transmission_rate_to_update_flag = learn_transmission_rate 
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
@@ -80,7 +98,12 @@ sensor_assimilator = DataAssimilator(
         n_assimilation_batches=arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
-        update_type=arguments.assimilation_update_sensor)
+        update_type=arguments.assimilation_update_sensor,
+        full_svd=True,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
@@ -90,24 +113,19 @@ viral_test_assimilator = DataAssimilator(
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.assimilation_regularization,
-        full_svd=True)
+        full_svd=True,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
         n_assimilation_batches=arguments.assimilation_batches_record,
-        transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        transition_rates_to_update_str=[],
+        transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record)
-
-# master equations #############################################################
-from _master_eqn_init import (master_eqn_ensemble,
-                              ensemble_size,
-                              ensemble_ic,
-                              transition_rates_ensemble,
-                              community_transmission_rate_ensemble,
-                              n_forward_steps,
-                              n_backward_steps)
 
 # post-processing ##############################################################
 from _post_process_init import axes
@@ -158,6 +176,14 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
                                               5 * user_population,
                                               time_span.size)
 
+transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
+                                              1,
+                                              time_span.size)
+
+transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
+                                              6,
+                                              time_span.size)
+
 # initial conditions ###########################################################
 loaded_data = epidemic_data_storage.get_network_from_start_time(
         start_time=start_time)
@@ -178,6 +204,12 @@ timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
     master_states_timeseries.push_back(ensemble_state) # storage
+    if learn_transmission_rate == True:
+        transmission_rate_timeseries.push_back(
+                community_transmission_rate_ensemble)
+    if learn_transition_rates == True:
+        transition_rates_timeseries.push_back(
+                extract_ensemble_transition_rates(transition_rates_ensemble))
 
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
@@ -258,6 +290,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     for j in range(steps_per_prediction_window):
         # storage of data first (we do not store end of prediction window)
         master_states_timeseries.push_back(ensemble_state)
+        if learn_transmission_rate == True:
+            transmission_rate_timeseries.push_back(
+                    community_transmission_rate_ensemble)
+        if learn_transition_rates == True:
+            transition_rates_timeseries.push_back(
+                    extract_ensemble_transition_rates(transition_rates_ensemble))
         
         loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=current_time)
 
@@ -537,6 +575,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
+if learn_transmission_rate == True:
+    transmission_rate_timeseries.push_back(
+            community_transmission_rate_ensemble)
+if learn_transition_rates == True:
+    transition_rates_timeseries.push_back(
+            extract_ensemble_transition_rates(transition_rates_ensemble))
 
 # save & plot ##################################################################
 # plot trajectories
@@ -549,11 +593,31 @@ axes = plot_ensemble_states(population,
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
+plt.close()
+
+if learn_transmission_rate == True:
+    plot_transmission_rate(transmission_rate_timeseries.container,
+            time_span,
+            a_min=0.0,
+            OUTPUT_PATH=OUTPUT_PATH)
+
+if learn_transition_rates == True:
+    plot_clinical_parameters(transition_rates_timeseries.container,
+            time_span,
+            a_min=0.0,
+            OUTPUT_PATH=OUTPUT_PATH)
 
 # save full the data we require:
 master_eqns_mean_states = master_states_timeseries.get_mean()
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
         master_eqns_mean_states)
+if learn_transmission_rate == True:
+    np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
+            transmission_rate_timeseries.container)
+
+if learn_transition_rates == True:
+    np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
+            transition_rates_timeseries.container)
 
 kinetic_eqns_statuses = []
 for kinetic_state in kinetic_states_timeseries:
