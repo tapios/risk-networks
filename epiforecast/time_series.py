@@ -17,20 +17,26 @@ class EnsembleTimeSeries:
             self,
             n_ensemble,
             n_array,
-            n_steps):
+            n_steps,
+            update_batch=1):
         """
         Constructor
 
         Input:
             n_ensemble (int): ensemble size
             n_array (int): dimension of the vector to store
-            n_steps (int): total number of time steps
+            n_steps (int): (minimum) number of time steps to store
+                           total number of stored steps will be n_steps + update_batch   
+            update_batch (int): perform a shift every update_batch timesteps 
         """
+        assert n_steps > update_batch
+
         self.n_ensemble = n_ensemble
         self.n_array    = n_array
         self.n_steps    = n_steps
 
         self.container = np.empty( (n_ensemble, n_array, n_steps) )
+        self.update_batch = update_batch
         self.end = 0 # points to the past-the-end element
 
     def __getitem__(
@@ -108,9 +114,18 @@ class EnsembleTimeSeries:
         Output:
             None
         """
+        
+        # if we are at capacity, lose the first entry
         if self.end >= self.n_steps:
-            self.container[:,:,:-1] = self.container[:,:,1:]
-            
+            self.container = np.roll(self.container, -self.update_batch, axis=2)
+            self.end -= self.update_batch
+            self.container[:,:,self.end] = snapshot
+            self.end += 1
+         
+        else:
+            self.container[:,:,self.end] = snapshot
+            self.end += 1
+    
         # if self.end >= self.n_steps:
         #     raise ValueError(
         #             self.__class__.__name__
@@ -120,7 +135,5 @@ class EnsembleTimeSeries:
         #             + "; n_steps: "
         #             + str(self.n_steps))
 
-        self.container[:,:,self.end] = snapshot
-        self.end += 1
-
+        
 

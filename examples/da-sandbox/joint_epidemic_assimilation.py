@@ -171,7 +171,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 da_window         = 5.0
 prediction_window = 1.0
 closure_update_interval = static_contact_interval # the frequency at which we update the closure
-save_to_file_interval = 5.0
+save_to_file_interval = 2.0
 record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 test_assimilation_interval  = 1.0 # same for I
 sensor_assimilation_interval  = 1.0 # same for I
@@ -198,7 +198,8 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_ne
 master_states_timeseries = EnsembleTimeSeries(ensemble_size,
                                               5 * user_population,
 #                                              time_span.size)
-                                              max_networks)
+                                              max_networks,
+                                              update_batch=8)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                               1,
@@ -277,12 +278,14 @@ for j in range(spin_up_steps):
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
     kinetic_states_timeseries.append(kinetic_state)
-    print("saving KE statuses and timeseries runtime", timer() - PS_timer,flush=True)
+    print("store KE statuses and timeseries runtime", timer() - PS_timer,flush=True)
   
   
 
     #now for the master eqn
+    store_master_timer = timer() 
     master_states_timeseries.push_back(ensemble_state) # storage
+    print("store master states runtime", timer() - store_master_timer,flush=True)
 
     if learn_transmission_rate == True:
         transmission_rate_timeseries.push_back(
@@ -487,8 +490,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
-        master_states_timeseries.push_back(ensemble_state)
-
+        store_master_timer = timer() 
+        master_states_timeseries.push_back(ensemble_state) # storage
+        print("store master states runtime", timer() - store_master_timer,flush=True)
+       
         if learn_transmission_rate == True:
             transmission_rate_timeseries.push_back(
                     community_transmission_rate_ensemble)
