@@ -99,7 +99,8 @@ class EnsembleTimeSeries:
             self,
             snapshot):
         """
-        Push back an element of time series
+        Push back an element of time series. If it is full,
+        we remove the first element
 
         Input:
             snapshot (np.array): (n_ensemble, n_array) array of values
@@ -108,13 +109,16 @@ class EnsembleTimeSeries:
             None
         """
         if self.end >= self.n_steps:
-            raise ValueError(
-                    self.__class__.__name__
-                    + ": the container is full, cannot push_back"
-                    + "; end: "
-                    + str(self.end)
-                    + "; n_steps: "
-                    + str(self.n_steps))
+            self.container[:,:,:-1] = self.container[:,:,1:]
+            
+        # if self.end >= self.n_steps:
+        #     raise ValueError(
+        #             self.__class__.__name__
+        #             + ": the container is full, cannot push_back"
+        #             + "; end: "
+        #             + str(self.end)
+        #             + "; n_steps: "
+        #             + str(self.n_steps))
 
         self.container[:,:,self.end] = snapshot
         self.end += 1

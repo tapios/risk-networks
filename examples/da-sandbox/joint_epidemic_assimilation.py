@@ -197,7 +197,8 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_ne
 # storing ######################################################################
 master_states_timeseries = EnsembleTimeSeries(ensemble_size,
                                               5 * user_population,
-                                              time_span.size)
+#                                              time_span.size)
+                                              max_networks)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                               1,
@@ -366,15 +367,15 @@ for j in range(spin_up_steps):
 
         plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
         
-        axes = plot_ensemble_states(population,
-                                    master_states_timeseries.container[:,:, :len(current_time_span)],
-                                    current_time_span,
-                                    axes=axes,
-                                    xlims=(-0.1, current_time),
-                                    a_min=0.0)
-        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-                    rasterized=True,
-                    dpi=150)
+        #axes = plot_ensemble_states(population,
+        #                            master_states_timeseries.container[:,:, :len(current_time_span)],
+        #                            current_time_span,
+        #                            axes=axes,
+        #                            xlims=(-0.1, current_time),
+        #                            a_min=0.0)
+        #plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+        #            rasterized=True,
+        #            dpi=150)
 
     #intervention if required
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
@@ -567,15 +568,15 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
 
             # plot trajectories
-            axes = plot_ensemble_states(population,
-                                        master_states_timeseries.container[:,:, :len(current_time_span)],
-                                        current_time_span,
-                                        axes=axes,
-                                        xlims=(-0.1, current_time),
-                                        a_min=0.0)
-            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-                        rasterized=True,
-                        dpi=150)
+#            axes = plot_ensemble_states(population,
+#                                        master_states_timeseries.container[:,:, :len(current_time_span)],
+#                                        current_time_span,
+#                                        axes=axes,
+#                                        xlims=(-0.1, current_time),
+#                                        a_min=0.0)
+#            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+#                        rasterized=True,
+#                        dpi=150)
 
     print_info("Prediction ended: current time:", current_time)
 
@@ -906,12 +907,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
 
 # plot trajectories
-axes = plot_ensemble_states(population,
-                            master_states_timeseries.container,
-                            time_span,
-                            axes=axes,
-                            xlims=(-0.1, total_time),
-                            a_min=0.0)
+#axes = plot_ensemble_states(population,
+#                            master_states_timeseries.container,
+#                            time_span,
+#                            axes=axes,
+#                            xlims=(-0.1, total_time),
+#                            a_min=0.0)
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
