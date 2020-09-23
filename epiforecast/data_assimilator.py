@@ -1,7 +1,6 @@
 import numpy as np
 import copy
 
-
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
 class DataAssimilator:
@@ -369,13 +368,14 @@ class DataAssimilator:
                 # Load the truth, variances of the observation(s)
                 truth = self.stored_observed_means[current_time]
                 var = self.stored_observed_variances[current_time]
-                cov = np.diag(var)
-
                 # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
                 n_user_nodes = user_network.get_node_count()
                 if self.n_assimilation_batches == 1:
+                    #note cov is obs.size x obs.size in size
+                    cov = np.diag(var)
+                
                     update_states = self.compute_update_indices(
                             user_network,
                             obs_states,
@@ -427,7 +427,7 @@ class DataAssimilator:
 
                     for batch in batches:
                         batch.sort()
-                        cov_batch = np.diag(np.diag(cov)[batch])
+                        cov_batch = np.diag(var[batch])
                         if self.update_type == 'local':
                             update_states = obs_states[batch]
                             H_obs = np.eye(batch.size)
