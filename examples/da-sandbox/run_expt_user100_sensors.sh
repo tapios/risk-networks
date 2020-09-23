@@ -4,13 +4,13 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=386G
+#SBATCH --mem=196G
 #SBATCH -J "100u+s"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-2
+#SBATCH --array=0-0
 
 ################################
 # Intervention test experiment #
@@ -27,15 +27,15 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 # parameters & constants #######################################################
 
 # network 
-EXP_NAME="NYC_1e5_user100_sensors" #1e5 = 97942 nodes
+EXP_NAME="NYC_1e5_user100_sensors_test" #1e5 = 97942 nodes
 network_size=1e5
 # user base
 user_fraction=1.0
 
 #sensors
 wearers=97942
-batches_sensors=98
-batches_records=196 #195884 nodes
+batches_sensors=196
+batches_records=392 #195884 nodes
 
 
 # testing: virus tests
@@ -53,7 +53,7 @@ update_test="local"
 #1% 5% 25% of 97942
 test_budgets=(979 4897 24486)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-batches_tests=(1 5 25) #so no batch > 1000 nodes
+batches_tests=(2 10 50) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
