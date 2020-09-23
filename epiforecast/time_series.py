@@ -7,7 +7,7 @@ class EnsembleTimeSeries:
 
     An easy way to think about this, is a 3-tensor with:
         - 0th dimension equal to n_ensemble (size of the ensemble)
-        - 1st dimension equal to n_array (dimension of the stored quantity)
+        - 1st dimension equal to size_state (dimension of the stored quantity)
         - 2nd dimension equal to n_steps (total number of time steps)
 
     Once created, the timeseries cannot be changed in size (in any dimension).
@@ -16,7 +16,7 @@ class EnsembleTimeSeries:
     def __init__(
             self,
             n_ensemble,
-            n_array,
+            size_state,
             n_steps,
             update_batch=1):
         """
@@ -24,7 +24,7 @@ class EnsembleTimeSeries:
 
         Input:
             n_ensemble (int): ensemble size
-            n_array (int): dimension of the vector to store
+            size_state (int): dimension of the vector to store
             n_steps (int): (minimum) number of time steps to store
                            total number of stored steps will be n_steps + update_batch   
             update_batch (int): perform a shift every update_batch timesteps 
@@ -32,10 +32,10 @@ class EnsembleTimeSeries:
         assert n_steps > update_batch
 
         self.n_ensemble = n_ensemble
-        self.n_array    = n_array
+        self.size_state    = size_state
         self.n_steps    = n_steps
 
-        self.container = np.empty( (n_ensemble, n_array, n_steps) )
+        self.container = np.empty( (n_ensemble, size_state, n_steps) )
         self.update_batch = update_batch
         self.end = 0 # points to the past-the-end element
 
@@ -57,7 +57,7 @@ class EnsembleTimeSeries:
             timestep (int): timestep of a snapshot to return
 
         Output:
-            snapshot (np.array): (n_ensemble, n_array) array of values
+            snapshot (np.array): (n_ensemble, size_state) array of values
         """
         if timestep >= self.end:
             raise ValueError(
@@ -78,7 +78,7 @@ class EnsembleTimeSeries:
             timestep (int): timestep of a snapshot to return
 
         Output:
-            snapshot_mean (np.array): (n_array,) array of ensemble means
+            snapshot_mean (np.array): (size_state,) array of ensemble means
         """
         snapshot = self.get_snapshot(timestep)
         return snapshot.mean(axis=0)
@@ -88,7 +88,7 @@ class EnsembleTimeSeries:
         Get the ensemble mean of the whole timeseries
 
         Output:
-            timeseries_mean (np.array): (n_array, n_steps) array of ensemble
+            timeseries_mean (np.array): (size_state, n_steps) array of ensemble
                                         means
         """
         if self.end < self.n_steps:
@@ -106,14 +106,23 @@ class EnsembleTimeSeries:
             snapshot):
         """
         Push back an element of time series. If it is full,
-        we remove the first element
+        we shift the data to overwrite the first `self.update_batch` elements
 
         Input:
-            snapshot (np.array): (n_ensemble, n_array) array of values
+            snapshot (np.array): (n_ensemble, size_state) array of values
 
         Output:
             None
         """
+
+        # if self.end >= self.n_steps:
+        #     raise ValueError(
+        #             self.__class__.__name__
+        #             + ": the container is full, cannot push_back"
+        #             + "; end: "
+        #             + str(self.end)
+        #             + "; n_steps: "
+        #             + str(self.n_steps))
         
         # if we are at capacity, lose the first entry
         if self.end >= self.n_steps:
@@ -126,14 +135,6 @@ class EnsembleTimeSeries:
             self.container[:,:,self.end] = snapshot
             self.end += 1
     
-        # if self.end >= self.n_steps:
-        #     raise ValueError(
-        #             self.__class__.__name__
-        #             + ": the container is full, cannot push_back"
-        #             + "; end: "
-        #             + str(self.end)
-        #             + "; n_steps: "
-        #             + str(self.n_steps))
 
         
 
