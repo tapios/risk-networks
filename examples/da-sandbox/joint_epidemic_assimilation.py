@@ -107,7 +107,7 @@ sensor_assimilator = DataAssimilator(
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_sensor,
-        full_svd=True,
+        full_svd=False,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -121,7 +121,7 @@ viral_test_assimilator = DataAssimilator(
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.assimilation_regularization,
-        full_svd=True,
+        full_svd=False,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -195,11 +195,16 @@ max_networks = steps_per_da_window + steps_per_prediction_window
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
-master_states_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              5 * user_population,
-#                                              time_span.size)
-                                              max_networks,
-                                              update_batch=8)
+# update_master_storage_batch_size = max_networks-1
+# assert max_networks > update_master_storage_batch_size # ensures we store data long enough
+# master_states_timeseries = EnsembleTimeSeries(ensemble_size,
+#                                               5 * user_population,
+#                                               max_networks,
+#                                               update_batch=update_master_storage_batch_size = 8)
+
+master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
+                                                   5,
+                                                   time_span.size)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                               1,
@@ -210,9 +215,6 @@ transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
                                               time_span.size)
 
 # intial conditions  ###########################################################
-#loaded_data = epidemic_data_storage.get_network_from_start_time(
-#        start_time=start_time)
-#loaded_kinetic_ic = loaded_data.start_statuses
 
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
@@ -282,11 +284,10 @@ for j in range(spin_up_steps):
   
   
 
-    #now for the master eqn
-    store_master_timer = timer() 
-    master_states_timeseries.push_back(ensemble_state) # storage
-    print("store master states runtime", timer() - store_master_timer,flush=True)
-
+    # now for the master eqn
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+    master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
+    
     if learn_transmission_rate == True:
         transmission_rate_timeseries.push_back(
                 community_transmission_rate_ensemble)
@@ -361,24 +362,26 @@ for j in range(spin_up_steps):
                                                 save_to_file_interval, 
                                                 eps=static_contact_interval)
     if plot_and_save_now:
-        plt.close(fig)
-        fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-        axes = plot_epidemic_data(population, 
-                                  statuses_sum_trace, 
-                                  axes, 
-                                  current_time_span)
-
-        plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
-        
-        #axes = plot_ensemble_states(population,
-        #                            master_states_timeseries.container[:,:, :len(current_time_span)],
-        #                            current_time_span,
-        #                            axes=axes,
-        #                            xlims=(-0.1, current_time),
-        #                            a_min=0.0)
-        #plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-        #            rasterized=True,
-        #            dpi=150)
+        if (current_time - static_contact_interval) > static_contact_interval: # i.e not first step
+            plt.close(fig)
+            fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+            axes = plot_epidemic_data(population, 
+                                      statuses_sum_trace, 
+                                      axes, 
+                                      current_time_span)
+            
+            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+            
+            axes = plot_ensemble_states(user_population,
+                                        population,
+                                        master_states_sum_timeseries.container[:,:, :len(current_time_span)-1],
+                                        current_time_span[:-1],
+                                        axes=axes,
+                                        xlims=(-0.1, current_time),
+                                        a_min=0.0)
+            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                        rasterized=True,
+                        dpi=150)
 
     #intervention if required
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
@@ -490,10 +493,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
-        store_master_timer = timer() 
-        master_states_timeseries.push_back(ensemble_state) # storage
-        print("store master states runtime", timer() - store_master_timer,flush=True)
-       
+        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+        master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
+
         if learn_transmission_rate == True:
             transmission_rate_timeseries.push_back(
                     community_transmission_rate_ensemble)
@@ -573,15 +575,16 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
 
             # plot trajectories
-#            axes = plot_ensemble_states(population,
-#                                        master_states_timeseries.container[:,:, :len(current_time_span)],
-#                                        current_time_span,
-#                                        axes=axes,
-#                                        xlims=(-0.1, current_time),
-#                                        a_min=0.0)
-#            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-#                        rasterized=True,
-#                        dpi=150)
+            axes = plot_ensemble_states(user_population,
+                                        population,
+                                        master_states_sum_timeseries.container[:,:, :len(current_time_span)-1],
+                                        current_time_span[:-1],
+                                        axes=axes,
+                                        xlims=(-0.1, current_time),
+                                        a_min=0.0)
+            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                        rasterized=True,
+                        dpi=150)
 
     print_info("Prediction ended: current time:", current_time)
 
@@ -875,7 +878,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 
 ## Final storage after last step
-master_states_timeseries.push_back(ensemble_state)
+ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
 if learn_transmission_rate == True:
     transmission_rate_timeseries.push_back(
@@ -912,12 +916,13 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
 
 # plot trajectories
-#axes = plot_ensemble_states(population,
-#                            master_states_timeseries.container,
-#                            time_span,
-#                            axes=axes,
-#                            xlims=(-0.1, total_time),
-#                            a_min=0.0)
+axes = plot_ensemble_states(user_population,
+                            population,
+                            master_states_sum_timeseries.container,
+                            time_span,
+                            axes=axes,
+                            xlims=(-0.1, total_time),
+                            a_min=0.0)
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             rasterized=True,
             dpi=150)
@@ -945,9 +950,7 @@ if learn_transition_rates == True:
     np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
             transition_rates_timeseries.container)
 
-# Too intensive for large networks: save full the data we require:
-#master_eqns_mean_states = master_states_timeseries.get_mean()
-#np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'), master_eqns_mean_states)
+np.save(os.path.join(OUTPUT_PATH, 'master_eqns_states_sum.npy'), master_states_sum_timeseries.container) #save the ensemble fracs for graphing
 
 #kinetic_eqns_statuses = []
 #for kinetic_state in kinetic_states_timeseries:

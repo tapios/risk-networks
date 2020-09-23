@@ -66,9 +66,11 @@ def plot_master_eqns(
 
     return axes
 
+#works in joint epidemic assimilation
 def plot_ensemble_states(
+        user_population,
         population,
-        states,
+        states_sum,
         t,
         axes=None,
         xlims=None,
@@ -80,13 +82,12 @@ def plot_ensemble_states(
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize = figsize)
 
-    ensemble_size = states.shape[0]
+    ensemble_size = states_sum.shape[0]
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
-    user_population = int(states.shape[1]/N_eqns)
-
-    states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
+    #user_population = int(states.shape[1]/N_eqns)
+    #states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
     states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
 
     for status in statuses:
