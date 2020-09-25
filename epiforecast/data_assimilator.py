@@ -144,7 +144,9 @@ class DataAssimilator:
                               len(observation.obs_states))
 
             n_user_nodes = user_network.get_node_count()
-            observed_states = np.unique(observed_states_list)
+            # Be careful using np.unique as it ORDERS the array after, one needs to 
+            # using it on the states will cause issue without care
+            observed_states = np.array(observed_states_list)
             observed_nodes  = np.unique(observed_states % n_user_nodes)
 
             self.stored_observed_states[current_time] = observed_states
@@ -159,7 +161,8 @@ class DataAssimilator:
             data,
             current_time,
             scale=None,
-            noisy_measurement=True):
+            noisy_measurement=True,
+            verbose=False):
 
         if current_time in self.stored_observed_means:
             observed_means = self.stored_observed_means[current_time]
@@ -178,11 +181,21 @@ class DataAssimilator:
 
                     observed_means.extend(observation.mean)
                     observed_variances.extend(observation.variance)
-
+                    
+                    if verbose:
+                        print("[ Data assimilator ]",
+                              observation.name,
+                              ":",
+                              observation.mean[0],
+                              ", ",
+                              observation.variance[0])
+                        
             observed_means = np.array(observed_means)
             observed_variances = np.array(observed_variances)
             self.stored_observed_means[current_time] = observed_means
             self.stored_observed_variances[current_time] = observed_variances
+
+
             return observed_means, observed_variances
 
     def find_and_store_observations(
@@ -194,16 +207,18 @@ class DataAssimilator:
             scale=None,
             noisy_measurement=True,
             verbose=False):
+
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,
                                      current_time,
-                                     verbose)
+                                     verbose=verbose)
 
         self.observe(user_network,
                      ensemble_state,
                      data,
-                     current_time)
+                     current_time,
+                     verbose=verbose)
 
     def compute_update_indices(
             self,
@@ -424,8 +439,8 @@ class DataAssimilator:
                             ensemble_size,
                             obs_nodes.shape[0],
                             -1)
-
                     for batch in batches:
+                        
                         batch.sort()
                         cov_batch = np.diag(var[batch])
                         if self.update_type == 'local':
@@ -449,10 +464,11 @@ class DataAssimilator:
                                                  cov_batch,
                                                  H_obs,
                                                  print_error=print_error)
-
+                        
+                        
                         ensemble_transition_rates_reshaped[:,batch,:] = \
                         new_ensemble_transition_rates_batch.reshape(ensemble_size, batch.size, -1)
-
+                        
                         if self.transmission_rate_to_update_flag:
                             # Clip transmission rate into a reasonable range
                             new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
@@ -472,9 +488,20 @@ class DataAssimilator:
                 if len(self.transition_rates_to_update_str) > 0:
                     new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                                obs_nodes.size)
+                if verbose:
+                    print("[ Data assimilator ] positive states to update: ",
+                           obs_states[truth>0.99])
 
-                self.sum_to_one(prev_ensemble_state, ensemble_state)
+                    print("[ Data assimilator ] positive states post-assimilation: ",
+                          ensemble_state[0, obs_states[truth>0.99]])
 
+                self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
+                
+                if verbose:
+                    print("[ Data assimilator ] positive states post sum_to_one: ",
+                          ensemble_state[0, obs_states[truth>0.99]])
+
+                                
                 # set the updated rates in the TransitionRates object and
                 # return the full rates.
                 (full_ensemble_transition_rates,
@@ -537,10 +564,10 @@ class DataAssimilator:
     def sum_to_one(
             self,
             prev_ensemble_state,
-            ensemble_state):
-
-        N = self.observations[0].N
-
+            ensemble_state,
+            obs_states):
+        
+        N = int(ensemble_state.shape[1]/5)
 
         # First obtain the mass contained in category "E"
         prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, N)
@@ -549,13 +576,15 @@ class DataAssimilator:
         # for each observation we get the observed status e.g 'I' and fix it
         # (as # it was updated); we then normalize the other states e.g
         # (S,'E',H,R,D) over the difference 1-I
-        for observation in self.observations:
-            if not observation.obs_states.size > 0:
+        
+        for obs_status_idx in range(5):
+            obs_at_status = [k for k in obs_states if (k >= N *  obs_status_idx     and 
+                                                       k <  N * (obs_status_idx + 1)  )]
+            if not len(obs_at_status)>0:
                 continue
 
-            observed_nodes = np.remainder(observation.obs_states,N)
-            updated_status = observation.obs_status_idx
-
+            observed_nodes = np.remainder(obs_at_status, N)
+            updated_status = obs_status_idx        
             free_statuses = [ i for i in range(5) if i!= updated_status]
             tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, N)
 
@@ -567,17 +596,19 @@ class DataAssimilator:
 
             # remove this axis for the sum (but maintain the shape)
             free_states[:, updated_status, :] = np.zeros(
-                    [free_states.shape[0], 1, free_states.shape[2]])
-
+                    [free_states.shape[0], free_states.shape[2]]) # X,1,X
+            
             free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
 
+            masstol=0.1/N
             for i in free_statuses:
-                #no_update_weight = (free_mass < 0.001)
-                no_update_weight = (free_mass == 0)
-                new_ensemble_state = (1.0 - updated_mass[:,0,:])\
-                                   * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
+                
+                no_update_weight = np.any([(updated_mass <= masstol) , (free_mass <= masstol)],axis=0)
+                new_ensemble_state = (1.0 - updated_mass)\
+                                     * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
                 ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
+           
 
     def extract_model_parameters_to_update(
             self,

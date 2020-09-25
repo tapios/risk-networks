@@ -999,7 +999,10 @@ class DataInformedObservation:
         candidate_nodes = []
         for status in self.obs_status:
             candidate_nodes.extend([node for node in user_data.keys() if (user_data[node] == status) == self.bool_type])
-
+            
+        #if self.bool_type:
+        #    print ("[ measurements ], Candidate nodes for positive measurement of ", self.obs_status, ": ", candidate_nodes) 
+        
         # we now have the node numbers for the statuses we want to measure,
         # but we require an np index for them
         candidate_states_modulo_population = np.array([state for state in range(len(user_nodes))
@@ -1007,6 +1010,9 @@ class DataInformedObservation:
 
         #now add the required shift to obtain the correct status 'I' or 'H' etc.
         candidate_states = [candidate_states_modulo_population + i*self.N for i in self.obs_status_idx]
+
+        #if self.bool_type:
+        #    print ("[ measurements ], Candidate states for positive measurement of ", self.obs_status, ": ", candidate_states) 
 
         self.obs_states=np.hstack(candidate_states)
 
@@ -1071,7 +1077,7 @@ class DataObservation(DataInformedObservation):
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
         MEAN_TOLERANCE     = 1e-9
-        VARIANCE_TOLERANCE = 1e-40
+        VARIANCE_TOLERANCE = 1e-14
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:

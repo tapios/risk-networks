@@ -560,6 +560,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 user_network,
                 current_time)
 
+
         #plots on the fly    
         plot_and_save_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
                                                     save_to_file_interval, 
@@ -643,19 +644,20 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         past_time)
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
-                                                        record_assimilation_interval,
-                                                        eps=static_contact_interval)
+                                                            record_assimilation_interval,
+                                                            eps=static_contact_interval)
             if assimilate_record_now:
                 (ensemble_state,
                  transition_rates_ensemble,
                  community_transmission_rate_ensemble
                 ) = record_assimilator.update(
-                        ensemble_state,
-                        loaded_data.end_statuses,
-                        transition_rates_ensemble,
-                        community_transmission_rate_ensemble,
-                        user_network,
-                        past_time)
+                    ensemble_state,
+                    loaded_data.end_statuses,
+                    transition_rates_ensemble,
+                    community_transmission_rate_ensemble,
+                    user_network,
+                    past_time)
+
 
             # update ensemble after data assimilation
             if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
@@ -725,6 +727,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 community_transmission_rate_ensemble,
                 user_network,
                 past_time)
+
 
         # update ensemble after data assimilation
         if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
@@ -811,6 +814,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+
 
             # update ensemble after data assimilation
             if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
