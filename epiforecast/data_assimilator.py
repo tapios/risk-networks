@@ -21,7 +21,8 @@ class DataAssimilator:
             transition_rates_min=None,
             transition_rates_max=None,
             transmission_rate_min=None,
-            transmission_rate_max=None):
+            transmission_rate_max=None,
+            OUTPUT_PATH=None):
         """
         Constructor
 
@@ -85,11 +86,13 @@ class DataAssimilator:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
                     observation_svd_regularized=False,
-                    joint_cov_noise=joint_cov_noise)
+                    joint_cov_noise=joint_cov_noise,
+                    OUTPUT_PATH=OUTPUT_PATH)
         else:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
-                    joint_cov_noise=joint_cov_noise)
+                    joint_cov_noise=joint_cov_noise,
+                    OUTPUT_PATH=OUTPUT_PATH)
 
         # storage for observations time : obj 
         self.stored_observed_states = {}

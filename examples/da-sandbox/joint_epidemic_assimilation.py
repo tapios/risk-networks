@@ -111,7 +111,8 @@ sensor_assimilator = DataAssimilator(
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
-        transmission_rate_max=transmission_rate_max)
+        transmission_rate_max=transmission_rate_max,
+        OUTPUT_PATH=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
@@ -125,7 +126,8 @@ viral_test_assimilator = DataAssimilator(
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
-        transmission_rate_max=transmission_rate_max)
+        transmission_rate_max=transmission_rate_max,
+        OUTPUT_PATH=OUTPUT_PATH)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
@@ -133,7 +135,8 @@ record_assimilator = DataAssimilator(
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
-        update_type=arguments.assimilation_update_record)
+        update_type=arguments.assimilation_update_record,
+        OUTPUT_PATH=OUTPUT_PATH)
 
 # post-processing ##############################################################
 #from _post_process_init import axes
