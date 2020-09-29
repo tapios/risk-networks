@@ -257,6 +257,7 @@ class EnsembleAdjustmentKalmanFilter:
                         Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
                                                        k=trunc_size,
                                                        return_singular_vectors='u')
+                        Unull = la.null_space(Urect.T)
                     except:
                         print("Second SVD not converge!")
                         np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'), \
@@ -265,9 +266,9 @@ class EnsembleAdjustmentKalmanFilter:
                         Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
                                                        k=trunc_size,
                                                        return_singular_vectors='u')
+                        Unull = la.null_space(Urect.T)
 
                     # to get the full space, U, we pad it with a basis of the null space 
-                    Unull = la.null_space(Urect.T)
                     U=np.hstack([Urect,Unull])
                       
                     # pad square rtD_vec and pad  with its smallest value, then with zeros
@@ -314,14 +315,16 @@ class EnsembleAdjustmentKalmanFilter:
 
             if zp.shape[0] < zp.shape[1]:
                 try:
-                    F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
+                    F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')                    
+                    F_u_null = la.null_space(F_u.T)
+
                 except:
                     print("Second SVD not converge!")
                     np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'),
                             Sigma_u)
                     F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
-
-                F_u_null = la.null_space(F_u.T)
+                    F_u_null = la.null_space(F_u.T)
+              
                 F_u_full = np.hstack([F_u_null, F_u])
 
                 Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
