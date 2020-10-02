@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=386G
+#SBATCH --mem=196G
 #SBATCH -J "25u"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
@@ -35,7 +35,7 @@ user_fraction=0.25 #24485 or 24486? here we choose 86 if get error then it is 24
 # sensor wearers
 wearers=0
 batches_sensors=1
-batches_records=49 #195884 nodes
+batches_records=98 #2x user nodes
 
 
 # testing: virus tests
@@ -53,7 +53,7 @@ update_test="local"
 #1% 5% 25% of 24486
 test_budgets=(245 1224 6122)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-batches_tests=(1 2 7) #so no batch > 1000 nodes
+batches_tests=(1 3 13) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters

@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=386G
+#SBATCH --mem=196G
 #SBATCH -J "100u"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
@@ -31,7 +31,7 @@ EXP_NAME="NYC_1e5_user100_nosensors" #1e5 = 97942 nodes
 network_size=1e5
 wearers=0
 batches_sensors=1
-batches_records=196 #195884 nodes
+batches_records=392 #195884 nodes
 
 
 # user base
@@ -52,7 +52,7 @@ update_test="local"
 #1% 5% 25% of 97942
 test_budgets=(979 4897 24486)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-batches_tests=(1 5 25) #so no batch > 1000 nodes
+batches_tests=(2 10 50) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters

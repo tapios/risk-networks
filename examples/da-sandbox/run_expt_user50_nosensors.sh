@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=386G
+#SBATCH --mem=196G
 #SBATCH -J "50u"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
@@ -37,7 +37,7 @@ wearers=0
 batches_sensors=1
 
 #records
-batches_records=98 #195884 nodes
+batches_records=196 #195884/2 nodes
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
@@ -53,7 +53,7 @@ update_test="local"
 #1% 5% 25% of 48971
 test_budgets=(490 2449 12243)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
-batches_tests=(1 3 13) #so no batch > 1000 nodes
+batches_tests=(1 5 25) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters

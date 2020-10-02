@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-0
+#SBATCH --array=0-2
 
 ################################
 # Intervention test experiment #
@@ -27,7 +27,7 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 # parameters & constants #######################################################
 
 # network 
-EXP_NAME="NYC_1e5_user100_sensors_test" #1e5 = 97942 nodes
+EXP_NAME="NYC_1e5_user100_sensors_test_newtol" #1e5 = 97942 nodes
 network_size=1e5
 # user base
 user_fraction=1.0
