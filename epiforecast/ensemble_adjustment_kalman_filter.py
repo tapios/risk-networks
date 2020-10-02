@@ -170,6 +170,8 @@ class EnsembleAdjustmentKalmanFilter:
 
         else:
 
+            svd_failed = False
+            num_svd_attempts = 0
             # if ensemble_size < observations size, we pad the singular value matrix with added noise
             if zp.shape[0] < zp.shape[1]:    
                 try:
@@ -178,7 +180,17 @@ class EnsembleAdjustmentKalmanFilter:
                     print("First SVD not converge!")
                     np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_1.npy'),
                             (zp-zp_bar).T)
-                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    svd_failed = True
+                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed == False
+                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    except:
+                        svd_failed == True 
+                        print("First SVD not converge!")
                 F = F_full[:,:J-1]
                 rtDp_vec = rtDp_vec[:-1]
                 rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
@@ -194,7 +206,17 @@ class EnsembleAdjustmentKalmanFilter:
                     print("First SVD not converge!")
                     np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_1.npy'),
                             (zp-zp_bar).T)
-                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    svd_failed = True
+                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed == False
+                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    except:
+                        svd_failed == True 
+                        print("First SVD not converge!")
                 F = F_full
                 rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
                 Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
