@@ -393,7 +393,7 @@ for j in range(spin_up_steps):
         
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
-            nodes_to_intervene = user_nodes
+            nodes_to_intervene = network.get_nodes()
             print("intervention applied to all {:d} nodes.".format(
                 network.get_node_count()))
             
@@ -401,6 +401,7 @@ for j in range(spin_up_steps):
             nodes_to_intervene = intervention.find_sick(ensemble_state)
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 sick_nodes.size, network.get_node_count()))
+            raise ValueError("Currently interventions only work for 'all', see below")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
@@ -409,9 +410,13 @@ for j in range(spin_up_steps):
             network.isolate(nodes_to_intervene) 
 
         elif intervention_type == "social_distance":
-            λ_min, λ_max = network.get_lambdas()
-            λ_max[nodes_to_intervene] = distanced_max_contact_rate
+            λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
+            λ_max[:] = distanced_max_contact_rate 
             network.set_lambdas(λ_min,λ_max)
+
+            λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
+            λ_max[:] = distanced_max_contact_rate 
+            user_network.set_lambdas(λ_min,λ_max)
 
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
@@ -859,7 +864,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     if intervene_now:
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
-            nodes_to_intervene = user_nodes
+            nodes_to_intervene = network.get_nodes() 
             print("intervention applied to all {:d} nodes".format(
                   network.get_node_count()))
             
@@ -867,6 +872,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             nodes_to_intervene = intervention.find_sick(ensemble_state)
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 sick_nodes.size, network.get_node_count()))
+            raise ValueError("Currently interventions only work for 'all'")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
@@ -875,9 +881,13 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             network.isolate(nodes_to_intervene) 
 
         elif intervention_type == "social_distance":
-            λ_min, λ_max = network.get_lambdas()
-            λ_max[nodes_to_intervene] = distanced_max_contact_rate
+            λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
+            λ_max[:] = distanced_max_contact_rate 
             network.set_lambdas(λ_min,λ_max)
+
+            λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
+            λ_max[:] = distanced_max_contact_rate 
+            user_network.set_lambdas(λ_min,λ_max)
 
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")

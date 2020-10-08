@@ -225,7 +225,8 @@ class ContactNetwork:
         Output:
             values_dict (dict): a mapping node -> value
         """
-        return { node: values_array[node] for node in self.get_nodes() }
+        
+        return { node: values_array[idx] for idx,node in enumerate(self.get_nodes()) }
 
     def get_health_workers(self):
         """
