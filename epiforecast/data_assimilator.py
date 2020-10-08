@@ -495,6 +495,9 @@ class DataAssimilator:
                     print("[ Data assimilator ] positive states to update: ",
                            obs_states[truth>0.99])
 
+                    print("[ Data assimilator ] positive states pre-assimilation: ",
+                          prev_ensemble_state[0, obs_states[truth>0.99]])
+
                     print("[ Data assimilator ] positive states post-assimilation: ",
                           ensemble_state[0, obs_states[truth>0.99]])
 
@@ -579,7 +582,6 @@ class DataAssimilator:
         # for each observation we get the observed status e.g 'I' and fix it
         # (as # it was updated); we then normalize the other states e.g
         # (S,'E',H,R,D) over the difference 1-I
-        
         for obs_status_idx in range(5):
             obs_at_status = [k for k in obs_states if (k >= N *  obs_status_idx     and 
                                                        k <  N * (obs_status_idx + 1)  )]
@@ -595,6 +597,7 @@ class DataAssimilator:
             # "free" statuses at the observed nodes.
             observed_tmp = tmp[:,:,observed_nodes]
             updated_mass = observed_tmp[:, updated_status, :]
+
             free_states  = observed_tmp
 
             # remove this axis for the sum (but maintain the shape)
@@ -603,15 +606,26 @@ class DataAssimilator:
             
             free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
 
-            masstol=0.1/N
+            masstol=1e-9
+            # odd things can happen with perfect assimilators, so we include checks here
+            # If one assimilator has a value 1, then the other does not assimilate 0,
+            # NB we never get the case where both have value 1 
+            if updated_status == 2: #H
+                Dpositive = (free_states[:,4,:] > 0.99)
+                no_update_weight = np.any([Dpositive, (free_mass<=masstol)],axis=0)
+            elif updated_status == 4: #D
+                Hpositive = (free_states[:,2,:] > 0.99)
+                no_update_weight = np.any([Hpositive, (free_mass<=masstol)],axis=0)
+            else:
+                no_update_weight = np.any((free_mass <= masstol),axis=0)
+
             for i in free_statuses:
-                
-                no_update_weight = np.any([(updated_mass <= masstol) , (free_mass <= masstol)],axis=0)
                 new_ensemble_state = (1.0 - updated_mass)\
                                      * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
                 ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
-           
+                            
+               
 
     def extract_model_parameters_to_update(
             self,
