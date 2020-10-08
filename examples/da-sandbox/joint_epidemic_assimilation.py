@@ -288,7 +288,7 @@ for j in range(spin_up_steps):
   
 
     # now for the master eqn
-    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
     master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
     
     if learn_transmission_rate == True:
@@ -368,7 +368,7 @@ for j in range(spin_up_steps):
         if (current_time - static_contact_interval) > static_contact_interval: # i.e not first step
             plt.close(fig)
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-            axes = plot_epidemic_data(population, 
+            axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
                                       axes, 
                                       current_time_span)
@@ -496,7 +496,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
-        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
         master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
         if learn_transmission_rate == True:
@@ -571,7 +571,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         if plot_and_save_now:
             plt.close(fig)
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-            axes = plot_epidemic_data(population, 
+            axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
                                       axes, 
                                       current_time_span)
@@ -885,7 +885,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 
 ## Final storage after last step
-ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/population
+ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
 master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
 if learn_transmission_rate == True:
@@ -918,9 +918,8 @@ print("finished assimilation")
 # save & plot ##################################################################
 plt.close(fig)
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-axes = plot_epidemic_data(population, statuses_sum_trace, axes, time_span)
+axes = plot_epidemic_data(user_population, statuses_sum_trace, axes, time_span)
 plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
-
 
 # plot trajectories
 axes = plot_ensemble_states(user_population,
@@ -935,6 +934,19 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             dpi=150)
 
 plt.close()
+
+np.save(os.path.join(OUTPUT_PATH, 'trace_kinetic_statuses_sum.npy'), 
+        statuses_sum_trace)
+
+
+np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'), 
+        master_states_sum_timeseries.container)
+
+np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'), 
+        time_span)
+np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
+        user_nodes)
+
 
 if learn_transmission_rate == True:
     plot_transmission_rate(transmission_rate_timeseries.container,

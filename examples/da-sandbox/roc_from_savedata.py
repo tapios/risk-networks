@@ -6,21 +6,21 @@ from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, 
 from epiforecast.epiplots import plot_roc_curve
 
 #file parameters
-EXP_NAME = 'NYC_1e5_user100_sensors_test_newtol'
+EXP_NAME = 'NYC_1e5_user50_nosensors'
 OUTDIR = 'output'
 
 # data file for mean states of master equations
 # np.array of size [user_population,time_span]
-day = 44
+day = 30
 intervals_per_day = 8
 interval_of_recording = day*intervals_per_day
 
 master_eqns_fname = 'master_eqns_mean_states_at_step_'+str(interval_of_recording)+'.npy'
 # data file for statuses of kinetic equations
-# list (size time_span) of dicts (of size user_population)
+# dict (of size user_population)
 kinetic_eqns_fname = 'kinetic_eqns_statuses_at_step_'+str(interval_of_recording)+'.npy'
-
-EXP_PARAM_VALUES = [24486]
+#24486
+EXP_PARAM_VALUES = [490,2449,12243]
 
 #Classifier_parameters
 N_THRESHOLD = 200
@@ -43,7 +43,6 @@ for i,output_dir in enumerate(output_dirs):
     
     master_eqns_mean_states = np.load(os.path.join(output_dir,master_eqns_fname))
     kinetic_eqns_statuses = np.load(os.path.join(output_dir,kinetic_eqns_fname),allow_pickle=True).tolist()
-
     
     for j,threshold in enumerate(thresholds):
         performance_tracker = PerformanceTracker(metrics=[TrueNegativeRate(),TruePositiveRate()],
