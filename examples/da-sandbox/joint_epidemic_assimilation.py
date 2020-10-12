@@ -104,14 +104,10 @@ sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
         n_assimilation_batches = arguments.assimilation_batches_sensor,
-        transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        transition_rates_to_update_str=[],
+        transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
         full_svd=False,
-        transition_rates_min=transition_rates_min,
-        transition_rates_max=transition_rates_max,
-        transmission_rate_min=transmission_rate_min,
-        transmission_rate_max=transmission_rate_max,
         OUTPUT_PATH=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
