@@ -493,19 +493,19 @@ class DataAssimilator:
                                                                                obs_nodes.size)
                 if verbose:
                     print("[ Data assimilator ] positive states to update: ",
-                           obs_states[truth>0.99])
+                           obs_states[truth>0.02])
 
                     print("[ Data assimilator ] positive states pre-assimilation: ",
-                          prev_ensemble_state[0, obs_states[truth>0.99]])
+                          prev_ensemble_state[0, obs_states[truth>0.02]])
 
                     print("[ Data assimilator ] positive states post-assimilation: ",
-                          ensemble_state[0, obs_states[truth>0.99]])
+                          ensemble_state[0, obs_states[truth>0.02]])
 
                 self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
                 
                 if verbose:
                     print("[ Data assimilator ] positive states post sum_to_one: ",
-                          ensemble_state[0, obs_states[truth>0.99]])
+                          ensemble_state[0, obs_states[truth>0.02]])
 
                                 
                 # set the updated rates in the TransitionRates object and
@@ -573,25 +573,26 @@ class DataAssimilator:
             ensemble_state,
             obs_states):
         
-        N = int(ensemble_state.shape[1]/5)
+        user_population = int(ensemble_state.shape[1]/5)
 
         # First obtain the mass contained in category "E"
-        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, N)
+        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, user_population)
         Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
         Emass = np.clip(Emass,0,1)
         # for each observation we get the observed status e.g 'I' and fix it
         # (as # it was updated); we then normalize the other states e.g
         # (S,'E',H,R,D) over the difference 1-I
-        for obs_status_idx in range(5):
-            obs_at_status = [k for k in obs_states if (k >= N *  obs_status_idx     and 
-                                                       k <  N * (obs_status_idx + 1)  )]
+        #only look at H and D here
+        for obs_status_idx in [2,4]:
+            obs_at_status = [k for k in obs_states if (k >= user_population *  obs_status_idx     and 
+                                                       k <  user_population * (obs_status_idx + 1)  )]
             if not len(obs_at_status)>0:
                 continue
 
-            observed_nodes = np.remainder(obs_at_status, N)
+            observed_nodes = np.remainder(obs_at_status, user_population)
             updated_status = obs_status_idx        
             free_statuses = [ i for i in range(5) if i!= updated_status]
-            tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, N)
+            tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, user_population)
 
             # create arrays of the mass in the observed and the unobserved
             # "free" statuses at the observed nodes.
@@ -605,11 +606,11 @@ class DataAssimilator:
                     [free_states.shape[0], free_states.shape[2]]) # X,1,X
             
             free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
-
+            
             masstol=1e-9
             # odd things can happen with perfect assimilators, so we include checks here
-            # If one assimilator has a value 1, then the other does not assimilate 0,
-            # NB we never get the case where both have value 1 
+            # If an assimilator has D/H value 1, then the other does not assimilate the other H/D (=0),
+            # Note we never get the case where both have value 1 
             if updated_status == 2: #H
                 Dpositive = (free_states[:,4,:] > 0.99)
                 no_update_weight = np.any([Dpositive, (free_mass<=masstol)],axis=0)
@@ -622,7 +623,7 @@ class DataAssimilator:
             for i in free_statuses:
                 new_ensemble_state = (1.0 - updated_mass)\
                                      * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
-                ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
+                ensemble_state[:, i*user_population+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*user_population+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
                             
                
