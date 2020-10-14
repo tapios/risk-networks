@@ -20,7 +20,6 @@ from epiforecast.populations import extract_ensemble_transition_rates
 def get_start_time(start_end_time):
     return start_end_time.start
 
-
 ################################################################################
 # initialization ###############################################################
 ################################################################################
@@ -56,7 +55,6 @@ from _stochastic_init import (kinetic_ic,
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
-
 # observations #################################################################
 from _observations_init import (sensor_readings,
                                 MDT_neighbor_test,
@@ -107,7 +105,7 @@ sensor_assimilator = DataAssimilator(
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
-        full_svd=False,
+        full_svd=True,
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
@@ -118,7 +116,7 @@ viral_test_assimilator = DataAssimilator(
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.assimilation_regularization,
-        full_svd=False,
+        full_svd=True,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -132,6 +130,7 @@ record_assimilator = DataAssimilator(
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record,
+        full_svd=True,    
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
@@ -310,16 +309,16 @@ for j in range(spin_up_steps):
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
     timer_master_eqn = timer()
+    
+
     ensemble_state = master_eqn_ensemble.simulate(
             static_contact_interval,
             min_steps=n_forward_steps,
     closure_flag=update_closure_flag)
-
     #move to new time
     current_time += static_contact_interval
     current_time_span = [time for time in time_span if time < current_time+static_contact_interval]
     walltime_master_eqn += timer() - timer_master_eqn
-
     print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
     print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
 
@@ -368,7 +367,7 @@ for j in range(spin_up_steps):
                                       statuses_sum_trace, 
                                       axes, 
                                       current_time_span)
-            
+          
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
             
             axes = plot_ensemble_states(user_population,
@@ -523,9 +522,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         # run ensemble forward
         timer_master_eqn = timer()
+        
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
                                                       min_steps=n_forward_steps,
                                                       closure_flag=update_closure_flag)
+
         walltime_master_eqn += timer() - timer_master_eqn
 
         current_time += static_contact_interval
@@ -646,6 +647,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                    
 
             assimilate_record_now = modulo_is_close_to_zero(past_time,
                                                             record_assimilation_interval,
