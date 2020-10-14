@@ -1,4 +1,5 @@
 import numpy as np
+
 import copy
 
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
@@ -396,11 +397,11 @@ class DataAssimilator:
                         obs_nodes)
 
                 if verbose:
-                    print("[ Data assimilator ] Total states to be assimilated: ",
+                    print("[ Data assimilator ] Total states with assimilation data: ",
                           obs_states.size)
-                    print("[ Data assimilator ] Total parameters to be assimilated: ",
-                            ensemble_transition_rates.shape[1]
-                          + ensemble_transmission_rate.shape[1])
+                  #  print("[ Data assimilator ] Total parameters [incorrect]: ",
+                  #          ensemble_transition_rates.shape[1]
+                  #        + ensemble_transmission_rate.shape[1])
 
                 # Load the truth, variances of the observation(s)
                 truth = self.stored_observed_means[current_time]
@@ -419,6 +420,10 @@ class DataAssimilator:
                     H_obs = self.generate_state_observation_operator(
                             obs_states,
                             update_states)
+                    if verbose:
+                        print("[ Data assimilator ] Total states to be assimilated: ",
+                              update_states.size)
+               
 
                     (ensemble_state[:, update_states],
                      new_ensemble_transition_rates,
@@ -509,20 +514,27 @@ class DataAssimilator:
                     new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                                obs_nodes.size)
                 if verbose:
-                    print("[ Data assimilator ] positive states to update: ",
+                    print("[ Data assimilator ] positive states with data to update: ",
                            obs_states[truth>0.02])
 
-                    print("[ Data assimilator ] positive states pre-assimilation: ",
+                    print("[ Data assimilator ] positive states with data pre-assimilation: ",
                           prev_ensemble_state[0, obs_states[truth>0.02]])
 
-                    print("[ Data assimilator ] positive states post-assimilation: ",
-                          ensemble_state[0, obs_states[truth>0.02]])
+                    print("[ Data assimilator ] corresponding data mean/var with positive states: ",
+                          truth[truth>0.02], ", ", var[truth>0.02])
 
-                self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
-                
-                if verbose:
-                    print("[ Data assimilator ] positive states post sum_to_one: ",
+                    print("[ Data assimilator ] positive states with data post-assimilation: ",
                           ensemble_state[0, obs_states[truth>0.02]])
+                
+                if self.update_type in ('local','neighbor','global'):
+                    if verbose:
+                        print("[ Data assimilator ] performing sum_to_one")
+
+                    self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
+                
+                    if verbose:
+                        print("[ Data assimilator ] positive states post sum_to_one: ",
+                              ensemble_state[0, obs_states[truth>0.02]])
 
                                 
                 # set the updated rates in the TransitionRates object and
