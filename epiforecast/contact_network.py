@@ -215,18 +215,17 @@ class ContactNetwork:
 
     def __convert_array_to_dict(
             self,
-            values_array):
+            array):
         """
         Convert numpy array to dictionary with node indices as keys
 
         Input:
-            values_array (np.array): (n_nodes,) array of values
+            array (np.array): (n_nodes,) array of values
 
         Output:
-            values_dict (dict): a mapping node -> value
+            dictionary (dict): a sequential mapping node -> value
         """
-        
-        return { node: values_array[idx] for idx,node in enumerate(self.get_nodes()) }
+        return { node: array[idx] for idx, node in enumerate(self.get_nodes()) }
 
     def get_health_workers(self):
         """

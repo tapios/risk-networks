@@ -108,7 +108,7 @@ sensor_assimilator = DataAssimilator(
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
         full_svd=False,
-        OUTPUT_PATH=OUTPUT_PATH)
+        output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
@@ -123,7 +123,7 @@ viral_test_assimilator = DataAssimilator(
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
-        OUTPUT_PATH=OUTPUT_PATH)
+        output_path=OUTPUT_PATH)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
@@ -132,7 +132,7 @@ record_assimilator = DataAssimilator(
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record,
-        OUTPUT_PATH=OUTPUT_PATH)
+        output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
 #from _post_process_init import axes
@@ -958,13 +958,13 @@ if learn_transmission_rate == True:
     plot_transmission_rate(transmission_rate_timeseries.container,
             time_span,
             a_min=0.0,
-            OUTPUT_PATH=OUTPUT_PATH)
+            output_path=OUTPUT_PATH)
 
 if learn_transition_rates == True:
     plot_clinical_parameters(transition_rates_timeseries.container,
             time_span,
             a_min=0.0,
-            OUTPUT_PATH=OUTPUT_PATH)
+            output_path=OUTPUT_PATH)
 
 # save parameters ################################################################
 if learn_transmission_rate == True:

@@ -22,7 +22,7 @@ class DataAssimilator:
             transition_rates_max=None,
             transmission_rate_min=None,
             transmission_rate_max=None,
-            OUTPUT_PATH=None):
+            output_path=None):
         """
         Constructor
 
@@ -87,12 +87,12 @@ class DataAssimilator:
                     prior_svd_reduced=True,
                     observation_svd_regularized=False,
                     joint_cov_noise=joint_cov_noise,
-                    OUTPUT_PATH=OUTPUT_PATH)
+                    output_path=output_path)
         else:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
                     joint_cov_noise=joint_cov_noise,
-                    OUTPUT_PATH=OUTPUT_PATH)
+                    output_path=output_path)
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
@@ -147,8 +147,6 @@ class DataAssimilator:
                               len(observation.obs_states))
 
             n_user_nodes = user_network.get_node_count()
-            # Be careful using np.unique as it ORDERS the array after, one needs to 
-            # using it on the states will cause issue without care
             observed_states = np.array(observed_states_list)
             observed_nodes  = np.unique(observed_states % n_user_nodes)
 
@@ -391,9 +389,8 @@ class DataAssimilator:
 
                 n_user_nodes = user_network.get_node_count()
                 if self.n_assimilation_batches == 1:
-                    #note cov is obs.size x obs.size in size
                     cov = np.diag(var)
-                
+
                     update_states = self.compute_update_indices(
                             user_network,
                             obs_states,
@@ -420,7 +417,7 @@ class DataAssimilator:
                                                                  self.transmission_rate_max)
 
                         # Weighted-averaging based on ratio of observed nodes 
-                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
                                 new_ensemble_transmission_rate,
                                 ensemble_transmission_rate,
                                 n_user_nodes,
@@ -442,8 +439,8 @@ class DataAssimilator:
                             ensemble_size,
                             obs_nodes.shape[0],
                             -1)
+
                     for batch in batches:
-                        
                         batch.sort()
                         cov_batch = np.diag(var[batch])
                         if self.update_type == 'local':
@@ -467,11 +464,10 @@ class DataAssimilator:
                                                  cov_batch,
                                                  H_obs,
                                                  print_error=print_error)
-                        
-                        
+
                         ensemble_transition_rates_reshaped[:,batch,:] = \
                         new_ensemble_transition_rates_batch.reshape(ensemble_size, batch.size, -1)
-                        
+
                         if self.transmission_rate_to_update_flag:
                             # Clip transmission rate into a reasonable range
                             new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
@@ -479,7 +475,7 @@ class DataAssimilator:
                                                                      self.transmission_rate_max)
 
                             # Weighted-averaging based on ratio of observed nodes 
-                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
                                     new_ensemble_transmission_rate,
                                     ensemble_transmission_rate,
                                     n_user_nodes,

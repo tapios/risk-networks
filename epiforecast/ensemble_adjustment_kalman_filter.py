@@ -13,7 +13,7 @@ class EnsembleAdjustmentKalmanFilter:
             observation_svd_regularized = True,
             observation_svd_reduced = False,
             joint_cov_noise = 1e-2,
-            OUTPUT_PATH=None):
+            output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
 
@@ -43,7 +43,7 @@ class EnsembleAdjustmentKalmanFilter:
         self.observation_svd_reduced = observation_svd_reduced
         self.observation_svd_regularized = observation_svd_regularized
         self.joint_cov_noise = joint_cov_noise
-        self.OUTPUT_PATH = OUTPUT_PATH 
+        self.output_path = output_path
 
         # Compute error
     def compute_error(
@@ -99,7 +99,7 @@ class EnsembleAdjustmentKalmanFilter:
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
 
-        OUTPUT_PATH = self.OUTPUT_PATH
+        output_path = self.output_path
 
         # Observation data statistics at the observed nodes
         x_t = truth
@@ -178,7 +178,7 @@ class EnsembleAdjustmentKalmanFilter:
                     F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
                     print("First SVD not converge!")
-                    np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_1.npy'),
+                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
                             (zp-zp_bar).T)
                     svd_failed = True
                     #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
@@ -204,7 +204,7 @@ class EnsembleAdjustmentKalmanFilter:
                     F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
                     print("First SVD not converge!")
-                    np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_1.npy'),
+                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
                             (zp-zp_bar).T)
                     svd_failed = True
                     #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
@@ -243,7 +243,7 @@ class EnsembleAdjustmentKalmanFilter:
                                        full_matrices=True)
                 except:
                     print("Second SVD not converge!")
-                    np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'), \
+                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                             np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                             np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
                     U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
@@ -278,7 +278,7 @@ class EnsembleAdjustmentKalmanFilter:
                                            full_matrices=True)
                     except:
                         print("Second SVD not converge!")
-                        np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'), \
+                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                                 np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                                     np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
                         svd_failed = True
@@ -308,7 +308,7 @@ class EnsembleAdjustmentKalmanFilter:
                         Unull = la.null_space(Urect.T)
                     except:
                         print("Second SVD not converge!")
-                        np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'), \
+                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                                 np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                                 np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
                         svd_failed = True
@@ -353,7 +353,7 @@ class EnsembleAdjustmentKalmanFilter:
                 U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
             except:
                 print("Second SVD not converge!")
-                np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'),
+                np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
                         np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
                 svd_failed = True
             while svd_failed == True:
@@ -389,7 +389,7 @@ class EnsembleAdjustmentKalmanFilter:
                     F_u_null = la.null_space(F_u.T)
                 except:
                     print("Second SVD not converge!")
-                    np.save(os.path.join(OUTPUT_PATH, 'svd_matrix_2.npy'),
+                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
                             Sigma_u)
                     svd_failed = True 
                 while svd_failed == True:

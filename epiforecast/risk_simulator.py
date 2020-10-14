@@ -16,7 +16,7 @@ def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmea
         #for SI interactions
         CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
         CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
-        CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
+        CM_SI_data[k] *= v                      #multiply by the weight matrix wij
         
         #for SH interactions
         CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
@@ -91,7 +91,7 @@ class MasterEquationModelEnsemble:
             self.closure = np.ndarray((self.M, self.N),
                                       dtype=np.float_,
                                       buffer=self.closure_shm.buf)
-            
+
             coefficients_nbytes = self.M * self.N * 8 * float_nbytes
             self.coefficients_shm = shared_memory.SharedMemory(
                     create=True,
@@ -122,9 +122,6 @@ class MasterEquationModelEnsemble:
         self.ensemble_beta_hospital = np.empty( (self.M, n_beta_per_member) )
         self.update_transmission_rate(transmission_rate)
 
-        #NOTE these are HUGE matrices - here for preallocation speedup
-        #self.NbyNcontainer=np.zeros((self.N,self.N), dtype='float64')
-        #self.denS=np.zeros((self.N,self.N), dtype='float64')
         self.walltime_eval_closure = 0.0
 
     def __extract_coefficients(
@@ -308,58 +305,6 @@ class MasterEquationModelEnsemble:
             iS, iI, iH = self.S_slice, self.I_slice, self.H_slice
             y = self.y0
 
-            #no prealloc:
-            #numSI = y[:,iS].T @ y[:,iI]
-            #numSI /= self.M
-            #numSH = y[:,iS].T @ y[:,iH]
-            #numSH /= self.M
-            #H_ensemble_mean = y[:,iH].mean(axis=0)
-            #S_ensemble_mean = y[:,iS].mean(axis=0)
-            #I_ensemble_mean = y[:,iI].mean(axis=0)
-            #denSI = np.outer(S_ensemble_mean, I_ensemble_mean) + 1e-8
-            #denSH = np.outer(S_ensemble_mean, H_ensemble_mean) + 1e-8
-            #CM_SI = self.L.multiply(numSI/self.denSI).tocsr()
-            #CM_SH = self.L.multiply(numSH/self.denSH).tocsr()
-
-            # #preallocation one-by-one, halves mem requirements
-            # S_ensemble_mean = y[:,iS].mean(axis=0)
-            # I_ensemble_mean = y[:,iI].mean(axis=0)
-            # H_ensemble_mean = y[:,iH].mean(axis=0)
-            
-            # ## first do SI
-            # np.matmul(y[:,iS].T, y[:,iI], out=self.NbyNcontainer)
-            # self.NbyNcontainer /= self.M
-            # # create outer prod and divide
-            # #np.outer(S_ensemble_mean, I_ensemble_mean, out=self.denS)
-            # #self.denS+=1e-8
-            # #self.NbyNcontainer/=self.denS
-            # #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            # # avoid outer product a/outer(b,c) = (a/c)/b[:,None]  
-            # self.NbyNcontainer/=(I_ensemble_mean+1e-8)
-            # self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
-            # CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            
-            # CM_S @= y[:,iI].T
-            # self.closure[:] =  CM_S.T * self.ensemble_beta_infected
-           
-            # ## then do SH
-            # np.matmul(y[:,iS].T, y[:,iH], out=self.NbyNcontainer)
-            # self.NbyNcontainer /= self.M
-            # # create outer prod and divide
-            # #np.outer(S_ensemble_mean, H_ensemble_mean, out=self.denS)
-            # #self.denS+=1e-8
-            # #self.NbyNcontainer/=self.denS
-            # #CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            # # avoid outer product a/outer(b,c) = (a/c).T/b[;,None] 
-            # self.NbyNcontainer/=(H_ensemble_mean+1e-8)
-            # self.NbyNcontainer/=(S_ensemble_mean+1e-8)[:,None]
-            # CM_S = self.L.multiply(self.NbyNcontainer).tocsr()
-            # CM_S @= y[:,iH].T
-            # self.closure[:] +=  CM_S.T * self.ensemble_beta_hospital
-
-            # closure using nbhd structure loop
-            # using nonzero is slow, so we convert to coo sparse matrix first 
-            # scipy sparse recommends constructing coo and converting to csr
             S_ensemble_mean = y[:,iS].mean(axis=0)
             I_ensemble_mean = y[:,iI].mean(axis=0)
             H_ensemble_mean = y[:,iH].mean(axis=0)
@@ -385,20 +330,7 @@ class MasterEquationModelEnsemble:
                 S_ensemble_mean,
                 I_ensemble_mean,
                 H_ensemble_mean)
-        
-            # CM_SI_data=np.zeros(nonzeros)
-            # CM_SH_data=np.zeros(nonzeros)
-            # for k,i,j,v in zip(range(nonzeros), cooL.row, cooL.col, cooL.data):
-            #     #for SI interactions
-            #     CM_SI_data[k] = yS[:,i].dot(yI[:,j])/self.M                 #create bar{<S_i,I_j>}
-            #     CM_SI_data[k] /= S_ensemble_mean[i]*I_ensemble_mean[j]+1e-8 #divide by <S_i><I_j>+eps
-            #     CM_SI_data[k] *= v                                          #multiply by the weight matrix wij
 
-            #     #for SH interactions
-            #     CM_SH_data[k] = yS[:,i].dot(yH[:,j])/self.M
-            #     CM_SH_data[k] /= S_ensemble_mean[i]*H_ensemble_mean[j]+1e-8
-            #     CM_SH_data[k] *= v
-                           
             CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iI].T
             self.closure[:] =  CM_S.T * self.ensemble_beta_infected
@@ -436,7 +368,8 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
-           closure_flag: whether to evaluate closure during this simulation call
+            closure_flag (bool): whether to evaluate closure during this
+                                 simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
@@ -489,7 +422,8 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
-           closure_flag: whether to evaluate closure during this simulation call
+            closure_flag (bool): whether to evaluate closure during this
+                                 simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """

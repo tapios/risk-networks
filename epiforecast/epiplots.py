@@ -317,7 +317,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
         color='b',
         a_min=None,
         a_max=None,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     rate_perc = np.percentile(transmission_rate_timeseries, 
             q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -329,7 +329,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.xlabel('Time (days)')
     plt.ylabel('1/community_transmission_rate')
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_PATH,'transmission_rate.png'))
+    plt.savefig(os.path.join(output_path,'transmission_rate.png'))
     plt.close()
 
 def plot_clinical_parameters(transition_rates_timeseries,
@@ -338,7 +338,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         a_min=None,
         a_max=None,
         num_rates=6,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     rate_timeseries = transition_rates_timeseries
     rate_perc = np.percentile(rate_timeseries, 
@@ -359,7 +359,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+'.png'))
         plt.close()
 
 def plot_transition_rates(transition_rates_obj_timeseries,
@@ -368,7 +368,7 @@ def plot_transition_rates(transition_rates_obj_timeseries,
         a_min=None,
         a_max=None,
         num_rates=6,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     num_time = len(transition_rates_obj_timeseries)
     num_ensemble = len(transition_rates_obj_timeseries[0])
@@ -401,7 +401,7 @@ def plot_transition_rates(transition_rates_obj_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+'.png'))
         plt.close()
 
 
