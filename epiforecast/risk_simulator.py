@@ -1,11 +1,30 @@
 import sys
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.sparse import coo_matrix
 from multiprocessing import shared_memory
 from timeit import default_timer as timer
 
 import ray
+from numba import jit 
 
+@jit(nopython=True)
+def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
+    CM_SI_data = np.zeros(nonzeros)
+    CM_SH_data = np.zeros(nonzeros)
+    for k,i,j,v in zip(range(nonzeros), rows, cols, data):
+        #for SI interactions
+        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
+        CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
+        CM_SI_data[k] *= v                      #multiply by the weight matrix wij
+        
+        #for SH interactions
+        CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
+        CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
+        CM_SH_data[k] *= v
+    
+    return CM_SI_data, CM_SH_data
+ 
 class MasterEquationModelEnsemble:
     def __init__(
             self,
@@ -286,27 +305,39 @@ class MasterEquationModelEnsemble:
             iS, iI, iH = self.S_slice, self.I_slice, self.H_slice
             y = self.y0
 
-            numSI = y[:,iS].T @ y[:,iI]
-            numSI /= self.M
-
-            numSH = y[:,iS].T @ y[:,iH]
-            numSH /= self.M
-
-            H_ensemble_mean = y[:,iH].mean(axis=0)
             S_ensemble_mean = y[:,iS].mean(axis=0)
             I_ensemble_mean = y[:,iI].mean(axis=0)
+            H_ensemble_mean = y[:,iH].mean(axis=0)
+            yS = y[:,iS]
+            yI = y[:,iI]
+            yH = y[:,iH]
 
-            denSI = np.outer(S_ensemble_mean, I_ensemble_mean) + 1e-8
-            denSH = np.outer(S_ensemble_mean, H_ensemble_mean) + 1e-8
+            cooL = self.L.tocoo()
+            nonzeros = len(cooL.row)
+            cooL_rows = cooL.row
+            cooL_cols = cooL.col
+            cooL_data = cooL.data
 
-            CM_SI = self.L.multiply(numSI/denSI).tocsr()
-            CM_SH = self.L.multiply(numSH/denSH).tocsr()
+            CM_SI_data,CM_SH_data = create_CM_data(
+                nonzeros,
+                cooL_rows,
+                cooL_cols,
+                cooL_data, 
+                self.M,
+                yS,
+                yI,
+                yH,
+                S_ensemble_mean,
+                I_ensemble_mean,
+                H_ensemble_mean)
 
-            CM_SI @= y[:,iI].T
-            CM_SH @= y[:,iH].T
+            CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
+            CM_S @= y[:,iI].T
+            self.closure[:] =  CM_S.T * self.ensemble_beta_infected
 
-            self.closure[:] = (  CM_SI.T * self.ensemble_beta_infected
-                               + CM_SH.T * self.ensemble_beta_hospital)
+            CM_S = coo_matrix((np.array(CM_SH_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
+            CM_S @= y[:,iH].T
+            self.closure[:] +=  CM_S.T * self.ensemble_beta_hospital
 
         elif closure_name == 'full':
             # XXX this only works for betas of shape (M, 1); untested for others
@@ -327,7 +358,8 @@ class MasterEquationModelEnsemble:
             self,
             time_window,
             min_steps=1,
-            closure_name='independent'):
+            closure_name='independent',
+            closure_flag=True):
         """
         Simulate master equations for the whole ensemble forward in time
 
@@ -336,15 +368,18 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
+            closure_flag (bool): whether to evaluate closure during this
+                                 simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
         stop_time = self.start_time + time_window
         maxdt = abs(time_window) / min_steps
 
-        timer_eval_closure = timer()
-        self.eval_closure(closure_name)
-        self.walltime_eval_closure += timer() - timer_eval_closure
+        if closure_flag:
+            timer_eval_closure = timer()
+            self.eval_closure(closure_name)
+            self.walltime_eval_closure += timer() - timer_eval_closure
 
         if self.parallel_cpu:
             futures = []
@@ -376,7 +411,9 @@ class MasterEquationModelEnsemble:
             self,
             time_window,
             min_steps=1,
-            closure_name='independent'):
+            closure_name='independent',
+            closure_flag=True):
+
         """
         Simulate master equations for the whole ensemble backward in time
 
@@ -385,6 +422,8 @@ class MasterEquationModelEnsemble:
             min_steps (int): minimum number of timesteps
             closure_name (str): which closure to use; only 'independent' and
                                 'full' are supported at this time
+            closure_flag (bool): whether to evaluate closure during this
+                                 simulation call
         Output:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
@@ -392,7 +431,8 @@ class MasterEquationModelEnsemble:
         
         return self.simulate(-positive_time_window,
                              min_steps,
-                             closure_name)
+                             closure_name,
+                             closure_flag)
 
     def reset_walltimes(self):
         """

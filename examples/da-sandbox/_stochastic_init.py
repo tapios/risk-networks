@@ -1,7 +1,6 @@
 from epiforecast.populations import TransitionRates
 from epiforecast.health_service import HealthService
 from epiforecast.epidemic_simulator import EpidemicSimulator
-from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.scenarios import random_epidemic
 
 from _constants import (latent_periods,
@@ -66,9 +65,6 @@ kinetic_ic = random_epidemic(population,
                              fraction_infected=0.01,
                              seed=SEED_STOCHASTIC_INIT_3)
 epidemic_simulator.set_statuses(kinetic_ic)
-
-# epidemic storage #############################################################
-epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 
 ################################################################################
 print_end_of(__name__)

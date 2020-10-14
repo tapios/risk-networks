@@ -7,7 +7,7 @@ class EnsembleTimeSeries:
 
     An easy way to think about this, is a 3-tensor with:
         - 0th dimension equal to n_ensemble (size of the ensemble)
-        - 1st dimension equal to n_array (dimension of the stored quantity)
+        - 1st dimension equal to n_vector (dimension of the stored quantity)
         - 2nd dimension equal to n_steps (total number of time steps)
 
     Once created, the timeseries cannot be changed in size (in any dimension).
@@ -16,21 +16,28 @@ class EnsembleTimeSeries:
     def __init__(
             self,
             n_ensemble,
-            n_array,
-            n_steps):
+            n_vector,
+            n_steps,
+            n_roll_at_once=1):
         """
         Constructor
 
         Input:
             n_ensemble (int): ensemble size
-            n_array (int): dimension of the vector to store
-            n_steps (int): total number of time steps
+            n_vector (int): dimension of the vector to store
+            n_steps (int): number of time steps to store
+            n_roll_at_once (int): discard this many timesteps from the start and
+                                  shift along the 2nd dimension, creating space
+                                  for new snapshots
         """
+        assert n_steps > n_roll_at_once
+
         self.n_ensemble = n_ensemble
-        self.n_array    = n_array
+        self.n_vector   = n_vector
         self.n_steps    = n_steps
 
-        self.container = np.empty( (n_ensemble, n_array, n_steps) )
+        self.container = np.empty( (n_ensemble, n_vector, n_steps) )
+        self.n_roll_at_once = n_roll_at_once
         self.end = 0 # points to the past-the-end element
 
     def __getitem__(
@@ -51,7 +58,7 @@ class EnsembleTimeSeries:
             timestep (int): timestep of a snapshot to return
 
         Output:
-            snapshot (np.array): (n_ensemble, n_array) array of values
+            snapshot (np.array): (n_ensemble, n_vector) array of values
         """
         if timestep >= self.end:
             raise ValueError(
@@ -72,7 +79,7 @@ class EnsembleTimeSeries:
             timestep (int): timestep of a snapshot to return
 
         Output:
-            snapshot_mean (np.array): (n_array,) array of ensemble means
+            snapshot_mean (np.array): (n_vector,) array of ensemble means
         """
         snapshot = self.get_snapshot(timestep)
         return snapshot.mean(axis=0)
@@ -82,7 +89,7 @@ class EnsembleTimeSeries:
         Get the ensemble mean of the whole timeseries
 
         Output:
-            timeseries_mean (np.array): (n_array, n_steps) array of ensemble
+            timeseries_mean (np.array): (n_vector, n_steps) array of ensemble
                                         means
         """
         if self.end < self.n_steps:
@@ -99,22 +106,21 @@ class EnsembleTimeSeries:
             self,
             snapshot):
         """
-        Push back an element of time series
+        Push an element to the back of time series
+
+        If the container is full, shift the data along the 2nd dimension to
+        discard the first `self.n_roll_at_once` elements.
 
         Input:
-            snapshot (np.array): (n_ensemble, n_array) array of values
+            snapshot (np.array): (n_ensemble, n_vector) array of values
 
         Output:
             None
         """
+        # if we are at capacity, lose the first entry
         if self.end >= self.n_steps:
-            raise ValueError(
-                    self.__class__.__name__
-                    + ": the container is full, cannot push_back"
-                    + "; end: "
-                    + str(self.end)
-                    + "; n_steps: "
-                    + str(self.n_steps))
+            self.container = np.roll(self.container, -self.n_roll_at_once, axis=2)
+            self.end -= self.n_roll_at_once
 
         self.container[:,:,self.end] = snapshot
         self.end += 1

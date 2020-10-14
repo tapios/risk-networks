@@ -3,9 +3,9 @@
 #SBATCH --time=120:00:00                 # walltime
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=386G
-#SBATCH -J "Intervention_scenario"
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=48G
+#SBATCH -J "1e3test"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
@@ -26,38 +26,17 @@ bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 8)) #MB -> bytes
 echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory available"
 # parameters & constants #######################################################
 
-# network  + sensor wearers
-
-#EXP_NAME="NYC_1e3"
-#network_size=1e3
-#wearers=245
-#batches_sensors=5
-#batches_records=4
-#budget=491
-#batches_tests=1
-#tested=0
-
-EXP_NAME="noDA_NYC_1e4"
-network_size=1e4
-wearers=2451
-batches_sensors=5
-batches_records=40
-budget=491
-batches_tests=1
-tested=0
-
-# EXP_NAME="noDA_NYC_1e5"
-# network_size=1e5
-# wearers=0
-# batches_sensors=1
-# batches_records=400
-# budget=25000
-# batches_tests=50
-# tested=0
-
-
+# network 
+EXP_NAME="NYC_1e3_test_newtol" 
+network_size=1e3
 # user base
 user_fraction=1.0
+
+#sensors
+wearers=245
+batches_sensors=1
+batches_records=4 #195884 nodes
+
 
 # testing: virus tests
 I_min_threshold=0.0
@@ -65,19 +44,21 @@ I_max_threshold=1.0
 
 # intervention
 int_freq='single'
+intervention_start_time=18
 
 # other
 update_test="local"
 
 # Experimental series parameters ###############################################
-# intervention start time experiment
-intervention_start_times=18
-start_time=${intervention_start_times[${SLURM_ARRAY_TASK_ID}]}
-
+#1% 5% 25% of 97942
+test_budgets=(10)  
+budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
+batches_tests=(1) #so no batch > 1000 nodes
+batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
 OUTPUT_DIR="output"
-output_path="${OUTPUT_DIR}/${EXP_NAME}_${start_time}"
+output_path="${OUTPUT_DIR}/${EXP_NAME}_${budget}"
 stdout="${output_path}/stdout"
 stderr="${output_path}/stderr"
 
@@ -88,7 +69,6 @@ mkdir -p "${output_path}"
 python3 joint_epidemic_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
-  --observations-I-fraction-tested=${tested} \
   --observations-I-budget=${budget} \
   --observations-I-min-threshold=${I_min_threshold} \
   --observations-I-max-threshold=${I_max_threshold} \
@@ -101,7 +81,7 @@ python3 joint_epidemic_assimilation.py \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
-  --intervention-start-time=${start_time} \
+  --intervention-start-time=${intervention_start_time} \
   --assimilation-update-test=${update_test} \
   >${stdout} 2>${stderr}
 

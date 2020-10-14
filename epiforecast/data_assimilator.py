@@ -1,7 +1,6 @@
 import numpy as np
 import copy
 
-
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
 class DataAssimilator:
@@ -22,7 +21,8 @@ class DataAssimilator:
             transition_rates_min=None,
             transition_rates_max=None,
             transmission_rate_min=None,
-            transmission_rate_max=None):
+            transmission_rate_max=None,
+            output_path=None):
         """
         Constructor
 
@@ -86,11 +86,13 @@ class DataAssimilator:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
                     observation_svd_regularized=False,
-                    joint_cov_noise=joint_cov_noise)
+                    joint_cov_noise=joint_cov_noise,
+                    output_path=output_path)
         else:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                     prior_svd_reduced=True,
-                    joint_cov_noise=joint_cov_noise)
+                    joint_cov_noise=joint_cov_noise,
+                    output_path=output_path)
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
@@ -145,7 +147,7 @@ class DataAssimilator:
                               len(observation.obs_states))
 
             n_user_nodes = user_network.get_node_count()
-            observed_states = np.unique(observed_states_list)
+            observed_states = np.array(observed_states_list)
             observed_nodes  = np.unique(observed_states % n_user_nodes)
 
             self.stored_observed_states[current_time] = observed_states
@@ -160,7 +162,8 @@ class DataAssimilator:
             data,
             current_time,
             scale=None,
-            noisy_measurement=True):
+            noisy_measurement=True,
+            verbose=False):
 
         if current_time in self.stored_observed_means:
             observed_means = self.stored_observed_means[current_time]
@@ -179,11 +182,21 @@ class DataAssimilator:
 
                     observed_means.extend(observation.mean)
                     observed_variances.extend(observation.variance)
-
+                    
+                    if verbose:
+                        print("[ Data assimilator ]",
+                              observation.name,
+                              ":",
+                              observation.mean[0],
+                              ", ",
+                              observation.variance[0])
+                        
             observed_means = np.array(observed_means)
             observed_variances = np.array(observed_variances)
             self.stored_observed_means[current_time] = observed_means
             self.stored_observed_variances[current_time] = observed_variances
+
+
             return observed_means, observed_variances
 
     def find_and_store_observations(
@@ -195,16 +208,18 @@ class DataAssimilator:
             scale=None,
             noisy_measurement=True,
             verbose=False):
+
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,
                                      current_time,
-                                     verbose)
+                                     verbose=verbose)
 
         self.observe(user_network,
                      ensemble_state,
                      data,
-                     current_time)
+                     current_time,
+                     verbose=verbose)
 
     def compute_update_indices(
             self,
@@ -369,13 +384,13 @@ class DataAssimilator:
                 # Load the truth, variances of the observation(s)
                 truth = self.stored_observed_means[current_time]
                 var = self.stored_observed_variances[current_time]
-                cov = np.diag(var)
-
                 # Perform DA model update with ensemble_state: states, transition and transmission rates
                 prev_ensemble_state = copy.deepcopy(ensemble_state)
 
                 n_user_nodes = user_network.get_node_count()
                 if self.n_assimilation_batches == 1:
+                    cov = np.diag(var)
+
                     update_states = self.compute_update_indices(
                             user_network,
                             obs_states,
@@ -402,7 +417,7 @@ class DataAssimilator:
                                                                  self.transmission_rate_max)
 
                         # Weighted-averaging based on ratio of observed nodes 
-                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
                                 new_ensemble_transmission_rate,
                                 ensemble_transmission_rate,
                                 n_user_nodes,
@@ -427,7 +442,7 @@ class DataAssimilator:
 
                     for batch in batches:
                         batch.sort()
-                        cov_batch = np.diag(np.diag(cov)[batch])
+                        cov_batch = np.diag(var[batch])
                         if self.update_type == 'local':
                             update_states = obs_states[batch]
                             H_obs = np.eye(batch.size)
@@ -460,7 +475,7 @@ class DataAssimilator:
                                                                      self.transmission_rate_max)
 
                             # Weighted-averaging based on ratio of observed nodes 
-                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate( \
+                            new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
                                     new_ensemble_transmission_rate,
                                     ensemble_transmission_rate,
                                     n_user_nodes,
@@ -472,9 +487,23 @@ class DataAssimilator:
                 if len(self.transition_rates_to_update_str) > 0:
                     new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                                obs_nodes.size)
+                if verbose:
+                    print("[ Data assimilator ] positive states to update: ",
+                           obs_states[truth>0.02])
 
-                self.sum_to_one(prev_ensemble_state, ensemble_state)
+                    print("[ Data assimilator ] positive states pre-assimilation: ",
+                          prev_ensemble_state[0, obs_states[truth>0.02]])
 
+                    print("[ Data assimilator ] positive states post-assimilation: ",
+                          ensemble_state[0, obs_states[truth>0.02]])
+
+                self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
+                
+                if verbose:
+                    print("[ Data assimilator ] positive states post sum_to_one: ",
+                          ensemble_state[0, obs_states[truth>0.02]])
+
+                                
                 # set the updated rates in the TransitionRates object and
                 # return the full rates.
                 (full_ensemble_transition_rates,
@@ -537,47 +566,63 @@ class DataAssimilator:
     def sum_to_one(
             self,
             prev_ensemble_state,
-            ensemble_state):
-
-        N = self.observations[0].N
-
+            ensemble_state,
+            obs_states):
+        
+        user_population = int(ensemble_state.shape[1]/5)
 
         # First obtain the mass contained in category "E"
-        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, N)
+        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, user_population)
         Emass = 1.0 - np.sum(prev_tmp,axis=1) # E= 1 - (S + I + H + R + D)
         Emass = np.clip(Emass,0,1)
         # for each observation we get the observed status e.g 'I' and fix it
         # (as # it was updated); we then normalize the other states e.g
         # (S,'E',H,R,D) over the difference 1-I
-        for observation in self.observations:
-            if not observation.obs_states.size > 0:
+        #only look at H and D here
+        for obs_status_idx in [2,4]:
+            obs_at_status = [k for k in obs_states if (k >= user_population *  obs_status_idx     and 
+                                                       k <  user_population * (obs_status_idx + 1)  )]
+            if not len(obs_at_status)>0:
                 continue
 
-            observed_nodes = np.remainder(observation.obs_states,N)
-            updated_status = observation.obs_status_idx
-
+            observed_nodes = np.remainder(obs_at_status, user_population)
+            updated_status = obs_status_idx        
             free_statuses = [ i for i in range(5) if i!= updated_status]
-            tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, N)
+            tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, user_population)
 
             # create arrays of the mass in the observed and the unobserved
             # "free" statuses at the observed nodes.
             observed_tmp = tmp[:,:,observed_nodes]
             updated_mass = observed_tmp[:, updated_status, :]
+
             free_states  = observed_tmp
 
             # remove this axis for the sum (but maintain the shape)
             free_states[:, updated_status, :] = np.zeros(
-                    [free_states.shape[0], 1, free_states.shape[2]])
-
+                    [free_states.shape[0], free_states.shape[2]]) # X,1,X
+            
             free_mass = np.sum(free_states,axis=1) + Emass[:,observed_nodes]
+            
+            masstol=1e-9
+            # odd things can happen with perfect assimilators, so we include checks here
+            # If an assimilator has D/H value 1, then the other does not assimilate the other H/D (=0),
+            # Note we never get the case where both have value 1 
+            if updated_status == 2: #H
+                Dpositive = (free_states[:,4,:] > 0.99)
+                no_update_weight = np.any([Dpositive, (free_mass<=masstol)],axis=0)
+            elif updated_status == 4: #D
+                Hpositive = (free_states[:,2,:] > 0.99)
+                no_update_weight = np.any([Hpositive, (free_mass<=masstol)],axis=0)
+            else:
+                no_update_weight = np.any((free_mass <= masstol),axis=0)
 
             for i in free_statuses:
-                #no_update_weight = (free_mass < 0.001)
-                no_update_weight = (free_mass == 0)
-                new_ensemble_state = (1.0 - updated_mass[:,0,:])\
-                                   * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
-                ensemble_state[:, i*N+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*N+observed_nodes]\
+                new_ensemble_state = (1.0 - updated_mass)\
+                                     * (free_states[:, i, :] / np.maximum(1e-9,free_mass))
+                ensemble_state[:, i*user_population+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*user_population+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
+                            
+               
 
     def extract_model_parameters_to_update(
             self,

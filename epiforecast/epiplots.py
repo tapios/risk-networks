@@ -66,9 +66,11 @@ def plot_master_eqns(
 
     return axes
 
+#works in joint epidemic assimilation
 def plot_ensemble_states(
+        user_population,
         population,
-        states,
+        states_sum,
         t,
         axes=None,
         xlims=None,
@@ -80,13 +82,12 @@ def plot_ensemble_states(
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize = figsize)
 
-    ensemble_size = states.shape[0]
+    ensemble_size = states_sum.shape[0]
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
-    user_population = int(states.shape[1]/N_eqns)
-
-    states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
+    #user_population = int(states.shape[1]/N_eqns)
+    #states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
     states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
 
     for status in statuses:
@@ -108,7 +109,7 @@ def plot_ensemble_states(
             axes[2].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
             axes[2].plot(t, states_perc[3,status], color = statuses_colors[status])
 
-    residual_state = user_population/population - states_sum.sum(axis = 1)
+    residual_state = 1.0 - states_sum.sum(axis = 1)
     residual_state = np.percentile(residual_state, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
     axes[0].fill_between(t, np.clip(residual_state[0], a_min, a_max), np.clip(residual_state[-1], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
     axes[0].fill_between(t, np.clip(residual_state[1], a_min, a_max), np.clip(residual_state[-2], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
@@ -316,7 +317,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
         color='b',
         a_min=None,
         a_max=None,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     rate_perc = np.percentile(transmission_rate_timeseries, 
             q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -328,7 +329,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.xlabel('Time (days)')
     plt.ylabel('1/community_transmission_rate')
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_PATH,'transmission_rate.png'))
+    plt.savefig(os.path.join(output_path,'transmission_rate.png'))
     plt.close()
 
 def plot_clinical_parameters(transition_rates_timeseries,
@@ -337,7 +338,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         a_min=None,
         a_max=None,
         num_rates=6,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     rate_timeseries = transition_rates_timeseries
     rate_perc = np.percentile(rate_timeseries, 
@@ -358,7 +359,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+'.png'))
         plt.close()
 
 def plot_transition_rates(transition_rates_obj_timeseries,
@@ -367,7 +368,7 @@ def plot_transition_rates(transition_rates_obj_timeseries,
         a_min=None,
         a_max=None,
         num_rates=6,
-        OUTPUT_PATH='.'):
+        output_path='.'):
 
     num_time = len(transition_rates_obj_timeseries)
     num_ensemble = len(transition_rates_obj_timeseries[0])
@@ -400,7 +401,7 @@ def plot_transition_rates(transition_rates_obj_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_PATH,ylabel_list[k]+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+'.png'))
         plt.close()
 
 

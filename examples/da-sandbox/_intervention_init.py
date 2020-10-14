@@ -19,3 +19,34 @@ intervention_frequency = arguments.intervention_frequency
 intervention_nodes = arguments.intervention_nodes
 #intervention_type: 'social_distance' (default), 'isolate'
 intervention_type = arguments.intervention_type
+
+
+from _utilities import are_close, modulo_is_close_to_zero
+
+def query_intervention(
+        intervention_frequency,
+        current_time,
+        intervention_start_time,
+        static_contact_interval):
+    """
+    Function to query whether we should apply an intervention at a current time
+    based on the intervention frequency
+    """
+    if intervention_frequency == "none":
+        intervene_now = False
+    elif intervention_frequency == "single":
+        intervene_now = are_close(current_time,intervention_start_time)
+    elif intervention_frequency == "interval":
+        if current_time > intervention_start_time - 0.1*static_contact_interval:
+            intervene_now = modulo_is_close_to_zero(current_time,
+                                                    intervention_interval,
+                                                    eps=static_contact_interval)
+        else:
+            intervene_now = False
+    else:
+        raise ValueError("unknown 'intervention_frequency'; " +
+                         "choose from 'none' (default), 'single' or 'interval'")
+
+    return intervene_now
+
+

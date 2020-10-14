@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse.linalg as spla
@@ -11,7 +12,8 @@ class EnsembleAdjustmentKalmanFilter:
             prior_svd_reduced = True,
             observation_svd_regularized = True,
             observation_svd_reduced = False,
-            joint_cov_noise = 1e-2):
+            joint_cov_noise = 1e-2,
+            output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
 
@@ -41,7 +43,8 @@ class EnsembleAdjustmentKalmanFilter:
         self.observation_svd_reduced = observation_svd_reduced
         self.observation_svd_regularized = observation_svd_regularized
         self.joint_cov_noise = joint_cov_noise
-     
+        self.output_path = output_path
+
         # Compute error
     def compute_error(
             self,
@@ -95,6 +98,8 @@ class EnsembleAdjustmentKalmanFilter:
         assert (cov.ndim == 2), 'EAKF init: covariance must be 2d array'
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
+
+        output_path = self.output_path
 
         # Observation data statistics at the observed nodes
         x_t = truth
@@ -165,9 +170,27 @@ class EnsembleAdjustmentKalmanFilter:
 
         else:
 
+            svd_failed = False
+            num_svd_attempts = 0
             # if ensemble_size < observations size, we pad the singular value matrix with added noise
             if zp.shape[0] < zp.shape[1]:    
-                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                try:
+                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                except:
+                    print("First SVD not converge!")
+                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
+                            (zp-zp_bar).T)
+                    svd_failed = True
+                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed = False
+                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    except:
+                        svd_failed = True 
+                        print("First SVD not converge!")
                 F = F_full[:,:J-1]
                 rtDp_vec = rtDp_vec[:-1]
                 rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
@@ -177,7 +200,23 @@ class EnsembleAdjustmentKalmanFilter:
                 Dp = np.diag(Dp_vec_full)
             
             else:   
-                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                try:
+                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                except:
+                    print("First SVD not converge!")
+                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
+                            (zp-zp_bar).T)
+                    svd_failed = True
+                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed = False
+                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+                    except:
+                        svd_failed = True 
+                        print("First SVD not converge!")
                 F = F_full
                 rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
                 Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
@@ -197,8 +236,29 @@ class EnsembleAdjustmentKalmanFilter:
                 # This indent creates U and D_vec
                
                 # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
-                U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                svd_failed = False
+                num_svd_attempts = 0
+                try:
+                    U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
                                        full_matrices=True)
+                except:
+                    print("Second SVD not converge!")
+                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
+                            np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
+                            np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
+                    U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                       full_matrices=True)
+                    svd_failed = True
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed = False
+                        U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                           full_matrices=True)
+                    except:
+                        svd_failed = True 
+                        print("Second SVD not converge!")
                 D_vec = np.zeros(F_full.shape[0])
                 D_vec[:cov_inv.shape[0]] = rtD_vec**2
             else:         
@@ -210,10 +270,28 @@ class EnsembleAdjustmentKalmanFilter:
 
                 #if cov_inv is small then no truncation required
                 if trunc_size == cov_inv.shape[0]:
+                    svd_failed = False
+                    num_svd_attempts = 0
                     # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
-
-                    U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                    try:
+                        U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
                                            full_matrices=True)
+                    except:
+                        print("Second SVD not converge!")
+                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
+                                np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
+                                    np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
+                        svd_failed = True
+                    while svd_failed == True:
+                        num_svd_attempts = num_svd_attempts+1
+                        np.random.seed(num_svd_attempts*100)
+                        try:
+                            svd_failed = False
+                            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                               full_matrices=True)
+                        except:
+                            svd_failed = True 
+                            print("Second SVD not converge!")
                     D_vec = rtD_vec**2
                               
                 else:
@@ -221,12 +299,33 @@ class EnsembleAdjustmentKalmanFilter:
                     # we pad from trunc_size -> size obs, and pad from size_obs to joint space size
 
                     # calculating np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
-                    Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
-                                                   k=trunc_size,
-                                                   return_singular_vectors='u')
+                    svd_failed = False
+                    num_svd_attempts = 0
+                    try:
+                        Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
+                                                       k=trunc_size,
+                                                       return_singular_vectors='u')
+                        Unull = la.null_space(Urect.T)
+                    except:
+                        print("Second SVD not converge!")
+                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
+                                np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
+                                np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
+                        svd_failed = True
+                    while svd_failed == True:
+                        num_svd_attempts = num_svd_attempts+1
+                        np.random.seed(num_svd_attempts*100)
+                        try:
+                            svd_failed = False
+                            Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
+                                                           k=trunc_size,
+                                                           return_singular_vectors='u')
+                            Unull = la.null_space(Urect.T)
+                        except:
+                            svd_failed = True 
+                            print("Second SVD not converge!")
 
                     # to get the full space, U, we pad it with a basis of the null space 
-                    Unull = la.null_space(Urect.T)
                     U=np.hstack([Urect,Unull])
                       
                     # pad square rtD_vec and pad  with its smallest value, then with zeros
@@ -248,7 +347,24 @@ class EnsembleAdjustmentKalmanFilter:
             Dp_vec = rtDp_vec**2 + self.joint_cov_noise 
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
-            U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            svd_failed = False
+            num_svd_attempts = 0
+            try:
+                U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+            except:
+                print("Second SVD not converge!")
+                np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
+                        np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+                svd_failed = True
+            while svd_failed == True:
+                num_svd_attempts = num_svd_attempts+1
+                np.random.seed(num_svd_attempts*100)
+                try:
+                    svd_failed = False
+                    U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+                except:
+                    svd_failed = True 
+                    print("Second SVD not converge!")
             # Padding the diagonal of matrix B with zeros
             if D_vec.shape[0] < Dp_vec.shape[0]:
                 D_vec = np.hstack([D_vec,np.zeros(Dp_vec.shape[0]-D_vec.shape[0])])
@@ -266,9 +382,27 @@ class EnsembleAdjustmentKalmanFilter:
                                           G_inv, B, U.T, G, F.T])
 
             if zp.shape[0] < zp.shape[1]:
-                F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
-
-                F_u_null = la.null_space(F_u.T)
+                svd_failed = False
+                num_svd_attempts = 0
+                try:
+                    F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
+                    F_u_null = la.null_space(F_u.T)
+                except:
+                    print("Second SVD not converge!")
+                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
+                            Sigma_u)
+                    svd_failed = True 
+                while svd_failed == True:
+                    num_svd_attempts = num_svd_attempts+1
+                    np.random.seed(num_svd_attempts*100)
+                    try:
+                        svd_failed = False
+                        F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
+                        F_u_null = la.null_space(F_u.T)
+                    except:
+                        svd_failed = True 
+                        print("Second SVD not converge!")
+                  
                 F_u_full = np.hstack([F_u_null, F_u])
 
                 Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
