@@ -36,8 +36,8 @@ parser.add_argument('--observations-sensor-wearers', type=int, default=0)
 
 # data assimilation ############################################################
 parser.add_argument('--assimilation-update-sensor', type=str, default='local')
-parser.add_argument('--assimilation-update-test',   type=str, default='global')
-parser.add_argument('--assimilation-update-record', type=str, default='local')
+parser.add_argument('--assimilation-update-test',   type=str, default='full_global')
+parser.add_argument('--assimilation-update-record', type=str, default='full_global')
 parser.add_argument('--assimilation-batches-sensor', type=int, default=1)
 parser.add_argument('--assimilation-batches-test', type=int, default=1)
 parser.add_argument('--assimilation-batches-record', type=int, default=1)

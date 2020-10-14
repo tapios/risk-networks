@@ -51,7 +51,8 @@ class DataAssimilator:
                     If not provided will set False.
 
             update_type (str): how to perform updates
-                    Three values are supported: 'global', 'local', 'neighbor'.
+                    Four values are supported: 'full_global', 'global', 'local',
+                    'neighbor'.
 
             full_svd (bool): whether to use full or reduced second SVD in EAKF
 
@@ -236,7 +237,11 @@ class DataAssimilator:
         Output:
             update_states (np.array): (k,) array of state indices
         """
-        if self.update_type == 'global':
+        if self.update_type == 'full_global':
+            n_user_nodes = user_network.get_node_count()
+            update_states = self.__compute_full_global_update_indices(
+                    n_user_nodes)
+        elif self.update_type == 'global':
             n_user_nodes = user_network.get_node_count()
             update_states = self.__compute_global_update_indices(
                     n_user_nodes,
@@ -250,6 +255,22 @@ class DataAssimilator:
             update_states = obs_states
 
         return update_states
+
+    def __compute_full_global_update_indices(
+            self,
+            n_user_nodes):
+        """
+        Compute state vector indices for DA update when performing full global update
+
+        This method returns state vector indices that correspond to the
+        'full_global' type of update, i.e. the whole state vector.
+
+        Input:
+            n_user_nodes (int): total number of nodes in user_network
+        Output:
+            update_states (np.array): (k,) array of state indices
+        """
+        return np.arange(5*n_user_nodes)
 
     def __compute_global_update_indices(
             self,
@@ -424,11 +445,11 @@ class DataAssimilator:
                                 obs_nodes.size)
 
                 else: # perform DA update in batches
-                    if self.update_type == 'global':
+                    if self.update_type in ('full_global', 'global'):
                         raise NotImplementedError(
                                 self.__class__.__name__
                                 + ": batching is not implemented yet for: "
-                                + "'global'")
+                                + "'full_global', 'global'")
 
                     permuted_idx = np.random.permutation(np.arange(obs_states.size))
                     batches = np.array_split(permuted_idx,
