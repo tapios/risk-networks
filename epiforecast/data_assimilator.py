@@ -514,19 +514,55 @@ class DataAssimilator:
                     new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                                obs_nodes.size)
                 if verbose:
+                    positive_states = obs_states[truth>0.02]
+                    user_population = user_network.get_node_count()
                     print("[ Data assimilator ] positive states with data to update: ",
-                           obs_states[truth>0.02])
+                           positive_states)
 
                     print("[ Data assimilator ] positive states with data pre-assimilation: ",
-                          prev_ensemble_state[0, obs_states[truth>0.02]])
+                          prev_ensemble_state[0, positive_states])
+
+
+                    print("[ Data assimilator ] pre-positive states 'S': ",
+                          prev_ensemble_state[0, np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] pre-positive states 'I': ",
+                          prev_ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] pre-positive states 'H':",
+                          prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] pre-positive states 'R':",
+                         prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] pre-positive states 'D':",
+                          prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] pre-positive states sum (1-E):",
+                          prev_ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
+                          prev_ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
+                          prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
+                          prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
+                          prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+
 
                     print("[ Data assimilator ] corresponding data mean/var with positive states: ",
                           truth[truth>0.02], ", ", var[truth>0.02])
 
-                    print("[ Data assimilator ] positive states with data post-assimilation: ",
-                          ensemble_state[0, obs_states[truth>0.02]])
+                    print("[ Data assimilator ] positive states 'S': ",
+                          ensemble_state[0, np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] positive states 'I': ",
+                          ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] positive states 'H':",
+                          ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] positive states 'R':",
+                          ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] positive states 'D':",
+                          ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                    print("[ Data assimilator ] positive states sum (1-E):",
+                          ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
+                          ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
+                          ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
+                          ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
+                          ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
                 
                 if self.update_type in ('local','neighbor','global'):
+                    positive_states = obs_states[truth>0.02]
                     if verbose:
                         print("[ Data assimilator ] performing sum_to_one")
 
@@ -534,8 +570,9 @@ class DataAssimilator:
                 
                     if verbose:
                         print("[ Data assimilator ] positive states post sum_to_one: ",
-                              ensemble_state[0, obs_states[truth>0.02]])
-
+                              ensemble_state[0, positive_states])
+                else:
+                    self.clip_susceptible(prev_ensemble_state, ensemble_state, update_states)
                                 
                 # set the updated rates in the TransitionRates object and
                 # return the full rates.
@@ -655,6 +692,32 @@ class DataAssimilator:
                 ensemble_state[:, i*user_population+observed_nodes] = (no_update_weight) *  ensemble_state[:, i*user_population+observed_nodes]\
                                                       + (1-no_update_weight) * new_ensemble_state
                             
+    def clip_susceptible(
+            self,
+            prev_ensemble_state,
+            ensemble_state,
+            update_states):
+        
+        user_population = int(ensemble_state.shape[1]/5)
+
+        # First obtain the mass contained in category "E" from previous step
+        prev_tmp = prev_ensemble_state.reshape(prev_ensemble_state.shape[0], 5, user_population)
+        prevEmass = 1.0 - np.sum(prev_tmp,axis=1) # Eold = 1 - (Sold + Iold + Hold + Rold + Dold)
+        prevEmass = np.clip(prevEmass,0,1)
+
+        update_nodes = np.remainder(update_states, user_population)
+        tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, user_population)
+
+        # create arrays of the mass in the observed and the unobserved
+        # "free" statuses at the observed nodes.
+        update_tmp = tmp[:,:,update_nodes]
+        nonS_states  = update_tmp[:,1:,:]
+
+        nonSmass = np.sum(nonS_states,axis=1) + prevEmass[:,update_nodes]
+        # set S = 1 - (Eold + I + H + R + D)
+        Smass = np.clip(1.0 - nonSmass, 0, 1)     
+
+        ensemble_state[:, update_nodes] = Smass
                
 
     def extract_model_parameters_to_update(
