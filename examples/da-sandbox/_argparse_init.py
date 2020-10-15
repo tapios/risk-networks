@@ -35,7 +35,7 @@ parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 parser.add_argument('--observations-sensor-wearers', type=int, default=0)
 
 # data assimilation ############################################################
-parser.add_argument('--assimilation-update-sensor', type=str, default='local')
+parser.add_argument('--assimilation-update-sensor', type=str, default='full_global')
 parser.add_argument('--assimilation-update-test',   type=str, default='full_global')
 parser.add_argument('--assimilation-update-record', type=str, default='full_global')
 parser.add_argument('--assimilation-batches-sensor', type=int, default=1)
