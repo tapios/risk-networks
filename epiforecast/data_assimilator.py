@@ -571,9 +571,10 @@ class DataAssimilator:
                     if verbose:
                         print("[ Data assimilator ] positive states post sum_to_one: ",
                               ensemble_state[0, positive_states])
-                else:
-                    self.clip_susceptible(prev_ensemble_state, ensemble_state, update_states)
-                                
+                #else:
+                #    self.clip_susceptible(prev_ensemble_state, ensemble_state, update_states)
+                
+                
                 # set the updated rates in the TransitionRates object and
                 # return the full rates.
                 (full_ensemble_transition_rates,
@@ -705,9 +706,8 @@ class DataAssimilator:
         prevEmass = 1.0 - np.sum(prev_tmp,axis=1) # Eold = 1 - (Sold + Iold + Hold + Rold + Dold)
         prevEmass = np.clip(prevEmass,0,1)
 
-        update_nodes = np.remainder(update_states, user_population)
         tmp = ensemble_state.reshape(ensemble_state.shape[0], 5, user_population)
-
+        update_nodes = np.remainder(update_states, user_population)
         # create arrays of the mass in the observed and the unobserved
         # "free" statuses at the observed nodes.
         update_tmp = tmp[:,:,update_nodes]
@@ -866,3 +866,269 @@ class DataAssimilator:
                                         + new_ensemble_transmission_rate*n_obs_nodes) \
                                         / n_user_nodes
         return new_ensemble_transmission_rate
+
+
+
+    def update_initial_from_series(
+            self,
+            full_ensemble_state_series,
+            full_ensemble_transition_rates_series,
+            full_ensemble_transmission_rate_series,
+            verbose=False,
+            print_error=False):
+        """
+        given a time-indexed series of ensemble states over some time window [a,b],
+        perform an EAKF update at the initial time (a) using the (stored) 
+        observations taken over the window [a,b]
+
+        Inputs
+        -----
+        full_ensemble_states_series (dict of np.arrays): holds {time : ensemble_states}
+        full_ensemble_transition_rates_series (dict of np.arrays): holds {time : ensemble_transition_rates}
+        full_ensemble_transmission_rate_series(dict of np.arrays): holds {time : ensemble_transmission_rate}
+        
+        Outputs
+        ------
+        full_ensemble_states_series - with earliest time entry updated
+        full_ensemble_transition_rates_series - updated from EAKF
+        full_ensemble_transmission_rate_series - updated from EAKF
+    
+        """
+
+        if len(self.observations) == 0: # no update is performed; return input
+            return ensemble_state_series, full_ensemble_transition_rates_series, full_ensemble_transmission_rate_series
+
+        #get the observation times from the assimilator
+        observation_window = [min(ensemble_state_series.keys()), max(ensemble_state_series.keys())]
+        observation_times = [obs_time for obs_time in self.stored_observated_states.keys() 
+                             if  observation_window[0] <= obs_time <=observation_window[1] ]
+        observation_times.sort()
+
+        print("[ Data assimilator ] Observation times: ", observation_times )
+            
+        if len(observation_times): # no update is performed; return input
+            if verbose:
+                print("[ Data assimilator ] No assimilation within window")
+            return ensemble_state_series, full_ensemble_transition_rates_series, full_ensemble_transmission_rate_series
+            
+            
+        # extract from full_ensemble_state_series
+        full_ensemble_state_at_obs = [full_ensemble_state_series[obs_time] for obs_time in observation_times]
+        full_ensemble_transition_rates_at_obs = [full_ensemble_transition_rates_series[obs_time] for obs_time in observation_times]
+        full_ensemble_transmission_rate_at_obs = [full_ensemble_transmission_rate_series[obs_time] for obs_time in observation_times]
+
+        # Load states to compare with data
+        obs_states = [ self.stored_observed_states[obs_time] for obs_time in observation_times]
+        obs_nodes = [ self.stored_observed_nodes[obs_time] for obs_time in observation_times]
+
+        if (sum([os.size for os in obs_states]) == 0):
+            if verbose:
+                print("[ Data assimilator ] No assimilation required")
+            return ensemble_state_series, full_ensemble_transition_rates_series, full_ensemble_transmission_rate_series
+
+
+        # extract only those rates which we wish to update with DA
+        (ensemble_transition_rates,
+         ensemble_transmission_rate
+        ) = self.extract_model_parameters_to_update(
+            full_ensemble_transition_rates,
+            full_ensemble_transmission_rate,
+            obs_nodes)
+        
+        if verbose:
+            print("[ Data assimilator ] Total states with assimilation data: ",
+                  obs_states.size)
+
+        # Load the truth, variances of the observation(s)
+        truth = self.stored_observed_means[current_time]
+        var = self.stored_observed_variances[current_time]
+        # Perform DA model update with ensemble_state: states, transition and transmission rates
+        prev_ensemble_state = copy.deepcopy(ensemble_state)
+        
+        n_user_nodes = user_network.get_node_count()
+        if self.n_assimilation_batches == 1:
+            cov = np.diag(var)
+
+            update_states = self.compute_update_indices(
+                user_network,
+                obs_states,
+                obs_nodes)
+            H_obs = self.generate_state_observation_operator(
+                obs_states,
+                update_states)
+            if verbose:
+                print("[ Data assimilator ] Total states to be assimilated: ",
+                      update_states.size)
+               
+
+            (ensemble_state[:, update_states],
+             new_ensemble_transition_rates,
+             new_ensemble_transmission_rate
+            ) = self.damethod.update(ensemble_state[:, update_states],
+                                     ensemble_transition_rates,
+                                     ensemble_transmission_rate,
+                                     truth,
+                                     cov,
+                                     H_obs,
+                                     print_error=print_error)
+
+            if self.transmission_rate_to_update_flag:
+                # Clip transmission rate into a reasonable range
+                new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
+                                                         self.transmission_rate_min,
+                                                         self.transmission_rate_max)
+
+                # Weighted-averaging based on ratio of observed nodes 
+                new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
+                    new_ensemble_transmission_rate,
+                    ensemble_transmission_rate,
+                    n_user_nodes,
+                    obs_nodes.size)
+
+            else: # perform DA update in batches
+                if self.update_type in ('full_global', 'global'):
+                    raise NotImplementedError(
+                        self.__class__.__name__
+                        + ": batching is not implemented yet for: "
+                        + "'full_global', 'global'")
+
+                permuted_idx = np.random.permutation(np.arange(obs_states.size))
+                batches = np.array_split(permuted_idx,
+                                         self.n_assimilation_batches)
+                
+                ensemble_size = ensemble_transition_rates.shape[0]
+                ensemble_transition_rates_reshaped = ensemble_transition_rates.reshape(
+                    ensemble_size,
+                    obs_nodes.shape[0],
+                    -1)
+
+                for batch in batches:
+                    batch.sort()
+                    cov_batch = np.diag(var[batch])
+                    if self.update_type == 'local':
+                        update_states = obs_states[batch]
+                        H_obs = np.eye(batch.size)
+                    elif self.update_type == 'neighbor':
+                        update_states = self.compute_update_indices(
+                            user_network,
+                            obs_states[batch],
+                            obs_nodes[batch])
+                        H_obs = self.generate_state_observation_operator(
+                            obs_states[batch], 
+                            update_states)
+
+                    (ensemble_state[:, update_states],
+                     new_ensemble_transition_rates_batch,
+                     new_ensemble_transmission_rate
+                    ) = self.damethod.update(ensemble_state[:, update_states],
+                                             ensemble_transition_rates_reshaped[:,batch,:].reshape(ensemble_size,-1),
+                                             ensemble_transmission_rate,
+                                             truth[batch],
+                                             cov_batch,
+                                             H_obs,
+                                             print_error=print_error)
+
+                    ensemble_transition_rates_reshaped[:,batch,:] = new_ensemble_transition_rates_batch.reshape(ensemble_size, batch.size, -1)
+                    
+                    if self.transmission_rate_to_update_flag:
+                        # Clip transmission rate into a reasonable range
+                        new_ensemble_transmission_rate = np.clip(
+                            new_ensemble_transmission_rate,
+                            self.transmission_rate_min,
+                            self.transmission_rate_max)
+
+                        # Weighted-averaging based on ratio of observed nodes 
+                        new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
+                            new_ensemble_transmission_rate,
+                            ensemble_transmission_rate,
+                            n_user_nodes,
+                            batch.size)
+
+                    new_ensemble_transition_rates = ensemble_transition_rates_reshaped.reshape(
+                        ensemble_size,-1)
+
+            if len(self.transition_rates_to_update_str) > 0:
+                new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
+                                                                           obs_nodes.size)
+            if verbose:
+                positive_states = obs_states[truth>0.02]
+                user_population = user_network.get_node_count()
+                print("[ Data assimilator ] positive states with data to update: ",
+                      positive_states)
+                
+                print("[ Data assimilator ] positive states with data pre-assimilation: ",
+                      prev_ensemble_state[0, positive_states])
+                
+                
+                print("[ Data assimilator ] pre-positive states 'S': ",
+                      prev_ensemble_state[0, np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] pre-positive states 'I': ",
+                      prev_ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] pre-positive states 'H':",
+                      prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] pre-positive states 'R':",
+                      prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] pre-positive states 'D':",
+                      prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] pre-positive states sum (1-E):",
+                      prev_ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
+                      prev_ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
+                      prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
+                      prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
+                      prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                
+                
+                print("[ Data assimilator ] corresponding data mean/var with positive states: ",
+                      truth[truth>0.02], ", ", var[truth>0.02])
+                
+                print("[ Data assimilator ] positive states 'S': ",
+                      ensemble_state[0, np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] positive states 'I': ",
+                      ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] positive states 'H':",
+                      ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] positive states 'R':",
+                      ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] positive states 'D':",
+                      ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                print("[ Data assimilator ] positive states sum (1-E):",
+                      ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
+                      ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
+                      ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
+                      ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
+                      ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
+                
+            if self.update_type in ('local','neighbor','global'):
+                positive_states = obs_states[truth>0.02]
+                if verbose:
+                    print("[ Data assimilator ] performing sum_to_one")
+                    
+                self.sum_to_one(prev_ensemble_state, ensemble_state, obs_states)
+                
+                if verbose:
+                    print("[ Data assimilator ] positive states post sum_to_one: ",
+                          ensemble_state[0, positive_states])
+            #else:
+            #    self.clip_susceptible(prev_ensemble_state, ensemble_state, update_states)
+                
+                
+            # set the updated rates in the TransitionRates object and
+            # return the full rates.
+            (full_ensemble_transition_rates,
+             full_ensemble_transmission_rate
+            ) = self.assign_updated_model_parameters(
+                new_ensemble_transition_rates,
+                new_ensemble_transmission_rate,
+                full_ensemble_transition_rates,
+                full_ensemble_transmission_rate,
+                obs_nodes)
+            
+            if print_error:
+                print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])
+
+        # Error to truth
+        if len(self.online_emodel)>0:
+            self.error_to_truth_state(ensemble_state,data)
+
+        # Return ensemble_state, transition rates, and transmission rate
+        return ensemble_state, full_ensemble_transition_rates, full_ensemble_transmission_rate
