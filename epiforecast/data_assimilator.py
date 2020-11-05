@@ -905,8 +905,6 @@ class DataAssimilator:
         observation_times.sort()
         n_observation_times = len(observation_times)
 
-        print("[ Data assimilator ] Observation times: ", observation_times )
-            
         if len(observation_times): # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
@@ -954,43 +952,42 @@ class DataAssimilator:
             # (2) the parameters (at the initial time as they are fixed in time)
             # (3) the observed states at all other observation times
             
-            # To implement this we create H_obs at each time
-            # The H_obs for initial time t_0 is `full_global`
-            # The H_obs for the later times t_i i>0 is `local`
-            # We then concatenate [H_{obs,t_0}, ... ,H_{obs,t_k}]
+            # To implement this we create H_obs, ensemble state at each time
+            # The H_obs for initial time t_0 is `local`, but we append the full state
+            # The H_obs for the later times t_i i>0 is just 1 for the size of observations, and we restrict the state to the observed nodes
+            # We then concatenate [H_{obs,t_0}, ... ,H_{obs,t_k}] and the ensemble_states
             
             ## TODO: Computationally it may be easier to apply H_obs now rather than 
             ##       passing all states at all times into EAKF.
             
             H_obs = []
+            ensemble_state=full_ensemble_state_at_obs[observation_times[0]]
+
             for obs_time in observation_times:
-                if obs_time == observation_times[0]:
-                    #initial time we want whole state
-                    update_type_tmp = self.update_type
-                    self.update_type = 'full global'
                 
-                update_states = self.compute_update_indices(
+                update_states_at_obs = self.compute_update_indices(
                     user_network,
                     self.stored_observed_states[obs_time],
                     self.stored_observed_nodes[obs_time])
-                H_obs_at_obs_time = self.generate_state_observation_operator(
-                    self.stored_observed_states[obs_time],
-                    update_states)
-
+                
                 if obs_time == observation_times[0]:
-                    #change back
-                    self.update_type = update_type_tmp
-                    
-                H_obs.extend(H_obs_at_obs_time)
-            
-            # H_obs is a list of length (5*n_user_nodes * n_observation_times)
+                    H_obs_at_obs_time = self.generate_state_observation_operator(
+                        self.stored_observed_states[obs_time],
+                        update_states_at_obs)
+                    H_obs.extend(H_obs_at_obs_time)
+                else:
+                    H_obs.extend(np.ones(update_states_at_obs.size))
+                    tmp_state = full_ensemble_state_at_obs[obs_time]
+                    ensemble_state = np.concatenate([ensemble_state,tmp_state[:,update_states_at_obs]],axis=1)
+                
+            # H_obs is a list of length (5*n_user_nodes + update_states_at_obs.size * n_observation_times)
             H_obs = np.array(H_obs)
             
             if verbose:
                 print("[ Data assimilator ] Total states to be assimilated: ",
                       update_states.size)
-            # concatenate all states at all times (see 'TODO')
-            ensemble_state = np.concatenate(full_ensemble_state_at_obs,axis=1)
+            
+            #ensemble_state = np.concatenate(full_ensemble_state_at_obs,axis=1)
 
             (ensemble_state,
              new_ensemble_transition_rates,
