@@ -936,9 +936,8 @@ class DataAssimilator:
             user_network.get_nodes())  
 
         # Load the truth, variances of the observation(s)
-        truth = [self.stored_observed_means[obs_time] for obs_time in observation_times]
-        var = [self.stored_observed_variances[obs_time] for obs_time in observation_times]
-
+        truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times])
+        var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[observation_times[0]])
         
@@ -952,16 +951,16 @@ class DataAssimilator:
             # (2) the parameters (at the initial time as they are fixed in time)
             # (3) the observed states at all other observation times
             
-            # To implement this we create H_obs, ensemble state at each time
-            # The H_obs for initial time t_0 is `local`, but we append the full state
-            # The H_obs for the later times t_i i>0 is just 1 for the size of observations, and we restrict the state to the observed nodes
-            # We then concatenate [H_{obs,t_0}, ... ,H_{obs,t_k}] and the ensemble_states
+            # To implement this we create 
+            # The ensemble state is all possible nodes to be updated
+            # The H_obs is the index of these which are actually observed,
             
-            ## TODO: Computationally it may be easier to apply H_obs now rather than 
-            ##       passing all states at all times into EAKF.
+            # for initial time: ensemble_state is full, but H_obs for initial time t_0 is `local`
+            # for subsequent time: ensemble_state is given by updated_states only, and H_obs is the identity
+            # then we concatenate all times together 
             
-            H_obs = []
             ensemble_state=full_ensemble_state_at_obs[observation_times[0]]
+            H_obs = []
 
             for obs_time in observation_times:
                 
@@ -970,7 +969,7 @@ class DataAssimilator:
                     self.stored_observed_states[obs_time],
                     self.stored_observed_nodes[obs_time])
                 
-                if obs_time == observation_times[0]:
+                if obs_time == observation_times[0]: #at the initial time
                     H_obs_at_obs_time = self.generate_state_observation_operator(
                         self.stored_observed_states[obs_time],
                         update_states_at_obs)
@@ -980,15 +979,11 @@ class DataAssimilator:
                     tmp_state = full_ensemble_state_at_obs[obs_time]
                     ensemble_state = np.concatenate([ensemble_state,tmp_state[:,update_states_at_obs]],axis=1)
                 
-            # H_obs is a list of length (5*n_user_nodes + update_states_at_obs.size * n_observation_times)
             H_obs = np.array(H_obs)
-            
-            if verbose:
-                print("[ Data assimilator ] Total states to be assimilated: ",
-                      update_states.size)
-            
-            #ensemble_state = np.concatenate(full_ensemble_state_at_obs,axis=1)
 
+            assert sum(H_obs) == truth.size
+
+            #perform the update
             (ensemble_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate
@@ -1021,54 +1016,6 @@ class DataAssimilator:
         if len(self.transition_rates_to_update_str) > 0:
             new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                            user_network.get_node_count())
-        if verbose:
-            positive_states = obs_states[truth>0.02]
-            user_population = user_network.get_node_count()
-            print("[ Data assimilator ] positive states with data to update: ",
-                  positive_states)
-            
-            print("[ Data assimilator ] positive states with data pre-assimilation: ",
-                  prev_ensemble_state[0, positive_states])
-            
-            
-            print("[ Data assimilator ] pre-positive states 'S': ",
-                  prev_ensemble_state[0, np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] pre-positive states 'I': ",
-                  prev_ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] pre-positive states 'H':",
-                  prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] pre-positive states 'R':",
-                  prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] pre-positive states 'D':",
-                  prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] pre-positive states sum (1-E):",
-                  prev_ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
-                  prev_ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
-                  prev_ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
-                  prev_ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
-                  prev_ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
-            
-            
-            print("[ Data assimilator ] corresponding data mean/var with positive states: ",
-                  truth[truth>0.02], ", ", var[truth>0.02])
-                
-            print("[ Data assimilator ] positive states 'S': ",
-                  ensemble_state[0, np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] positive states 'I': ",
-                  ensemble_state[0, user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] positive states 'H':",
-                  ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] positive states 'R':",
-                  ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] positive states 'D':",
-                  ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
-            print("[ Data assimilator ] positive states sum (1-E):",
-                  ensemble_state[0, 0 * user_population + np.remainder([positive_states],user_population)]+
-                  ensemble_state[0, 1 * user_population + np.remainder([positive_states],user_population)]+
-                  ensemble_state[0, 2 * user_population + np.remainder([positive_states],user_population)]+
-                  ensemble_state[0, 3 * user_population + np.remainder([positive_states],user_population)]+
-                  ensemble_state[0, 4 * user_population + np.remainder([positive_states],user_population)])
-            
         # if self.update_type in ('local','neighbor','global'):
         #     positive_states = obs_states[truth>0.02]
         #     if verbose:
