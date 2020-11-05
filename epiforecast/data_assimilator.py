@@ -884,23 +884,23 @@ class DataAssimilator:
         Inputs
         -----
         full_ensemble_states_series (dict of np.arrays): holds {time : ensemble_states}
-        full_ensemble_transition_rates_series (dict of np.arrays): holds {time : ensemble_transition_rates}
-        full_ensemble_transmission_rate_series(dict of np.arrays): holds {time : ensemble_transmission_rate}
+        full_ensemble_transition_rates (np.array): parameters for the ensemble [ens_size x params]
+        full_ensemble_transmission_rate (np.array): parameters for the ensemble [ens_size x params]
         
         Outputs
         ------
         full_ensemble_states_series - with earliest time entry updated from EAKF
-        full_ensemble_transition_rates_series - updated from EAKF
-        full_ensemble_transmission_rate_series - updated from EAKF
+        full_ensemble_transition_rates - updated from EAKF
+        full_ensemble_transmission_rate - updated from EAKF
     
         """
 
         if len(self.observations) == 0: # no update is performed; return input
-            return ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
         #get the observation times from the assimilator
-        observation_window = [min(ensemble_state_series.keys()), max(ensemble_state_series.keys())]
-        observation_times = [obs_time for obs_time in self.stored_observated_states.keys() 
+        observation_window = [min(full_ensemble_state_series.keys()), max(full_ensemble_state_series.keys())]
+        observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
         observation_times.sort()
         n_observation_times = len(observation_times)
@@ -910,7 +910,7 @@ class DataAssimilator:
         if len(observation_times): # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
-            return ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
             
             
         # extract from full_ensemble_state_series
@@ -923,7 +923,7 @@ class DataAssimilator:
         if (sum([os.size for os in obs_states]) == 0):
             if verbose:
                 print("[ Data assimilator ] No assimilation required")
-            return ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
         if verbose:
             print("[ Data assimilator ] Total states over window with assimilation data: ",
@@ -1014,7 +1014,7 @@ class DataAssimilator:
                     new_ensemble_transmission_rate,
                     ensemble_transmission_rate,
                     n_user_nodes,
-                    user_network.get_nodes())) # changed from particular observed nodes
+                    user_network.get_nodes()) # changed from particular observed nodes
 
 
         else: # perform DA update in batches
