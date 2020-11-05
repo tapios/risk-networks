@@ -1,4 +1,4 @@
-B0;115;0cimport os, sys; sys.path.append(os.path.join('..', '..'))
+import os, sys; sys.path.append(os.path.join('..', '..'))
 
 from timeit import default_timer as timer
 import numpy as np
