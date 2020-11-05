@@ -195,8 +195,6 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_ne
 # storing ######################################################################
 #for the initial run we smooth over a window, store data by time-stamp.
 initial_ensemble_state_series_dict = {} 
-initial_transmission_rate_series_dict = {}
-initial_transition_rates_series_dict = {}
 
 master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
                                                    5,
@@ -354,8 +352,6 @@ for j in range(spin_up_steps):
                 current_time)
         if observe_sensor_now or observe_test_now or observe_record_now:
             initial_ensemble_state_series_dict[current_time] = ensemble_state 
-            initial_transmission_rate_series_dict[current_time] = community_transmission_rate_ensemble
-            initial_transition_rates_series_dict[current_time] = transition_rates_ensemble
 
 
     #plots on the fly
@@ -434,44 +430,50 @@ for k in range(n_initial_da_iterations):
     # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
     
     (initial_ensemble_state_series_dict, 
-     initial_transition_rates_series_dict,
-     initial_transmission_rate_series_dict
+     transition_rates_ensemble,
+     community_transmission_rate_ensemble
     ) = sensor_assimilator.update_initial_from_series(
         initial_ensemble_state_series_dict, 
-        initial_transition_rates_series_dict,
-        initial_transmission_rate_series_dict)
+        transition_rates_ensemble,
+        community_transmission_rate_ensemble)       
 
     (initial_ensemble_state_series_dict, 
-     initial_transition_rates_series_dict,
-     initial_transmission_rate_series_dict
+     transition_rates_ensemble,
+     community_transmission_rate_ensemble
     ) = viral_test_assimilator.update_initial_from_series(
         initial_ensemble_state_series_dict, 
-        initial_transition_rates_series_dict,
-        initial_transmission_rate_series_dict)
+        transition_rates_ensemble,
+        community_transmission_rate_ensemble)       
 
     (initial_ensemble_state_series_dict, 
-     initial_transition_rates_series_dict,
-     initial_transmission_rate_series_dict
+     transition_rates_ensemble,
+     community_transmission_rate_ensemble
     ) = record_assimilator.update_initial_from_series(
         initial_ensemble_state_series_dict, 
-        initial_transition_rates_series_dict,
-        initial_transmission_rate_series_dict)
+        transition_rates_ensemble,
+        community_transmission_rate_ensemble)       
 
     # run ensemble of master equations again over the da windowprediction loop again without data collection
     # by restarting from time of first assimilation data
     current_time = min(initial_ensemble_state_series_dict.keys())
+
+    # update with the new initial state and parameters 
+    master_eqn_ensemble.set_states_ensemble(initial_ensemble_state_series_dict[current_time])
+    master_eqn_ensemble.update_ensemble(
+        new_transition_rates=transition_rates_ensemble,
+        new_transmission_rate=community_transmission_rate_ensemble)
     
     for j in range(steps_per_da_window):
 
         update_closure_now = modulo_is_close_to_zero(current_time,
                                                      closure_update_interval,
-                                                    eps=static_contact_interval)
+                                                     eps=static_contact_interval)
         if update_closure_now:
             update_closure_flag=True
         else:
             update_closure_flag=False
 
-        # run the master equations again
+        # load the new network
         loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
 
@@ -480,36 +482,33 @@ for k in range(n_initial_da_iterations):
             user_network.get_edge_weights())
         timer_master_eqn = timer()
     
-
+        # simulate the master equations
         ensemble_state = master_eqn_ensemble.simulate(
             static_contact_interval,
             min_steps=n_forward_steps,
             closure_flag=update_closure_flag)
 
-        #move to new time
+        # move to new time
         current_time += static_contact_interval
-        current_time_span = [time for time in time_span if time < current_time+static_contact_interval]
         walltime_master_eqn += timer() - timer_master_eqn
         print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
         print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
 
         # overwrite the data.
         observe_sensor_now = modulo_is_close_to_zero(current_time,
-                                                   sensor_assimilation_interval,
-                                                   eps=static_contact_interval)
+                                                    sensor_assimilation_interval,
+                                                     eps=static_contact_interval)
 
         observe_test_now = modulo_is_close_to_zero(current_time,
                                                    test_assimilation_interval,
                                                    eps=static_contact_interval)
-
+        
         observe_record_now = modulo_is_close_to_zero(current_time,
-                                                    record_assimilation_interval,
-                                                    eps=static_contact_interval)
+                                                     record_assimilation_interval,
+                                                     eps=static_contact_interval)
 
         if observe_sensor_now or observe_test_now or observe_record_now:
             initial_ensemble_state_series_dict[current_time] = ensemble_state 
-            initial_transmission_rate_series_dict[current_time] = community_transmission_rate_ensemble
-            initial_transition_rates_series_dict[current_time] = transition_rates_ensemble
 
 
     
