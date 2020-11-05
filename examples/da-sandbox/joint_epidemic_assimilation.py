@@ -1,4 +1,4 @@
-import os, sys; sys.path.append(os.path.join('..', '..'))
+B0;115;0cimport os, sys; sys.path.append(os.path.join('..', '..'))
 
 from timeit import default_timer as timer
 import numpy as np
@@ -169,7 +169,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 da_window         = 5.0
 prediction_window = 1.0
 closure_update_interval = static_contact_interval # the frequency at which we update the closure
-save_to_file_interval = 2.0
+save_to_file_interval = 1.0
 record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 test_assimilation_interval  = 1.0 # same for I
 sensor_assimilation_interval  = 1.0 # same for I
@@ -177,11 +177,12 @@ sensor_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                    = 1
+n_initial_da_iterations      = 1 #forward passes
+n_sweeps                     = 1
 n_prediction_windows_spin_up = 8
-n_prediction_windows        = int(total_time/prediction_window)
-steps_per_da_window         = int(da_window/static_contact_interval)
-steps_per_prediction_window = int(prediction_window/static_contact_interval)
+n_prediction_windows         = int(total_time/prediction_window)
+steps_per_da_window          = int(da_window/static_contact_interval)
+steps_per_prediction_window  = int(prediction_window/static_contact_interval)
 
 assert n_prediction_windows_spin_up * prediction_window + prediction_window > da_window
 earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
@@ -189,7 +190,7 @@ assert n_prediction_windows > n_prediction_windows_spin_up
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
-max_networks = steps_per_da_window + steps_per_prediction_window 
+max_networks = steps_per_da_window + steps_per_prediction_window + int(1/static_contact_interval) 
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
@@ -350,6 +351,7 @@ for j in range(spin_up_steps):
                 loaded_data.end_statuses,
                 user_network,
                 current_time)
+
         if observe_sensor_now or observe_test_now or observe_record_now:
             initial_ensemble_state_series_dict[current_time] = ensemble_state 
 
@@ -421,96 +423,6 @@ print_info("Spin-up ended; elapsed:", timer() - timer_spin_up, end='\n\n')
 print_info("Spin-up ended: current time", current_time)
 
 # initial data assimilation sweeps ############################################
-
-#some params (to be moved later)
-n_initial_da_iterations = 1
-
-for k in range(n_initial_da_iterations):
-    
-    # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-    
-    (initial_ensemble_state_series_dict, 
-     transition_rates_ensemble,
-     community_transmission_rate_ensemble
-    ) = sensor_assimilator.update_initial_from_series(
-        initial_ensemble_state_series_dict, 
-        transition_rates_ensemble,
-        community_transmission_rate_ensemble)       
-
-    (initial_ensemble_state_series_dict, 
-     transition_rates_ensemble,
-     community_transmission_rate_ensemble
-    ) = viral_test_assimilator.update_initial_from_series(
-        initial_ensemble_state_series_dict, 
-        transition_rates_ensemble,
-        community_transmission_rate_ensemble)       
-
-    (initial_ensemble_state_series_dict, 
-     transition_rates_ensemble,
-     community_transmission_rate_ensemble
-    ) = record_assimilator.update_initial_from_series(
-        initial_ensemble_state_series_dict, 
-        transition_rates_ensemble,
-        community_transmission_rate_ensemble)       
-
-    # run ensemble of master equations again over the da windowprediction loop again without data collection
-    # by restarting from time of first assimilation data
-    current_time = min(initial_ensemble_state_series_dict.keys())
-
-    # update with the new initial state and parameters 
-    master_eqn_ensemble.set_states_ensemble(initial_ensemble_state_series_dict[current_time])
-    master_eqn_ensemble.update_ensemble(
-        new_transition_rates=transition_rates_ensemble,
-        new_transmission_rate=community_transmission_rate_ensemble)
-    
-    for j in range(steps_per_da_window):
-
-        update_closure_now = modulo_is_close_to_zero(current_time,
-                                                     closure_update_interval,
-                                                     eps=static_contact_interval)
-        if update_closure_now:
-            update_closure_flag=True
-        else:
-            update_closure_flag=False
-
-        # load the new network
-        loaded_data = epidemic_data_storage.get_network_from_start_time(
-            start_time=current_time)
-
-        user_network.update_from(loaded_data.contact_network)
-        master_eqn_ensemble.set_mean_contact_duration(
-            user_network.get_edge_weights())
-        timer_master_eqn = timer()
-    
-        # simulate the master equations
-        ensemble_state = master_eqn_ensemble.simulate(
-            static_contact_interval,
-            min_steps=n_forward_steps,
-            closure_flag=update_closure_flag)
-
-        # move to new time
-        current_time += static_contact_interval
-        walltime_master_eqn += timer() - timer_master_eqn
-        print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
-        print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
-
-        # overwrite the data.
-        observe_sensor_now = modulo_is_close_to_zero(current_time,
-                                                    sensor_assimilation_interval,
-                                                     eps=static_contact_interval)
-
-        observe_test_now = modulo_is_close_to_zero(current_time,
-                                                   test_assimilation_interval,
-                                                   eps=static_contact_interval)
-        
-        observe_record_now = modulo_is_close_to_zero(current_time,
-                                                     record_assimilation_interval,
-                                                     eps=static_contact_interval)
-
-        if observe_sensor_now or observe_test_now or observe_record_now:
-            initial_ensemble_state_series_dict[current_time] = ensemble_state 
-
-
     
 # main loop: backward/forward/data assimilation ################################
 # 3 stages per loop:
@@ -655,6 +567,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 loaded_data.end_statuses,
                 user_network,
                 current_time)
+        
+        if observe_sensor_now or observe_test_now or observe_record_now:
+            initial_ensemble_state_series_dict[current_time] = ensemble_state 
 
 
         #plots on the fly    
@@ -684,54 +599,144 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         dpi=150)
 
     print_info("Prediction ended: current time:", current_time)
+    
+    if k == n_prediction_windows_spin_up:
+        for step in range(n_initial_da_iterations):
+    
+            # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
+            (initial_ensemble_state_series_dict, 
+             transition_rates_ensemble,
+             community_transmission_rate_ensemble
+            ) = sensor_assimilator.update_initial_from_series(
+                initial_ensemble_state_series_dict, 
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble)       
+            
+            (initial_ensemble_state_series_dict, 
+             transition_rates_ensemble,
+             community_transmission_rate_ensemble
+            ) = viral_test_assimilator.update_initial_from_series(
+                initial_ensemble_state_series_dict, 
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble)       
+            
+            (initial_ensemble_state_series_dict, 
+             transition_rates_ensemble,
+             community_transmission_rate_ensemble
+            ) = record_assimilator.update_initial_from_series(
+                initial_ensemble_state_series_dict, 
+                transition_rates_ensemble,
+                community_transmission_rate_ensemble)       
+            
+            # run ensemble of master equations again over the da windowprediction loop again without data collection
+            # by restarting from time of first assimilation data
+            current_time = min(initial_ensemble_state_series_dict.keys())
+            
+            # update with the new initial state and parameters 
+            master_eqn_ensemble.set_states_ensemble(initial_ensemble_state_series_dict[current_time])
+            master_eqn_ensemble.update_ensemble(
+                new_transition_rates=transition_rates_ensemble,
+                new_transmission_rate=community_transmission_rate_ensemble)
+    
+            for j in range(steps_per_da_window):
 
-    for i_sweep in range(n_sweeps):
-        print_info("Start the DA sweep: {}/{}".format(i_sweep+1, n_sweeps))
-        ## 2) backward run with data assimilation
-        past_time = current_time # until end of the loop 'current_time' is const
-        master_eqn_ensemble.set_start_time(past_time)
+                update_closure_now = modulo_is_close_to_zero(current_time,
+                                                             closure_update_interval,
+                                                             eps=static_contact_interval)
+                if update_closure_now:
+                    update_closure_flag=True
+                else:
+                    update_closure_flag=False
 
-        for j in range(steps_per_da_window):
+                # load the new network
+                loaded_data = epidemic_data_storage.get_network_from_start_time(
+                    start_time=current_time)
+                    
+                user_network.update_from(loaded_data.contact_network)
+                master_eqn_ensemble.set_mean_contact_duration(
+                    user_network.get_edge_weights())
+                timer_master_eqn = timer()
+                    
+                # simulate the master equations
+                ensemble_state = master_eqn_ensemble.simulate(
+                    static_contact_interval,
+                    min_steps=n_forward_steps,
+                    closure_flag=update_closure_flag)
+                
+                # move to new time
+                current_time += static_contact_interval
+                walltime_master_eqn += timer() - timer_master_eqn
+                print(current_time, j, steps_per_da_window-1)
+                print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
+                print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
+                
+                # overwrite the data.
+                observe_sensor_now = modulo_is_close_to_zero(current_time,
+                                                             sensor_assimilation_interval,
+                                                             eps=static_contact_interval)
+                
+                observe_test_now = modulo_is_close_to_zero(current_time,
+                                                           test_assimilation_interval,
+                                                           eps=static_contact_interval)
+                
+                observe_record_now = modulo_is_close_to_zero(current_time,
+                                                             record_assimilation_interval,
+                                                             eps=static_contact_interval)
+                
+                if observe_sensor_now or observe_test_now or observe_record_now:
+                    initial_ensemble_state_series_dict[current_time] = ensemble_state 
+            
+            print("completed initialization forward sweep iteration ", step, " of ", n_initial_da_iterations) 
+                    
+    else:
+        # Then begin the regular sweeps
+        for i_sweep in range(n_sweeps):
+            print_info("Start the DA sweep: {}/{}".format(i_sweep+1, n_sweeps))
+            ## 2) backward run with data assimilation
+            past_time = current_time # until end of the loop 'current_time' is const
+            master_eqn_ensemble.set_start_time(past_time)
+
+            for j in range(steps_per_da_window):
         
-            update_closure_now = modulo_is_close_to_zero(past_time,
-                                                         closure_update_interval,
-                                                         eps=static_contact_interval)
-            if update_closure_now:
-                update_closure_flag=True
-            else:
-                update_closure_flag=False
+                update_closure_now = modulo_is_close_to_zero(past_time,
+                                                             closure_update_interval,
+                                                             eps=static_contact_interval)
+                if update_closure_now:
+                    update_closure_flag=True
+                else:
+                    update_closure_flag=False
         
             
-            loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
+                loaded_data = epidemic_data_storage.get_network_from_end_time(end_time=past_time)
 
-            # data assimilation
-            assimilate_sensor_now = modulo_is_close_to_zero(past_time,
-                                                            sensor_assimilation_interval,
-                                                            eps=static_contact_interval)
-            
-            if assimilate_sensor_now:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = sensor_assimilator.update(
+                # data assimilation
+                assimilate_sensor_now = modulo_is_close_to_zero(past_time,
+                                                                 sensor_assimilation_interval,
+                                                                 eps=static_contact_interval)
+
+                if assimilate_sensor_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = sensor_assimilator.update(
                         ensemble_state,
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
                         community_transmission_rate_ensemble,
                         user_network,
                         past_time)
+                    
+                assimilate_test_now = modulo_is_close_to_zero(past_time,
+                                                              test_assimilation_interval,
+                                                              eps=static_contact_interval)
+                
+                delay_satisfied = past_time <= (current_time - test_result_delay)
 
-            assimilate_test_now = modulo_is_close_to_zero(past_time,
-                                                       test_assimilation_interval,
-                                                       eps=static_contact_interval)
-
-            delay_satisfied = past_time <= (current_time - test_result_delay)
-
-            if assimilate_test_now and delay_satisfied:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = viral_test_assimilator.update(
+                if assimilate_test_now and delay_satisfied:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = viral_test_assimilator.update(
                         ensemble_state,
                         loaded_data.end_statuses,
                         transition_rates_ensemble,
@@ -740,246 +745,246 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         past_time)
                     
 
-            assimilate_record_now = modulo_is_close_to_zero(past_time,
-                                                            record_assimilation_interval,
-                                                            eps=static_contact_interval)
-            if assimilate_record_now:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = record_assimilator.update(
-                    ensemble_state,
-                    loaded_data.end_statuses,
-                    transition_rates_ensemble,
-                    community_transmission_rate_ensemble,
-                    user_network,
-                    past_time)
+                assimilate_record_now = modulo_is_close_to_zero(past_time,
+                                                                record_assimilation_interval,
+                                                                eps=static_contact_interval)
+                if assimilate_record_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = record_assimilator.update(
+                        ensemble_state,
+                        loaded_data.end_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        user_network,
+                        past_time)
+                    
 
+                # update ensemble after data assimilation
+                if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
+                    master_eqn_ensemble.set_states_ensemble(ensemble_state)
+                    master_eqn_ensemble.update_ensemble(
+                        new_transition_rates=transition_rates_ensemble,
+                        new_transmission_rate=community_transmission_rate_ensemble)
+                    
+                # run ensemble backwards
+                user_network.update_from(loaded_data.contact_network)
+                master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
-            # update ensemble after data assimilation
-            if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
-                master_eqn_ensemble.set_states_ensemble(ensemble_state)
-                master_eqn_ensemble.update_ensemble(
+                timer_master_eqn = timer()
+                ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
+                                                                        min_steps=n_backward_steps,
+                                                                        closure_flag=update_closure_flag)
+                    
+                walltime_master_eqn += timer() - timer_master_eqn
+                
+                past_time -= static_contact_interval
+
+                # furthest-in-the-past assimilation (at the peak of the sweep)
+                assimilate_sensor_now = modulo_is_close_to_zero(past_time,
+                                                                sensor_assimilation_interval,
+                                                                eps=static_contact_interval)
+                    
+                if assimilate_sensor_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = sensor_assimilator.update(
+                     ensemble_state,
+                     loaded_data.end_statuses,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble,
+                     user_network,
+                     past_time)
+                        
+                assimilate_test_now = modulo_is_close_to_zero(past_time,
+                                                              test_assimilation_interval,
+                                                              eps=static_contact_interval)
+                delay_satisfied = past_time <= (current_time - test_result_delay)
+
+                if assimilate_test_now and delay_satisfied:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = viral_test_assimilator.update(
+                        ensemble_state,
+                        loaded_data.start_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        user_network,
+                        past_time)
+                    
+                assimilate_record_now = modulo_is_close_to_zero(past_time,
+                                                                record_assimilation_interval,
+                                                                eps=static_contact_interval)
+                if assimilate_record_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                    ) = record_assimilator.update(
+                        ensemble_state,
+                        loaded_data.start_statuses,
+                        transition_rates_ensemble,
+                        community_transmission_rate_ensemble,
+                        user_network,
+                        past_time)
+                    
+
+                # update ensemble after data assimilation
+                if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
+                    master_eqn_ensemble.set_states_ensemble(ensemble_state)
+                    master_eqn_ensemble.update_ensemble(
                         new_transition_rates=transition_rates_ensemble,
                         new_transmission_rate=community_transmission_rate_ensemble)
 
-            # run ensemble backwards
-            user_network.update_from(loaded_data.contact_network)
-            master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+            print_info("Backward assimilation ended; past_time:", past_time)
+                
+            ## 3) forward run with data assimilation
+            master_eqn_ensemble.set_start_time(past_time)
 
-            timer_master_eqn = timer()
-            ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
-                                                                    min_steps=n_backward_steps,
-                                                                    closure_flag=update_closure_flag)
+            for j in range(steps_per_da_window):
+                
+                update_closure_now = modulo_is_close_to_zero(past_time,
+                                                             closure_update_interval,
+                                                             eps=static_contact_interval)
+                if update_closure_now:
+                    update_closure_flag=True
+                else:
+                    update_closure_flag=False
+                    
+                loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
+                    
+                # run ensemble forward
+                user_network.update_from(loaded_data.contact_network)
+                master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+                    
+                timer_master_eqn = timer()
+                ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
+                                                              min_steps=n_forward_steps,
+                                                              closure_flag=update_closure_flag)
+                
+                walltime_master_eqn += timer() - timer_master_eqn
+                
+                past_time += static_contact_interval
+                
+                # data assimilation
+                assimilate_sensor_now = modulo_is_close_to_zero(past_time,
+                                                                sensor_assimilation_interval,
+                                                                eps=static_contact_interval)
+                
+                if assimilate_sensor_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                 ) = sensor_assimilator.update(
+                     ensemble_state,
+                     loaded_data.end_statuses,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble,
+                     user_network,
+                     past_time)
+                    
+                assimilate_test_now = modulo_is_close_to_zero(past_time,
+                                                              test_assimilation_interval,
+                                                              eps=static_contact_interval)
+                delay_satisfied = past_time <= (current_time - test_result_delay)
 
-            walltime_master_eqn += timer() - timer_master_eqn
+                if assimilate_test_now and delay_satisfied:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                 ) = viral_test_assimilator.update(
+                     ensemble_state,
+                     loaded_data.end_statuses,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble,
+                     user_network,
+                     past_time)
+                    
+                assimilate_record_now = modulo_is_close_to_zero(past_time,
+                                                                record_assimilation_interval,
+                                                                eps=static_contact_interval)
+                if assimilate_record_now:
+                    (ensemble_state,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble
+                 ) = record_assimilator.update(
+                     ensemble_state,
+                     loaded_data.end_statuses,
+                     transition_rates_ensemble,
+                     community_transmission_rate_ensemble,
+                     user_network,
+                     past_time)
+                    
 
-            past_time -= static_contact_interval
+                # update ensemble after data assimilation
+                if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
+                    master_eqn_ensemble.set_states_ensemble(ensemble_state)
+                    master_eqn_ensemble.update_ensemble(
+                        new_transition_rates=transition_rates_ensemble,
+                        new_transmission_rate=community_transmission_rate_ensemble)
+                    
+            print_info("Forward assimilation ended; current_time", current_time)
+                    
+            # DA should get back to the current time
+            assert are_close(past_time, current_time, eps=static_contact_interval)
 
-        # furthest-in-the-past assimilation (at the peak of the sweep)
-        assimilate_sensor_now = modulo_is_close_to_zero(past_time,
-                                                        sensor_assimilation_interval,
-                                                        eps=static_contact_interval)
+            print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
+                       "ended; elapsed:",
+                       timer() - timer_window)
+
+            print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+                       "eval_closure walltime:",
+                       master_eqn_ensemble.get_walltime_eval_closure())
             
-        if assimilate_sensor_now:
-            (ensemble_state,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = sensor_assimilator.update(
-                ensemble_state,
-                loaded_data.end_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                user_network,
-                past_time)
-
-        assimilate_test_now = modulo_is_close_to_zero(past_time,
-                                                   test_assimilation_interval,
-                                                   eps=static_contact_interval)
-        delay_satisfied = past_time <= (current_time - test_result_delay)
-
-        if assimilate_test_now and delay_satisfied:
-            (ensemble_state,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = viral_test_assimilator.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                user_network,
-                past_time)
-
-        assimilate_record_now = modulo_is_close_to_zero(past_time,
-                                                    record_assimilation_interval,
-                                                    eps=static_contact_interval)
-        if assimilate_record_now:
-            (ensemble_state,
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble
-            ) = record_assimilator.update(
-                ensemble_state,
-                loaded_data.start_statuses,
-                transition_rates_ensemble,
-                community_transmission_rate_ensemble,
-                user_network,
-                past_time)
-
-
-        # update ensemble after data assimilation
-        if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
-            master_eqn_ensemble.set_states_ensemble(ensemble_state)
-            master_eqn_ensemble.update_ensemble(
-                    new_transition_rates=transition_rates_ensemble,
-                    new_transmission_rate=community_transmission_rate_ensemble)
-
-        print_info("Backward assimilation ended; past_time:", past_time)
-
-        ## 3) forward run with data assimilation
-        master_eqn_ensemble.set_start_time(past_time)
-
-        for j in range(steps_per_da_window):
+            print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+                       "master equations walltime:",
+                       walltime_master_eqn, end='\n\n')
             
-            update_closure_now = modulo_is_close_to_zero(past_time,
-                                                         closure_update_interval,
-                                                         eps=static_contact_interval)
-            if update_closure_now:
-                update_closure_flag=True
+            start_end_times = [k for k in epidemic_data_storage.static_network_series.keys()]
+            
+            first_start_end_time = min(start_end_times, key=get_start_time)
+            last_start_end_time = max(start_end_times, key=get_start_time)
+            
+            print_info("First network start-end time: ", first_start_end_time.start, first_start_end_time.end)
+            print_info("Last network start-end time: ", last_start_end_time.start, last_start_end_time.end)
+
+
+
+        #4) Intervention
+        intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
+            
+        if intervene_now:
+            # now see which nodes have intervention applied
+            if intervention_nodes == "all":
+                nodes_to_intervene = network.get_nodes() 
+                print("intervention applied to all {:d} nodes".format(
+                    network.get_node_count()))
+            
+            elif intervention_nodes == "sick":
+                nodes_to_intervene = intervention.find_sick(ensemble_state)
+                print("intervention applied to sick nodes: {:d}/{:d}".format(
+                    sick_nodes.size, network.get_node_count()))
+                raise ValueError("Currently interventions only work for 'all'")
             else:
-                update_closure_flag=False
+                raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
-            loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=past_time)
+            # Apply the the chosen form of intervention
+            if intervention_type == "isolate":
+                network.isolate(nodes_to_intervene) 
 
-            # run ensemble forward
-            user_network.update_from(loaded_data.contact_network)
-            master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+            elif intervention_type == "social_distance":
+                λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
+                λ_max[:] = distanced_max_contact_rate 
+                network.set_lambdas(λ_min,λ_max)
 
-            timer_master_eqn = timer()
-            ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                          min_steps=n_forward_steps,
-                                                          closure_flag=update_closure_flag)
+                λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
+                λ_max[:] = distanced_max_contact_rate 
+                user_network.set_lambdas(λ_min,λ_max)
 
-            walltime_master_eqn += timer() - timer_master_eqn
-
-            past_time += static_contact_interval
-
-            # data assimilation
-            assimilate_sensor_now = modulo_is_close_to_zero(past_time,
-                                                            sensor_assimilation_interval,
-                                                            eps=static_contact_interval)
-            
-            if assimilate_sensor_now:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = sensor_assimilator.update(
-                    ensemble_state,
-                    loaded_data.end_statuses,
-                    transition_rates_ensemble,
-                    community_transmission_rate_ensemble,
-                    user_network,
-                    past_time)
-
-            assimilate_test_now = modulo_is_close_to_zero(past_time,
-                                                       test_assimilation_interval,
-                                                       eps=static_contact_interval)
-            delay_satisfied = past_time <= (current_time - test_result_delay)
-
-            if assimilate_test_now and delay_satisfied:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = viral_test_assimilator.update(
-                        ensemble_state,
-                        loaded_data.end_statuses,
-                        transition_rates_ensemble,
-                        community_transmission_rate_ensemble,
-                        user_network,
-                        past_time)
-
-            assimilate_record_now = modulo_is_close_to_zero(past_time,
-                                                        record_assimilation_interval,
-                                                        eps=static_contact_interval)
-            if assimilate_record_now:
-                (ensemble_state,
-                 transition_rates_ensemble,
-                 community_transmission_rate_ensemble
-                ) = record_assimilator.update(
-                        ensemble_state,
-                        loaded_data.end_statuses,
-                        transition_rates_ensemble,
-                        community_transmission_rate_ensemble,
-                        user_network,
-                        past_time)
-
-
-            # update ensemble after data assimilation
-            if (assimilate_test_now and delay_satisfied) or (assimilate_record_now):
-                master_eqn_ensemble.set_states_ensemble(ensemble_state)
-                master_eqn_ensemble.update_ensemble(
-                        new_transition_rates=transition_rates_ensemble,
-                        new_transmission_rate=community_transmission_rate_ensemble)
-
-        print_info("Forward assimilation ended; current_time", current_time)
-
-        # DA should get back to the current time
-        assert are_close(past_time, current_time, eps=static_contact_interval)
-    
-    print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
-               "ended; elapsed:",
-               timer() - timer_window)
-
-    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
-               "eval_closure walltime:",
-               master_eqn_ensemble.get_walltime_eval_closure())
-
-    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
-               "master equations walltime:",
-               walltime_master_eqn, end='\n\n')
-
-    start_end_times = [k for k in epidemic_data_storage.static_network_series.keys()]
-
-    first_start_end_time = min(start_end_times, key=get_start_time)
-    last_start_end_time = max(start_end_times, key=get_start_time)
-
-    print_info("First network start-end time: ", first_start_end_time.start, first_start_end_time.end)
-    print_info("Last network start-end time: ", last_start_end_time.start, last_start_end_time.end)
-
-
-
-    #4) Intervention
-    intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
-
-    if intervene_now:
-        # now see which nodes have intervention applied
-        if intervention_nodes == "all":
-            nodes_to_intervene = network.get_nodes() 
-            print("intervention applied to all {:d} nodes".format(
-                  network.get_node_count()))
-            
-        elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all'")
-        else:
-            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
-
-        # Apply the the chosen form of intervention
-        if intervention_type == "isolate":
-            network.isolate(nodes_to_intervene) 
-
-        elif intervention_type == "social_distance":
-            λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
-            λ_max[:] = distanced_max_contact_rate 
-            network.set_lambdas(λ_min,λ_max)
-
-            λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
-            λ_max[:] = distanced_max_contact_rate 
-            user_network.set_lambdas(λ_min,λ_max)
-
-        else:
-            raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
+            else:
+                raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
 
 
 
