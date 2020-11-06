@@ -177,7 +177,7 @@ sensor_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_initial_da_iterations      = 1 #forward passes
+n_initial_da_iterations      = 3 #forward passes
 n_sweeps                     = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
@@ -190,7 +190,7 @@ assert n_prediction_windows > n_prediction_windows_spin_up
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
-max_networks = steps_per_da_window + steps_per_prediction_window + int(1/static_contact_interval) 
+max_networks = steps_per_da_window + steps_per_prediction_window 
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
@@ -630,17 +630,18 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
             # run ensemble of master equations again over the da windowprediction loop again without data collection
             # by restarting from time of first assimilation data
-            current_time = min(initial_ensemble_state_series_dict.keys())
+            past_time = min(initial_ensemble_state_series_dict.keys())
             
             # update with the new initial state and parameters 
-            master_eqn_ensemble.set_states_ensemble(initial_ensemble_state_series_dict[current_time])
+            master_eqn_ensemble.set_states_ensemble(initial_ensemble_state_series_dict[past_time])
+            master_eqn_ensemble.set_start_time(past_time)
             master_eqn_ensemble.update_ensemble(
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
     
             for j in range(steps_per_da_window):
 
-                update_closure_now = modulo_is_close_to_zero(current_time,
+                update_closure_now = modulo_is_close_to_zero(past_time,
                                                              closure_update_interval,
                                                              eps=static_contact_interval)
                 if update_closure_now:
@@ -650,7 +651,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
                 # load the new network
                 loaded_data = epidemic_data_storage.get_network_from_start_time(
-                    start_time=current_time)
+                    start_time=past_time)
                     
                 user_network.update_from(loaded_data.contact_network)
                 master_eqn_ensemble.set_mean_contact_duration(
@@ -664,28 +665,31 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     closure_flag=update_closure_flag)
                 
                 # move to new time
-                current_time += static_contact_interval
+                past_time += static_contact_interval
                 walltime_master_eqn += timer() - timer_master_eqn
-                print(current_time, j, steps_per_da_window-1)
+                print(past_time, j, steps_per_da_window-1)
                 print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
                 print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
                 
                 # overwrite the data.
-                observe_sensor_now = modulo_is_close_to_zero(current_time,
+                observe_sensor_now = modulo_is_close_to_zero(past_time,
                                                              sensor_assimilation_interval,
                                                              eps=static_contact_interval)
                 
-                observe_test_now = modulo_is_close_to_zero(current_time,
+                observe_test_now = modulo_is_close_to_zero(past_time,
                                                            test_assimilation_interval,
                                                            eps=static_contact_interval)
                 
-                observe_record_now = modulo_is_close_to_zero(current_time,
+                observe_record_now = modulo_is_close_to_zero(past_time,
                                                              record_assimilation_interval,
                                                              eps=static_contact_interval)
                 
                 if observe_sensor_now or observe_test_now or observe_record_now:
-                    initial_ensemble_state_series_dict[current_time] = ensemble_state 
-            
+                    initial_ensemble_state_series_dict[past_time] = ensemble_state 
+
+            # DA should get back to the current time
+            assert are_close(past_time, current_time, eps=static_contact_interval)
+
             print("completed initialization forward sweep iteration ", step, " of ", n_initial_da_iterations) 
                     
     else:
