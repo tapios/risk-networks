@@ -3,6 +3,7 @@ import os, sys; sys.path.append(os.path.join('..', '..'))
 from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
+import copy 
 
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
@@ -299,14 +300,17 @@ for j in range(spin_up_steps):
 
     ensemble_state = master_eqn_ensemble.simulate(
         static_contact_interval,
-        min_steps=n_forward_steps,
-        closure_flag=update_closure_flag)
+        min_steps=n_forward_steps)
     #move to new time
     current_time += static_contact_interval
     current_time_span = [time for time in time_span if time < current_time+static_contact_interval]
     walltime_master_eqn += timer() - timer_master_eqn
     print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
     print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
+
+    #in theory should do nothing
+    master_eqn_ensemble.set_states_ensemble(ensemble_state)
+    master_eqn_ensemble.set_start_time(current_time)
 
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
@@ -342,7 +346,7 @@ for j in range(spin_up_steps):
                 current_time)
 
         if observe_sensor_now or observe_test_now or observe_record_now:
-            ensemble_state_series_dict[current_time] = ensemble_state 
+            ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state )
 
 
     #plots on the fly
@@ -439,15 +443,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     ## 1b) forward run w/o data assimilation; prediction
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
-        
-        update_closure_now = modulo_is_close_to_zero(current_time,
-                                                     closure_update_interval,
-                                                     eps=static_contact_interval)
-        if update_closure_now:
-            update_closure_flag=True
-        else:
-            update_closure_flag=False
-        
+                
         # run epidemic_simulator
         network = epidemic_simulator.run(
             stop_time=current_time + static_contact_interval,
@@ -511,8 +507,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         timer_master_eqn = timer()
         
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                      min_steps=n_forward_steps,
-                                                      closure_flag=update_closure_flag)
+                                                      min_steps=n_forward_steps)
 
         walltime_master_eqn += timer() - timer_master_eqn
 
@@ -553,7 +548,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 current_time)
         
         if observe_sensor_now or observe_test_now or observe_record_now:
-            ensemble_state_series_dict[current_time] = ensemble_state 
+            ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state)
 
 
         #plots on the fly    
@@ -587,42 +582,44 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     for step in range(n_sweeps):
     
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        # (ensemble_state_series_dict, 
-        #  transition_rates_ensemble,
-        #  community_transmission_rate_ensemble
-        # ) = sensor_assimilator.update_initial_from_series(
-        #     ensemble_state_series_dict, 
-        #     transition_rates_ensemble,
-        #     community_transmission_rate_ensemble)       
+        (ensemble_state_series_dict, 
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+        ) = sensor_assimilator.update_initial_from_series(
+            ensemble_state_series_dict, 
+            transition_rates_ensemble,
+            community_transmission_rate_ensemble,
+            user_network)       
             
-        # (ensemble_state_series_dict, 
-        #  transition_rates_ensemble,
-        #  community_transmission_rate_ensemble
-        # ) = viral_test_assimilator.update_initial_from_series(
-        #     ensemble_state_series_dict, 
-        #     transition_rates_ensemble,
-        #     community_transmission_rate_ensemble,
-        #     verbose=True)       
+        (ensemble_state_series_dict, 
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+        ) = viral_test_assimilator.update_initial_from_series(
+            ensemble_state_series_dict, 
+            transition_rates_ensemble,
+            community_transmission_rate_ensemble,
+            user_network,
+            verbose=True)       
             
-        # (ensemble_state_series_dict, 
-        #  transition_rates_ensemble,
-        #  community_transmission_rate_ensemble
-        # ) = record_assimilator.update_initial_from_series(
-        #     ensemble_state_series_dict, 
-        #     transition_rates_ensemble,
-        #     community_transmission_rate_ensemble)       
+        (ensemble_state_series_dict, 
+         transition_rates_ensemble,
+         community_transmission_rate_ensemble
+        ) = record_assimilator.update_initial_from_series(
+            ensemble_state_series_dict, 
+            transition_rates_ensemble,
+            community_transmission_rate_ensemble,
+            user_network)       
         
         # run ensemble of master equations again over the da windowprediction loop again without data collection
         # by restarting from time of first assimilation data
-        #past_time = min(ensemble_state_series_dict.keys())
         past_time = current_time - steps_per_da_window * static_contact_interval
         
         # update with the new initial state and parameters 
         master_eqn_ensemble.set_states_ensemble(ensemble_state_series_dict[past_time])
         master_eqn_ensemble.set_start_time(past_time)
-        # master_eqn_ensemble.update_ensemble(
-        #     new_transition_rates=transition_rates_ensemble,
-        #     new_transmission_rate=community_transmission_rate_ensemble)
+        master_eqn_ensemble.update_ensemble(
+            new_transition_rates=transition_rates_ensemble,
+            new_transmission_rate=community_transmission_rate_ensemble)
         
         for j in range(steps_per_da_window):
             walltime_master_eqn = 0.0
@@ -640,8 +637,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             # simulate the master equations
             ensemble_state = master_eqn_ensemble.simulate(
                 static_contact_interval,
-                min_steps=n_forward_steps,
-                closure_flag=update_closure_flag)
+                min_steps=n_forward_steps)
             
             # move to new time
             past_time += static_contact_interval
@@ -661,7 +657,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                          eps=static_contact_interval)
             
             if observe_sensor_now or observe_test_now or observe_record_now:
-                ensemble_state_series_dict[past_time] = ensemble_state 
+                ensemble_state_series_dict[past_time] =copy.deepcopy( ensemble_state )
                 
         print("Completed forward sweep iteration {}/{}".format(step + 1, n_sweeps), 
               " over the interval [{},{}]".format(current_time - steps_per_da_window * static_contact_interval, current_time)) 

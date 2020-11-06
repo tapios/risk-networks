@@ -3,6 +3,7 @@ import os, sys; sys.path.append(os.path.join('..', '..'))
 from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
+import copy 
 
 from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
@@ -177,7 +178,7 @@ sensor_assimilation_interval  = 1.0 # same for I
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_initial_da_iterations      = 3 #forward passes
+n_initial_da_iterations      = 10 #forward passes
 n_sweeps                     = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
@@ -319,6 +320,8 @@ for j in range(spin_up_steps):
     print_info("eval_closure walltime:", master_eqn_ensemble.get_walltime_eval_closure())
     print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
 
+
+
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
         observe_sensor_now = modulo_is_close_to_zero(current_time,
@@ -353,7 +356,7 @@ for j in range(spin_up_steps):
                 current_time)
 
         if observe_sensor_now or observe_test_now or observe_record_now:
-            initial_ensemble_state_series_dict[current_time] = ensemble_state 
+            initial_ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state )
 
 
     #plots on the fly
@@ -569,7 +572,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 current_time)
         
         if observe_sensor_now or observe_test_now or observe_record_now:
-            initial_ensemble_state_series_dict[current_time] = ensemble_state 
+            initial_ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state )
 
 
         #plots on the fly    
@@ -610,7 +613,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             ) = sensor_assimilator.update_initial_from_series(
                 initial_ensemble_state_series_dict, 
                 transition_rates_ensemble,
-                community_transmission_rate_ensemble)       
+                community_transmission_rate_ensemble,
+                user_network)       
             
             (initial_ensemble_state_series_dict, 
              transition_rates_ensemble,
@@ -618,7 +622,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             ) = viral_test_assimilator.update_initial_from_series(
                 initial_ensemble_state_series_dict, 
                 transition_rates_ensemble,
-                community_transmission_rate_ensemble)       
+                community_transmission_rate_ensemble,               
+                user_network)       
             
             (initial_ensemble_state_series_dict, 
              transition_rates_ensemble,
@@ -626,7 +631,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             ) = record_assimilator.update_initial_from_series(
                 initial_ensemble_state_series_dict, 
                 transition_rates_ensemble,
-                community_transmission_rate_ensemble)       
+                community_transmission_rate_ensemble,
+                user_network)       
             
             # run ensemble of master equations again over the da windowprediction loop again without data collection
             # by restarting from time of first assimilation data
@@ -685,7 +691,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                              eps=static_contact_interval)
                 
                 if observe_sensor_now or observe_test_now or observe_record_now:
-                    initial_ensemble_state_series_dict[past_time] = ensemble_state 
+                    initial_ensemble_state_series_dict[past_time] = copy.deepcopy(ensemble_state )
 
             # DA should get back to the current time
             assert are_close(past_time, current_time, eps=static_contact_interval)
