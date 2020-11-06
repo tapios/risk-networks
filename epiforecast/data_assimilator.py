@@ -874,6 +874,7 @@ class DataAssimilator:
             full_ensemble_state_series,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
+            user_network,
             verbose=False,
             print_error=False):
         """
@@ -905,7 +906,7 @@ class DataAssimilator:
         observation_times.sort()
         n_observation_times = len(observation_times)
 
-        if len(observation_times): # no update is performed; return input
+        if n_observation_times == 0: # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
@@ -917,15 +918,15 @@ class DataAssimilator:
         # Load states to compare with data
         obs_states = [ self.stored_observed_states[obs_time] for obs_time in observation_times]
         obs_nodes = [ self.stored_observed_nodes[obs_time] for obs_time in observation_times]
-        
-        if (sum([os.size for os in obs_states]) == 0):
+        total_obs_states = sum([os.size for os in obs_states])
+        if (total_obs_states == 0):
             if verbose:
                 print("[ Data assimilator ] No assimilation required")
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
 
         if verbose:
             print("[ Data assimilator ] Total states over window with assimilation data: ",
-                  obs_states.size)
+                  total_obs_states)
 
         # extract only those rates which we wish to update with DA (will not change over window)
         (ensemble_transition_rates,
@@ -962,6 +963,9 @@ class DataAssimilator:
             ensemble_state=full_ensemble_state_at_obs[observation_times[0]]
             H_obs = []
 
+            #for this type of iteration we want local only updating
+            tmp_type = self.update_type 
+            self.update_type = 'local'
             for obs_time in observation_times:
                 
                 update_states_at_obs = self.compute_update_indices(
@@ -979,10 +983,10 @@ class DataAssimilator:
                     tmp_state = full_ensemble_state_at_obs[obs_time]
                     ensemble_state = np.concatenate([ensemble_state,tmp_state[:,update_states_at_obs]],axis=1)
                 
+            self.update_type = tmp_type
             H_obs = np.array(H_obs)
-
             assert sum(H_obs) == truth.size
-
+            
             #perform the update
             (ensemble_state,
              new_ensemble_transition_rates,
