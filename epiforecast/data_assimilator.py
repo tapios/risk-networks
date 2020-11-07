@@ -1,6 +1,7 @@
 import numpy as np
 
 import copy
+import scipy.linalg as la
 
 from epiforecast.ensemble_adjustment_kalman_filter import EnsembleAdjustmentKalmanFilter
 
@@ -345,7 +346,6 @@ class DataAssimilator:
             H_obs (np.array): (n_obs_states, n_update_states) array of {0,1}
                               values
         """
-        # XXX why was this obs_nodes.size, not obs_states.size?
         H_obs = np.zeros([obs_states.size, update_states.size])
 
         # obs_states is always a subset of update_states;
@@ -913,7 +913,7 @@ class DataAssimilator:
             
             
         # extract from full_ensemble_state_series
-        full_ensemble_state_at_obs = [full_ensemble_state_series[obs_time] for obs_time in observation_times]
+        full_ensemble_state_at_obs = {obs_time : full_ensemble_state_series[obs_time] for obs_time in observation_times}
 
         # Load states to compare with data
         obs_states = [ self.stored_observed_states[obs_time] for obs_time in observation_times]
@@ -939,6 +939,8 @@ class DataAssimilator:
         # Load the truth, variances of the observation(s)
         truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times])
         var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
+        print(truth)
+        print(var)
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[observation_times[0]])
         
@@ -955,37 +957,57 @@ class DataAssimilator:
             # To implement this we create 
             # The ensemble state is all possible nodes to be updated
             # The H_obs is the index of these which are actually observed,
+
+
+            #Method 1: construct a full matrix of all states at all times 
+            tmp_type = self.update_type  #for this type of iteration we want local only updating
+            self.update_type = 'local'
             
+            H_obs = []
+            for obs_time in observation_times:
+            
+                # Observe the observed x total states
+                H_obs_at_obs = self.generate_state_observation_operator(
+                    self.stored_observed_states[obs_time],
+                    np.arange(full_ensemble_state_at_obs[obs_time].shape[1])) #just need to give it 0:5N-1
+                H_obs.append(H_obs_at_obs) 
+
+            #H_obs = np.concatenate(H_obs,axis=0) # (n_obs * obs_states x obs_states)             
+            H_obs = la.block_diag(*H_obs)
+            self.update_type = tmp_type
+            ensemble_state = np.concatenate([full_ensemble_state_at_obs[obs_time] for obs_time in observation_times],axis=1) #100 x (5N * n_obs)           
+            
+
+            # Method 2: restrict to only observed states at future times
             # for initial time: ensemble_state is full, but H_obs for initial time t_0 is `local`
             # for subsequent time: ensemble_state is given by updated_states only, and H_obs is the identity
-            # then we concatenate all times together 
+            # then we concatenate all times together
+            # obs_state size = os, full_state_size = fs
+            # [full_state (fs,fs), obs_state(os,os), ... , obs_state(os,os)]
+            # [H_obs(os,fs), identity(os,os), ... , identity(os,os)] 
+            # Data = n_observations*os 
+            # initial_ensemble_state=full_ensemble_state_at_obs[observation_times[0]]
             
-            ensemble_state=full_ensemble_state_at_obs[observation_times[0]]
-            H_obs = []
-
-            #for this type of iteration we want local only updating
-            tmp_type = self.update_type 
-            self.update_type = 'local'
-            for obs_time in observation_times:
-                
-                update_states_at_obs = self.compute_update_indices(
-                    user_network,
-                    self.stored_observed_states[obs_time],
-                    self.stored_observed_nodes[obs_time])
-                
-                if obs_time == observation_times[0]: #at the initial time
-                    H_obs_at_obs_time = self.generate_state_observation_operator(
-                        self.stored_observed_states[obs_time],
-                        update_states_at_obs)
-                    H_obs.extend(H_obs_at_obs_time)
-                else:
-                    H_obs.extend(np.ones(update_states_at_obs.size))
-                    tmp_state = full_ensemble_state_at_obs[obs_time]
-                    ensemble_state = np.concatenate([ensemble_state,tmp_state[:,update_states_at_obs]],axis=1)
-                
-            self.update_type = tmp_type
-            H_obs = np.array(H_obs)
-            assert sum(H_obs) == truth.size
+            # # Observe the initial stateobserved x total states
+            # H_obs_initial_state = self.generate_state_observation_operator(
+            #     self.stored_observed_states[observation_times[0]],
+            #     np.arange(full_ensemble_state_at_obs[observation_times[0]].shape[1])) #just need to give it 0:5N-1
+           
+            # # Obtain the observation states
+            # further_ensemble_states=[]
+            # tmp_type = self.update_type  #for this type of iteration we want local only updating
+            # self.update_type = 'local'
+            # for obs_time in observation_times[1:]:
+                                
+            #     update_states_at_obs = self.compute_update_indices(
+            #         user_network,
+            #         self.stored_observed_states[obs_time],
+            #         self.stored_observed_nodes[obs_time])
+            #     tmp_state = full_ensemble_state_at_obs[obs_time]
+            #     further_ensemble_states.append(tmp_state[:,update_states_at_obs])
+            
+            # further_ensemble_states = np.concatenate(further_ensemble_states,axis=1) #100 x 5*obs_states
+            # self.update_type = tmp_type
             
             #perform the update
             (ensemble_state,
@@ -996,7 +1018,7 @@ class DataAssimilator:
                                      ensemble_transmission_rate, #100 x transm.
                                      truth, 
                                      cov, 
-                                     H_obs, # 5*n_user_nodes*n_observation_times
+                                     H_obs, # 5*n_user_nodes*n_observation_times                                     
                                      print_error=print_error)
 
             if self.transmission_rate_to_update_flag:
