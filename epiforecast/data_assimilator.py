@@ -1,4 +1,4 @@
-B0;115;0cimport numpy as np
+import numpy as np
 
 import copy
 import scipy.linalg as la
