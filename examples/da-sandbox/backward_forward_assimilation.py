@@ -3,13 +3,12 @@ import os, sys; sys.path.append(os.path.join('..', '..'))
 from timeit import default_timer as timer
 import numpy as np
 from matplotlib import pyplot as plt
-import pickle
 
-from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
-from epiforecast.epiplots import plot_ensemble_states
-from epiforecast.epiplots import plot_transmission_rate, plot_clinical_parameters
+from epiforecast.epiplots import (plot_transmission_rate,
+                                  plot_clinical_parameters,
+                                  plot_ensemble_states)
 from epiforecast.utilities import dict_slice
 from epiforecast.populations import extract_ensemble_transition_rates
 
@@ -17,6 +16,7 @@ from epiforecast.populations import extract_ensemble_transition_rates
 ################################################################################
 # initialization ###############################################################
 ################################################################################
+
 # arguments parsing ############################################################
 from _argparse_init import arguments
 
@@ -96,10 +96,11 @@ sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
         n_assimilation_batches=arguments.assimilation_batches_sensor,
-        transition_rates_to_update_str=transition_rates_to_update_str,
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        transition_rates_to_update_str=[],
+        transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
         full_svd=True,
+        output_path=OUTPUT_PATH,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -114,6 +115,7 @@ viral_test_assimilator = DataAssimilator(
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.assimilation_regularization,
         full_svd=True,
+        output_path=OUTPUT_PATH,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -125,7 +127,8 @@ record_assimilator = DataAssimilator(
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
-        update_type=arguments.assimilation_update_record)
+        update_type=arguments.assimilation_update_record,
+        output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
 from _post_process_init import axes
@@ -148,16 +151,17 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # constants ####################################################################
 
 # floats
-da_window         = 7.0
+da_window         = 5.0
 prediction_window = 1.0
-record_assimilation_interval = 1.0 # assimilate H and D data every .. days
-test_assimilation_interval  = 1.0 # same for I
-sensor_assimilation_interval  = 1.0 # same for I
+closure_update_interval = 1.0      # update closure every .. days
+record_assimilation_interval = 100.0 # assimilate H and D data every .. days
+test_assimilation_interval   = 1.0 # same for I
+sensor_assimilation_interval = 1.0 # same for I (sensors)
 
 # ints
 
 n_sweeps                     = 1
-n_prediction_windows_spin_up = 7
+n_prediction_windows_spin_up = 8
 n_prediction_windows        = int(total_time/prediction_window)
 steps_per_da_window         = int(da_window/static_contact_interval)
 steps_per_prediction_window = int(prediction_window/static_contact_interval)
@@ -177,18 +181,14 @@ master_states_timeseries = EnsembleTimeSeries(ensemble_size,
                                               time_span.size)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              1,
-                                              time_span.size)
+                                                  1,
+                                                  time_span.size)
 
 transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              6,
-                                              time_span.size)
+                                                 6,
+                                                 time_span.size)
 
 # initial conditions ###########################################################
-loaded_data = epidemic_data_storage.get_network_from_start_time(
-        start_time=start_time)
-loaded_kinetic_ic = loaded_data.start_statuses
-
 master_eqn_ensemble.set_states_ensemble(ensemble_ic)
 master_eqn_ensemble.set_start_time(start_time)
 
@@ -204,10 +204,10 @@ timer_spin_up = timer()
 print_info("Spin-up started")
 for j in range(spin_up_steps):
     master_states_timeseries.push_back(ensemble_state) # storage
-    if learn_transmission_rate == True:
+    if learn_transmission_rate:
         transmission_rate_timeseries.push_back(
                 community_transmission_rate_ensemble)
-    if learn_transition_rates == True:
+    if learn_transition_rates:
         transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
 
@@ -218,9 +218,14 @@ for j in range(spin_up_steps):
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
 
+    update_closure_now = modulo_is_close_to_zero(current_time,
+                                                 closure_update_interval,
+                                                 eps=static_contact_interval)
+
     ensemble_state = master_eqn_ensemble.simulate(
             static_contact_interval,
-            min_steps=n_forward_steps)
+            min_steps=n_forward_steps,
+            closure_flag=update_closure_now)
 
     current_time += static_contact_interval
 
@@ -248,8 +253,8 @@ for j in range(spin_up_steps):
                 current_time)
 
         observe_record_now = modulo_is_close_to_zero(current_time,
-                                                    record_assimilation_interval,
-                                                    eps=static_contact_interval)
+                                                     record_assimilation_interval,
+                                                     eps=static_contact_interval)
         if observe_record_now:
             record_assimilator.find_and_store_observations(
                 ensemble_state,
@@ -288,24 +293,27 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     ## 1) forward run w/o data assimilation; prediction
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
-        # storage of data first (we do not store end of prediction window)
         master_states_timeseries.push_back(ensemble_state)
-        if learn_transmission_rate == True:
+        if learn_transmission_rate:
             transmission_rate_timeseries.push_back(
                     community_transmission_rate_ensemble)
-        if learn_transition_rates == True:
+        if learn_transition_rates:
             transition_rates_timeseries.push_back(
                     extract_ensemble_transition_rates(transition_rates_ensemble))
-        
+
         loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=current_time)
 
+        # run ensemble forward
         user_network.update_from(loaded_data.contact_network)
         master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
-        # run ensemble forward
+        update_closure_now = modulo_is_close_to_zero(current_time,
+                                                     closure_update_interval,
+                                                     eps=static_contact_interval)
         timer_master_eqn = timer()
         ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                      min_steps=n_forward_steps)
+                                                      min_steps=n_forward_steps,
+                                                      closure_flag=update_closure_now)
         walltime_master_eqn += timer() - timer_master_eqn
 
         current_time += static_contact_interval
@@ -415,9 +423,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            update_closure_now = modulo_is_close_to_zero(current_time,
+                                                         closure_update_interval,
+                                                         eps=static_contact_interval)
             timer_master_eqn = timer()
-            ensemble_state = master_eqn_ensemble.simulate_backwards(static_contact_interval,
-                                                                    min_steps=n_backward_steps)
+            ensemble_state = master_eqn_ensemble.simulate_backwards(
+                    static_contact_interval,
+                    min_steps=n_forward_steps,
+                    closure_flag=update_closure_now)
             walltime_master_eqn += timer() - timer_master_eqn
 
             past_time -= static_contact_interval
@@ -494,15 +507,18 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network.update_from(loaded_data.contact_network)
             master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
 
+            update_closure_now = modulo_is_close_to_zero(past_time,
+                                                         closure_update_interval,
+                                                         eps=static_contact_interval)
             timer_master_eqn = timer()
             ensemble_state = master_eqn_ensemble.simulate(static_contact_interval,
-                                                          min_steps=n_forward_steps)
+                                                          min_steps=n_forward_steps,
+                                                          closure_flag=update_closure_now)
             walltime_master_eqn += timer() - timer_master_eqn
 
             past_time += static_contact_interval
 
             # data assimilation
-
             assimilate_sensor_now = modulo_is_close_to_zero(past_time,
                                                             sensor_assimilation_interval,
                                                             eps=static_contact_interval)
@@ -566,26 +582,34 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
                "ended; elapsed:",
                timer() - timer_window)
+
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "eval_closure walltime:",
                master_eqn_ensemble.get_walltime_eval_closure())
+
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "master equations walltime:",
                walltime_master_eqn, end='\n\n')
 
 ## Final storage after last step
 master_states_timeseries.push_back(ensemble_state)
-if learn_transmission_rate == True:
+if learn_transmission_rate:
     transmission_rate_timeseries.push_back(
             community_transmission_rate_ensemble)
-if learn_transition_rates == True:
+if learn_transition_rates:
     transition_rates_timeseries.push_back(
             extract_ensemble_transition_rates(transition_rates_ensemble))
 
 # save & plot ##################################################################
 # plot trajectories
-axes = plot_ensemble_states(population,
-                            master_states_timeseries.container,
+master_states_cumulative_timeseries = (
+        master_states_timeseries.container.reshape(ensemble_size,
+                                                   5,
+                                                   user_population,
+                                                   time_span.size))
+master_states_cumulative_timeseries.sum(axis=2)
+master_states_cumulative_timeseries /= user_population
+axes = plot_ensemble_states(master_states_cumulative_timeseries,
                             time_span,
                             axes=axes,
                             xlims=(-0.1, total_time),
@@ -595,27 +619,27 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
             dpi=150)
 plt.close()
 
-if learn_transmission_rate == True:
+if learn_transmission_rate:
     plot_transmission_rate(transmission_rate_timeseries.container,
-            time_span,
-            a_min=0.0,
-            OUTPUT_PATH=OUTPUT_PATH)
-
-if learn_transition_rates == True:
+                           time_span,
+                           a_min=0.0,
+                           output_path=OUTPUT_PATH)
+if learn_transition_rates:
     plot_clinical_parameters(transition_rates_timeseries.container,
-            time_span,
-            a_min=0.0,
-            OUTPUT_PATH=OUTPUT_PATH)
+                             time_span,
+                             a_min=0.0,
+                             output_path=OUTPUT_PATH)
 
 # save full the data we require:
 master_eqns_mean_states = master_states_timeseries.get_mean()
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_mean_states.npy'),
         master_eqns_mean_states)
-if learn_transmission_rate == True:
+
+if learn_transmission_rate:
     np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
             transmission_rate_timeseries.container)
 
-if learn_transition_rates == True:
+if learn_transition_rates:
     np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
             transition_rates_timeseries.container)
 

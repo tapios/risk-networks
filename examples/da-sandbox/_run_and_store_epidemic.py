@@ -1,10 +1,10 @@
 from timeit import default_timer as timer
 
+from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
+
 from _constants import start_time, total_time, static_contact_interval
 from _network_init import network
-from _stochastic_init import (epidemic_simulator,
-                              epidemic_data_storage,
-                              kinetic_ic)
+from _stochastic_init import epidemic_simulator, kinetic_ic
 from _utilities import print_start_of, print_end_of, print_info_module
 
 
@@ -17,6 +17,8 @@ print_info_module(__name__,
 
 time = start_time          # float
 kinetic_state = kinetic_ic # dict { node : compartment }
+
+epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval)
 
 kinetic_states_timeseries = []
 kinetic_states_timeseries.append(kinetic_state) # storing ic
