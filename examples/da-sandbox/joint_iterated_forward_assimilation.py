@@ -167,10 +167,10 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 # constants ####################################################################
 
 #floats
-da_window         = 1.0
+da_window         = 5.0
 prediction_window = 1.0
 save_to_file_interval = 1.0
-record_assimilation_interval = 1.0 # assimilate H and D data every .. days
+record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
 test_assimilation_interval  = 1.0 # same for I
 sensor_assimilation_interval  = 1.0 # same for I
 
@@ -431,6 +431,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows))
     timer_window = timer()
     walltime_master_eqn = 0.0
+    walltime_DA_update = 0.0
     master_eqn_ensemble.reset_walltimes()
 
     assert are_close(current_time,
@@ -578,7 +579,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         dpi=150)
 
     print_info("Prediction ended: current time:", current_time)
-    
     for step in range(n_sweeps):
          # by restarting from time of first assimilation data
         past_time = current_time - steps_per_da_window * static_contact_interval
@@ -589,6 +589,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             times_for_removal = [time for time in stored_states_times if time < past_time]
             [ensemble_state_series_dict.pop(time) for time in times_for_removal]
 
+        DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
         (ensemble_state_series_dict, 
          transition_rates_ensemble,
@@ -619,7 +620,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             user_network)       
         print("assimilated records")
         # run ensemble of master equations again over the da windowprediction loop again without data collection
-        
+        walltime_DA_update += timer() - DA_update_timer
+
         # update with the new initial state and parameters 
         master_eqn_ensemble.set_states_ensemble(ensemble_state_series_dict[past_time])
         master_eqn_ensemble.set_start_time(past_time)
@@ -667,7 +669,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 
         print("Completed forward sweep iteration {}/{}".format(step + 1, n_sweeps), 
               " over the interval [{},{}]".format(current_time - steps_per_da_window * static_contact_interval, current_time)) 
-
+    
+    
     # DA should get back to the current time
     assert are_close(past_time, current_time, eps=static_contact_interval)
 
@@ -682,6 +685,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
                "master equations walltime:",
                walltime_master_eqn, end='\n\n')
+    
+    print_info("Prediction window: {}/{};".format(k+1, n_prediction_windows),
+               "assimilator(s) walltime:",
+               walltime_DA_update, end='\n\n')
             
     #4) Intervention
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    

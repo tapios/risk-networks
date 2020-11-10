@@ -27,7 +27,7 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 # parameters & constants #######################################################
 
 # network 
-EXP_NAME="NYC_1e3_local_1sweep" 
+EXP_NAME="NYC_1e3_forwardIAF" 
 network_size=1e3
 # user base
 user_fraction=1.0
@@ -38,7 +38,6 @@ wearers=0
 batches_sensors=1
 batches_records=1 #195884 nodes
 
-
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
@@ -47,14 +46,9 @@ I_max_threshold=1.0
 int_freq='single'
 intervention_start_time=18
 
-#update types
-update_sensor_type="local"
-update_test_type="local"
-update_record_type="local"
-
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(49)  
+test_budgets=(1)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 batches_tests=(1) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
@@ -67,9 +61,8 @@ stderr="${output_path}/stderr"
 
 mkdir -p "${output_path}"
 
-
 # launch #######################################################################
-python3 joint_epidemic_assimilation.py \
+python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-budget=${budget} \
@@ -85,9 +78,7 @@ python3 joint_epidemic_assimilation.py \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
-  --assimilation-update-sensor=${update_sensor_type}\
-  --assimilation-update-test=${update_test_type}\
-  --assimilation-update-record=${update_record_type}\
   >${stdout} 2>${stderr}
 
 
+#python3 joint_epidemic_assimilation.py \
