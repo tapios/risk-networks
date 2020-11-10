@@ -66,55 +66,58 @@ def plot_master_eqns(
 
     return axes
 
-#works in joint epidemic assimilation
 def plot_ensemble_states(
-        user_population,
-        population,
-        states_sum,
-        t,
+        states_cumulative,
+        time_span,
         axes=None,
         xlims=None,
         leave=False,
         figsize=(15, 4),
         a_min=None,
         a_max=None):
+    """
+    Plot master equations ensemble state cumulative
 
+    Input:
+        states_cumulative (np.array): (n_ensemble, 5, n_steps) array of values
+        time_span (np.array): (n_steps,) array of times at which
+                              states_cumulative was evaluated
+    """
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize = figsize)
 
-    ensemble_size = states_sum.shape[0]
+    ensemble_size = states_cumulative.shape[0]
     N_eqns = 5
     statuses = np.arange(N_eqns)
     statuses_colors = ['C0', 'C1', 'C2', 'C4', 'C6']
-    #user_population = int(states.shape[1]/N_eqns)
-    #states_sum  = (states.reshape(ensemble_size, N_eqns, -1, len(t)).sum(axis = 2))/population
-    states_perc = np.percentile(states_sum, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+    states_perc = np.percentile(states_cumulative, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
 
     for status in statuses:
         if status in [0, 3]:
-            axes[0].fill_between(t, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[0].fill_between(t, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[0].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[0].plot(t, states_perc[3,status], color = statuses_colors[status])
+            axes[0].fill_between(time_span, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[0].fill_between(time_span, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[0].fill_between(time_span, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[0].plot(time_span, states_perc[3,status], color = statuses_colors[status])
 
         if status in [1]:
-            axes[1].fill_between(t, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[1].fill_between(t, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[1].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[1].plot(t, states_perc[3,status], color = statuses_colors[status])
+            axes[1].fill_between(time_span, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[1].fill_between(time_span, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[1].fill_between(time_span, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[1].plot(time_span, states_perc[3,status], color = statuses_colors[status])
 
         if status in [2, 4]:
-            axes[2].fill_between(t, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[2].fill_between(t, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[2].fill_between(t, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
-            axes[2].plot(t, states_perc[3,status], color = statuses_colors[status])
+            axes[2].fill_between(time_span, np.clip(states_perc[0,status], a_min, a_max), np.clip(states_perc[-1,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[2].fill_between(time_span, np.clip(states_perc[1,status], a_min, a_max), np.clip(states_perc[-2,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[2].fill_between(time_span, np.clip(states_perc[2,status], a_min, a_max), np.clip(states_perc[-3,status], a_min, a_max), alpha = .2, color = statuses_colors[status], linewidth = 0.)
+            axes[2].plot(time_span, states_perc[3,status], color = statuses_colors[status])
 
-    residual_state = 1.0 - states_sum.sum(axis = 1)
+    residual_state = 1.0 - states_cumulative.sum(axis = 1)
     residual_state = np.percentile(residual_state, q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
-    axes[0].fill_between(t, np.clip(residual_state[0], a_min, a_max), np.clip(residual_state[-1], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
-    axes[0].fill_between(t, np.clip(residual_state[1], a_min, a_max), np.clip(residual_state[-2], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
-    axes[0].fill_between(t, np.clip(residual_state[2], a_min, a_max), np.clip(residual_state[-3], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
-    axes[0].plot(t, np.clip(residual_state[3], a_min, a_max), color = 'C3')
+    axes[0].fill_between(time_span, np.clip(residual_state[0], a_min, a_max), np.clip(residual_state[-1], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
+    axes[0].fill_between(time_span, np.clip(residual_state[1], a_min, a_max), np.clip(residual_state[-2], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
+    axes[0].fill_between(time_span, np.clip(residual_state[2], a_min, a_max), np.clip(residual_state[-3], a_min, a_max), alpha = .2, color = 'C3', linewidth = 0.)
+    axes[0].plot(time_span, np.clip(residual_state[3], a_min, a_max), color = 'C3')
 
     axes[0].legend(['Susceptible', 'Resistant', 'Exposed'],
         bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
@@ -247,7 +250,7 @@ def plot_roc_curve(true_negative_rates,
         
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(fpr,tpr,colors,labels):
-        plt.plot(xrate, yrate, color=clr, label=lbl , marker='|')
+        plt.plot(xrate, yrate, color=clr, label=lbl , marker='o')
             
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('False Positive Rate')
