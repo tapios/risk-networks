@@ -836,7 +836,7 @@ class DataAssimilator:
 
     def clip_transition_rates(self, ensemble_transition_rates, obs_nodes_num):
         """
-        Clip the values of tranistion rates into pre-defined ranges 
+        Clip the values of transition rates into pre-defined ranges
 
         Input:
             ensemble_transition_rates (np.array): (n_ensemble,k) array

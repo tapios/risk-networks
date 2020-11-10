@@ -413,7 +413,6 @@ class MasterEquationModelEnsemble:
             min_steps=1,
             closure_name='independent',
             closure_flag=True):
-
         """
         Simulate master equations for the whole ensemble backward in time
 
@@ -428,7 +427,7 @@ class MasterEquationModelEnsemble:
             y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
         positive_time_window = abs(time_window)
-        
+
         return self.simulate(-positive_time_window,
                              min_steps,
                              closure_name,
