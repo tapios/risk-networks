@@ -939,7 +939,6 @@ class DataAssimilator:
         # Load the truth, variances of the observation(s)
         truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times])
         var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
-
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[observation_times[0]])
         
@@ -956,7 +955,6 @@ class DataAssimilator:
             # To implement this we create 
             # The ensemble state is all possible nodes to be updated
             # The H_obs is the index of these which are actually observed,
-
 
             # #Method 1: construct a full matrix of all states at all times 
             # tmp_type = self.update_type  #for this type of iteration we want local only updating
@@ -983,7 +981,7 @@ class DataAssimilator:
             # [full_state (fs,fs), obs_state(os,os), ... , obs_state(os,os)]
             # [H_obs(os,fs), identity(os,os), ... , identity(os,os)] 
             # Data = n_observations*os 
-                
+
             initial_time = observation_times[0]
             H_obs = []
             tmp_type = self.update_type  #for this type of iteration we want local only updating
@@ -991,10 +989,10 @@ class DataAssimilator:
                 
             # Get the initial state, total states x total states
             ensemble_state_at_initial=full_ensemble_state_at_obs[initial_time]
-            
+        
             # Observation operator of the initial state, observed x total states            
             H_obs_at_initial = self.generate_state_observation_operator(
-                self.stored_observed_states[observation_times[0]],
+                self.stored_observed_states[initial_time],
                 np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
             H_obs.append(H_obs_at_initial) 
             
@@ -1028,9 +1026,9 @@ class DataAssimilator:
                                      H_obs, # 5*n_user_nodes*n_observation_times                                     
                                      print_error=print_error)
 
-            #update the IC: 
-            full_ensemble_state_series[observation_times[0]] = ensemble_state[:,:5*user_network.get_node_count()]
-
+            #update the IC:
+            full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
+        
             if self.transmission_rate_to_update_flag:
                 # Clip transmission rate into a reasonable range
                 new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
