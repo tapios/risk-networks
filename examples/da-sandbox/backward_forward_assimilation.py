@@ -606,8 +606,7 @@ master_states_cumulative_timeseries = (
         master_states_timeseries.container.reshape(ensemble_size,
                                                    5,
                                                    user_population,
-                                                   time_span.size))
-master_states_cumulative_timeseries.sum(axis=2)
+                                                   time_span.size).sum(axis=2))
 master_states_cumulative_timeseries /= user_population
 axes = plot_ensemble_states(master_states_cumulative_timeseries,
                             time_span,
