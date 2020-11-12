@@ -23,7 +23,7 @@ n_backward_steps = 8 # minimum amount of steps per time step: backward run
 # Prior of transition rates ####################################################
 learn_transition_rates = arguments.params_learn_transition_rates
 transition_rates_ensemble = []
-if learn_transition_rates == True:
+if learn_transition_rates:
     parameter_str = arguments.params_transition_rates_str.split(',')
     for i in range(ensemble_size):
         transition_rates = TransitionRates.from_samplers(
@@ -39,7 +39,6 @@ if learn_transition_rates == True:
         transition_rates_particle = transition_rates[user_nodes]
         transition_rates_particle.calculate_from_clinical()
         transition_rates_ensemble.append(transition_rates_particle)
-
 else:
     parameter_str = None
     for i in range(ensemble_size):

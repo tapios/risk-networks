@@ -49,13 +49,7 @@ from _user_network_init import user_network, user_nodes, user_population
 
 # observations #################################################################
 from _observations_init import (sensor_readings,
-                                MDT_neighbor_test,
-                                MDT_budget_random_test,
-                                MDT_high_var_test,
-                                MDT_result_delay,
                                 RDT_budget_random_test,
-                                poor_RDT_budget_random_test,
-                                RDT_high_var_test,
                                 RDT_result_delay,
                                 positive_hospital_records,
                                 negative_hospital_records,
@@ -89,14 +83,14 @@ from _master_eqn_init import (master_eqn_ensemble,
                               n_backward_steps)
 
 # assimilator ##################################################################
-transition_rates_to_update_str   = parameter_str 
-transmission_rate_to_update_flag = learn_transmission_rate 
+transition_rates_to_update_str   = parameter_str
+transmission_rate_to_update_flag = learn_transmission_rate
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
         n_assimilation_batches=arguments.assimilation_batches_sensor,
-        transition_rates_to_update_str=[],
+        transition_rates_to_update_str=None,
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
         full_svd=True,
@@ -125,9 +119,10 @@ record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
         n_assimilation_batches=arguments.assimilation_batches_record,
-        transition_rates_to_update_str=[],
+        transition_rates_to_update_str=None,
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record,
+        full_svd=True,
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
@@ -153,13 +148,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 # floats
 da_window         = 5.0
 prediction_window = 1.0
-closure_update_interval = 1.0      # update closure every .. days
+closure_update_interval = static_contact_interval # update closure every .. days
 record_assimilation_interval = 100.0 # assimilate H and D data every .. days
 test_assimilation_interval   = 1.0 # same for I
 sensor_assimilation_interval = 1.0 # same for I (sensors)
 
 # ints
-
 n_sweeps                     = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows        = int(total_time/prediction_window)

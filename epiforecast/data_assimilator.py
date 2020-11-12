@@ -110,7 +110,6 @@ class DataAssimilator:
         self.transmission_rate_min = transmission_rate_min 
         self.transmission_rate_max = transmission_rate_max 
 
-
     def find_observation_states(
             self,
             user_network,

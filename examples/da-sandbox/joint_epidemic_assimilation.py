@@ -48,16 +48,13 @@ import _general_init
 from _network_init import population, network
 
 # stochastic model #############################################################
-from _stochastic_init import (kinetic_ic, 
-                              epidemic_simulator)
+from _stochastic_init import kinetic_ic, epidemic_simulator
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
+
 # observations #################################################################
 from _observations_init import (sensor_readings,
-                                MDT_neighbor_test,
-                                MDT_budget_random_test,
-                                MDT_result_delay,
                                 RDT_budget_random_test,
                                 RDT_result_delay,
                                 positive_hospital_records,
@@ -65,16 +62,15 @@ from _observations_init import (sensor_readings,
                                 positive_death_records,
                                 negative_death_records)
 
-
 sensor_observations = [sensor_readings]
 
 viral_test_observations = [RDT_budget_random_test]
 test_result_delay = RDT_result_delay # delay to results of the virus test
 
-record_observations   = [positive_hospital_records,
-                          negative_hospital_records,
-                          positive_death_records,
-                          negative_death_records]
+record_observations = [positive_hospital_records,
+                       negative_hospital_records,
+                       positive_death_records,
+                       negative_death_records]
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -94,7 +90,7 @@ from _master_eqn_init import (master_eqn_ensemble,
 
 # assimilator ##################################################################
 transition_rates_to_update_str   = parameter_str
-transmission_rate_to_update_flag = learn_transmission_rate 
+transmission_rate_to_update_flag = learn_transmission_rate
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
