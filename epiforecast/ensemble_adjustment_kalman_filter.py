@@ -189,17 +189,16 @@ class EnsembleAdjustmentKalmanFilter:
                         svd_failed = False
                         F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                     except:
-                        svd_failed = True 
+                        svd_failed = True
                         print("First SVD not converge!")
                 F = F_full[:,:J-1]
                 rtDp_vec = rtDp_vec[:-1]
                 rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
                 rtDp_vec_full = np.zeros(zp.shape[1])
                 rtDp_vec_full[:J-1] = rtDp_vec
-                Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise 
+                Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise
                 Dp = np.diag(Dp_vec_full)
-            
-            else:   
+            else:
                 try:
                     F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
@@ -222,19 +221,19 @@ class EnsembleAdjustmentKalmanFilter:
                 Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
                 Dp = np.diag(Dp_vec_full)
 
-            # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
-            Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
-            
+            # Sigma = np.multiply(F_full, np.diag(Dp)) @ F_full.T, but we don't
+            # compute it explicitly
+
         G_full = np.diag(np.sqrt(Dp_vec_full))
         G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
-            
+
         # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
         if not self.observation_svd_regularized:
             if not self.observation_svd_reduced:
 
                 # Performing the second SVD of EAKF in the full space
                 # This indent creates U and D_vec
-               
+
                 # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
                 svd_failed = False
                 num_svd_attempts = 0
@@ -322,29 +321,31 @@ class EnsembleAdjustmentKalmanFilter:
                                                            return_singular_vectors='u')
                             Unull = la.null_space(Urect.T)
                         except:
-                            svd_failed = True 
+                            svd_failed = True
                             print("Second SVD not converge!")
 
                     # to get the full space, U, we pad it with a basis of the null space 
                     U=np.hstack([Urect,Unull])
-                      
+
                     # pad square rtD_vec and pad  with its smallest value, then with zeros
-                    sing_val_sq = rtD_vec**2           
+                    sing_val_sq = rtD_vec**2
                     D_vec = np.hstack([np.min(sing_val_sq) * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
                     D_vec[:trunc_size] = sing_val_sq
                 #
  
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            #Computation of multi_dot([F_full, G.T,U,B.T,G_inv,F_full.T]) first by creating without F_full.T and multiply after by it.     
-            AnoFt = np.linalg.multi_dot([np.multiply(F_full, np.diag(G_full)), np.multiply(np.multiply(U,np.diag(B)), np.diag(G_inv_full))])
-            A = AnoFt.dot(F_full.T)
+
+            AnoFt = (np.multiply(F_full, np.diag(G_full)) @
+                     np.multiply(np.multiply(U, np.diag(B)),
+                                 np.diag(G_inv_full))
+                    )
+            A = AnoFt @ F_full.T
+
             # so overall: A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv)).T])
-            Sigma_u = np.linalg.multi_dot([np.multiply(AnoFt,np.diag(Dp)),AnoFt.T])
+            Sigma_u = np.multiply(AnoFt, np.diag(Dp)) @ AnoFt.T
             # so overall Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-            
         else:
-            ### previous implementation
-            Dp_vec = rtDp_vec**2 + self.joint_cov_noise 
+            Dp_vec = rtDp_vec**2 + self.joint_cov_noise
             G = np.diag(np.sqrt(Dp_vec))
             G_inv = np.diag(1./np.sqrt(Dp_vec))
             svd_failed = False
@@ -363,20 +364,20 @@ class EnsembleAdjustmentKalmanFilter:
                     svd_failed = False
                     U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
                 except:
-                    svd_failed = True 
+                    svd_failed = True
                     print("Second SVD not converge!")
             # Padding the diagonal of matrix B with zeros
             if D_vec.shape[0] < Dp_vec.shape[0]:
                 D_vec = np.hstack([D_vec,np.zeros(Dp_vec.shape[0]-D_vec.shape[0])])
             D_vec = D_vec**2
             B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            A = np.linalg.multi_dot([F, 
-                                    G.T, 
-                                    U, 
-                                    B.T, 
-                                    G_inv, 
+            A = np.linalg.multi_dot([F,
+                                    G.T,
+                                    U,
+                                    B.T,
+                                    G_inv,
                                     F.T])
-            
+
             Sigma_u = np.linalg.multi_dot([F, G.T, U, B.T, G_inv,
                                           np.diag(Dp_vec),
                                           G_inv, B, U.T, G, F.T])
@@ -402,18 +403,18 @@ class EnsembleAdjustmentKalmanFilter:
                     except:
                         svd_failed = True 
                         print("Second SVD not converge!")
-                  
+
                 F_u_full = np.hstack([F_u_null, F_u])
 
                 Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
                 Dp_u_vec_full[-J+1:] = Dp_u_vec
                 Sigma_u = np.linalg.multi_dot([np.multiply(F_u_full, Dp_u_vec_full), F_u_full.T])
-            
+
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
-        Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
-        
-        zu_bar = np.dot(Sigma_u, \
-                           (np.dot(Sigma_inv, zp_bar) + np.linalg.multi_dot([ np.multiply(H.T,np.diag(cov_inv)), x_t])))
+        Sigma_inv = np.multiply(F_full, 1/np.diag(Dp)) @ F_full.T
+
+        zu_bar = Sigma_u @ (Sigma_inv @ zp_bar +
+                            np.multiply(H.T, np.diag(cov_inv)) @ x_t)
 
         # Update parameters and state in `zu`
         zu = np.dot(zp - zp_bar, A.T) + zu_bar
