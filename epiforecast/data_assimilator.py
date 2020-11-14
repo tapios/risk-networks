@@ -211,7 +211,7 @@ class DataAssimilator:
             scale=None,
             noisy_measurement=True,
             verbose=False):
-
+        self.scale = scale
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,
@@ -222,6 +222,8 @@ class DataAssimilator:
                      ensemble_state,
                      data,
                      current_time,
+                     scale=scale,
+                     noisy_measurement=noisy_measurement,
                      verbose=verbose)
 
     def compute_update_indices(
@@ -434,7 +436,9 @@ class DataAssimilator:
                                              truth,
                                              cov,
                                              H_obs,
-                                             print_error=print_error)
+                                             print_error=print_error,                                     
+                                             scale=self.scale)
+
 
                     if self.transmission_rate_to_update_flag:
                         # Clip transmission rate into a reasonable range
@@ -895,9 +899,12 @@ class DataAssimilator:
         full_ensemble_transmission_rate - updated from EAKF
     
         """
+        
+        update_flag = True
 
         if len(self.observations) == 0: # no update is performed; return input
-            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            update_flag=False
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
 
         #get the observation times from the assimilator
         observation_window = [min(full_ensemble_state_series.keys()), max(full_ensemble_state_series.keys())]
@@ -909,7 +916,8 @@ class DataAssimilator:
         if n_observation_times == 0: # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
-            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            update_flag=False
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
             
             
         # extract from full_ensemble_state_series
@@ -922,7 +930,8 @@ class DataAssimilator:
         if (total_obs_states == 0):
             if verbose:
                 print("[ Data assimilator ] No assimilation required")
-            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+            update_flag=False
+            return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
 
         if verbose:
             print("[ Data assimilator ] Total states over window with assimilation data: ",
@@ -939,6 +948,8 @@ class DataAssimilator:
         # Load the truth, variances of the observation(s)
         truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times])
         var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
+        print(truth[1])
+        print(var[1])
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[observation_times[0]])
         
@@ -1018,13 +1029,14 @@ class DataAssimilator:
             (ensemble_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate
-            ) = self.damethod.update(ensemble_state, #100 x 5*n_user_nodes*n_observation_times
+            ) = self.damethod.update(ensemble_state, #100 x 5*n_user_nodes + n_observation_times*n_observed_nodes
                                      ensemble_transition_rates, #100 x transi.
                                      ensemble_transmission_rate, #100 x transm.
                                      truth, 
                                      cov, 
-                                     H_obs, # 5*n_user_nodes*n_observation_times                                     
-                                     print_error=print_error)
+                                     H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
+                                     print_error=print_error,
+                                     scale=self.scale)
 
             #update the IC:
             full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
@@ -1070,4 +1082,4 @@ class DataAssimilator:
             self.error_to_truth_state(ensemble_state,data)
 
         # Return ensemble_state, transition rates, and transmission rate
-        return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate
+        return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag

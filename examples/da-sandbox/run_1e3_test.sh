@@ -27,13 +27,12 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 # parameters & constants #######################################################
 
 # network 
-EXP_NAME="NYC_1e3_forwardIAF" 
+EXP_NAME="NYC_1e3_forwardIAF_3day_multisweep_reg1000_hdonly" 
 network_size=1e3
 # user base
 user_fraction=1.0
 
 #sensors
-
 wearers=0
 batches_sensors=1
 batches_records=1 #195884 nodes
@@ -41,6 +40,9 @@ batches_records=1 #195884 nodes
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
+sensor_regularization=1
+test_regularization=1
+record_regularization=1000
 
 # intervention
 int_freq='single'
@@ -48,7 +50,7 @@ intervention_start_time=18
 
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(1)  
+test_budgets=(0)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 batches_tests=(1) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
@@ -78,6 +80,9 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
+  --sensor-assimilation-regularization=${sensor_regularization} \
+  --test-assimilation-regularization=${test_regularization} \
+  --record-assimilation-regularization=${record_regularization} \
   >${stdout} 2>${stderr}
 
 
