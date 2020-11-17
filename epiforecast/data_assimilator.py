@@ -458,7 +458,7 @@ class DataAssimilator:
                                              truth,
                                              cov,
                                              H_obs,
-                                             scale=self.scale
+                                             scale=self.scale,
                                              print_error=print_error,
                                              inflate_indices=inflate_indices)
 
@@ -520,6 +520,7 @@ class DataAssimilator:
                                                  truth[batch],
                                                  cov_batch,
                                                  H_obs,
+                                                 scale=self.scale,
                                                  print_error=print_error)
 
                         ensemble_transition_rates_reshaped[:,batch,:] = \
