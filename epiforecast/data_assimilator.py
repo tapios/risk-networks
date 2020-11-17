@@ -1023,6 +1023,9 @@ class DataAssimilator:
                 self.stored_observed_states[initial_time],
                 np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
             H_obs.append(H_obs_at_initial) 
+
+            # Get inflation indices
+            inflate_indices = self.compute_inflate_indices(user_network)
             
             # Obtain the non-initial observed states, and create dummy observation operator
             further_ensemble_states = []
@@ -1052,7 +1055,8 @@ class DataAssimilator:
                                      truth, 
                                      cov, 
                                      H_obs, # 5*n_user_nodes*n_observation_times                                     
-                                     print_error=print_error)
+                                     print_error=print_error,
+                                     inflate_indices=inflate_indices)
 
             #update the IC:
             full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
