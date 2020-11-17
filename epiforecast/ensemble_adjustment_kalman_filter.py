@@ -64,7 +64,7 @@ class EnsembleAdjustmentKalmanFilter:
             inflate_indices=None):
 
         '''
-        - ensemble_state (np.array): J x M of observed states for each of the J ensembles
+        - ensemble_state (np.array): J x M of update states for each of the J ensembles
 
         - clinical_statistics (np.array): transition rate model parameters for each of the J ensembles
 
@@ -94,7 +94,7 @@ class EnsembleAdjustmentKalmanFilter:
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov
-        if scale == 'log':
+        if scale is None: 
             cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
             x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
@@ -131,14 +131,16 @@ class EnsembleAdjustmentKalmanFilter:
         # Sizes of q and x
         pqs = q[0].size +p[0].size
         xs = x[0].size
-        xt = truth.size
-
+        xt = truth.size #observations over all times
+        
         zp_bar = np.mean(zp, 0)
-
+        
+        #observation operators:
+        # full state to data:
         H = np.hstack([np.zeros((xt, pqs)), H_obs])
         Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
         Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
-        
+
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         # Performing the first SVD of EAKF
         svd_failed = False
