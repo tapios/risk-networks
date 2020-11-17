@@ -10,9 +10,14 @@ class EnsembleAdjustmentKalmanFilter:
     def __init__(
             self,
             joint_cov_noise = 1e-2,
+            inflate_states = False,
+            x_logit_std_threshold = 0.1,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
+
+        Flags:
+            * inflate_states: enable the inflation of states if True
 
         Key functions:
             * eakf.obs
@@ -24,6 +29,8 @@ class EnsembleAdjustmentKalmanFilter:
         # Error
         self.error = np.empty(0)
         self.joint_cov_noise = joint_cov_noise
+        self.inflate_states = inflate_states
+        self.x_logit_std_threshold = x_logit_std_threshold  # unit is in (%)
         self.output_path = output_path
 
         # Compute error
@@ -52,7 +59,8 @@ class EnsembleAdjustmentKalmanFilter:
             cov,
             H_obs,
             print_error=False,
-            r=1.0):
+            r=1.0,
+            inflate_indices=None):
 
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
@@ -243,6 +251,24 @@ class EnsembleAdjustmentKalmanFilter:
 
         # replace unchanged states
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+
+        if self.inflate_states == True:
+            # Inflation all states in logit space
+            x_logit_mean = np.mean(x_logit, axis=0)
+            x_logit_var = np.var(x_logit, axis=0)
+            new_std = np.sqrt(np.abs(((x_logit_mean*self.x_logit_std_threshold)**2 > x_logit_var) \
+                                     * ((x_logit_mean*self.x_logit_std_threshold)**2 - x_logit_var)))
+            x_logit_inflated = x_logit + np.random.normal(np.zeros(x_logit_mean.shape), new_std, \
+                    x_logit.shape)
+
+            x_logit_inflated = np.minimum(x_logit_inflated, 1e2)
+
+            new_ensemble_state_inflated = np.exp(x_logit_inflated)/(np.exp(x_logit_inflated) + 1.0)
+
+            new_ensemble_state[:,inflate_indices] = \
+                    new_ensemble_state_inflated[:,inflate_indices] + \
+                    np.mean(new_ensemble_state[:,inflate_indices], axis=0) - \
+                    np.mean(new_ensemble_state_inflated[:,inflate_indices], axis=0)
 
         pqout=np.dot(zu,Hpq.T)
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
