@@ -18,7 +18,7 @@ class DataAssimilator:
             transition_rates_to_update_str=None,
             transmission_rate_to_update_flag=None,
             update_type='global',
-            full_svd=False,
+            full_svd=True,
             joint_cov_noise=1e-2,
             transition_rates_min=None,
             transition_rates_max=None,
@@ -87,15 +87,10 @@ class DataAssimilator:
 
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
-                    prior_svd_reduced=True,
-                    observation_svd_regularized=False,
                     joint_cov_noise=joint_cov_noise,
                     output_path=output_path)
         else:
-            self.damethod = EnsembleAdjustmentKalmanFilter(
-                    prior_svd_reduced=True,
-                    joint_cov_noise=joint_cov_noise,
-                    output_path=output_path)
+            raise NotImplementedError("The implemetation of reduced second SVD has been removed!")
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
