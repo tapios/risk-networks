@@ -252,8 +252,6 @@ class EnsembleAdjustmentKalmanFilter:
         # Avoid overflow for exp
         x_logit = np.minimum(x_logit, 1e2)
 
-        # replace unchanged states
-        new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
 
         if self.inflate_states == True:
             # Inflation all states in logit space
@@ -272,7 +270,10 @@ class EnsembleAdjustmentKalmanFilter:
                     new_ensemble_state_inflated[:,inflate_indices] + \
                     np.mean(new_ensemble_state[:,inflate_indices], axis=0) - \
                     np.mean(new_ensemble_state_inflated[:,inflate_indices], axis=0)
-
+        else:    
+            # replace unchanged states
+            new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+        
         pqout=np.dot(zu,Hpq.T)
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
         new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
