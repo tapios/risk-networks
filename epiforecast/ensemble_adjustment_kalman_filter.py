@@ -9,18 +9,15 @@ class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
-            prior_svd_reduced = True,
-            observation_svd_regularized = True,
-            observation_svd_reduced = False,
             joint_cov_noise = 1e-2,
+            inflate_states = False,
+            x_logit_std_threshold = 0.1,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
 
         Flags:
-            * prior_svd_reduced: reduced SVD on first SVD of EAKF
-            * observation_svd_regularized: reduced SVD on second SVD of EAKF with regularization
-            * observation_svd_reduced: reduced SVD on second SVD of EAKF with padding 
+            * inflate_states: enable the inflation of states if True
 
         Key functions:
             * eakf.obs
@@ -28,21 +25,12 @@ class EnsembleAdjustmentKalmanFilter:
             * eakf.compute_error
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
-        if not prior_svd_reduced and observation_svd_reduced:
-            raise NotImplementedError("observation SVD cannot be reduced, if prior SVD is not reduced")
-        if not prior_svd_reduced and observation_svd_regularized:
-            raise NotImplementedError("\'observation_svd_regularized=True\' only works with " + 
-                                      "\'prior_svd_reduced=True\'! Please double check the setting.")
-        if observation_svd_regularized and observation_svd_reduced:
-            warnings.warn("\'observation_svd_reduced=True\' is ignored, " +
-                          "since \'observation_svd_regularized=True\'! Please double check the setting.")
         
         # Error
         self.error = np.empty(0)
-        self.prior_svd_reduced = prior_svd_reduced
-        self.observation_svd_reduced = observation_svd_reduced
-        self.observation_svd_regularized = observation_svd_regularized
         self.joint_cov_noise = joint_cov_noise
+        self.inflate_states = inflate_states
+        self.x_logit_std_threshold = x_logit_std_threshold  # unit is in (%)
         self.output_path = output_path
 
         # Compute error
@@ -70,8 +58,10 @@ class EnsembleAdjustmentKalmanFilter:
             truth,
             cov,
             H_obs,
+            scale=None,
             print_error=False,
-            r=1.0):
+            r=1.0,
+            inflate_indices=None):
 
         '''
         - ensemble_state (np.array): J x M of observed states for each of the J ensembles
@@ -104,9 +94,9 @@ class EnsembleAdjustmentKalmanFilter:
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov
-
-        cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
-        x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
+        if scale == 'log':
+            cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
+            x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
         try:
             # We assume independent variances (i.e diagonal covariance)
@@ -150,265 +140,101 @@ class EnsembleAdjustmentKalmanFilter:
         Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
         
         # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
-        if not self.prior_svd_reduced:
-            # Calculate the full prior covariance from zp
-            Sigma = np.cov(zp.T)
-
-            #if only one state is given
-            if Sigma.ndim < 2:
-                Sigma=np.array([Sigma])
-                Sigma=Sigma[np.newaxis]
-                
-            # Add noise directly to the sample covariance for ill-conditioned Sigma
-            Sigma = Sigma + np.diag(np.full(pqs+xs, self.joint_cov_noise))
-
-            # Perform SVD on Sigma
-            F, Dp_vec, _ = la.svd(Sigma)
-            F_full = F
-            Dp_vec_full = Dp_vec
-            Dp = np.diag(Dp_vec_full)
-
-        else:
-
-            svd_failed = False
-            num_svd_attempts = 0
-            # if ensemble_size < observations size, we pad the singular value matrix with added noise
-            if zp.shape[0] < zp.shape[1]:    
-                try:
-                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                except:
-                    print("First SVD not converge!")
-                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
-                            (zp-zp_bar).T)
-                    svd_failed = True
-                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                while svd_failed == True:
-                    num_svd_attempts = num_svd_attempts+1
-                    np.random.seed(num_svd_attempts*100)
-                    try:
-                        svd_failed = False
-                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                    except:
-                        svd_failed = True 
-                        print("First SVD not converge!")
-                F = F_full[:,:J-1]
-                rtDp_vec = rtDp_vec[:-1]
-                rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
-                rtDp_vec_full = np.zeros(zp.shape[1])
-                rtDp_vec_full[:J-1] = rtDp_vec
-                Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise 
-                Dp = np.diag(Dp_vec_full)
-            
-            else:   
-                try:
-                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                except:
-                    print("First SVD not converge!")
-                    np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
-                            (zp-zp_bar).T)
-                    svd_failed = True
-                    #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                while svd_failed == True:
-                    num_svd_attempts = num_svd_attempts+1
-                    np.random.seed(num_svd_attempts*100)
-                    try:
-                        svd_failed = False
-                        F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
-                    except:
-                        svd_failed = True 
-                        print("First SVD not converge!")
-                F = F_full
-                rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
-                Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
-                Dp = np.diag(Dp_vec_full)
-
-            # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
-            Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
-            
-        G_full = np.diag(np.sqrt(Dp_vec_full))
-        G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
-            
-        # NB: prior_svd_reduced == False implies observation_svd_reduced == False         
-        if not self.observation_svd_regularized:
-            if not self.observation_svd_reduced:
-
-                # Performing the second SVD of EAKF in the full space
-                # This indent creates U and D_vec
-               
-                # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
-                svd_failed = False
-                num_svd_attempts = 0
-                try:
-                    U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                       full_matrices=True)
-                except:
-                    print("Second SVD not converge!")
-                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
-                            np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
-                            np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
-                    U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                       full_matrices=True)
-                    svd_failed = True
-                while svd_failed == True:
-                    num_svd_attempts = num_svd_attempts+1
-                    np.random.seed(num_svd_attempts*100)
-                    try:
-                        svd_failed = False
-                        U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                           full_matrices=True)
-                    except:
-                        svd_failed = True 
-                        print("Second SVD not converge!")
-                D_vec = np.zeros(F_full.shape[0])
-                D_vec[:cov_inv.shape[0]] = rtD_vec**2
-            else:         
-                # This indent creates U and D_vec       
-
-                #get truncation size for the svd
-                #(If too slow - one can try reducing 2*(J-1))
-                trunc_size = min(2*(J-1),cov_inv.shape[0])
-
-                #if cov_inv is small then no truncation required
-                if trunc_size == cov_inv.shape[0]:
-                    svd_failed = False
-                    num_svd_attempts = 0
-                    # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
-                    try:
-                        U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                           full_matrices=True)
-                    except:
-                        print("Second SVD not converge!")
-                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
-                                np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
-                                    np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
-                        svd_failed = True
-                    while svd_failed == True:
-                        num_svd_attempts = num_svd_attempts+1
-                        np.random.seed(num_svd_attempts*100)
-                        try:
-                            svd_failed = False
-                            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                                               full_matrices=True)
-                        except:
-                            svd_failed = True 
-                            print("Second SVD not converge!")
-                    D_vec = rtD_vec**2
-                              
-                else:
-                    # The max number of singular values is the size of the observations
-                    # we pad from trunc_size -> size obs, and pad from size_obs to joint space size
-
-                    # calculating np.linalg.multi_dot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)]
-                    svd_failed = False
-                    num_svd_attempts = 0
-                    try:
-                        Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
-                                                       k=trunc_size,
-                                                       return_singular_vectors='u')
-                        Unull = la.null_space(Urect.T)
-                    except:
-                        print("Second SVD not converge!")
-                        np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
-                                np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
-                                np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
-                        svd_failed = True
-                    while svd_failed == True:
-                        num_svd_attempts = num_svd_attempts+1
-                        np.random.seed(num_svd_attempts*100)
-                        try:
-                            svd_failed = False
-                            Urect, rtD_vec , _ = spla.svds(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T,  np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]),
-                                                           k=trunc_size,
-                                                           return_singular_vectors='u')
-                            Unull = la.null_space(Urect.T)
-                        except:
-                            svd_failed = True 
-                            print("Second SVD not converge!")
-
-                    # to get the full space, U, we pad it with a basis of the null space 
-                    U=np.hstack([Urect,Unull])
-                      
-                    # pad square rtD_vec and pad  with its smallest value, then with zeros
-                    sing_val_sq = rtD_vec**2           
-                    D_vec = np.hstack([np.min(sing_val_sq) * np.ones(cov_inv.shape[0]),np.zeros(F_full.shape[0]-cov_inv.shape[0])])
-                    D_vec[:trunc_size] = sing_val_sq
-                #
- 
-            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            #Computation of multi_dot([F_full, G.T,U,B.T,G_inv,F_full.T]) first by creating without F_full.T and multiply after by it.     
-            AnoFt = np.linalg.multi_dot([np.multiply(F_full, np.diag(G_full)), np.multiply(np.multiply(U,np.diag(B)), np.diag(G_inv_full))])
-            A = AnoFt.dot(F_full.T)
-            # so overall: A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv)).T])
-            Sigma_u = np.linalg.multi_dot([np.multiply(AnoFt,np.diag(Dp)),AnoFt.T])
-            # so overall Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-            
-        else:
-            ### previous implementation
-            Dp_vec = rtDp_vec**2 + self.joint_cov_noise 
-            G = np.diag(np.sqrt(Dp_vec))
-            G_inv = np.diag(1./np.sqrt(Dp_vec))
-            svd_failed = False
-            num_svd_attempts = 0
+        # Performing the first SVD of EAKF
+        svd_failed = False
+        num_svd_attempts = 0
+        # if ensemble_size < observations size, we pad the singular value matrix with added noise
+        if zp.shape[0] < zp.shape[1]:    
             try:
-                U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             except:
-                print("Second SVD not converge!")
-                np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
-                        np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+                print("First SVD not converge!")
+                np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
+                        (zp-zp_bar).T)
                 svd_failed = True
+                #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             while svd_failed == True:
                 num_svd_attempts = num_svd_attempts+1
                 np.random.seed(num_svd_attempts*100)
                 try:
                     svd_failed = False
-                    U, D_vec, _ = la.svd(np.linalg.multi_dot([G.T, F.T, H.T, np.sqrt(cov_inv)]))
+                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
                     svd_failed = True 
-                    print("Second SVD not converge!")
-            # Padding the diagonal of matrix B with zeros
-            if D_vec.shape[0] < Dp_vec.shape[0]:
-                D_vec = np.hstack([D_vec,np.zeros(Dp_vec.shape[0]-D_vec.shape[0])])
-            D_vec = D_vec**2
-            B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
-            A = np.linalg.multi_dot([F, 
-                                    G.T, 
-                                    U, 
-                                    B.T, 
-                                    G_inv, 
-                                    F.T])
-            
-            Sigma_u = np.linalg.multi_dot([F, G.T, U, B.T, G_inv,
-                                          np.diag(Dp_vec),
-                                          G_inv, B, U.T, G, F.T])
-
-            if zp.shape[0] < zp.shape[1]:
-                svd_failed = False
-                num_svd_attempts = 0
+                    print("First SVD not converge!")
+            F = F_full[:,:J-1]
+            rtDp_vec = rtDp_vec[:-1]
+            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
+            rtDp_vec_full = np.zeros(zp.shape[1])
+            rtDp_vec_full[:J-1] = rtDp_vec
+            Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise 
+            Dp = np.diag(Dp_vec_full)
+        
+        else:   
+            try:
+                F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+            except:
+                print("First SVD not converge!")
+                np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
+                        (zp-zp_bar).T)
+                svd_failed = True
+                #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
+            while svd_failed == True:
+                num_svd_attempts = num_svd_attempts+1
+                np.random.seed(num_svd_attempts*100)
                 try:
-                    F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
-                    F_u_null = la.null_space(F_u.T)
+                    svd_failed = False
+                    F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
-                    print("Second SVD not converge!")
-                    np.save(os.path.join(output_path, 'svd_matrix_2.npy'),
-                            Sigma_u)
                     svd_failed = True 
-                while svd_failed == True:
-                    num_svd_attempts = num_svd_attempts+1
-                    np.random.seed(num_svd_attempts*100)
-                    try:
-                        svd_failed = False
-                        F_u, Dp_u_vec , _ = spla.svds(Sigma_u, k=J-1, return_singular_vectors='u')
-                        F_u_null = la.null_space(F_u.T)
-                    except:
-                        svd_failed = True 
-                        print("Second SVD not converge!")
-                  
-                F_u_full = np.hstack([F_u_null, F_u])
+                    print("First SVD not converge!")
+            F = F_full
+            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
+            Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
+            Dp = np.diag(Dp_vec_full)
 
-                Dp_u_vec_full = np.ones(F_u_full.shape[0]) * np.min(Dp_u_vec)
-                Dp_u_vec_full[-J+1:] = Dp_u_vec
-                Sigma_u = np.linalg.multi_dot([np.multiply(F_u_full, Dp_u_vec_full), F_u_full.T])
+        # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
+        Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
             
+        G_full = np.diag(np.sqrt(Dp_vec_full))
+        G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
+            
+        # Performing the second SVD of EAKF in the full space
+        # computation of multidot([G_full.T, F_full.T, H.T, np.sqrt(cov_inv)])
+        svd_failed = False
+        num_svd_attempts = 0
+        try:
+            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                               full_matrices=True)
+        except:
+            print("Second SVD not converge!")
+            np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
+                    np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
+                    np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
+            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                               full_matrices=True)
+            svd_failed = True
+        while svd_failed == True:
+            num_svd_attempts = num_svd_attempts+1
+            np.random.seed(num_svd_attempts*100)
+            try:
+                svd_failed = False
+                U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
+                                   full_matrices=True)
+            except:
+                svd_failed = True 
+                print("Second SVD not converge!")
+        D_vec = np.zeros(F_full.shape[0])
+        D_vec[:cov_inv.shape[0]] = rtD_vec**2
+
+        B = np.diag((1.0 + D_vec) ** (-1.0 / 2.0))
+        #Computation of multi_dot([F_full, G.T,U,B.T,G_inv,F_full.T]) first by creating without F_full.T and multiply after by it.     
+        AnoFt = np.linalg.multi_dot([np.multiply(F_full, np.diag(G_full)), np.multiply(np.multiply(U,np.diag(B)), np.diag(G_inv_full))])
+        A = AnoFt.dot(F_full.T)
+        # so overall: A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv)).T])
+        Sigma_u = np.linalg.multi_dot([np.multiply(AnoFt,np.diag(Dp)),AnoFt.T])
+        # so overall Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
+           
         # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
         
@@ -426,6 +252,24 @@ class EnsembleAdjustmentKalmanFilter:
 
         # replace unchanged states
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+
+        if self.inflate_states == True:
+            # Inflation all states in logit space
+            x_logit_mean = np.mean(x_logit, axis=0)
+            x_logit_var = np.var(x_logit, axis=0)
+            new_std = np.sqrt(np.abs(((x_logit_mean*self.x_logit_std_threshold)**2 > x_logit_var) \
+                                     * ((x_logit_mean*self.x_logit_std_threshold)**2 - x_logit_var)))
+            x_logit_inflated = x_logit + np.random.normal(np.zeros(x_logit_mean.shape), new_std, \
+                    x_logit.shape)
+
+            x_logit_inflated = np.minimum(x_logit_inflated, 1e2)
+
+            new_ensemble_state_inflated = np.exp(x_logit_inflated)/(np.exp(x_logit_inflated) + 1.0)
+
+            new_ensemble_state[:,inflate_indices] = \
+                    new_ensemble_state_inflated[:,inflate_indices] + \
+                    np.mean(new_ensemble_state[:,inflate_indices], axis=0) - \
+                    np.mean(new_ensemble_state_inflated[:,inflate_indices], axis=0)
 
         pqout=np.dot(zu,Hpq.T)
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]

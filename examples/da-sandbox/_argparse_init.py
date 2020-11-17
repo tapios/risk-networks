@@ -44,6 +44,9 @@ parser.add_argument('--assimilation-batches-record', type=int, default=1)
 parser.add_argument('--sensor-assimilation-regularization', type=float, default=1)
 parser.add_argument('--test-assimilation-regularization', type=float, default=1)
 parser.add_argument('--record-assimilation-regularization', type=float, default=1)
+parser.add_argument('--assimilation-inflation', default=True, action='store_false')
+parser.add_argument('--assimilation-inflation-threshold', type=float, default=0.1)
+parser.add_argument('--assimilation-inflate-I-only', default=True, action='store_false')
 
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')

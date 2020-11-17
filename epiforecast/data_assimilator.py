@@ -18,8 +18,11 @@ class DataAssimilator:
             transition_rates_to_update_str=None,
             transmission_rate_to_update_flag=None,
             update_type='global',
-            full_svd=False,
+            full_svd=True,
             joint_cov_noise=1e-2,
+            inflate_states=True,
+            x_logit_std_threshold=0.1,
+            inflate_I_only=True,
             transition_rates_min=None,
             transition_rates_max=None,
             transmission_rate_min=None,
@@ -59,6 +62,12 @@ class DataAssimilator:
             full_svd (bool): whether to use full or reduced second SVD in EAKF
 
             joint_cov_noise (float): Tikhonov-regularization noise
+
+            inflate_states: inflate states in EAKF updating if True
+
+            x_logit_std_threshold: threshold of std for inflation (% of mean value)
+
+            inflate_I_only: only inflate I if True
         """
         if not isinstance(observations, list):
             observations = [observations]
@@ -87,15 +96,14 @@ class DataAssimilator:
 
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
-                    prior_svd_reduced=True,
-                    observation_svd_regularized=False,
                     joint_cov_noise=joint_cov_noise,
+                    inflate_states = inflate_states,
+                    x_logit_std_threshold = x_logit_std_threshold,
                     output_path=output_path)
         else:
-            self.damethod = EnsembleAdjustmentKalmanFilter(
-                    prior_svd_reduced=True,
-                    joint_cov_noise=joint_cov_noise,
-                    output_path=output_path)
+            raise NotImplementedError("The implemetation of reduced second SVD has been removed!")
+
+        self.inflate_I_only = inflate_I_only
 
         # storage for observations time : obj 
         self.stored_observed_states = {}
@@ -225,6 +233,18 @@ class DataAssimilator:
                      scale=scale,
                      noisy_measurement=noisy_measurement,
                      verbose=verbose)
+
+    def compute_inflate_indices(
+            self,
+            user_network):
+
+        n_user_nodes = user_network.get_node_count()
+        if self.inflate_I_only == True:
+            inflate_states = np.arange(n_user_nodes, 2*n_user_nodes) 
+        else:
+            inflate_states = np.arange(5*n_user_nodes) 
+
+        return inflate_states
 
     def compute_update_indices(
             self,
@@ -422,6 +442,8 @@ class DataAssimilator:
                     H_obs = self.generate_state_observation_operator(
                             obs_states,
                             update_states)
+                    inflate_indices = self.compute_inflate_indices(user_network)
+
                     if verbose:
                         print("[ Data assimilator ] Total states to be assimilated: ",
                               update_states.size)
@@ -436,9 +458,9 @@ class DataAssimilator:
                                              truth,
                                              cov,
                                              H_obs,
-                                             print_error=print_error,                                     
-                                             scale=self.scale)
-
+                                             scale=self.scale
+                                             print_error=print_error,
+                                             inflate_indices=inflate_indices)
 
                     if self.transmission_rate_to_update_flag:
                         # Clip transmission rate into a reasonable range
@@ -459,6 +481,11 @@ class DataAssimilator:
                                 self.__class__.__name__
                                 + ": batching is not implemented yet for: "
                                 + "'full_global', 'global'")
+
+                    if self.inflate_states == True:
+                        raise NotImplementedError(
+                                self.__class__.__name__
+                                + ": inflation is not implemented yet with batching!")
 
                     permuted_idx = np.random.permutation(np.arange(obs_states.size))
                     batches = np.array_split(permuted_idx,
@@ -1008,6 +1035,10 @@ class DataAssimilator:
                 self.stored_observed_states[initial_time],
                 np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
             H_obs.append(H_obs_at_initial) 
+
+            # Get inflation indices
+            inflate_indices = self.compute_inflate_indices(user_network)
+            
             # Obtain the non-initial observed states, and create dummy observation operator
             further_ensemble_states = []
             
@@ -1044,8 +1075,9 @@ class DataAssimilator:
                                      truth, 
                                      cov, 
                                      H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
+                                     scale=self.scale,
                                      print_error=print_error,
-                                     scale=self.scale)
+                                     inflate_indices=inflate_indices)
 
             #update the IC:
             full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]

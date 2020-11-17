@@ -108,6 +108,9 @@ sensor_assimilator = DataAssimilator(
         update_type=arguments.assimilation_update_sensor,
         joint_cov_noise=arguments.sensor_assimilation_regularization,
         full_svd=True,
+        inflate_states=arguments.assimilation_inflation,
+        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
+        inflate_I_only=arguments.assimilation_inflate_I_only,
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
@@ -119,6 +122,9 @@ viral_test_assimilator = DataAssimilator(
         update_type=arguments.assimilation_update_test,
         joint_cov_noise=arguments.test_assimilation_regularization,
         full_svd=True,
+        inflate_states=arguments.assimilation_inflation,
+        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
+        inflate_I_only=arguments.assimilation_inflate_I_only,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -134,6 +140,9 @@ record_assimilator = DataAssimilator(
         update_type=arguments.assimilation_update_record,
         joint_cov_noise=arguments.record_assimilation_regularization,
         full_svd=True,    
+        inflate_states=arguments.assimilation_inflation,
+        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
+        inflate_I_only=arguments.assimilation_inflate_I_only,
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
