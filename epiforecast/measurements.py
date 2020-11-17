@@ -1068,18 +1068,21 @@ class DataObservation(DataInformedObservation):
         #tolerance,as we cannot set values "equal" to 0 or 1
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
+
+        # set_to_one=True  means we set "state = 1" when "status == obs_status"
         MEAN_TOLERANCE     = 1e-9
         VARIANCE_TOLERANCE = 1e-14
 
-        # set_to_one=True  means we set "state = 1" when "status == obs_status"
         if self.set_to_one:
 
             observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+                observed_mean = 20 * np.ones(self.obs_states.size)
+                observed_variance = np.ones(self.obs_states.size)
+                #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
@@ -1087,8 +1090,11 @@ class DataObservation(DataInformedObservation):
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+                observed_mean = -20 * np.ones(self.obs_states.size)
+                observed_variance = np.ones(self.obs_states.size)
+         
+                #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
         self.mean     = observed_mean
         self.variance = observed_variance
