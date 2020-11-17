@@ -182,7 +182,7 @@ da_window         = 3.0
 prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
-test_assimilation_interval  = 1000.0 # same for I
+test_assimilation_interval  = 1.0 # same for I
 record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 
 intervention_start_time = arguments.intervention_start_time
