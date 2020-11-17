@@ -912,14 +912,14 @@ class DataAssimilator:
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
         observation_times.sort()
         n_observation_times = len(observation_times)
-
+       
         if n_observation_times == 0: # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
             update_flag=False
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
-            
-            
+
+        initial_time = observation_times[0]     
         # extract from full_ensemble_state_series
         full_ensemble_state_at_obs = {obs_time : full_ensemble_state_series[obs_time] for obs_time in observation_times}
 
@@ -948,10 +948,11 @@ class DataAssimilator:
         # Load the truth, variances of the observation(s)
         truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times])
         var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
-        print(truth[1])
-        print(var[1])
+        if verbose:
+            print("mean for positive data: ",[tt for tt in truth if tt > 0] )
+
         # Perform DA model update with ensemble_state: states, transition and transmission rates
-        initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[observation_times[0]])
+        initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[initial_time])
         
         n_user_nodes = user_network.get_node_count()
         if self.n_assimilation_batches == 1:
@@ -993,7 +994,7 @@ class DataAssimilator:
             # [H_obs(os,fs), identity(os,os), ... , identity(os,os)] 
             # Data = n_observations*os 
 
-            initial_time = observation_times[0]
+            
             H_obs = []
             tmp_type = self.update_type  #for this type of iteration we want local only updating
             self.update_type = 'local'
@@ -1002,29 +1003,37 @@ class DataAssimilator:
             ensemble_state_at_initial=full_ensemble_state_at_obs[initial_time]
         
             # Observation operator of the initial state, observed x total states            
+            
             H_obs_at_initial = self.generate_state_observation_operator(
                 self.stored_observed_states[initial_time],
                 np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
             H_obs.append(H_obs_at_initial) 
-            
             # Obtain the non-initial observed states, and create dummy observation operator
             further_ensemble_states = []
+            
             for obs_time in observation_times[1:]:
-                                
                 update_states_at_obs = self.compute_update_indices(
                     user_network,
                     self.stored_observed_states[obs_time],
                     self.stored_observed_nodes[obs_time])
-                tmp_state = full_ensemble_state_at_obs[obs_time]
-                further_ensemble_states.append(tmp_state[:,update_states_at_obs])
-                H_obs.append(np.eye(update_states_at_obs.size))
-            
+
+                if update_states_at_obs.size > 0:
+                    print("states to update", update_states_at_obs)
+                    tmp_state = full_ensemble_state_at_obs[obs_time]
+                    further_ensemble_states.append(tmp_state[:,update_states_at_obs])
+                    H_obs.append(np.eye(update_states_at_obs.size))
+                
             #combine_together
-            further_ensemble_states = np.concatenate(further_ensemble_states,axis=1) #100 x 5*obs_states
+            further_ensemble_states = np.concatenate(further_ensemble_states,axis=1) #100 x 5*n_obs_states
             ensemble_state = np.concatenate([ensemble_state_at_initial,further_ensemble_states],axis=1)
             H_obs = la.block_diag(*H_obs)
             self.update_type = tmp_type
             
+            if verbose:
+                obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
+                positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
+                print("observed states prior to assimilation", positive_states_ens0)
+
             #perform the update
             (ensemble_state,
              new_ensemble_transition_rates,
@@ -1040,7 +1049,12 @@ class DataAssimilator:
 
             #update the IC:
             full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
-        
+            
+            if verbose:
+                obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
+                positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
+                print("observed positive states post assimilation", positive_states_ens0)
+
             if self.transmission_rate_to_update_flag:
                 # Clip transmission rate into a reasonable range
                 new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
@@ -1053,7 +1067,7 @@ class DataAssimilator:
                     ensemble_transmission_rate,
                     n_user_nodes,
                     user_network.get_nodes()) # changed from particular observed nodes
-
+                
 
         else: # perform DA update in batches
             raise  NotImplementedError("not implemented for batching yet")
