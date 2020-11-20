@@ -20,6 +20,7 @@ class DataAssimilator:
             update_type='global',
             full_svd=True,
             joint_cov_noise=1e-2,
+            obs_cov_noise=0,
             inflate_states=True,
             x_logit_std_threshold=0.1,
             inflate_I_only=True,
@@ -96,8 +97,9 @@ class DataAssimilator:
 
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
-                    joint_cov_noise=joint_cov_noise,
-                    inflate_states = inflate_states,
+                joint_cov_noise=joint_cov_noise,
+                obs_cov_noise=obs_cov_noise,
+                inflate_states = inflate_states,
                     x_logit_std_threshold = x_logit_std_threshold,
                     output_path=output_path)
         else:
@@ -1064,7 +1066,7 @@ class DataAssimilator:
             if verbose:
                 obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
                 positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
-                print("observed states prior to assimilation", positive_states_ens0)
+                print("positive states prior to assimilation", positive_states_ens0)
 
             #perform the update
             (ensemble_state,

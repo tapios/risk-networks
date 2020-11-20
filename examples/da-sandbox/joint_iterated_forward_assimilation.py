@@ -75,9 +75,12 @@ viral_test_observations = [RDT_budget_random_test]
 test_result_delay = RDT_result_delay # delay to results of the virus test
 
 record_observations   = [positive_hospital_records,
-                          negative_hospital_records,
-                          positive_death_records,
-                          negative_death_records]
+                          positive_death_records]
+
+# record_observations   = [positive_hospital_records,
+#                           negative_hospital_records,
+#                           positive_death_records,
+#                           negative_death_records]
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -106,7 +109,8 @@ sensor_assimilator = DataAssimilator(
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_sensor,
-        joint_cov_noise=arguments.sensor_assimilation_regularization,
+        joint_cov_noise=arguments.sensor_assimilation_joint_regularization,
+        obs_cov_noise=arguments.sensor_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
         x_logit_std_threshold=arguments.assimilation_inflation_threshold,
@@ -120,7 +124,8 @@ viral_test_assimilator = DataAssimilator(
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
-        joint_cov_noise=arguments.test_assimilation_regularization,
+        joint_cov_noise=arguments.test_assimilation_joint_regularization,
+        obs_cov_noise=arguments.test_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
         x_logit_std_threshold=arguments.assimilation_inflation_threshold,
@@ -138,7 +143,8 @@ record_assimilator = DataAssimilator(
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
         update_type=arguments.assimilation_update_record,
-        joint_cov_noise=arguments.record_assimilation_regularization,
+        joint_cov_noise=arguments.record_assimilation_joint_regularization,
+        obs_cov_noise=arguments.record_assimilation_obs_regularization,
         full_svd=True,    
         inflate_states=arguments.assimilation_inflation,
         x_logit_std_threshold=arguments.assimilation_inflation_threshold,
@@ -178,7 +184,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 # constants ####################################################################
 
 #floats
-da_window         = 3.0
+da_window         = 5.0
 prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
@@ -189,6 +195,7 @@ intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
 n_sweeps                     = 1
+n_record_sweeps              = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
 steps_per_da_window          = int(da_window/static_contact_interval)
@@ -459,6 +466,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     
     ## 1a) Run epidemic simulator
     ## 1b) forward run w/o data assimilation; prediction
+    print("Start time = ", current_time)
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
                 
@@ -599,19 +607,20 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                         dpi=150)
 
     print_info("Prediction ended: current time:", current_time)
-    for step in range(3*n_sweeps):
+    for step in range((2+n_record_sweeps)*n_sweeps):
          # by restarting from time of first assimilation data
         past_time = current_time - steps_per_da_window * static_contact_interval
     
         if step == 0:
-                # remove the earliest dictionaries
+            # remove the earliest dictionaries
             stored_states_times = ensemble_state_series_dict.keys() 
             times_for_removal = [time for time in stored_states_times if time < past_time]
             [ensemble_state_series_dict.pop(time) for time in times_for_removal]
         
         DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        if step % 3 == 0:
+        print("states in ensemble_series_dict", ensemble_state_series_dict.keys())
+        if step % (2+n_record_sweeps) == 0:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
@@ -622,7 +631,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              community_transmission_rate_ensemble,
              user_network)       
             print("assimilated sensors")
-        elif step % 3 == 1:
+        elif step % (2+n_record_sweeps) == 1:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
@@ -634,7 +643,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              user_network,
              verbose=True)       
             print("assimilated viral tests")
-        elif step % 3 == 2:
+        elif step % (2+n_record_sweeps) >= 2:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
@@ -643,7 +652,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
-             user_network)       
+             user_network,
+             verbose=True)              
             print("assimilated records")
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
@@ -660,7 +670,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             for j in range(steps_per_da_window):
                 walltime_master_eqn = 0.0
                 master_eqn_ensemble.reset_walltimes()
-                
                 # load the new network
                 loaded_data = epidemic_data_storage.get_network_from_start_time(
                     start_time=past_time)
@@ -696,15 +705,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     ensemble_state_series_dict[past_time] =copy.deepcopy( ensemble_state )
                 
             print("Completed forward sweep iteration {}/{}".format(step + 1, 3*n_sweeps), 
-                  " over the interval [{},{}]".format(current_time - steps_per_da_window * static_contact_interval, current_time)) 
+                  " over the interval [{},{}]".format(current_time - steps_per_da_window * static_contact_interval, past_time)) 
             # DA should get back to the current time
             assert are_close(past_time, current_time, eps=static_contact_interval)
 
 
         else:
             print("Completed forward sweep iteration {}/{}".format(step+1,3*n_sweeps), ", no forward sweep required")
-            past_time = current_time
-    
+        
 
     print_info("Prediction window: {}/{}".format(k+1, n_prediction_windows),
                "ended; elapsed:",

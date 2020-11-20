@@ -10,6 +10,7 @@ class EnsembleAdjustmentKalmanFilter:
     def __init__(
             self,
             joint_cov_noise = 1e-2,
+            obs_cov_noise = 1e-2,
             inflate_states = False,
             x_logit_std_threshold = 0.1,
             output_path=None):
@@ -29,6 +30,7 @@ class EnsembleAdjustmentKalmanFilter:
         # Error
         self.error = np.empty(0)
         self.joint_cov_noise = joint_cov_noise
+        self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
         self.x_logit_std_threshold = x_logit_std_threshold  # unit is in (%)
         self.output_path = output_path
@@ -98,6 +100,9 @@ class EnsembleAdjustmentKalmanFilter:
             cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
             x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
+        #add reg to observations too
+        cov += np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))
+        
         try:
             # We assume independent variances (i.e diagonal covariance)
             cov_inv = np.diag(1/np.diag(cov))
@@ -169,7 +174,10 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
-            Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise 
+            if self.joint_cov_noise > 0:
+                Dp_vec_full = 1/(self.joint_cov_noise)*rtDp_vec_full**2 + 1 
+            else:
+                Dp_vec_full = rtDp_vec_full**2 
             Dp = np.diag(Dp_vec_full)
         
         else:   
@@ -192,7 +200,10 @@ class EnsembleAdjustmentKalmanFilter:
                     print("First SVD not converge!")
             F = F_full
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
-            Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise 
+            if self.joint_cov_noise > 0:
+                Dp_vec_full = 1/(1+self.joint_cov_noise)*rtDp_vec**2 + 1
+            else:
+                Dp_vec_full = rtDp_vec**2 
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
@@ -207,7 +218,7 @@ class EnsembleAdjustmentKalmanFilter:
         num_svd_attempts = 0
         try:
             U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                               full_matrices=True)
+                                   full_matrices=True)
         except:
             print("Second SVD not converge!")
             np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
@@ -266,18 +277,19 @@ class EnsembleAdjustmentKalmanFilter:
                     x_logit.shape)
 
             x_logit_inflated = np.minimum(x_logit_inflated, 1e2)
-
+            
             new_ensemble_state_inflated = np.exp(x_logit_inflated)/(np.exp(x_logit_inflated) + 1.0)
 
+            ## correction of bias
             new_ensemble_state[:,inflate_indices] = \
                     new_ensemble_state_inflated[:,inflate_indices] + \
                     np.mean(new_ensemble_state[:,inflate_indices], axis=0) - \
                     np.mean(new_ensemble_state_inflated[:,inflate_indices], axis=0)
-        
+            
+           
         pqout=np.dot(zu,Hpq.T)
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
         new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
-        #self.x = np.append(self.x, [x_p], axis=0)
 
         if (ensemble_state.ndim == 1):
             new_ensemble_state=new_ensemble_state.squeeze()
@@ -286,6 +298,4 @@ class EnsembleAdjustmentKalmanFilter:
         if print_error:
             self.compute_error(np.dot(x_logit, H_obs.T),x_t,cov)
 
-        #print("new_clinical_statistics", new_clinical_statistics)
-        #print("new_transmission_rates", new_transmission_rates)
         return new_ensemble_state, new_clinical_statistics, new_transmission_rates
