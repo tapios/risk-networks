@@ -223,6 +223,7 @@ class DataAssimilator:
             current_time,
             noisy_measurement=True,
             verbose=False):
+
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,

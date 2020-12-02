@@ -94,6 +94,8 @@ class EnsembleAdjustmentKalmanFilter:
             'EAKF init: truth and cov are not the correct sizes'
         output_path = self.output_path
 
+        output_path = self.output_path
+
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov

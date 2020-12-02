@@ -27,7 +27,6 @@ bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 8)) #MB -> bytes
 echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory available"
 # parameters & constants #######################################################
 
-
 # network 
 network_size=1e3
 
@@ -106,4 +105,3 @@ python3 joint_iterated_forward_assimilation.py \
   >${stdout} 2>${stderr}
 
 
-#python3 joint_epidemic_assimilation.py \

@@ -321,7 +321,6 @@ for j in range(spin_up_steps):
     print_info("master equations walltime:", walltime_master_eqn, end='\n\n')
 
 
-
     #generate data to be assimilated later on
     if current_time > (earliest_assimilation_time - 0.1*static_contact_interval):
         observe_sensor_now = modulo_is_close_to_zero(current_time,
@@ -354,6 +353,32 @@ for j in range(spin_up_steps):
                 loaded_data.end_statuses,
                 user_network,
                 current_time)
+    
+    #plots on the fly
+    plot_and_save_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
+                                                save_to_file_interval, 
+                                                eps=static_contact_interval)
+    if plot_and_save_now:
+        if (current_time - static_contact_interval) > static_contact_interval: # i.e not first step
+            plt.close(fig)
+            fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+            axes = plot_epidemic_data(user_population, 
+                                      statuses_sum_trace, 
+                                      axes, 
+                                      current_time_span)
+            
+            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
+            
+            axes = plot_ensemble_states(user_population,
+                                        population,
+                                        master_states_sum_timeseries.container[:,:, :len(current_time_span)-1],
+                                        current_time_span[:-1],
+                                        axes=axes,
+                                        xlims=(-0.1, current_time),
+                                        a_min=0.0)
+            plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+                        rasterized=True,
+                        dpi=150)
 
         if observe_sensor_now or observe_test_now or observe_record_now:
             initial_ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state )
@@ -959,7 +984,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
             print_info("First network start-end time: ", first_start_end_time.start, first_start_end_time.end)
             print_info("Last network start-end time: ", last_start_end_time.start, last_start_end_time.end)
-
 
 
         #4) Intervention
