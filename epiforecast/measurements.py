@@ -1070,8 +1070,8 @@ class DataObservation(DataInformedObservation):
         #       always check the variances in the logit transformed variables.
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
-        MEAN_TOLERANCE     = 0.95# 1e-9
-        VARIANCE_TOLERANCE = 0.01#1e-14
+        MEAN_TOLERANCE     = 0.9 # 1e-9
+        VARIANCE_TOLERANCE = 1e-3  #1e-14
 
         if self.set_to_one:
 
@@ -1080,7 +1080,7 @@ class DataObservation(DataInformedObservation):
 
             if scale == 'log':
                 observed_mean = 3 * np.ones(self.obs_states.size)
-                observed_variance = 0.01 * np.ones(self.obs_states.size)
+                observed_variance = np.ones(self.obs_states.size)
                 #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
                 #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
@@ -1091,7 +1091,7 @@ class DataObservation(DataInformedObservation):
 
             if scale == 'log':
                 observed_mean = -3 * np.ones(self.obs_states.size)
-                observed_variance = 0.01 * np.ones(self.obs_states.size)
+                observed_variance = 1 * np.ones(self.obs_states.size)
          
                 #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
                 #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))

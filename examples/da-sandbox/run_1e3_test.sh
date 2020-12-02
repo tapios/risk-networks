@@ -30,6 +30,7 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 
 # network 
 network_size=1e3
+
 # user base
 user_fraction=1.0
 
@@ -42,16 +43,16 @@ batches_records=1 #195884 nodes
 I_min_threshold=0.0
 I_max_threshold=1.0
 
-#localization - regularization of the prior (larger => ensemble cov -> I)
-test_joint_regularization=1e-1
-record_joint_regularization=1e-3
+#localization - [from 0to 1 , of variance preservation e.g 90%]
+test_joint_regularization=0.5
+record_joint_regularization=0.999
+# localization - Stick to 0
+test_obs_regularization=0
+record_obs_regularization=0
 
-# localization - regularization of the obs (larger => obs cov => large diagoanl variance)
-test_obs_regularization=1000
-record_obs_regularization=1e3
-
-#inflation
-inflation_threshold=1e-1
+#inflation (No inflation is 1.0)
+test_inflation=1.1
+record_inflation=2.0
 
 # intervention
 int_freq='single'
@@ -59,11 +60,12 @@ intervention_start_time=18
 
 #name
 n_sweeps_total=3 # should be 2 + n for n sweeps of the H/D assimilator (unlinked to file)
-EXP_NAME="NYC_1e3_inflate${inflation_threshold}_5day_1-${n_sweeps_total}sweep_J${test_joint_regularization}-${record_joint_regularization}_O${test_obs_regularization}-${record_obs_regularization}" 
+EXP_NAME="truncsvd_T${test_joint_regularization}R${record_joint_regularization}_inflateT${test_inflation}R${record_inflation}"
+#EXP_NAME="NYC_1e3_inflate${inflation}_5day_1-${n_sweeps_total}sweep_J${test_joint_regularization}-${record_joint_regularization}_O${test_obs_regularization}-${record_obs_regularization}" 
 
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(100)  
+test_budgets=(10)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 batches_tests=(1) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
@@ -99,7 +101,8 @@ python3 joint_iterated_forward_assimilation.py \
   --record-assimilation-joint-regularization=${record_joint_regularization} \
   --test-assimilation-obs-regularization=${test_obs_regularization} \
   --record-assimilation-obs-regularization=${record_obs_regularization} \
-  --assimilation-inflation-threshold=${inflation_threshold}\
+  --assimilation-test-inflation=${test_inflation}\
+  --assimilation-record-inflation=${record_inflation}\
   >${stdout} 2>${stderr}
 
 

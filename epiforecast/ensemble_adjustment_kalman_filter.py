@@ -12,7 +12,7 @@ class EnsembleAdjustmentKalmanFilter:
             joint_cov_noise = 1e-2,
             obs_cov_noise = 1e-2,
             inflate_states = False,
-            x_logit_std_threshold = 0.1,
+            inflate_reg = 0.1,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
@@ -32,7 +32,7 @@ class EnsembleAdjustmentKalmanFilter:
         self.joint_cov_noise = joint_cov_noise
         self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
-        self.x_logit_std_threshold = x_logit_std_threshold  # unit is in (%)
+        self.inflate_reg = inflate_reg  # unit is in (%)
         self.output_path = output_path
 
         # Compute error
@@ -63,7 +63,9 @@ class EnsembleAdjustmentKalmanFilter:
             scale=None,
             print_error=False,
             r=1.0,
-            inflate_indices=None):
+            inflate_indices=None,
+            save_matrices=False,
+            save_matrices_name=None):
 
         '''
         - ensemble_state (np.array): J x M of update states for each of the J ensembles
@@ -90,19 +92,19 @@ class EnsembleAdjustmentKalmanFilter:
         assert (cov.ndim == 2), 'EAKF init: covariance must be 2d array'
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
-
         output_path = self.output_path
 
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov
+
         if scale is None: 
             cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
             x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
         #add reg to observations too
-        cov += np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))
-        
+        cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))
+
         try:
             # We assume independent variances (i.e diagonal covariance)
             cov_inv = np.diag(1/np.diag(cov))
@@ -110,6 +112,10 @@ class EnsembleAdjustmentKalmanFilter:
             print('cov not invertible')
             cov_inv = np.ones(cov.shape)
 
+        if save_matrices:
+            save_cov_file =os.path.join(output_path, 'cov_matrix'+save_matrices_name+'.npy')
+            np.save(save_cov_file, cov)
+                
         # States
         x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
         # Stacked parameters and states
@@ -129,7 +135,7 @@ class EnsembleAdjustmentKalmanFilter:
             zp = np.hstack([q, x])
         else:
             zp = x
-
+        
         # Ensemble size
         J = x.shape[0]
 
@@ -140,26 +146,41 @@ class EnsembleAdjustmentKalmanFilter:
         
         zp_bar = np.mean(zp, 0)
         
+        if save_matrices:
+            save_state_file =os.path.join(output_path, 'state_matrix'+save_matrices_name+'.npy')
+            np.save(save_state_file, (zp-zp_bar).T)
+
+               
+        # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
+        # Performing the first SVD of EAKF
+        svd_failed = False
+        num_svd_attempts = 0
+
+        # Whittaker Hamill 01 Inflation prior to update
+        zp_inflated = self.inflate_reg * (zp - zp_bar) + zp_bar
+        zp[:,inflate_indices] = zp_inflated[:,inflate_indices]
+
         #observation operators:
         # full state to data:
         H = np.hstack([np.zeros((xt, pqs)), H_obs])
         Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
         Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
+        
+        if save_matrices:
+            save_H_file =os.path.join(output_path, 'H_matrix'+save_matrices_name+'.npy')
+            np.save(save_H_file, H)
+        
 
-        # Follow Anderson 2001 Month. Weath. Rev. Appendix A.
-        # Performing the first SVD of EAKF
-        svd_failed = False
-        num_svd_attempts = 0
         # if ensemble_size < observations size, we pad the singular value matrix with added noise
         if zp.shape[0] < zp.shape[1]:    
+            
             try:
                 F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             except:
-                print("First SVD not converge!")
+                print("First SVD not converge!", flush=True)
                 np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
                         (zp-zp_bar).T)
                 svd_failed = True
-                #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             while svd_failed == True:
                 num_svd_attempts = num_svd_attempts+1
                 np.random.seed(num_svd_attempts*100)
@@ -168,27 +189,37 @@ class EnsembleAdjustmentKalmanFilter:
                     F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
                 except:
                     svd_failed = True 
-                    print("First SVD not converge!")
+                    print("First SVD not converge!",flush=True)
             F = F_full[:,:J-1]
             rtDp_vec = rtDp_vec[:-1]
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
-            if self.joint_cov_noise > 0:
-                Dp_vec_full = 1/(self.joint_cov_noise)*rtDp_vec_full**2 + 1 
+            reg = 1
+            sum_Dp_vec = sum(rtDp_vec**2)
+            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
+                reg+=1
+            
+            
+            if reg < J-1:
+                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
+                
+                Dp_vec_full = rtDp_vec_full**2 + rtDp_vec_full[reg]**2*np.ones(rtDp_vec_full.shape)
             else:
+                print("reg value lower than all evalues using 0.1*min(eval>0)")
                 Dp_vec_full = rtDp_vec_full**2 
+                Dp_vec_full[reg:] = rtDp_vec_full[reg:]**2 + 0.1*(rtDp_vec.min()**2)*np.ones(rtDp_vec_full[reg:].shape )  
+            
             Dp = np.diag(Dp_vec_full)
         
         else:   
             try:
                 F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             except:
-                print("First SVD not converge!")
+                print("First SVD not converge!", flush=True)
                 np.save(os.path.join(output_path, 'svd_matrix_1.npy'),
                         (zp-zp_bar).T)
                 svd_failed = True
-                #F_full, rtDp_vec, _ = la.svd((zp-zp_bar).T, full_matrices=True)
             while svd_failed == True:
                 num_svd_attempts = num_svd_attempts+1
                 np.random.seed(num_svd_attempts*100)
@@ -199,16 +230,27 @@ class EnsembleAdjustmentKalmanFilter:
                     svd_failed = True 
                     print("First SVD not converge!")
             F = F_full
+           
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
-            if self.joint_cov_noise > 0:
-                Dp_vec_full = 1/(1+self.joint_cov_noise)*rtDp_vec**2 + 1
+            reg = 1
+            sum_Dp_vec = sum(rtDp_vec**2)
+            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
+                reg+=1
+            
+            if reg < J-1:
+                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
+                Dp_vec_full = rtDp_vec**2 + rtDp_vec[reg]**2*np.ones(rtDp_vec.shape)
+            
             else:
-                Dp_vec_full = rtDp_vec**2 
+                print("reg value lower than all evalues")
+                Dp_vec_full = rtDp_vec**2
+                Dp_vec_full[-1] += rtDp_vec[-1]**2   
+           
             Dp = np.diag(Dp_vec_full)
 
-        # compute np.linalg.multi_dot([F_full, Dp, F_full.T])
-        Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
-            
+        # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
+        #Sigma = np.linalg.multi_dot([np.multiply(F_full, np.diag(Dp)),F_full.T])
+        
         G_full = np.diag(np.sqrt(Dp_vec_full))
         G_inv_full = np.diag(1./np.sqrt(Dp_vec_full))
             
@@ -220,7 +262,7 @@ class EnsembleAdjustmentKalmanFilter:
             U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
                                    full_matrices=True)
         except:
-            print("Second SVD not converge!")
+            print("Second SVD not converge!", flush=True)
             np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                     np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                     np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
@@ -229,6 +271,7 @@ class EnsembleAdjustmentKalmanFilter:
             svd_failed = True
         while svd_failed == True:
             num_svd_attempts = num_svd_attempts+1
+            print(num_svd_attempts, flush=True)
             np.random.seed(num_svd_attempts*100)
             try:
                 svd_failed = False
@@ -236,7 +279,7 @@ class EnsembleAdjustmentKalmanFilter:
                                    full_matrices=True)
             except:
                 svd_failed = True 
-                print("Second SVD not converge!")
+                print("Second SVD not converge!", flush=True)
         D_vec = np.zeros(F_full.shape[0])
         D_vec[:cov_inv.shape[0]] = rtD_vec**2
 
@@ -247,8 +290,8 @@ class EnsembleAdjustmentKalmanFilter:
         # so overall: A = np.linalg.multi_dot([np.multiply(F_full, np.diag(G)), np.multiply(U,np.diag(B)), np.multiply(F_full,np.diag(G_inv)).T])
         Sigma_u = np.linalg.multi_dot([np.multiply(AnoFt,np.diag(Dp)),AnoFt.T])
         # so overall Sigma_u = np.linalg.multi_dot([A, Sigma, A.T])
-           
-        # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])
+
+        # compute np.linalg.multi_dot([F_full, inv(Dp), F_full.T])           
         Sigma_inv = np.linalg.multi_dot([np.multiply(F_full,1/np.diag(Dp)), F_full.T])
         
         zu_bar = np.dot(Sigma_u, \
@@ -265,28 +308,11 @@ class EnsembleAdjustmentKalmanFilter:
         
         # replace unchanged states
         new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
-     
+        
+        if save_matrices:
+            save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
+            np.save(save_state_file, (zu-zu_bar).T)
 
-        if self.inflate_states == True:
-            # Inflation all states in logit space
-            x_logit_mean = np.mean(x_logit, axis=0)
-            x_logit_var = np.var(x_logit, axis=0)
-            new_std = np.sqrt(np.abs(((x_logit_mean*self.x_logit_std_threshold)**2 > x_logit_var) \
-                                     * ((x_logit_mean*self.x_logit_std_threshold)**2 - x_logit_var)))
-            x_logit_inflated = x_logit + np.random.normal(np.zeros(x_logit_mean.shape), new_std, \
-                    x_logit.shape)
-
-            x_logit_inflated = np.minimum(x_logit_inflated, 1e2)
-            
-            new_ensemble_state_inflated = np.exp(x_logit_inflated)/(np.exp(x_logit_inflated) + 1.0)
-
-            ## correction of bias
-            new_ensemble_state[:,inflate_indices] = \
-                    new_ensemble_state_inflated[:,inflate_indices] + \
-                    np.mean(new_ensemble_state[:,inflate_indices], axis=0) - \
-                    np.mean(new_ensemble_state_inflated[:,inflate_indices], axis=0)
-            
-           
         pqout=np.dot(zu,Hpq.T)
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
         new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]

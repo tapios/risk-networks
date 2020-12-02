@@ -22,8 +22,9 @@ class DataAssimilator:
             joint_cov_noise=1e-2,
             obs_cov_noise=0,
             inflate_states=True,
-            x_logit_std_threshold=0.1,
+            inflate_reg=1.0,
             inflate_I_only=True,
+            scale=None,
             transition_rates_min=None,
             transition_rates_max=None,
             transmission_rate_min=None,
@@ -69,6 +70,8 @@ class DataAssimilator:
             x_logit_std_threshold: threshold of std for inflation (% of mean value)
 
             inflate_I_only: only inflate I if True
+
+            scale (string): 'log' or None for whether we take meausurements in a logit scale
         """
         if not isinstance(observations, list):
             observations = [observations]
@@ -100,13 +103,14 @@ class DataAssimilator:
                 joint_cov_noise=joint_cov_noise,
                 obs_cov_noise=obs_cov_noise,
                 inflate_states = inflate_states,
-                    x_logit_std_threshold = x_logit_std_threshold,
+                    inflate_reg = inflate_reg,
                     output_path=output_path)
         else:
             raise NotImplementedError("The implemetation of reduced second SVD has been removed!")
 
         self.inflate_I_only = inflate_I_only
 
+        self.scale = scale
         # storage for observations time : obj 
         self.stored_observed_states = {}
         self.stored_observed_nodes = {}
@@ -121,7 +125,7 @@ class DataAssimilator:
         self.transmission_rate_min = transmission_rate_min 
         self.transmission_rate_max = transmission_rate_max 
 
-
+        self.counter = 0
     def find_observation_states(
             self,
             user_network,
@@ -174,7 +178,6 @@ class DataAssimilator:
             state,
             data,
             current_time,
-            scale=None,
             noisy_measurement=True,
             verbose=False):
 
@@ -191,7 +194,7 @@ class DataAssimilator:
                     observation.observe(user_network,
                                         state,
                                         data,
-                                        scale)
+                                        self.scale)
 
                     observed_means.extend(observation.mean)
                     observed_variances.extend(observation.variance)
@@ -218,10 +221,8 @@ class DataAssimilator:
             data,
             user_network,
             current_time,
-            scale=None,
             noisy_measurement=True,
             verbose=False):
-        self.scale = scale
         self.find_observation_states(user_network,
                                      ensemble_state,
                                      data,
@@ -232,7 +233,6 @@ class DataAssimilator:
                      ensemble_state,
                      data,
                      current_time,
-                     scale=scale,
                      noisy_measurement=noisy_measurement,
                      verbose=verbose)
 
@@ -1080,8 +1080,12 @@ class DataAssimilator:
                                      H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
                                      scale=self.scale,
                                      print_error=print_error,
-                                     inflate_indices=inflate_indices)
+                                     inflate_indices=inflate_indices,
+                                     save_matrices=(self.counter == 0),
+                                     save_matrices_name = str(observation_times[-1]))
 
+            #count the updated
+            self.counter += 1
             #update the IC:
             full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
             

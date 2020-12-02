@@ -102,6 +102,10 @@ from _master_eqn_init import (master_eqn_ensemble,
 transition_rates_to_update_str   = parameter_str
 transmission_rate_to_update_flag = learn_transmission_rate 
 
+# None or 'log'
+data_scale = 'log'
+
+
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
@@ -113,8 +117,8 @@ sensor_assimilator = DataAssimilator(
         obs_cov_noise=arguments.sensor_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
-        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
         inflate_I_only=arguments.assimilation_inflate_I_only,
+        scale=data_scale,
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
@@ -128,8 +132,9 @@ viral_test_assimilator = DataAssimilator(
         obs_cov_noise=arguments.test_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
-        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
+        inflate_reg=arguments.assimilation_test_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
+        scale=data_scale,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
@@ -147,8 +152,9 @@ record_assimilator = DataAssimilator(
         obs_cov_noise=arguments.record_assimilation_obs_regularization,
         full_svd=True,    
         inflate_states=arguments.assimilation_inflation,
-        x_logit_std_threshold=arguments.assimilation_inflation_threshold,
+        inflate_reg=arguments.assimilation_record_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
+        scale=data_scale,
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
@@ -205,8 +211,6 @@ assert n_prediction_windows_spin_up * prediction_window + prediction_window > da
 earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
 assert n_prediction_windows > n_prediction_windows_spin_up
 
-# None or 'log'
-data_scale = 'log'
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
@@ -343,8 +347,7 @@ for j in range(spin_up_steps):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
+                current_time)
             
 
         observe_test_now = modulo_is_close_to_zero(current_time,
@@ -355,8 +358,7 @@ for j in range(spin_up_steps):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
+                current_time)
 
         observe_record_now = modulo_is_close_to_zero(current_time,
                                                     record_assimilation_interval,
@@ -366,8 +368,7 @@ for j in range(spin_up_steps):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
+                current_time)
 
         if observe_sensor_now or observe_test_now or observe_record_now:
             ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state )
@@ -550,9 +551,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
-
+                current_time)
 
         observe_test_now = modulo_is_close_to_zero(current_time,
                                                    test_assimilation_interval,
@@ -562,8 +561,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
+                current_time)
 
         observe_record_now = modulo_is_close_to_zero(current_time,
                                                     record_assimilation_interval,
@@ -573,8 +571,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 ensemble_state,
                 loaded_data.end_statuses,
                 user_network,
-                current_time,
-                scale=data_scale)
+                current_time)
         
         if observe_sensor_now or observe_test_now or observe_record_now:
             ensemble_state_series_dict[current_time] = copy.deepcopy(ensemble_state)
@@ -619,7 +616,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         
         DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        print("states in ensemble_series_dict", ensemble_state_series_dict.keys())
         if step % (2+n_record_sweeps) == 0:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
@@ -630,7 +626,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
              user_network)       
-            print("assimilated sensors")
+            print("assimilated sensors",flush=True)
         elif step % (2+n_record_sweeps) == 1:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
@@ -642,7 +638,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              community_transmission_rate_ensemble,
              user_network,
              verbose=True)       
-            print("assimilated viral tests")
+            print("assimilated viral tests",flush=True)
         elif step % (2+n_record_sweeps) >= 2:
             (ensemble_state_series_dict, 
              transition_rates_ensemble,
@@ -654,7 +650,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              community_transmission_rate_ensemble,
              user_network,
              verbose=True)              
-            print("assimilated records")
+            print("assimilated records",flush=True)
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
         walltime_DA_update += timer() - DA_update_timer
@@ -687,7 +683,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 # move to new time
                 past_time += static_contact_interval
                 walltime_master_eqn += timer() - timer_master_eqn
-                
+         
                 # overwrite the data.
                 observe_sensor_now = modulo_is_close_to_zero(past_time,
                                                              sensor_assimilation_interval,
