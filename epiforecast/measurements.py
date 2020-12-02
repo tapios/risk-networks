@@ -24,17 +24,17 @@ class TestMeasurement:
         """
         Inputs:
         -------
-            ensemble_states : `np.array` of shape (ensemble_size, num_status * population) at a given time
+            ensemble_states : `np.array` of shape (ensemble_size, num_status * user_population) at a given time
         """
         if fixed_prevalence is None:
-            population      = int(ensemble_states.shape[1]/self.n_status)
+            user_population      = int(ensemble_states.shape[1]/self.n_status)
             ensemble_size   = ensemble_states.shape[0]
 
-            prevalence = ensemble_states.reshape(ensemble_size,self.n_status, population)[:,self.status_catalog[self.status],:].sum(axis = 1) / float(population)
-            if ensemble_size > 1:
-                prevalence = np.mean(prevalence, axis=0)
+            prevalence = ensemble_states.reshape(ensemble_size,self.n_status, user_population)[:,self.status_catalog[self.status],:].sum(axis = 1) / float(user_population)
             
-            self.prevalence = max(prevalence, 1.0 / float(population)) * np.ones(ensemble_size)
+            self.prevalence = np.clip(prevalence,1.0/float(user_population),None)
+            print("[ Measurement ] Estimated prevalence", self.prevalence)
+
         else:
             self.prevalence = fixed_prevalence
 
@@ -147,7 +147,6 @@ class FixedNodeObservation:
         self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
         self.n_status = len(self.status_catalog.keys())
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
-        print("observed nodes", obs_nodes)
         #fixed observation
         obs_states = [self.N*self.obs_status_idx+i for i in obs_nodes]
         if len(obs_states)>0:
@@ -692,7 +691,6 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
                                           scale)
 
         nodes=network.get_nodes()
-        #mean, var np.arrays of size state
         observed_states = np.remainder(self.obs_states,self.N)
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
@@ -702,9 +700,9 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
                                                       observed_data,
                                                       scale)[0:2]
 
+        
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
-
         self.mean     = observed_mean
         self.variance = observed_variance
                 
@@ -1070,18 +1068,21 @@ class DataObservation(DataInformedObservation):
         #tolerance,as we cannot set values "equal" to 0 or 1
         # Note: this has to be very small if one assimilates the values for many nodes)
         #       always check the variances in the logit transformed variables.
-        MEAN_TOLERANCE     = 1e-9
-        VARIANCE_TOLERANCE = 1e-14
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
+        MEAN_TOLERANCE     = 0.9 # 1e-9
+        VARIANCE_TOLERANCE = 1e-3  #1e-14
+
         if self.set_to_one:
 
             observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+                observed_mean = 3 * np.ones(self.obs_states.size)
+                observed_variance = np.ones(self.obs_states.size)
+                #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
@@ -1089,8 +1090,11 @@ class DataObservation(DataInformedObservation):
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
-                observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
+                observed_mean = -3 * np.ones(self.obs_states.size)
+                observed_variance = 1 * np.ones(self.obs_states.size)
+         
+                #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
+                #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
         self.mean     = observed_mean
         self.variance = observed_variance

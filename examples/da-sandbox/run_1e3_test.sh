@@ -17,6 +17,7 @@
 ################################
 # submit with: sbatch run_intervention_scenario_parallel.sh
 
+#module load python3/3.8.5
 # preface ######################################################################
 set -euo pipefail
 
@@ -27,27 +28,39 @@ echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory avai
 # parameters & constants #######################################################
 
 # network 
-EXP_NAME="NYC_1e3_test_newtol" 
 network_size=1e3
+
 # user base
 user_fraction=1.0
 
 #sensors
-wearers=245
+wearers=0
 batches_sensors=1
-batches_records=4 #195884 nodes
-
+batches_records=1 #195884 nodes
 
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
 
+#localization - [from 0to 1 , of variance preservation e.g 90%]
+test_joint_regularization=0.5
+record_joint_regularization=0.999
+# localization - Stick to 0
+test_obs_regularization=0
+record_obs_regularization=0
+
+#inflation (No inflation is 1.0)
+test_inflation=1.1
+record_inflation=2.0
+
 # intervention
 int_freq='single'
 intervention_start_time=18
 
-# other
-update_test="local"
+#name
+n_sweeps_total=3 # should be 2 + n for n sweeps of the H/D assimilator (unlinked to file)
+EXP_NAME="truncsvd_T${test_joint_regularization}R${record_joint_regularization}_inflateT${test_inflation}R${record_inflation}"
+#EXP_NAME="NYC_1e3_inflate${inflation}_5day_1-${n_sweeps_total}sweep_J${test_joint_regularization}-${record_joint_regularization}_O${test_obs_regularization}-${record_obs_regularization}" 
 
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
@@ -64,9 +77,10 @@ stderr="${output_path}/stderr"
 
 mkdir -p "${output_path}"
 
+echo "output to be found in: ${output_path}"
 
 # launch #######################################################################
-python3 joint_epidemic_assimilation.py \
+python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
   --observations-I-budget=${budget} \
@@ -82,7 +96,12 @@ python3 joint_epidemic_assimilation.py \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
-  --assimilation-update-test=${update_test} \
+  --test-assimilation-joint-regularization=${test_joint_regularization} \
+  --record-assimilation-joint-regularization=${record_joint_regularization} \
+  --test-assimilation-obs-regularization=${test_obs_regularization} \
+  --record-assimilation-obs-regularization=${record_obs_regularization} \
+  --assimilation-test-inflation=${test_inflation}\
+  --assimilation-record-inflation=${record_inflation}\
   >${stdout} 2>${stderr}
 
 
