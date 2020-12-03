@@ -29,6 +29,7 @@ class DataAssimilator:
             transition_rates_max=None,
             transmission_rate_min=None,
             transmission_rate_max=None,
+            distance_threshold=1,
             output_path=None):
         """
         Constructor
@@ -111,12 +112,14 @@ class DataAssimilator:
         self.inflate_I_only = inflate_I_only
 
         self.scale = scale
+        self.distance_threshold = distance_threshold
         # storage for observations time : obj 
         self.stored_observed_states = {}
         self.stored_observed_nodes = {}
         self.stored_observed_means = {}
         self.stored_observed_variances = {}
-
+        self.stored_nodes_nearby_observed_state = {}
+        self.stored_dist_to_observed_state = {}
         # range of transition rates
         self.transition_rates_min = transition_rates_min
         self.transition_rates_max = transition_rates_max 
@@ -902,8 +905,52 @@ class DataAssimilator:
                                         / n_user_nodes
         return new_ensemble_transmission_rate
 
+        
+    def get_nodes_nearby_observation(
+            self,
+            user_network,
+            ostate):
+        """
+        Given the user_network, use  neighbourhood method to find nodes nearby the observation node.
+        Assign a distance value to each node.
 
+        Inputs
+        ------
+        user_network (networkx graph): the static user network (note the weights evolve)
+        ostate (Int): a state index in the range [0:5*user_network.get_node_count()]
 
+        Outputs
+        -------
+        nearby_obs  (np.array): node numbers that are nearby the ostate-node
+        nearby_dist (np.array): distance value assigned to the obs 
+
+        """
+        onode = np.remainder(ostate, user_network.get_node_count())
+        
+        #get neighbours
+        nearby_obs = [onode]
+        nearby_dist = [1]
+        current_dist = 1
+        new_nodelist = [onode]
+        while self.distance_threshold >= current_dist:
+            current_nodelist = new_nodelist
+            new_nodelist = []
+            for node in current_nodelist:
+                neighbors = user_network.neighbors(node)
+                new_nodelist.extend(neighbors)
+                nearby_obs.extend(neighbors)
+                new_dist = [2/((current_dist+1)**2) for i in range(len(neighbours))] #1/2, 2/9, 1/8 
+                nearby_dist.extend(new_dist)
+                
+            current_dist +=1
+                
+        nearby_obs = np.array(nearby_obs)
+        nearby_dist = np.array(current_dist)
+        
+        return nearby_obs, nearby_dist
+    
+
+                                 
     def update_initial_from_series(
             self,
             full_ensemble_state_series,
@@ -986,98 +1033,82 @@ class DataAssimilator:
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[initial_time])
         
         n_user_nodes = user_network.get_node_count()
-        if self.n_assimilation_batches == 1:
-            cov = np.diag(var)
-            
-            # we build the full state for the DA update.
-            # Theoretical form is a concatenation of 3 parts. 
-            # (1) the full state at the initial time
-            # (2) the parameters (at the initial time as they are fixed in time)
-            # (3) the observed states at all other observation times
-            
-            # To implement this we create 
-            # The ensemble state is all possible nodes to be updated
-            # The H_obs is the index of these which are actually observed,
 
-            # #Method 1: construct a full matrix of all states at all times 
-            # tmp_type = self.update_type  #for this type of iteration we want local only updating
-            # self.update_type = 'local'
-            
-            # H_obs = []
-            # for obs_time in observation_times:
-            
-            #     # Observe the observed x total states
-            #     H_obs_at_obs = self.generate_state_observation_operator(
-            #         self.stored_observed_states[obs_time],
-            #         np.arange(full_ensemble_state_at_obs[obs_time].shape[1])) #just need to give it 0:5N-1
-            #     H_obs.append(H_obs_at_obs) 
+        # UPDATES ARE STATE ONLY FOR NOW
+        # Loop over observation states
+        for (os_idx,ostate) in enumerate(obs_states):
+            update_nodes = []
+            #if it is a new observed state, find it, o/w load it 
+            # note we use indices here as keys
+            if os_idx in self.stored_nodes_nearby_observed_state:
+                nearby_obs = self.stored_nodes_nearby_observed_state[os_idx]
+            else:
+                nearby_obs, nearby_dist =  self.get_nearby_nodes(user_network, ostate)
+                self.stored_nodes_nearby_observed_state[os_idx] = nearby_obs # the INDEX of obs_state
+                self.stored_dist_to_observed_state[os_idx] = nearby_dist
 
-            # H_obs = la.block_diag(*H_obs)
-            # self.update_type = tmp_type
-            # ensemble_state = np.concatenate([full_ensemble_state_at_obs[obs_time] for obs_time in observation_times],axis=1) #100 x (5N * n_obs)           
+            update_nodes.extend(nearby_obs)
 
-            # Method 2: restrict to only observed states at future times
-            # for initial time: ensemble_state is full, but H_obs for initial time t_0 is `local`
-            # for subsequent time: ensemble_state is given by updated_states only, and H_obs is the identity
-            # then we concatenate all times together
-            # obs_state size = os, full_state_size = fs
-            # [full_state (fs,fs), obs_state(os,os), ... , obs_state(os,os)]
-            # [H_obs(os,fs), identity(os,os), ... , identity(os,os)] 
-            # Data = n_observations*os 
-
-            
-            H_obs = []
-            tmp_type = self.update_type  #for this type of iteration we want local only updating
-            self.update_type = 'local'
-                
-            # Get the initial state, total states x total states
-            ensemble_state_at_initial=full_ensemble_state_at_obs[initial_time]
+        #contains all nodes that are 'nearby' an observation
+        update_nodes = list(set(update_nodes))
         
-            # Observation operator of the initial state, observed x total states            
+        #now we loop one by one and assimilate each node
+        for unode in update_nodes:
             
-            H_obs_at_initial = self.generate_state_observation_operator(
-                self.stored_observed_states[initial_time],
-                np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
-            H_obs.append(H_obs_at_initial) 
+            update_states = np.array([unode + n_user_nodes*i for i in range(5)])
+            
+            os_idx_nearby_unode = []
+            dist_to_obs_from_unode = []
+            # find which of the observations unode is nearby, and how far it is away
+            for (os_idx,ostate) in enumerate(obs_states):
+                if unode in self.stored_nodes_nearby_observed_state[os_idx]:
+                    os_idx_nearby_unode.extend(os_idx)
+                    dist_to_obs_from_unode.extend(self.stored_dist_to_observed_state[os_idx][unode])
 
-            # Get inflation indices
-            inflate_indices = self.compute_inflate_indices(user_network)
-            
-            # Obtain the non-initial observed states, and create dummy observation operator
-            further_ensemble_states = []
-            
-            for obs_time in observation_times[1:]:
-                update_states_at_obs = self.compute_update_indices(
-                    user_network,
-                    self.stored_observed_states[obs_time],
-                    self.stored_observed_nodes[obs_time])
+            # now we can build the joint state from update_states and the observation
+            os_idx_nearby_unode = np.array(os_idx_nearby_unode)
+            dist_to_obs_from_unode = np.array(dist_to_obs_from_unode)
 
-                if update_states_at_obs.size > 0:
-                    print("states to update", update_states_at_obs)
-                    tmp_state = full_ensemble_state_at_obs[obs_time]
-                    further_ensemble_states.append(tmp_state[:,update_states_at_obs])
-                    H_obs.append(np.eye(update_states_at_obs.size))
-                
-            #combine_together
-            further_ensemble_states = np.concatenate(further_ensemble_states,axis=1) #100 x 5*n_obs_states
-            ensemble_state = np.concatenate([ensemble_state_at_initial,further_ensemble_states],axis=1)
+            # and create the effective data
+            unode_truth = truth[os_idx_nearby_unode]
+            unode_var = var[os_idx_nearby_unode] 
+            
+            # issue: if we observed one of the exact states in our update node, in the initial state. 
+            # we need to remove this node from os_idx, and adjust the observation operator
+            H_obs = zeros(unode_truth.shape[0],5)
+            nonzero_idx=[]
+            for obs in self.stored_observed_states[initial_time]: 
+                if obs in update_states:
+                    j = np.where(update_states == obs) # in [0,1,2,3,4]
+                    i = np.where(os_idx_nearby_unode == obs) 
+                    nonzero_idx.append([i,j])
+            #if we find it observes the initial state, add the correct H_obs entry and remove the node from the list
+            if len(nonzero_idx)>0:
+                for idx in nonzero_idx:
+                    H_obs[idx[0],idx[1]] = 1
+                    np.delete(os_idx_nearby_unode, idx[1])
+                    np.delete(dist_to_obs_from_unode,idx[1])
+            
+            unode_ensemble_state = initial_ensemble_state_at_obs[initial_time][:,update_states]  #ens_size x 5
+            unode_observed_state = obs_states[:,os_idx_nearby_unode]
+            unode_joint_state = np.concatenate([unode_ensemble_state, unode_observed_state], axis=1)
+            
+            unode_effective_cov = np.diag(unode_var/dist_to_obs_from_unode) # weight by distance function (larger distance = higher variance)
+            
+            # and create the observation operator
+            H_obs.append(np.eye(os_idx_nearby_unode.size))
             H_obs = la.block_diag(*H_obs)
-            self.update_type = tmp_type
-            
-            if verbose:
-                obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
-                positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
-                print("positive states prior to assimilation", positive_states_ens0)
+
 
             #perform the update
-            (ensemble_state,
+            (unode_ensemble_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate
-            ) = self.damethod.update(ensemble_state, #100 x 5*n_user_nodes + n_observation_times*n_observed_nodes
+            ) = self.damethod.update(unode_joint_state, #100 x 5*n_user_nodes + n_observation_times*n_observed_nodes
                                      ensemble_transition_rates, #100 x transi.
                                      ensemble_transmission_rate, #100 x transm.
-                                     truth, 
-                                     cov, 
+                                     unode_truth, 
+                                     unode_effective_cov, 
                                      H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
                                      scale=self.scale,
                                      print_error=print_error,
@@ -1085,15 +1116,119 @@ class DataAssimilator:
                                      save_matrices=(self.counter == 0),
                                      save_matrices_name = str(observation_times[-1]))
 
-            #count the updated
-            self.counter += 1
-            #update the IC:
-            full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
             
-            if verbose:
-                obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
-                positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
-                print("observed positive states post assimilation", positive_states_ens0)
+            full_ensemble_state_series[initial_time] = unode_ensemble_state[:,:5]
+
+
+
+        # if self.n_assimilation_batches == 1:
+        #     cov = np.diag(var)
+            
+        #     # we build the full state for the DA update.
+        #     # Theoretical form is a concatenation of 3 parts. 
+        #     # (1) the full state at the initial time
+        #     # (2) the parameters (at the initial time as they are fixed in time)
+        #     # (3) the observed states at all other observation times
+            
+        #     # To implement this we create 
+        #     # The ensemble state is all possible nodes to be updated
+        #     # The H_obs is the index of these which are actually observed,
+
+        #     # #Method 1: construct a full matrix of all states at all times 
+        #     # tmp_type = self.update_type  #for this type of iteration we want local only updating
+        #     # self.update_type = 'local'
+            
+        #     # H_obs = []
+        #     # for obs_time in observation_times:
+            
+        #     #     # Observe the observed x total states
+        #     #     H_obs_at_obs = self.generate_state_observation_operator(
+        #     #         self.stored_observed_states[obs_time],
+        #     #         np.arange(full_ensemble_state_at_obs[obs_time].shape[1])) #just need to give it 0:5N-1
+        #     #     H_obs.append(H_obs_at_obs) 
+
+        #     # H_obs = la.block_diag(*H_obs)
+        #     # self.update_type = tmp_type
+        #     # ensemble_state = np.concatenate([full_ensemble_state_at_obs[obs_time] for obs_time in observation_times],axis=1) #100 x (5N * n_obs)           
+
+        #     # Method 2: restrict to only observed states at future times
+        #     # for initial time: ensemble_state is full, but H_obs for initial time t_0 is `local`
+        #     # for subsequent time: ensemble_state is given by updated_states only, and H_obs is the identity
+        #     # then we concatenate all times together
+        #     # obs_state size = os, full_state_size = fs
+        #     # [full_state (fs,fs), obs_state(os,os), ... , obs_state(os,os)]
+        #     # [H_obs(os,fs), identity(os,os), ... , identity(os,os)] 
+        #     # Data = n_observations*os 
+
+            
+        #     H_obs = []
+        #     tmp_type = self.update_type  #for this type of iteration we want local only updating
+        #     self.update_type = 'local'
+                
+        #     # Get the initial state, total states x total states
+        #     ensemble_state_at_initial=full_ensemble_state_at_obs[initial_time]
+        
+        #     # Observation operator of the initial state, observed x total states            
+            
+        #     H_obs_at_initial = self.generate_state_observation_operator(
+        #         self.stored_observed_states[initial_time],
+        #         np.arange(ensemble_state_at_initial.shape[1])) #just need to give it 0:5N-1
+        #     H_obs.append(H_obs_at_initial) 
+
+        #     # Get inflation indices
+        #     inflate_indices = self.compute_inflate_indices(user_network)
+            
+        #     # Obtain the non-initial observed states, and create dummy observation operator
+        #     further_ensemble_states = []
+            
+        #     for obs_time in observation_times[1:]:
+        #         update_states_at_obs = self.compute_update_indices(
+        #             user_network,
+        #             self.stored_observed_states[obs_time],
+        #             self.stored_observed_nodes[obs_time])
+
+        #         if update_states_at_obs.size > 0:
+        #             print("states to update", update_states_at_obs)
+        #             tmp_state = full_ensemble_state_at_obs[obs_time]
+        #             further_ensemble_states.append(tmp_state[:,update_states_at_obs])
+        #             H_obs.append(np.eye(update_states_at_obs.size))
+                
+        #     #combine_together
+        #     further_ensemble_states = np.concatenate(further_ensemble_states,axis=1) #100 x 5*n_obs_states
+        #     ensemble_state = np.concatenate([ensemble_state_at_initial,further_ensemble_states],axis=1)
+        #     H_obs = la.block_diag(*H_obs)
+        #     self.update_type = tmp_type
+            
+        #     if verbose:
+        #         obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
+        #         positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
+        #         print("positive states prior to assimilation", positive_states_ens0)
+
+        #     #perform the update
+        #     (ensemble_state,
+        #      new_ensemble_transition_rates,
+        #      new_ensemble_transmission_rate
+        #     ) = self.damethod.update(ensemble_state, #100 x 5*n_user_nodes + n_observation_times*n_observed_nodes
+        #                              ensemble_transition_rates, #100 x transi.
+        #                              ensemble_transmission_rate, #100 x transm.
+        #                              truth, 
+        #                              cov, 
+        #                              H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
+        #                              scale=self.scale,
+        #                              print_error=print_error,
+        #                              inflate_indices=inflate_indices,
+        #                              save_matrices=(self.counter == 0),
+        #                              save_matrices_name = str(observation_times[-1]))
+
+        #     #count the updated
+        #     self.counter += 1
+        #     #update the IC:
+        #     full_ensemble_state_series[initial_time] = ensemble_state[:,:5*user_network.get_node_count()]
+            
+        #     if verbose:
+        #         obs_states_ens0 = H_obs.dot(ensemble_state[0,:].T) # should be size of the obs states
+        #         positive_states_ens0 = [obs_states_ens0[idx] for (idx,tt) in enumerate(truth)  if tt>0] 
+        #         print("observed positive states post assimilation", positive_states_ens0)
 
             if self.transmission_rate_to_update_flag:
                 # Clip transmission rate into a reasonable range
