@@ -42,6 +42,8 @@ batches_records=1 #195884 nodes
 I_min_threshold=0.0
 I_max_threshold=1.0
 
+# obs localization number of nbhds observations have effect on (integer)
+distance_threshold=1
 
 #inflation (No inflation is 1.0)
 test_inflation=1.01
@@ -53,11 +55,11 @@ intervention_start_time=18
 
 #name
 n_sweeps_total=3 # should be 2 + n for n sweeps of the H/D assimilator (unlinked to file)
-EXP_NAME="obs_local_inflateT${test_inflation}O${record_inflation}"
+EXP_NAME="obs_local_radius${distance_threshold}_inflateT${test_inflation}O${record_inflation}"
 
 # Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(1)  
+test_budgets=(100)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 batches_tests=(1) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
@@ -91,6 +93,7 @@ python3 joint_iterated_forward_assimilation.py \
   --intervention-start-time=${intervention_start_time} \
   --assimilation-test-inflation=${test_inflation}\
   --assimilation-record-inflation=${record_inflation}\
+  --distance-threshold=${distance_threshold}\
   >${stdout} 2>${stderr}
 
 
