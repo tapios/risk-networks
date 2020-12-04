@@ -197,20 +197,8 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
-            reg = 1
-            sum_Dp_vec = sum(rtDp_vec**2)
-            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
-                reg+=1
-            
-            
-            if reg < J-1:
-                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
-                
-                Dp_vec_full = rtDp_vec_full**2 + rtDp_vec_full[reg]**2*np.ones(rtDp_vec_full.shape)
-            else:
-                print("reg value lower than all evalues using 0.1*min(eval>0)")
-                Dp_vec_full = rtDp_vec_full**2 
-                Dp_vec_full[reg:] = rtDp_vec_full[reg:]**2 + 0.1*(rtDp_vec.min()**2)*np.ones(rtDp_vec_full[reg:].shape )  
+            reg = 1           
+            Dp_vec_full = rtDp_vec_full**2 
             
             Dp = np.diag(Dp_vec_full)
         
@@ -235,19 +223,7 @@ class EnsembleAdjustmentKalmanFilter:
            
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             reg = 1
-            sum_Dp_vec = sum(rtDp_vec**2)
-            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
-                reg+=1
-            
-            if reg < J-1:
-                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
-                Dp_vec_full = rtDp_vec**2 + rtDp_vec[reg]**2*np.ones(rtDp_vec.shape)
-            
-            else:
-                print("reg value lower than all evalues")
-                Dp_vec_full = rtDp_vec**2
-                Dp_vec_full[-1] += rtDp_vec[-1]**2   
-           
+            Dp_vec_full = rtDp_vec**2
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
