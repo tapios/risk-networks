@@ -943,7 +943,7 @@ class DataAssimilator:
                 
             current_dist +=1
         
-        nearby_obs = np.array(nearby_obs)
+        nearby_obs = np.array(nearby_obs).astype(int)
         nearby_dist = np.array(nearby_dist)
         return nearby_obs, nearby_dist
     
@@ -1085,10 +1085,15 @@ class DataAssimilator:
             # (2)
             unode_observed_state = []            
             os_idx_at_initial_time = [idx for (ii,idx) in enumerate(os_idx_nearby_unode) if abs(os_idx_times[ii] - initial_time) < 1e-6] #collect only observations at the current time
-            os_idx_at_initial_not_at_unode = [ idx for idx in os_idx_at_initial_time if idx != unode ]
+            os_idx_at_initial_not_at_unode = [ idx for idx in os_idx_at_initial_time if idx not in update_states ]
+#            print("unode", unode)
+#            print("states_to_update",update_states)
+#            print("ostates at initial_time",os_idx_at_initial_time)
+#            print("ostates at initial_time not at unode",os_idx_at_initial_not_at_unode)
+
             if len(os_idx_at_initial_not_at_unode)>0:
                 #the states at the current time
-                obs_states_at_initial_not_at_unode = np.array([obs_states[os_idx] for os_idx in os_idx_at_initial_not_at_unode]) #NB obs_states np.array
+                obs_states_at_initial_not_at_unode = np.array([obs_states[os_idx] for os_idx in os_idx_at_initial_not_at_unode]).astype(int) #NB obs_states np.array
                 
                 #the data at this state and time
                 state_at_obs_tmp = full_ensemble_state_at_obs[initial_time]
@@ -1100,7 +1105,7 @@ class DataAssimilator:
                 os_idx_at_obs_time = [idx for (ii,idx) in enumerate(os_idx_nearby_unode) if abs(os_idx_times[ii] - obs_time) < 1e-6] #collect only observations at the current time
                 if len(os_idx_at_obs_time)>0:
                     #the states at the current time
-                    obs_states_at_obs_time = np.array([obs_states[os_idx] for os_idx in os_idx_at_obs_time]) #NB obs_states np.array
+                    obs_states_at_obs_time = np.array([obs_states[os_idx] for os_idx in os_idx_at_obs_time]).astype(int) #NB obs_states np.array
                     
                     #the data at this state and time
                     state_at_obs_tmp = full_ensemble_state_at_obs[obs_time]
@@ -1116,15 +1121,19 @@ class DataAssimilator:
             
             # Define the observation operator. to match the ordering of the joint state
             n_total_obs = sum(1 for idx in os_idx_nearby_unode)
-            # removed the one case that unode[initial_time] is observed
-            for obs in self.stored_observed_states[initial_time]:
-                if obs == unode:
-                    n_obs_at_unode_initial = 1
-                else:
-                    n_obs_at_unode_initial = 0
+            # remove the one case that unode[initial_time] is observed (similar to joint state)
+            n_obs_at_unode_initial = 0
+#            print(update_states)
+#            print(os_idx_nearby_unode)
+#            print([obs_states[os_idx] for os_idx in os_idx_nearby_unode])
+#            print(self.stored_observed_states[initial_time])
+            for (i,obs) in enumerate(self.stored_observed_states[initial_time]):
+                if (i in update_states) and (i in os_idx_nearby_unode):
+                    n_obs_at_unode_initial += 1
+
 
             n_obs_not_at_unode_initial = n_total_obs - n_obs_at_unode_initial
-            H_obs = np.zeros((unode_truth.shape[0],5+n_obs_not_at_unode_initial))
+            H_obs = np.zeros((unode_truth.shape[0],5 + n_obs_not_at_unode_initial))
           
             # split this unode[initial_time] case  and other (any node at later time, or other node at initial time)
             nonzero_idx=[]
@@ -1146,7 +1155,9 @@ class DataAssimilator:
             #for future times, the ordering of truth & joint state mean that H_obs should be Identity
             for k in range(n_obs_not_at_unode_initial):
                 H_obs[k,5+k] = 1
-  
+                
+            #print(unode_joint_state.shape, H_obs.T.shape, unode_effective_cov.shape)
+        
             #obtain which indices to inflate
             #inflate_indices = self.compute_inflate_indices(user_network)            
             inflate_indices = range(5)
@@ -1165,7 +1176,7 @@ class DataAssimilator:
                                      save_matrices=(self.counter == 0),
                                      save_matrices_name = str(observation_times[-1]))
 
-            print("joint state post DA", unode_joint_state.mean(axis=0))
+            #print("joint state post DA", unode_joint_state.mean(axis=0))
             full_ensemble_state_series[initial_time][:,update_states] = unode_joint_state[:,:5]
 
 

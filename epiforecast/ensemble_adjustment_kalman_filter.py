@@ -174,6 +174,7 @@ class EnsembleAdjustmentKalmanFilter:
         
 
         # if ensemble_size < observations size, we pad the singular value matrix with added noise
+        # unlikely but possible situation
         if zp.shape[0] < zp.shape[1]:    
             
             try:
@@ -198,7 +199,7 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
             reg = 1           
-            Dp_vec_full = rtDp_vec_full**2 
+            Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise*rtDp_vec_full[J-2] # a little regularizations
             
             Dp = np.diag(Dp_vec_full)
         
