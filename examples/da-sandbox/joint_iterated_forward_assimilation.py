@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import copy 
 
 from epiforecast.user_base import FullUserGraphBuilder
-from epiforecast.data_assimilator import DataAssimilator
+from epiforecast.forward_data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
 from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
