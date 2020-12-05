@@ -222,9 +222,9 @@ class EnsembleAdjustmentKalmanFilter:
                     print("First SVD not converge!")
             F = F_full
            
-            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
+            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec 
             reg = 1
-            Dp_vec_full = rtDp_vec**2
+            Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise*rtDp_vec[J-2] # a little regularizations
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
