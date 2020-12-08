@@ -243,8 +243,6 @@ class EnsembleAdjustmentKalmanFilter:
             np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                     np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                     np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
-            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                               full_matrices=True)
             svd_failed = True
         while svd_failed == True:
             num_svd_attempts = num_svd_attempts+1
