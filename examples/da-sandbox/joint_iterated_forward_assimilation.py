@@ -77,10 +77,10 @@ test_result_delay = RDT_result_delay # delay to results of the virus test
 record_observations   = [positive_hospital_records,
                           positive_death_records]
 
-# record_observations   = [positive_hospital_records,
-#                           negative_hospital_records,
-#                           positive_death_records,
-#                           negative_death_records]
+#record_observations   = [positive_hospital_records,
+#                         negative_hospital_records,
+#                         positive_death_records,
+#                         negative_death_records]
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -198,7 +198,7 @@ prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
 test_assimilation_interval  = 1.0 # same for I
-record_assimilation_interval = 1.0 # assimilate H and D data every .. days
+record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
 
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
