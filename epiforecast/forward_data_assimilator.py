@@ -1,4 +1,5 @@
 import numpy as np
+np.set_printoptions(threshold=np.inf)
 
 import copy
 import scipy.linalg as la
@@ -252,7 +253,7 @@ class DataAssimilator:
         if self.inflate_I_only == True:
             inflate_states = np.arange(n_user_nodes, 2*n_user_nodes) 
         else:
-            inflate_states = np.arange(5*n_user_nodes) 
+            inflate_states = np.arange(6*n_user_nodes) 
 
         return inflate_states
                
@@ -496,6 +497,12 @@ class DataAssimilator:
         observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
         observation_times.sort()
+    
+        ## Initial time only!
+        #observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
+        #                     if  observation_window[0]-1e-6 <= obs_time <= observation_window[0]+1e-6]
+        #print("INITIAL TIMES ONLY", observation_times)
+        
         n_observation_times = len(observation_times)
        
         if n_observation_times == 0: # no update is performed; return input
@@ -536,7 +543,7 @@ class DataAssimilator:
         truth = np.concatenate([self.stored_observed_means[obs_time] for obs_time in observation_times]) 
         var = np.concatenate([self.stored_observed_variances[obs_time] for obs_time in observation_times])
         if verbose:
-            print("mean for positive data: ",[tt for tt in truth if tt > 0] )
+            print("mean for positive data: ", [tt for tt in truth if tt > 0.1] )
 
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[initial_time])
@@ -568,19 +575,22 @@ class DataAssimilator:
         #print("nonunique nodes", len(update_nodes))
         update_nodes = list(set(update_nodes))
         #print("unique nodes", len(update_nodes))
+        #Full state #S=0, E=1 I=2 H=3 R=4 D=5
+        update_statuses = [0,1,2,4]
 
+        #[0.] obtain which indices to inflate
+        inflate_indices = [2] #range(unode_joint_state.shape[1])
+                   
         if verbose:
             print("[ Data assimilator ] Total states to be updated due to data: ",
-                  len(update_nodes)*5)
+                  len(update_nodes)*len(update_statuses))
 
         
         # [2.] now we loop one by one and assimilate each node
         for unode in update_nodes:
             
-            #Full state #S=0 I=1 H=2 R=3 D=4
-            update_statuses = [0,1]
             update_states = np.array([unode + n_user_nodes*i for i in update_statuses])
-          
+        
             os_idx_nearby_unode = []
             dist_to_obs_from_unode = []
             
@@ -612,6 +622,7 @@ class DataAssimilator:
             
             # and create the effective data
             unode_truth = truth[os_idx_nearby_unode]
+            print("data", unode_truth)
             unode_var = var[os_idx_nearby_unode] 
             unode_effective_cov = np.diag(unode_var/dist_to_obs_from_unode) # weight by distance function (larger distance = higher variance)
             
@@ -621,7 +632,9 @@ class DataAssimilator:
             # (3) we need observed states in future times (note this could include being at unode)
             
             # (1)
-            unode_ensemble_state = full_ensemble_state_at_obs[initial_time][:,update_states]  #ens_size x 5
+            unode_ensemble_state = full_ensemble_state_at_obs[initial_time][:,update_states]  #ens_size x 6
+            full_states =  np.array([unode + n_user_nodes*i for i in range(5)])
+            all_initial_ensemble_state = full_ensemble_state_at_obs[initial_time][:,full_states]
 
             # (2)
             unode_observed_state = []            
@@ -668,7 +681,7 @@ class DataAssimilator:
             if n_obs_at_unode_initial >0: #if we have at least one observation at unode at initial time
                 for (os_ii,os_idx) in enumerate(os_idx_at_initial_at_unode):
                     i = [ ii for (ii,idx) in enumerate(os_idx_nearby_unode) if idx == os_idx] #get which element of os_idx_nearby_unode corresponds to our observation at unode (i.e which row of H this is in)
-                    j = [ k for k in update_statuses if update_states[k] == obs_states[os_idx]] #get which status corresponds to the observation (i.e which column of H)
+                    j = [ k for (k,status) in enumerate(update_statuses) if update_states[k] == obs_states[os_idx]] #get which status corresponds to the observation (i.e which column of H)
                     H_obs[i[0],j[0]] = 1
                 
 
@@ -686,28 +699,30 @@ class DataAssimilator:
             #print("H obs", H_obs)
             #print("effective cov", np.diag(unode_effective_cov))
 
-            #[6.] obtain which indices to inflate
-            inflate_indices = range(unode_joint_state.shape[1])
+            
+            #print("joint state pre DA", unode_joint_state.mean(axis=0))
 
+            #print("joint state cov", np.cov(unode_joint_state.T))
             #[7.]
             (unode_joint_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate
-            ) = self.damethod.update(unode_joint_state, #100 x 5*n_user_nodes + n_observation_times*n_observed_nodes
+            ) = self.damethod.update(unode_joint_state, #100 x 6*n_user_nodes + n_observation_times*n_observed_nodes
+                                     all_initial_ensemble_state, #100 x 1
                                      ensemble_transition_rates, #100 x transi.
                                      ensemble_transmission_rate, #100 x transm.
                                      unode_truth, 
                                      unode_effective_cov, 
-                                     H_obs, # 5*n_user_nodes + n_observation_times*n_observed_nodes                                     
+                                     H_obs, # 6*n_user_nodes + n_observation_times*n_observed_nodes                                     
                                      scale=self.scale,
                                      print_error=print_error,
                                      inflate_indices=inflate_indices,
-                                     save_matrices=(self.counter == 0),
+                                     save_matrices=0, #(self.counter == 0),
                                      save_matrices_name = str(observation_times[-1]))
 
             #print("joint state post DA", unode_joint_state.mean(axis=0))
+            
             full_ensemble_state_series[initial_time][:,update_states] = unode_joint_state[:,:len(update_statuses)]
-            #print("***************************")
 
             if self.transmission_rate_to_update_flag:
                 # Clip transmission rate into a reasonable range
@@ -725,7 +740,6 @@ class DataAssimilator:
             if len(self.transition_rates_to_update_str) > 0:
                 new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                            user_network.get_node_count())
-                
         # set the updated rates in the TransitionRates object and
         # return the full rates.
         (full_ensemble_transition_rates,

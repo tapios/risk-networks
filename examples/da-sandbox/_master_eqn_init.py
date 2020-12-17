@@ -90,11 +90,24 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         num_cpus=arguments.parallel_num_cpus
 )
 
-ensemble_ic = np.zeros([ensemble_size, 5*user_population])
-ensemble_ic[:,user_population:2*user_population] = np.random.beta(arguments.ic_alpha,
-                                                                  arguments.ic_beta,
-                                                                  (ensemble_size, user_population))
-ensemble_ic[:,:user_population] = 1 - ensemble_ic[:,user_population:2*user_population]
+
+
+# 6 states
+I_slice = slice( 2*user_population, 3*user_population)
+S_slice = slice( 0,user_population)
+ensemble_ic = np.zeros([ensemble_size, 6*user_population])
+
+# 5 states
+#I_slice = slice( user_population, 2*user_population)
+#S_slice = slice( 0,user_population)
+#ensemble_ic = np.zeros([ensemble_size, 5*user_population])
+
+
+ensemble_ic[:,I_slice] = np.random.beta(arguments.ic_alpha,
+                                       arguments.ic_beta,
+                                       (ensemble_size, user_population))
+# if excluding S category, then this slice is 0 IC
+ensemble_ic[:,S_slice] = 1 - ensemble_ic[:,I_slice]
 
 ################################################################################
 print_end_of(__name__)

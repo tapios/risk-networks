@@ -1,6 +1,10 @@
 import numpy as np
 import copy
 
+
+STATUS_CATALOG = dict(zip(['S','E','I', 'H', 'R', 'D'], np.arange(6)))
+
+
 class TestMeasurement:
     def __init__(
             self,
@@ -12,7 +16,7 @@ class TestMeasurement:
         self.sensitivity = sensitivity
         self.specificity = specificity
         self.noisy_measurement=noisy_measurement
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
 
         self.status = status
         self.n_status = len(self.status_catalog.keys())
@@ -31,9 +35,7 @@ class TestMeasurement:
             ensemble_size   = ensemble_states.shape[0]
 
             prevalence = ensemble_states.reshape(ensemble_size,self.n_status, user_population)[:,self.status_catalog[self.status],:].sum(axis = 1) / float(user_population)
-            
             self.prevalence = np.clip(prevalence,1.0/float(user_population),None)
-            print("[ Measurement ] Estimated prevalence", self.prevalence)
 
         else:
             self.prevalence = fixed_prevalence
@@ -61,7 +63,7 @@ class TestMeasurement:
         else:
             self.ppv_mean = PPV.mean()
             self.ppv_var  = PPV.var()
-
+            
             self.for_mean = FOR.mean()
             self.for_var  = FOR.var()
 
@@ -144,7 +146,7 @@ class FixedNodeObservation:
         self.N = N
 
         #statuses
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
         #fixed observation
@@ -186,7 +188,7 @@ class StateInformedObservation:
         self.N = N
 
         #statuses
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
         self.obs_status_idx = np.array([self.status_catalog[status] for status in obs_status])
 
@@ -261,7 +263,7 @@ class BudgetedInformedObservation:
         self.N = N
         #number of different states a node can be in
 
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
 
 
@@ -353,7 +355,7 @@ class StaticNeighborTransferObservation:
         self.N = N
         #number of different states a node can be in
 
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
 
 
@@ -494,7 +496,7 @@ class HighVarianceStateInformedObservation:
         self.N = N
         #number of different states a node can be in
 
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
 
         #array of status to observe
@@ -702,7 +704,10 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
         
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        #observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        #prescribe var
+        observed_variance = np.array([self.obs_var_min for node in observed_nodes])
+        
         self.mean     = observed_mean
         self.variance = observed_variance
                 
@@ -976,7 +981,7 @@ class DataInformedObservation:
         self.N = N
         #if you want to find the where the status is, or where it is not.
         self.bool_type = bool_type
-        self.status_catalog = dict(zip(['S', 'I', 'H', 'R', 'D'], np.arange(5)))
+        self.status_catalog = STATUS_CATALOG
         self.n_status = len(self.status_catalog.keys())
         self.obs_status=obs_status
         self.obs_status_idx=np.array([self.status_catalog[status] for status in obs_status])
@@ -1079,7 +1084,7 @@ class DataObservation(DataInformedObservation):
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_mean = 3 * np.ones(self.obs_states.size)
+                observed_mean = 4 * np.ones(self.obs_states.size)
                 observed_variance = np.ones(self.obs_states.size)
                 #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
                 #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
@@ -1090,8 +1095,8 @@ class DataObservation(DataInformedObservation):
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
 
             if scale == 'log':
-                observed_mean = -3 * np.ones(self.obs_states.size)
-                observed_variance = 1 * np.ones(self.obs_states.size)
+                observed_mean = -4 * np.ones(self.obs_states.size)
+                observed_variance = np.ones(self.obs_states.size)
          
                 #observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
                 #observed_mean = np.log(observed_mean/(1 - observed_mean + 1e-8))
@@ -1196,7 +1201,7 @@ class DataNodeObservation(DataNodeInformedObservation, TestMeasurement):
             observed_variance = (1.0/observed_mean/(1-observed_mean))**2 * observed_variance
             observed_mean     = np.log(observed_mean/(1 - observed_mean + 1e-8))
 
-        observed_means     = (MEAN_TOLERANCE/5) * np.ones_like(self.states_per_node)
+        observed_means     = (MEAN_TOLERANCE/6) * np.ones_like(self.states_per_node)
         observed_variances = observed_variance[0] * np.ones_like(self.states_per_node)
 
         observed_means[:, self.obs_status_idx] = observed_mean.reshape(-1,1)

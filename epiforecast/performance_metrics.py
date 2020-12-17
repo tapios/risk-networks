@@ -32,8 +32,9 @@ def confusion_matrix(data,
     ensemble_probabilities = np.zeros((6, population))
     
     #obtain the prediction of the ensemble by averaging
-    ensemble_probabilities[ [0, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
-    ensemble_probabilities[1] = 1 - ensemble_probabilities.sum(axis = 0)
+    ensemble_probabilities[ [0, 1, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 6, population).mean(axis = 0)
+#    ensemble_probabilities[ [1, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
+#    ensemble_probabilities[0] = 1 - ensemble_probabilities.sum(axis = 0)
    
     #obtain a binary classification of the prediction
     if method == 'sum':

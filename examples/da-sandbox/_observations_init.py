@@ -15,7 +15,7 @@ print_start_of(__name__)
 ################################################################################
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
-
+obs_var = 1e-5
 # imperfect observations #######################################################
 # sensor type observation
 sensor_readings = FixedObservation(
@@ -26,7 +26,7 @@ sensor_readings = FixedObservation(
     noisy_measurement=True,
     sensitivity=0.5,
     specificity=0.75,
-    obs_var_min=1e-6)
+    obs_var_min=obs_var)
 
 # virus test type observations
 # Molecular Diagnostic Test
@@ -41,7 +41,7 @@ MDT_neighbor_test = StaticNeighborObservation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 MDT_budget_random_test = BudgetedObservation(
         N=user_population,
         obs_budget=arguments.observations_I_budget,
@@ -52,7 +52,7 @@ MDT_budget_random_test = BudgetedObservation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 MDT_high_var_test = HighVarianceObservation(
         N=user_population,
@@ -62,7 +62,7 @@ MDT_high_var_test = HighVarianceObservation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 # Rapid Diagnostic Test
 RDT_result_delay = 0.0 # delay to results of the virus test
@@ -76,7 +76,7 @@ RDT_budget_random_test = BudgetedObservation(
         noisy_measurement=True,
         sensitivity=0.85,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 poor_RDT_budget_random_test = BudgetedObservation(
         N=user_population,
@@ -88,7 +88,7 @@ poor_RDT_budget_random_test = BudgetedObservation(
         noisy_measurement=True,
         sensitivity=0.6,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 RDT_high_var_test = HighVarianceObservation(
         N=user_population,
@@ -98,7 +98,7 @@ RDT_high_var_test = HighVarianceObservation(
         noisy_measurement=True,
         sensitivity=0.85,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 
 # generic test templates
@@ -110,7 +110,7 @@ continuous_infection_test = FixedObservation(
     noisy_measurement=True,
     sensitivity=0.5,
     specificity=0.75,
-    obs_var_min=1e-6)
+    obs_var_min=obs_var)
 
 random_infection_test = Observation(
         N=user_population,
@@ -122,7 +122,7 @@ random_infection_test = Observation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 budgeted_random_infection_test = BudgetedObservation(
         N=user_population,
@@ -134,7 +134,7 @@ budgeted_random_infection_test = BudgetedObservation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 neighbor_transfer_infection_test = StaticNeighborObservation(
         N=user_population,
@@ -146,7 +146,7 @@ neighbor_transfer_infection_test = StaticNeighborObservation(
         noisy_measurement=True,
         sensitivity=0.95,
         specificity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 high_var_infection_test = HighVarianceObservation(
         N=user_population,
@@ -155,7 +155,7 @@ high_var_infection_test = HighVarianceObservation(
         obs_name="Test maximal variance infected",
         noisy_measurement=True,
         sensitivity=0.99,
-        obs_var_min=1e-6)
+        obs_var_min=obs_var)
 
 # perfect observations #########################################################
 positive_hospital_records = DataObservation(

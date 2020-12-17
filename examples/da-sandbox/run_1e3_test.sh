@@ -42,11 +42,14 @@ batches_records=1 #195884 nodes
 I_min_threshold=0.0
 I_max_threshold=1.0
 
-# obs localization number of nbhds observations have effect on (integer)
-distance_threshold=1
+
+test_reg=1e-2
+record_reg=0.0
+# obs localization number of nbhds observations have effect on (integer) 0 = delta at observation, 1= nbhd of observation
+distance_threshold=0
 
 #inflation (No inflation is 1.0)
-test_inflation=1.0
+test_inflation=10.0
 record_inflation=1.0
 
 # intervention
@@ -55,11 +58,11 @@ intervention_start_time=18
 
 #name
 n_sweeps_total=3 # should be 2 + n for n sweeps of the H/D assimilator (unlinked to file)
-EXP_NAME="obs_local_fixed_inflateT${test_inflation}O${record_inflation}"
-
-# Experimental series parameters ###############################################
+#EXP_NAME="obs_local_dist${distance_threshold}_regT${test_reg}O${record_reg}_inflateT${test_inflation}O${record_inflation}_nohd"
+EXP_NAME="mass_SEIR_3sweep_5window_postinfl${test_inflation}"
+### Experimental series parameters ###############################################
 #1% 5% 25% of 97942
-test_budgets=(1)  
+test_budgets=(50)
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 batches_tests=(1) #so no batch > 1000 nodes
 batches_test=${batches_tests[${SLURM_ARRAY_TASK_ID}]}
@@ -91,6 +94,8 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${int_freq} \
   --intervention-start-time=${intervention_start_time} \
+  --test-assimilation-joint-regularization=${test_reg}\
+  --record-assimilation-joint-regularization=${record_reg}\
   --assimilation-test-inflation=${test_inflation}\
   --assimilation-record-inflation=${record_inflation}\
   --distance-threshold=${distance_threshold}\

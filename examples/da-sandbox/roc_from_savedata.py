@@ -6,7 +6,7 @@ from epiforecast.performance_metrics import TrueNegativeRate, TruePositiveRate, 
 from epiforecast.epiplots import plot_roc_curve
 
 #file parameters
-EXP_NAME = 'NYC_1e5_user50_sensors'
+EXP_NAME = 'mass_SEIR_3sweep_5window_postinfl2.0'
 OUTDIR = 'output'
 
 # data file for mean states of master equations
@@ -37,7 +37,7 @@ for day in days:
     # user base 25%
     # EXP_PARAM_VALUES = [245,1224,6122]
     # user base 50%
-    EXP_PARAM_VALUES = [490,2449,12243]
+    EXP_PARAM_VALUES = [0,10,50,982]
    
     exp_run = [EXP_NAME + '_' + str(val) for val in EXP_PARAM_VALUES]
     output_dirs = [os.path.join('.',OUTDIR, exp) for exp in exp_run]  

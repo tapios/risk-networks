@@ -63,12 +63,11 @@ class MasterEquationModelEnsemble:
         self.N = population
         self.start_time = start_time
 
-        self.S_slice = slice(       0,   self.N)
-        self.E_slice = slice(  self.N, 2*self.N)
-        self.I_slice = slice(2*self.N, 3*self.N)
-        self.H_slice = slice(3*self.N, 4*self.N)
-        self.R_slice = slice(4*self.N, 5*self.N)
-        self.D_slice = slice(5*self.N, 6*self.N)
+        self.E_slice = slice(       0,   self.N)
+        self.I_slice = slice(  self.N, 2*self.N)
+        self.H_slice = slice(2*self.N, 3*self.N)
+        self.R_slice = slice(3*self.N, 4*self.N)
+        self.D_slice = slice(4*self.N, 5*self.N)
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
 
@@ -79,10 +78,10 @@ class MasterEquationModelEnsemble:
 
             float_nbytes = np.dtype(np.float_).itemsize
 
-            y0_nbytes = self.M * self.N * 6 * float_nbytes
+            y0_nbytes = self.M * self.N * 5 * float_nbytes
             self.y0_shm = shared_memory.SharedMemory(create=True,
                                                      size=y0_nbytes)
-            self.y0 = np.ndarray((self.M, self.N * 6),
+            self.y0 = np.ndarray((self.M, self.N * 5),
                                  dtype=np.float_,
                                  buffer=self.y0_shm.buf)
 
@@ -112,7 +111,7 @@ class MasterEquationModelEnsemble:
                     for j in range(num_cpus)
             ]
         else:
-            self.y0           = np.empty( (self.M, 6*self.N) )
+            self.y0           = np.empty( (self.M, 5*self.N) )
             self.closure      = np.empty( (self.M,   self.N) )
             self.coefficients = np.empty( (self.M, 8*self.N) )
 
@@ -261,15 +260,15 @@ class MasterEquationModelEnsemble:
 
         Input:
             j (int): index of the ensemble member
-            member_state (np.array): (6*N,) array of states
+            member_state (np.array): (5*N,) array of states
         Output:
-            rhs (np.array): (6*N,) right-hand side of master equations
+            rhs (np.array): (5*N,) right-hand side of master equations
         """
-        S_substate = member_state[self.S_slice]
         E_substate = member_state[self.E_slice]
         I_substate = member_state[self.I_slice]
         H_substate = member_state[self.H_slice]
- 
+        S_substate = 1 - member_state.reshape( (5, -1) ).sum(axis=0)
+
         (sigma,
          gamma,
          delta,
@@ -280,9 +279,8 @@ class MasterEquationModelEnsemble:
          mup
         ) = self.coefficients[j].reshape( (8, -1) )
 
-        rhs = np.empty(6 * self.N)
+        rhs = np.empty(5 * self.N)
 
-        rhs[self.S_slice] = -self.closure[j] * S_substate
         rhs[self.E_slice] = self.closure[j] * S_substate - sigma * E_substate
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
@@ -304,16 +302,18 @@ class MasterEquationModelEnsemble:
             None
         """
         if closure_name == 'independent':
-            iS, iI, iH = self.S_slice, self.I_slice, self.H_slice
+            iI, iH = self.I_slice, self.H_slice
             y = self.y0
+            
 
-            S_ensemble_mean = y[:,iS].mean(axis=0)
-            I_ensemble_mean = y[:,iI].mean(axis=0)
-            H_ensemble_mean = y[:,iH].mean(axis=0)
-            yS = y[:,iS]
+            yS = 1 - y.reshape( (self.M, 5, -1) ).sum(axis=1)
             yI = y[:,iI]
             yH = y[:,iH]
 
+            S_ensemble_mean = yS.mean(axis=0)
+            I_ensemble_mean = yI.mean(axis=0)
+            H_ensemble_mean = yH.mean(axis=0)
+            
             cooL = self.L.tocoo()
             nonzeros = len(cooL.row)
             cooL_rows = cooL.row
@@ -373,7 +373,7 @@ class MasterEquationModelEnsemble:
             closure_flag (bool): whether to evaluate closure during this
                                  simulation call
         Output:
-            y0 (np.array): (M, 6*N) array of states at the end of time_window
+            y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
         stop_time = self.start_time + time_window
         maxdt = abs(time_window) / min_steps
@@ -427,7 +427,7 @@ class MasterEquationModelEnsemble:
             closure_flag (bool): whether to evaluate closure during this
                                  simulation call
         Output:
-            y0 (np.array): (M, 6*N) array of states at the end of time_window
+            y0 (np.array): (M, 5*N) array of states at the end of time_window
         """
         positive_time_window = abs(time_window)
         
@@ -499,12 +499,11 @@ class RemoteIntegrator:
                 'closure'       : closure_shared_memory_name
         }
 
-        self.S_slice = slice(  0,   N)
-        self.E_slice = slice(  N, 2*N)
-        self.I_slice = slice(2*N, 3*N)
-        self.H_slice = slice(3*N, 4*N)
-        self.R_slice = slice(4*N, 5*N)
-        self.D_slice = slice(5*N, 6*N)
+        self.E_slice = slice(  0,   N)
+        self.I_slice = slice(  N, 2*N)
+        self.H_slice = slice(2*N, 3*N)
+        self.R_slice = slice(3*N, 4*N)
+        self.D_slice = slice(4*N, 5*N)
 
         self.members_to_compute = members_to_compute
 
@@ -532,7 +531,7 @@ class RemoteIntegrator:
         closure_shm = shared_memory.SharedMemory(
                 name=self.shared_memory_names['closure'])
 
-        ensemble_state = np.ndarray((self.M, 6*self.N),
+        ensemble_state = np.ndarray((self.M, 5*self.N),
                                     dtype=np.float_,
                                     buffer=y0_shm.buf)
         coefficients   = np.ndarray((self.M, 8*self.N),
@@ -577,18 +576,18 @@ class RemoteIntegrator:
         Compute right-hand side of master equations
 
         Input:
-            member_state (np.array): (6*N,) array of states
+            member_state (np.array): (5*N,) array of states
             member_coefficients (np.array): (8*N,) array of coefficients of the
                                             linear part of the RHS
             member_closure (np.array): (N,) array of coefficients for S_i's
         Output:
-            rhs (np.array): (6*N,) right-hand side of master equations
+            rhs (np.array): (5*N,) right-hand side of master equations
         """
-        S_substate = member_state[self.S_slice]
+        S_substate = 1 - member_state.reshape( (5, -1) ).sum(axis=0) 
         E_substate = member_state[self.E_slice]
         I_substate = member_state[self.I_slice]
         H_substate = member_state[self.H_slice]
-       
+
         (sigma,
          gamma,
          delta,
@@ -599,9 +598,8 @@ class RemoteIntegrator:
          mup
         ) = member_coefficients.reshape( (8, -1) )
 
-        rhs = np.empty(6*self.N)
+        rhs = np.empty(5*self.N)
 
-        rhs[self.S_slice] = -member_closure * S_substate
         rhs[self.E_slice] = member_closure * S_substate - sigma * E_substate
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate

@@ -9,7 +9,7 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.forward_data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
+#from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
 from epiforecast.epiplots import (plot_roc_curve, 
                                   plot_ensemble_states, 
                                   plot_epidemic_data,
@@ -103,7 +103,7 @@ transition_rates_to_update_str   = parameter_str
 transmission_rate_to_update_flag = learn_transmission_rate 
 
 # None or 'log'
-data_scale = 'log'
+data_scale = None
 
 
 sensor_assimilator = DataAssimilator(
@@ -203,7 +203,7 @@ record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                     = 1
+n_sweeps                     = 3
 n_record_sweeps              = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
@@ -225,7 +225,7 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_ne
 ensemble_state_series_dict = {} 
 
 master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
-                                                   5,
+                                                   6,
                                                    time_span.size)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
@@ -298,7 +298,7 @@ for j in range(spin_up_steps):
   
 
     # now for the master eqn
-    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
     master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
     
     if learn_transmission_rate == True:
@@ -467,6 +467,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                      eps=static_contact_interval)
     current_time = k * prediction_window # to avoid build-up of errors
 
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
+    print(current_time, ensemble_state_frac.mean(axis=0))
     
     ## 1a) Run epidemic simulator
     ## 1b) forward run w/o data assimilation; prediction
@@ -509,7 +511,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
-        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
         master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
         if learn_transmission_rate == True:
@@ -666,7 +668,11 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 new_transition_rates=transition_rates_ensemble,
                 new_transmission_rate=community_transmission_rate_ensemble)
             
+            ensemble_state_frac = ensemble_state_series_dict[past_time].reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
+            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
+                    
             for j in range(steps_per_da_window):
+
                 walltime_master_eqn = 0.0
                 master_eqn_ensemble.reset_walltimes()
                 # load the new network
@@ -766,7 +772,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
 
 ## Final storage after last step
-ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
 master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
 if learn_transmission_rate == True:
