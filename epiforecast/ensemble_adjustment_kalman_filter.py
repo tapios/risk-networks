@@ -55,6 +55,7 @@ class EnsembleAdjustmentKalmanFilter:
     def update(
             self,
             ensemble_state,
+            all_initial_ensemble_state,
             clinical_statistics,
             transmission_rates,
             truth,
@@ -87,25 +88,46 @@ class EnsembleAdjustmentKalmanFilter:
         #TODO: how to deal with no transition and/or transmission rates. i.e empty array input.
                (Could we just use an ensemble sized column of zeros? then output the empty array
                 '''
-
+        
         assert (truth.ndim == 1), 'EAKF init: truth must be 1d array'
         assert (cov.ndim == 2), 'EAKF init: covariance must be 2d array'
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
         output_path = self.output_path
 
-        output_path = self.output_path
 
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov
-
-        if scale is None: 
-            cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
-            x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
+    
+        #if scale is None: 
+        #    cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
+        #    x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
 
         #add reg to observations too
-        cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))
+        cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))        
+
+        # [0.] Process to include mass conservation in [X.] stages                
+        # [1.] Augment states with sum_states
+        if scale is not None:
+            x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
+            xall = np.log(np.maximum(all_initial_ensemble_state, 1e-9) / np.maximum(1.0 - all_initial_ensemble_state, 1e-9))
+            
+        else:
+            x = ensemble_state
+            xall = all_initial_ensemble_state
+        
+        xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
+        sum_flag = False
+        
+        #if np.any(abs(xsum - 1.) > 1e-3): 
+        x = np.hstack([x, xsum])
+        sum_flag=True
+                  
+        # [2.] Augment the observations with the desired mass (1) for sum_states
+        if sum_flag:
+            x_t = np.hstack([truth,1.]) 
+            cov = np.diag(np.hstack([np.diag(cov),1e-6]))
 
         try:
             # We assume independent variances (i.e diagonal covariance)
@@ -117,10 +139,19 @@ class EnsembleAdjustmentKalmanFilter:
         if save_matrices:
             save_cov_file =os.path.join(output_path, 'cov_matrix'+save_matrices_name+'.npy')
             np.save(save_cov_file, cov)
-                
-        # States
-        x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
-        # Stacked parameters and states
+        
+        if sum_flag:
+            # [3.] Augment H_obs
+            Hsum_obs = np.zeros((H_obs.shape[0] + 1,H_obs.shape[1]+1))
+            Hsum_obs[:-1,:-1] = H_obs
+            Hsum_obs[-1,-1] = 1
+            H_obs = Hsum_obs
+        
+        print("joint state pre DA", x.mean(axis=0))
+        print("obs_var", np.diag(cov))
+        print("joint state cov", np.cov(x.T))
+       
+        # Stack parameters and states
         # the transition and transmission parameters act similarly in the algorithm
         p = clinical_statistics
         q = transmission_rates
@@ -129,10 +160,16 @@ class EnsembleAdjustmentKalmanFilter:
         if (ensemble_state.ndim == 1):
             x=x[np.newaxis].T
 
+        # Whittaker Hamill 01 Inflation prior to update
+        #x_bar = x.mean(axis=0)
+        #x_inflated = self.inflate_reg * (x - x_bar) + x_bar
+        #x[:,inflate_indices] = x_inflated[:,inflate_indices]
+            
+        # if all present we do [transition, transmission, joint_state, sum_state]
         if p.size>0 and q.size>0:
             zp = np.hstack([p, q, x])
         elif p.size>0 and q.size==0:
-            zp = np.hstack([p,x])
+            zp = np.hstack([p, x])
         elif q.size>0 and p.size==0:
             zp = np.hstack([q, x])
         else:
@@ -142,9 +179,9 @@ class EnsembleAdjustmentKalmanFilter:
         J = x.shape[0]
 
         # Sizes of q and x
-        pqs = q[0].size +p[0].size
-        xs = x[0].size
-        xt = truth.size #observations over all times
+        pqs = q[0].size + p[0].size
+        xs = x[0].size  
+        xt = x_t.size #observations over all times + 1 
         
         zp_bar = np.mean(zp, 0)
         
@@ -157,13 +194,8 @@ class EnsembleAdjustmentKalmanFilter:
         # Performing the first SVD of EAKF
         svd_failed = False
         num_svd_attempts = 0
-
-        # Whittaker Hamill 01 Inflation prior to update
-        zp_inflated = self.inflate_reg * (zp - zp_bar) + zp_bar
-        zp[:,inflate_indices] = zp_inflated[:,inflate_indices]
-
-        #observation operators:
-        # full state to data:
+        
+        # build observation operators with parameters, states
         H = np.hstack([np.zeros((xt, pqs)), H_obs])
         Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
         Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
@@ -198,7 +230,7 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
-            Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise*rtDp_vec_full[J-2] # a little regularizations
+            Dp_vec_full = rtDp_vec_full**2 + self.joint_cov_noise*(rtDp_vec_full[0]**2 - rtDp_vec_full[J-2]**2) # a little regularizations
             
             Dp = np.diag(Dp_vec_full)
         
@@ -222,7 +254,9 @@ class EnsembleAdjustmentKalmanFilter:
             F = F_full
            
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec 
-            Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise*rtDp_vec[-1] # a little regularizations
+            Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise*(rtDp_vec[0]**2 - rtDp_vec[-1]**2) # a little regularizations
+            
+            print("Dp_vec_full",Dp_vec_full)
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
@@ -280,10 +314,24 @@ class EnsembleAdjustmentKalmanFilter:
 
         # Avoid overflow for exp
         x_logit = np.minimum(x_logit, 1e2)
+        print("joint state post DA", x_logit.mean(axis=0))
         
+        # Applying Whittaker style inflation after update instead
+        x_logit_bar = x_logit.mean(axis=0)
+        x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
+        x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
+        
+
         # replace unchanged states
-        new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+        if scale is not None:
+            new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+        else:
+            new_ensemble_state = x_logit
         
+        # [4.] remove summed state
+        if sum_flag:
+            new_ensemble_state = new_ensemble_state[:,:-1]
+
         if save_matrices:
             save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
             np.save(save_state_file, (zu-zu_bar).T)
