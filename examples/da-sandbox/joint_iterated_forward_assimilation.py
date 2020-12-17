@@ -193,7 +193,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 # constants ####################################################################
 
 #floats
-da_window         = 5.0
+da_window         = 1.0
 prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
@@ -203,7 +203,7 @@ record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                     = 3
+n_sweeps                     = 1
 n_record_sweeps              = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
