@@ -10,7 +10,7 @@ class Transform:
         
         Args
         ----
-        name (string): "identity", 
+        name (string): "identity", "logit"
         
         '''
         self.name = name
