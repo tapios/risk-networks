@@ -66,7 +66,8 @@ from _observations_init import (sensor_readings,
                                 positive_hospital_records,
                                 negative_hospital_records,
                                 positive_death_records,
-                                negative_death_records)
+                                negative_death_records,
+                                data_transform)
 
 
 sensor_observations = [sensor_readings]
@@ -109,6 +110,7 @@ data_scale = None
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
+        data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
@@ -118,13 +120,13 @@ sensor_assimilator = DataAssimilator(
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
         distance_threshold=arguments.distance_threshold,
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
+        data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
@@ -135,7 +137,6 @@ viral_test_assimilator = DataAssimilator(
         inflate_states=arguments.assimilation_inflation,
         inflate_reg=arguments.assimilation_test_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
         distance_threshold=arguments.distance_threshold,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
@@ -146,6 +147,7 @@ viral_test_assimilator = DataAssimilator(
 record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
+        data_transform=data_transform,
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
@@ -156,7 +158,6 @@ record_assimilator = DataAssimilator(
         inflate_states=arguments.assimilation_inflation,
         inflate_reg=arguments.assimilation_record_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
         distance_threshold=arguments.distance_threshold,
         output_path=OUTPUT_PATH)
 

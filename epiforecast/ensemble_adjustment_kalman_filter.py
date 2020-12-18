@@ -9,6 +9,7 @@ class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
+            data_transform,
             joint_cov_noise = 1e-2,
             obs_cov_noise = 1e-2,
             inflate_states = False,
@@ -27,7 +28,7 @@ class EnsembleAdjustmentKalmanFilter:
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
         
-        # Error
+        self.data_transform = data_transform
         self.error = np.empty(0)
         self.joint_cov_noise = joint_cov_noise
         self.obs_cov_noise = obs_cov_noise
@@ -109,13 +110,8 @@ class EnsembleAdjustmentKalmanFilter:
 
         # [0.] Process to include mass conservation in [X.] stages                
         # [1.] Augment states with sum_states
-        if scale is not None:
-            x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
-            xall = np.log(np.maximum(all_initial_ensemble_state, 1e-9) / np.maximum(1.0 - all_initial_ensemble_state, 1e-9))
-            
-        else:
-            x = ensemble_state
-            xall = all_initial_ensemble_state
+        x = self.data_transform.apply_transform(ensemble_state)
+        xall = self.data_transform.apply_transform(all_initial_ensemble_state)
         
         xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
         sum_flag = False
@@ -323,10 +319,7 @@ class EnsembleAdjustmentKalmanFilter:
         
 
         # replace unchanged states
-        if scale is not None:
-            new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
-        else:
-            new_ensemble_state = x_logit
+        new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
         
         # [4.] remove summed state
         if sum_flag:

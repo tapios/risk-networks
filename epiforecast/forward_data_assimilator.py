@@ -14,6 +14,7 @@ class DataAssimilator:
             self,
             observations,
             errors,
+            data_transform,
             *,
             n_assimilation_batches=1,
             transition_rates_to_update_str=None,
@@ -25,7 +26,6 @@ class DataAssimilator:
             inflate_states=True,
             inflate_reg=1.0,
             inflate_I_only=True,
-            scale=None,
             transition_rates_min=None,
             transition_rates_max=None,
             transmission_rate_min=None,
@@ -84,6 +84,8 @@ class DataAssimilator:
         self.observations = observations
         self.online_emodel = errors # online evaluations of errors
 
+        
+
         self.n_assimilation_batches = n_assimilation_batches
 
         if transition_rates_to_update_str is None:
@@ -102,6 +104,7 @@ class DataAssimilator:
 
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
+                data_transform,
                 joint_cov_noise=joint_cov_noise,
                 obs_cov_noise=obs_cov_noise,
                 inflate_states = inflate_states,
@@ -112,7 +115,7 @@ class DataAssimilator:
 
         self.inflate_I_only = inflate_I_only
 
-        self.scale = scale
+        self.scale = None
 
         if distance_threshold not in [0,1]:
             raise  NotImplementedError("only have implementation for distance_threshold = 0, 1")

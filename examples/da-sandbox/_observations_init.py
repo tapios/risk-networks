@@ -1,4 +1,5 @@
 import numpy as np
+from epiforecast.transforms import Transform
 from epiforecast.measurements import (Observation,
                                       FixedObservation,
                                       BudgetedObservation,
@@ -13,6 +14,13 @@ from _utilities import print_start_of, print_end_of
 
 print_start_of(__name__)
 ################################################################################
+
+#First build the transforms for the data space:
+data_transform = Transform("identity") 
+
+
+
+
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
 obs_var = 1e-5
@@ -46,6 +54,7 @@ MDT_budget_random_test = BudgetedObservation(
         N=user_population,
         obs_budget=arguments.observations_I_budget,
         obs_status='I',
+        data_transform=data_transform,
         obs_name="Budgeted Infection Test",
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
@@ -70,6 +79,7 @@ RDT_budget_random_test = BudgetedObservation(
         N=user_population,
         obs_budget=arguments.observations_I_budget,
         obs_status='I',
+        data_transform=data_transform,
         obs_name="85% sensitive Budgeted RDT",
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
@@ -82,6 +92,7 @@ poor_RDT_budget_random_test = BudgetedObservation(
         N=user_population,
         obs_budget=arguments.observations_I_budget,
         obs_status='I',
+        data_transform=data_transform,
         obs_name="60% sensitive Budgeted RDT",
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
@@ -128,6 +139,7 @@ budgeted_random_infection_test = BudgetedObservation(
         N=user_population,
         obs_budget=arguments.observations_I_budget,
         obs_status='I',
+        data_transform=data_transform,
         obs_name="Budgeted Infection Test",
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
@@ -162,24 +174,28 @@ positive_hospital_records = DataObservation(
         N=user_population,
         set_to_one=True,
         obs_status='H',
+        data_transform=data_transform,
         obs_name="positive_hospital_records")
 
 negative_hospital_records = DataObservation(
         N=user_population,
         set_to_one=False,
         obs_status='H',
+        data_transform=data_transform,
         obs_name="negative_hospital_records")
 
 positive_death_records = DataObservation(
         N=user_population,
         set_to_one=True,
         obs_status='D',
+        data_transform=data_transform,
         obs_name="positive_death_records")
 
 negative_death_records = DataObservation(
         N=user_population,
         set_to_one=False,
         obs_status='D',
+        data_transform=data_transform,
         obs_name="negative_death_records")
 
 ################################################################################
