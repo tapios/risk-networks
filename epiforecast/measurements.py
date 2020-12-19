@@ -43,8 +43,7 @@ class TestMeasurement:
             self.prevalence = fixed_prevalence
 
     def _set_ppv(
-            self,
-            scale=None):
+            self):
 
         PPV = self.sensitivity * self.prevalence / \
              (self.sensitivity * self.prevalence + (1 - self.specificity) * (1 - self.prevalence))
@@ -60,16 +59,14 @@ class TestMeasurement:
     def update_prevalence(
             self,
             ensemble_states,
-            scale=None,
             fixed_prevalence=None):
 
         self._set_prevalence(ensemble_states, fixed_prevalence)
-        self._set_ppv(scale = scale)
+        self._set_ppv()
 
     def get_mean(
             self,
-            positive_test=True,
-            scale=None):
+            positive_test=True):
 
         if positive_test:
             return self.ppv_mean
@@ -78,8 +75,7 @@ class TestMeasurement:
 
     def take_measurements(
             self,
-            nodes_state_dict,
-            scale=None):
+            nodes_state_dict):
         """
         Queries the diagnostics from a medical test with defined `self.sensitivity` and `self.specificity` properties in
         population with a certain prevelance (computed from an ensemble of master equations).
@@ -96,12 +92,10 @@ class TestMeasurement:
         for node in nodes_state_dict.keys():
             if nodes_state_dict[node] == self.status:
                 positive_test = not (self.noisy_measurement and (np.random.random() > self.sensitivity))
-                measurements[node] = self.get_mean(scale = scale,
-                                                   positive_test = positive_test)
+                measurements[node] = self.get_mean(positive_test = positive_test)
             else:
                 positive_test = (self.noisy_measurement and (np.random.random() < 1 - self.specificity))
-                measurements[node] = self.get_mean(scale = scale,
-                                                   positive_test = positive_test)
+                measurements[node] = self.get_mean(positive_test = positive_test)
                 if positive_test:
                     positive_nodes.append(node)
 
@@ -576,8 +570,7 @@ class Observation(StateInformedObservation, TestMeasurement):
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -585,8 +578,7 @@ class Observation(StateInformedObservation, TestMeasurement):
 
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale)
+                                          state)
 
         nodes=network.get_nodes()
         #mean, var np.arrays of size state
@@ -596,8 +588,7 @@ class Observation(StateInformedObservation, TestMeasurement):
         observed_data = {node : data[node] for node in observed_nodes}
 
         mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data,
-                                                      scale)[0:2]
+                                                      observed_data)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -664,8 +655,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -673,8 +663,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
 
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale)
+                                          state)
 
         nodes=network.get_nodes()
         observed_states = np.remainder(self.obs_states,self.N)
@@ -683,8 +672,7 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
         observed_data = {node : data[node] for node in observed_nodes}
 
         mean = TestMeasurement.take_measurements(self,
-                                                 observed_data,
-                                                 scale)[0]
+                                                 observed_data)[0]
 
         
         observed_mean     = np.array([mean[node] for node in observed_nodes])
@@ -739,8 +727,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -748,8 +735,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
 
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale)
+                                          state)
 
         nodes=network.get_nodes()
         #mean, var np.arrays of size state
@@ -759,8 +745,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
         observed_data = {node : data[node] for node in observed_nodes}
 
         mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data,
-                                                      scale)[0:2]
+                                                      observed_data)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -825,8 +810,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -834,8 +818,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
 
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale)
+                                          state)
 
         nodes=network.get_nodes()
         user_graph = network.get_graph()
@@ -852,8 +835,7 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         #    print("neighborhood of ", ti, ": ", list(user_graph.neighbors(ti)))
         
         mean, var, positive_nodes = TestMeasurement.take_measurements(self,
-                                                                      observed_data,
-                                                                      scale)
+                                                                      observed_data)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -924,8 +906,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)
@@ -933,8 +914,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
 
         #make a measurement of the data
         TestMeasurement.update_prevalence(self,
-                                          state,
-                                          scale)
+                                          state)
 
         nodes=network.get_nodes()
         #mean, var np.arrays of size state
@@ -944,8 +924,7 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
         observed_data = {node : data[node] for node in observed_nodes}
 
         mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data,
-                                                      scale)[0:2]
+                                                      observed_data)[0:2]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
@@ -1049,8 +1028,7 @@ class DataObservation(DataInformedObservation):
             self,
             network,
             state,
-            data,
-            scale=None):
+            data):
         """
         Inputs:
             data: dictionary {node number : status}; data[i] = contact_network.node(i)

@@ -72,8 +72,6 @@ class DataAssimilator:
             x_logit_std_threshold: threshold of std for inflation (% of mean value)
 
             inflate_I_only: only inflate I if True
-
-            scale (string): 'log' or None for whether we take meausurements in a logit scale
         """
         if not isinstance(observations, list):
             observations = [observations]
@@ -114,8 +112,6 @@ class DataAssimilator:
             raise NotImplementedError("The implemetation of reduced second SVD has been removed!")
 
         self.inflate_I_only = inflate_I_only
-
-        self.scale = None
 
         if distance_threshold not in [0,1]:
             raise  NotImplementedError("only have implementation for distance_threshold = 0, 1")
@@ -204,8 +200,7 @@ class DataAssimilator:
                 if (observation.obs_states.size >0):
                     observation.observe(user_network,
                                         state,
-                                        data,
-                                        self.scale)
+                                        data)
 
                     observed_means.extend(observation.mean)
                     observed_variances.extend(observation.variance)
@@ -717,7 +712,6 @@ class DataAssimilator:
                                      unode_truth, 
                                      unode_effective_cov, 
                                      H_obs, # 6*n_user_nodes + n_observation_times*n_observed_nodes                                     
-                                     scale=self.scale,
                                      print_error=print_error,
                                      inflate_indices=inflate_indices,
                                      save_matrices=0, #(self.counter == 0),

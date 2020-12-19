@@ -62,7 +62,6 @@ class EnsembleAdjustmentKalmanFilter:
             truth,
             cov,
             H_obs,
-            scale=None,
             print_error=False,
             r=1.0,
             inflate_indices=None,
@@ -101,10 +100,6 @@ class EnsembleAdjustmentKalmanFilter:
         x_t = truth
         cov = r**2 * cov
     
-        #if scale is None: 
-        #    cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
-        #    x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
-
         #add reg to observations too
         cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))        
 

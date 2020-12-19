@@ -103,8 +103,6 @@ from _master_eqn_init import (master_eqn_ensemble,
 transition_rates_to_update_str   = parameter_str
 transmission_rate_to_update_flag = learn_transmission_rate 
 
-# None or 'log'
-data_scale = None
 
 
 sensor_assimilator = DataAssimilator(
