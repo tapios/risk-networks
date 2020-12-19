@@ -53,6 +53,7 @@ class TestMeasurement:
 
         transformed_ppv = self.data_transform.apply_transform(PPV)
         transformed_for = self.data_transform.apply_transform(FOR)
+        #take mean in transformed space
         self.ppv_mean = transformed_ppv.mean()
         self.for_mean = transformed_for.mean()
 

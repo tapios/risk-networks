@@ -106,7 +106,7 @@ class EnsembleAdjustmentKalmanFilter:
         # [0.] Process to include mass conservation in [X.] stages                
         # [1.] Augment states with sum_states
         x = self.data_transform.apply_transform(ensemble_state)
-        xall = self.data_transform.apply_transform(all_initial_ensemble_state)
+        xall = all_initial_ensemble_state #do not transform the sum states
         
         xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
         sum_flag = False
@@ -312,14 +312,12 @@ class EnsembleAdjustmentKalmanFilter:
         x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
         x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
         
-
-        # replace unchanged states
-        new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
-        
-        # [4.] remove summed state
+      # [4.] remove summed state
         if sum_flag:
-            new_ensemble_state = new_ensemble_state[:,:-1]
-
+            new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
+        else
+            new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
+        
         if save_matrices:
             save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
             np.save(save_state_file, (zu-zu_bar).T)
