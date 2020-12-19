@@ -315,7 +315,7 @@ class EnsembleAdjustmentKalmanFilter:
       # [4.] remove summed state
         if sum_flag:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
-        else
+        else:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
         
         if save_matrices:
