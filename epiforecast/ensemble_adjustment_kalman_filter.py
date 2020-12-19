@@ -138,9 +138,10 @@ class EnsembleAdjustmentKalmanFilter:
             Hsum_obs[-1,-1] = 1
             H_obs = Hsum_obs
         
-        print("joint state pre DA", x.mean(axis=0))
+        print("mean state (transformed) pre DA", x.mean(axis=0))
+        print("mean state (untransformed) pre DA",ensemble_state.mean(axis=0))
         print("obs_var", np.diag(cov))
-        print("joint state cov", np.cov(x.T))
+        #print("joint state cov", np.cov(x.T))
        
         # Stack parameters and states
         # the transition and transmission parameters act similarly in the algorithm
@@ -305,18 +306,20 @@ class EnsembleAdjustmentKalmanFilter:
 
         # Avoid overflow for exp
         x_logit = np.minimum(x_logit, 1e2)
-        print("joint state post DA", x_logit.mean(axis=0))
         
         # Applying Whittaker style inflation after update instead
         x_logit_bar = x_logit.mean(axis=0)
         x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
         x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
+        print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
         
       # [4.] remove summed state
         if sum_flag:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
         else:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
+
+        print("mean state (untransformed) post DA",new_ensemble_state.mean(axis=0))
         
         if save_matrices:
             save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
