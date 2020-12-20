@@ -1,4 +1,4 @@
-import numpy as np
+B0;115;0cimport numpy as np
 from epiforecast.transforms import Transform
 from epiforecast.measurements import (Observation,
                                       FixedObservation,
@@ -16,14 +16,14 @@ print_start_of(__name__)
 ################################################################################
 
 #First build the transforms for the data space:
-data_transform = Transform("identity") 
+data_transform = Transform("tanh",lengthscale=arguments.transform_lengthscale) 
 
 
 
 
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
-obs_var = 1e-5
+obs_var = 1e-2
 # imperfect observations #######################################################
 # sensor type observation
 sensor_readings = FixedObservation(
