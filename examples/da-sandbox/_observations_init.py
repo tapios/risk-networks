@@ -1,4 +1,4 @@
-B0;115;0cimport numpy as np
+import numpy as np
 from epiforecast.transforms import Transform
 from epiforecast.measurements import (Observation,
                                       FixedObservation,
