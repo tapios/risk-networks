@@ -27,7 +27,8 @@ class Transform:
         return {   
             'identity' : lambda x: x,
             'logit'    : lambda x: np.log(np.maximum(x, 1e-9) / np.maximum(1.0 - x, 1e-9)),
-            'tanh'     : lambda x: np.arctanh(2*x - 1)*self.lengthscale
+            'tanh'    : lambda x:  np.arctanh((x-0.5)/self.lengthscale)
+            #'tanh'     : lambda x: np.arctanh(2*x - 1)*self.lengthscale
         }[self.name](x)
 
     def apply_inverse_transform(self,x):
@@ -35,7 +36,8 @@ class Transform:
         return {
             'identity' : lambda x: x,
             'logit'    : lambda x: np.exp(x)/(np.exp(x) + 1.0),
-            'tanh'     : lambda x: 0.5*(1 + np.tanh(x/self.lengthscale))
+            'tanh'    : lambda x: np.tanh(x)*self.lengthscale+0.5
+            #'tanh'     : lambda x: 0.5*(1 + np.tanh(x/self.lengthscale))
         }[self.name](x)
 
         

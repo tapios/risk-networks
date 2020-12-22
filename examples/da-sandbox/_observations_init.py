@@ -16,9 +16,8 @@ print_start_of(__name__)
 ################################################################################
 
 #First build the transforms for the data space:
-data_transform = Transform("tanh",lengthscale=arguments.transform_lengthscale) 
-
-
+#data_transform = Transform("identity")
+data_transform = Transform("tanh",lengthscale=arguments.transform_lengthscale)
 
 
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)

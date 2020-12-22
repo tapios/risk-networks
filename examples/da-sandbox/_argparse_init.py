@@ -52,6 +52,7 @@ parser.add_argument('--assimilation-test-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-record-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-inflate-I-only', default=True, action='store_false')
 parser.add_argument('--distance-threshold', type=int, default=1)
+parser.add_argument('--transform-lengthscale', type=float, default=0.7)
 
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
