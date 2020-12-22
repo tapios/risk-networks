@@ -4,7 +4,7 @@ class Transform:
 
     def __init__(
             self,
-            name="identity",
+            name="identity_clip",
             **kwargs):   
         '''
         Instantiate the object to implement transforms defined by a name
@@ -31,7 +31,7 @@ class Transform:
         return {   
             'identity_clip' : lambda x: x,
             'logit'         : lambda x: np.log(np.maximum(x, 1e-9) / np.maximum(1.0 - x, 1e-9)),
-            'tanh_clip'     : lambda x:  np.arctanh((x-0.5)/self.lengthscale),
+            'tanh_clip'     : lambda x: np.arctanh((x-0.5)/self.lengthscale),
             'tanh'          : lambda x: np.arctanh(2*x - 1)*self.lengthscale
         }[self.name](x)
 
