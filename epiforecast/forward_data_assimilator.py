@@ -16,6 +16,7 @@ class DataAssimilator:
             errors,
             data_transform,
             *,
+            HDflag=0,
             n_assimilation_batches=1,
             transition_rates_to_update_str=None,
             transmission_rate_to_update_flag=None,
@@ -82,7 +83,7 @@ class DataAssimilator:
         self.observations = observations
         self.online_emodel = errors # online evaluations of errors
 
-        
+        self.HDflag = HDflag
 
         self.n_assimilation_batches = n_assimilation_batches
 
@@ -437,7 +438,8 @@ class DataAssimilator:
                 new_nodelist.extend(neighbors)
                 nearby_obs.extend(neighbors)
                 #new_dist = [1 for i in range(len(neighbors))] # all neighbours weight 1
-                new_dist = [2/((current_dist+1)**2) for i in range(len(neighbors))] #1/2 
+                #new_dist = [2/((current_dist+1)**2) for i in range(len(neighbors))] #1/2 
+                new_dist = [0.5 for i in range(len(neighbors))] #1/2 
                 nearby_dist.extend(new_dist)
                 
             current_dist +=1
@@ -495,12 +497,6 @@ class DataAssimilator:
         observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
         observation_times.sort()
-    
-        ## Initial time only!
-        #observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
-        #                     if  observation_window[0]-1e-6 <= obs_time <= observation_window[0]+1e-6]
-        #print("INITIAL TIMES ONLY", observation_times)
-        
         n_observation_times = len(observation_times)
        
         if n_observation_times == 0: # no update is performed; return input
@@ -572,12 +568,17 @@ class DataAssimilator:
         #contains all nodes that are 'nearby' an observation
         #print("nonunique nodes", len(update_nodes))
         update_nodes = list(set(update_nodes))
-        #print("unique nodes", len(update_nodes))
         #Full state #S=0, E=1 I=2 H=3 R=4 D=5
-        update_statuses = [0,1,2,4]
+        if self.HDflag:
+            update_statuses = range(5)
+        else:
+            update_statuses = [0,1,2,4]
 
         #[0.] obtain which indices to inflate
-        inflate_indices = [2] #range(unode_joint_state.shape[1])
+        if self.HDflag:
+            inflate_indices = [idx for (idx,state) in enumerate(update_states) if state == 2] #range(unode_joint_state.shape[1])
+        else:
+            inflate_indices = [] #range(unode_joint_state.shape[1])
                    
         if verbose:
             print("[ Data assimilator ] Total states to be updated due to data: ",
@@ -718,9 +719,9 @@ class DataAssimilator:
                                      save_matrices_name = str(observation_times[-1]))
 
             #print("joint state post DA", unode_joint_state.mean(axis=0))
+            clipped_updated_initial_states = np.clip(unode_joint_state[:,:len(update_statuses)],0,1)
+            full_ensemble_state_series[initial_time][:,update_states] = clipped_updated_initial_states 
             
-            full_ensemble_state_series[initial_time][:,update_states] = unode_joint_state[:,:len(update_statuses)]
-
             if self.transmission_rate_to_update_flag:
                 # Clip transmission rate into a reasonable range
                 new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,

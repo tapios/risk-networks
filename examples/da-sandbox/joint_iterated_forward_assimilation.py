@@ -75,13 +75,13 @@ sensor_observations = [sensor_readings]
 viral_test_observations = [RDT_budget_random_test]
 test_result_delay = RDT_result_delay # delay to results of the virus test
 
-record_observations   = [positive_hospital_records,
-                          positive_death_records]
-
 #record_observations   = [positive_hospital_records,
-#                         negative_hospital_records,
-#                         positive_death_records,
-#                         negative_death_records]
+#                          positive_death_records]
+
+record_observations   = [positive_hospital_records,
+                         negative_hospital_records,
+                         positive_death_records,
+                         negative_death_records]
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -146,6 +146,7 @@ record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
         data_transform=data_transform,
+        HDflag=1,
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
         transmission_rate_to_update_flag=False,
@@ -192,7 +193,7 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 # constants ####################################################################
 
 #floats
-da_window         = 1.0
+da_window         = arguments.assimilation_window
 prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
@@ -202,7 +203,7 @@ record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                     = 1
+n_sweeps                     = arguments.assimilation_sweeps
 n_record_sweeps              = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
@@ -668,7 +669,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 new_transmission_rate=community_transmission_rate_ensemble)
             
             ensemble_state_frac = ensemble_state_series_dict[past_time].reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
-            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
+#            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
                     
             for j in range(steps_per_da_window):
 

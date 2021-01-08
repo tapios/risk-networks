@@ -27,12 +27,16 @@ parser.add_argument('--network-node-count', type=str, default='1e3')
 parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
 parser.add_argument('--user-network-seed-user', type=int, default=190)
 
+# transformation #################################################################
+parser.add_argument('--transform-lengthscale', type=float, default=0.7)
+
 # observations #################################################################
 parser.add_argument('--observations-I-fraction-tested', type=float, default=0)
 parser.add_argument('--observations-I-budget', type=int, default=0)
 parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 parser.add_argument('--observations-sensor-wearers', type=int, default=0)
+parser.add_argument('--observations-noise', type=float, default=1e-4)
 
 # data assimilation ############################################################
 parser.add_argument('--assimilation-update-sensor', type=str, default='full_global')
@@ -52,7 +56,8 @@ parser.add_argument('--assimilation-test-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-record-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-inflate-I-only', default=True, action='store_false')
 parser.add_argument('--distance-threshold', type=int, default=1)
-parser.add_argument('--transform-lengthscale', type=float, default=0.7)
+parser.add_argument('--assimilation-window', type=float, default=1.0)
+parser.add_argument('--assimilation-sweeps', type=int, default=1)
 
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
@@ -82,8 +87,8 @@ parser.add_argument('--epidemic-kinetic-states-name',
                     default='epidemic_kinetic_states.pkl')
 
 # initial condition ############################################################
-parser.add_argument('--ic-alpha', type=float, default=0.01)
-parser.add_argument('--ic-beta', type=float, default=1)
+parser.add_argument('--ic-alpha', type=float, default=0.04)
+parser.add_argument('--ic-beta', type=float, default=4)
 
 # parser setup #################################################################
 arguments = parser.parse_args()
