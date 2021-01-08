@@ -16,13 +16,13 @@ print_start_of(__name__)
 ################################################################################
 
 #First build the transforms for the data space:
-#data_transform = Transform("identity")
-data_transform = Transform("tanh",lengthscale=arguments.transform_lengthscale)
+data_transform = Transform("identity_clip")
+#data_transform = Transform("tanh",lengthscale=arguments.transform_lengthscale)
 
 
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
-obs_var = 1e-2
+obs_var = arguments.observations_noise
 # imperfect observations #######################################################
 # sensor type observation
 sensor_readings = FixedObservation(
