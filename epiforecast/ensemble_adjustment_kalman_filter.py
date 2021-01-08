@@ -109,16 +109,13 @@ class EnsembleAdjustmentKalmanFilter:
         xall = all_initial_ensemble_state #do not transform the sum states
         
         xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
-        sum_flag = False
-        
-        #if np.any(abs(xsum - 1.) > 1e-3): 
         x = np.hstack([x, xsum])
         sum_flag=True
                   
         # [2.] Augment the observations with the desired mass (1) for sum_states
         if sum_flag:
             x_t = np.hstack([truth,1.]) 
-            cov = np.diag(np.hstack([np.diag(cov),1e-6]))
+            cov = np.diag(np.hstack([np.diag(cov),np.min(np.diag(cov)) ]))
 
         try:
             # We assume independent variances (i.e diagonal covariance)
@@ -138,7 +135,9 @@ class EnsembleAdjustmentKalmanFilter:
             Hsum_obs[-1,-1] = 1
             H_obs = Hsum_obs
         
-        print("mean state (transformed) pre DA", x.mean(axis=0))
+        if not self.data_transform.name == "identity_clip":
+            print("mean state (transformed) pre DA", x.mean(axis=0))
+        
         print("mean state (untransformed) pre DA",ensemble_state.mean(axis=0))
         print("obs_var", np.diag(cov))
         #print("joint state cov", np.cov(x.T))
@@ -311,8 +310,9 @@ class EnsembleAdjustmentKalmanFilter:
         x_logit_bar = x_logit.mean(axis=0)
         x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
         x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
-        print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
-        
+        if not self.data_transform.name == "identity_clip":
+            print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
+
       # [4.] remove summed state
         if sum_flag:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
