@@ -576,7 +576,7 @@ class DataAssimilator:
 
         #[0.] obtain which indices to inflate
         if self.HDflag:
-            inflate_indices = [idx for (idx,state) in enumerate(update_states) if state == 2] #range(unode_joint_state.shape[1])
+            inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
         else:
             inflate_indices = [] #range(unode_joint_state.shape[1])
                    
