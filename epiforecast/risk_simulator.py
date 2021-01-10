@@ -8,29 +8,50 @@ from timeit import default_timer as timer
 import ray
 from numba import jit 
 
+
+
 @jit(nopython=True)
 def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
     CM_SI_data = np.zeros(nonzeros)
     CM_SH_data = np.zeros(nonzeros)
     for k,i,j,v in zip(range(nonzeros), rows, cols, data):
         #for SI interactions
-        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
+        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>} 
         CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
         CM_SI_data[k] *= v                      #multiply by the weight matrix wij
-        
+
         #for SH interactions
         CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
         CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
         CM_SH_data[k] *= v
     
+    return CM_SI_data, CM_SH_data 
+
+@jit(nopython=True)
+def create_CM_data_ptr(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean, ptr):
+    CM_SI_data = np.zeros(nonzeros)
+    CM_SH_data = np.zeros(nonzeros)
+    for k,i,j,v in zip(range(nonzeros), rows, cols, data):
+        #for SI interactions
+        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>} 
+        CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
+        CM_SI_data[k] *= v                      #multiply by the weight matrix wij
+        CM_SI_data[k] *= 0.5*(ptr[:,i] + ptr[:,j]).mean()
+
+        #for SH interactions
+        CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
+        CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
+        CM_SH_data[k] *= v
+        CM_SH_data[k] *= 0.5*(ptr[:,i] + ptr[:,j]).mean()
+    
     return CM_SI_data, CM_SH_data
- 
+
 class MasterEquationModelEnsemble:
     def __init__(
             self,
             population,
             transition_rates,
-            transmission_rate,
+            transmission_rate_parameters,
             hospital_transmission_reduction=0.25,
             ensemble_size=1,
             start_time=0.0,
@@ -47,9 +68,10 @@ class MasterEquationModelEnsemble:
                                                         ensemble_size with
                                                         individual rates for
                                                         each member
-            transmission_rate (list): list of length ensemble_size with
-                                      individual rate for each member
-                              (np.array): (M, 1) array of individual rates
+            transmission_rate_parameters (np.array): (M, N) array of individual, partial transmission rates (ptr) for each member. 
+                                                   The transmission rate from node i to node j is calculated to be the 
+                                                   (ptr(:,i) + ptr(:,j)) / 2 * contact_rate(i,j)
+                                   
             hospital_transmission_reduction (float): fraction of beta in
                                                      hospitals
             ensemble_size (int): number of ensemble members
@@ -57,7 +79,6 @@ class MasterEquationModelEnsemble:
             parallel_cpu (bool): whether to run computation in parallel on CPU
             num_cpus (int): number of CPUs available; only used in parallel mode
         """
-        assert len(transmission_rate) == ensemble_size
 
         self.M = ensemble_size
         self.N = population
@@ -102,6 +123,7 @@ class MasterEquationModelEnsemble:
                                            buffer=self.coefficients_shm.buf)
 
             members_chunks = np.array_split(np.arange(self.M), num_cpus)
+
             self.integrators = [
                     RemoteIntegrator.remote(members_chunks[j],
                                             self.M,
@@ -118,10 +140,24 @@ class MasterEquationModelEnsemble:
 
         self.update_transition_rates(transition_rates)
 
-        n_beta_per_member = 1
-        self.ensemble_beta_infected = np.empty( (self.M, n_beta_per_member) )
-        self.ensemble_beta_hospital = np.empty( (self.M, n_beta_per_member) )
-        self.update_transmission_rate(transmission_rate)
+
+        #for transmission or partial transmission rate
+        if isinstance(transmission_rate_parameters,list):
+            transmission_rate_parameters = np.array(transmission_rate_parameters)
+            
+        # we have M-sized transmission_rates, then the rates are the real rates
+        
+        if transmission_rate_parameters.size == self.M: #if it is the size of the ensemble only the 
+            self.full_transmission_rate_flag=True
+            self.ensemble_beta_infected = np.empty( (self.M,1) )
+            self.ensemble_hospital_transmission_factor = np.empty( (self.M,1) )
+
+        elif transmission_rate_parameters.shape == (self.M,self.N): 
+            self.full_transmission_rate_flag=False
+        else:
+            raise ValueError("incorrect size of transmission_rate_parameter, must be either size M or (M,N)" )
+
+        self.update_transmission_rate_parameters(transmission_rate_parameters)
 
         self.walltime_eval_closure = 0.0
 
@@ -176,28 +212,41 @@ class MasterEquationModelEnsemble:
         """
         self.L = mean_contact_duration
 
-    def update_transmission_rate(
+    def update_transmission_rate_parameters(
             self,
-            transmission_rate):
+            transmission_rate_parameters):
         """
         Set transmission rates a.k.a. betas
 
         Input:
-            transmission_rate (np.array): (M, 1) array of rates
-                              (list): list of rates of length M
+            transmission_rate_parameters (np.array):
+                             1. (np.array): (M, 1) array of rates
+                                    (list): list of rates of length M
+                             2. (np.array): (M, N) array of rates
         Output:
             None
         """
-        if isinstance(transmission_rate, list):
-            self.ensemble_beta_infected[:,0] = np.fromiter(transmission_rate,
-                                                           dtype=np.float_)
-        else:
-            self.ensemble_beta_infected[:] = transmission_rate
 
-        self.ensemble_beta_hospital[:] = (
+        if self.full_transmission_rate_flag: #global transmission rate
+            if isinstance(transmission_rate_parameters, list):
+                self.ensemble_beta_infected[:,0] = np.fromiter(transmission_rate_parameters,
+                                                               dtype=np.float_)
+            else:
+                self.ensemble_beta_infected[:] = transmission_rate_parameters
+
+            self.ensemble_beta_hospital[:] = (
                 self.hospital_transmission_reduction *
                 self.ensemble_beta_infected
-        )
+            )
+
+        else: # partial transmission rate per node
+            assert(transmission_rate_parameter.shape == (self.M,self.N) )        
+            self.partial_transition_rates = partial_transition_rates
+
+            self.ensemble_beta_infected[:] = np.ones(N)
+            self.ensemble_beta_hospital[:] = np.ones(N) * self.hospital_transmission_reduction
+
+
 
     def update_transition_rates(
             self,
@@ -228,7 +277,7 @@ class MasterEquationModelEnsemble:
     def update_ensemble(
             self,
             new_transition_rates,
-            new_transmission_rate):
+            new_transmission_rate_parameters):
         """
         Set all parameters of the ensemble (transition and transmission rates)
 
@@ -239,13 +288,15 @@ class MasterEquationModelEnsemble:
                                                             ensemble_size with
                                                             individual rates for
                                                             each member
-            new_transmission_rate (np.array): (M, 1) array of rates
-                                  (list): list of rates of length M
+            new_transmission_rate_parameters 
+                                 1. (np.array): (M, 1) array of rates
+                                        (list): list of rates of length M
+                                 2. (np.array): (M, N) array of rates
         Output:
             None
         """
         self.update_transition_rates(new_transition_rates)
-        self.update_transmission_rate(new_transmission_rate)
+        self.update_transmission_rate_parameters(new_transmission_rate_parameters)
 
     def set_states_ensemble(
             self,
@@ -319,19 +370,37 @@ class MasterEquationModelEnsemble:
             cooL_rows = cooL.row
             cooL_cols = cooL.col
             cooL_data = cooL.data
-
-            CM_SI_data,CM_SH_data = create_CM_data(
-                nonzeros,
-                cooL_rows,
-                cooL_cols,
-                cooL_data, 
-                self.M,
-                yS,
-                yI,
-                yH,
-                S_ensemble_mean,
-                I_ensemble_mean,
-                H_ensemble_mean)
+            
+            # if we have a global transmission parameter, this is accounted for in self.ensemble_beta_* 
+            # if we have a nodally defined transmission parameter, the partial transmissions are 
+            # accounted for in the closure calculation
+            if full_transmission_rate_flag:
+                CM_SI_data,CM_SH_data = create_CM_data(
+                    nonzeros,
+                    cooL_rows,
+                    cooL_cols,
+                    cooL_data, 
+                    self.M,
+                    yS,
+                    yI,
+                    yH,
+                    S_ensemble_mean,
+                    I_ensemble_mean,
+                    H_ensemble_mean)
+            else:
+                CM_SI_data,CM_SH_data = create_CM_data_ptr(
+                    nonzeros,
+                    cooL_rows,
+                    cooL_cols,
+                    cooL_data, 
+                    self.M,
+                    yS,
+                    yI,
+                    yH,
+                    S_ensemble_mean,
+                    I_ensemble_mean,
+                    H_ensemble_mean,
+                    self.partial_transmission_rates)
 
             CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iI].T
@@ -350,6 +419,7 @@ class MasterEquationModelEnsemble:
             closure_H = ensemble_H_substate @ self.L
             self.closure[:] = (  closure_I * self.ensemble_beta_infected,
                                + closure_H * self.ensemble_beta_hospital)
+
         else:
             raise ValueError(
                     self.__class__.__name__
@@ -463,11 +533,11 @@ class MasterEquationModelEnsemble:
             self.y0_shm.close()
             self.closure_shm.close()
             self.coefficients_shm.close()
-
+    
             self.y0_shm.unlink()
             self.closure_shm.unlink()
             self.coefficients_shm.unlink()
-
+    
 
 @ray.remote
 class RemoteIntegrator:
@@ -496,7 +566,7 @@ class RemoteIntegrator:
         self.shared_memory_names = {
                 'ensemble_state': ensemble_state_shared_memory_name,
                 'coefficients'  : coefficients_shared_memory_name,
-                'closure'       : closure_shared_memory_name
+                'closure'       : closure_shared_memory_name          
         }
 
         self.S_slice = slice(  0,   N)
@@ -531,7 +601,7 @@ class RemoteIntegrator:
                 name=self.shared_memory_names['coefficients'])
         closure_shm = shared_memory.SharedMemory(
                 name=self.shared_memory_names['closure'])
-
+        
         ensemble_state = np.ndarray((self.M, 6*self.N),
                                     dtype=np.float_,
                                     buffer=y0_shm.buf)
