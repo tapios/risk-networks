@@ -65,6 +65,8 @@ transition_rates_max = {'latent_periods': 12,
 # Prior of transmission rate ###################################################
 community_transmission_rate_ensemble = np.full([ensemble_size, 1],
                                                community_transmission_rate)
+
+
 learn_transmission_rate = arguments.params_learn_transmission_rate
 transmission_rate_bias = arguments.params_transmission_rate_bias
 transmission_rate_std = arguments.params_transmission_rate_noise * community_transmission_rate
@@ -82,7 +84,7 @@ transmission_rate_max = 21
 master_eqn_ensemble = MasterEquationModelEnsemble(
         population=user_population,
         transition_rates=transition_rates_ensemble,
-        transmission_rate=community_transmission_rate_ensemble,
+        transmission_rate_parameters=community_transmission_rate_ensemble,
         hospital_transmission_reduction=hospital_transmission_reduction,
         ensemble_size=ensemble_size,
         start_time=start_time,

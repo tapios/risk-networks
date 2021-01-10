@@ -146,12 +146,12 @@ class MasterEquationModelEnsemble:
             transmission_rate_parameters = np.array(transmission_rate_parameters)
             
         # we have M-sized transmission_rates, then the rates are the real rates
-        
+        self.ensemble_beta_infected = np.empty( (self.M,1) )
+        self.ensemble_beta_hospital = np.empty( (self.M,1) )
+  
         if transmission_rate_parameters.size == self.M: #if it is the size of the ensemble only the 
             self.full_transmission_rate_flag=True
-            self.ensemble_beta_infected = np.empty( (self.M,1) )
-            self.ensemble_hospital_transmission_factor = np.empty( (self.M,1) )
-
+      
         elif transmission_rate_parameters.shape == (self.M,self.N): 
             self.full_transmission_rate_flag=False
         else:
@@ -374,7 +374,7 @@ class MasterEquationModelEnsemble:
             # if we have a global transmission parameter, this is accounted for in self.ensemble_beta_* 
             # if we have a nodally defined transmission parameter, the partial transmissions are 
             # accounted for in the closure calculation
-            if full_transmission_rate_flag:
+            if self.full_transmission_rate_flag:
                 CM_SI_data,CM_SH_data = create_CM_data(
                     nonzeros,
                     cooL_rows,
