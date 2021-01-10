@@ -666,7 +666,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             master_eqn_ensemble.set_start_time(past_time)
             master_eqn_ensemble.update_ensemble(
                 new_transition_rates=transition_rates_ensemble,
-                new_transmission_rate=community_transmission_rate_ensemble)
+                new_transmission_rate_parameters=community_transmission_rate_ensemble)
             
             ensemble_state_frac = ensemble_state_series_dict[past_time].reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
 #            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
