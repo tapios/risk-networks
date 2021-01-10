@@ -1040,7 +1040,7 @@ class DataObservation(DataInformedObservation):
         #       always check the variances in the logit transformed variables.
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
-        MEAN_TOLERANCE     = 0.9 # 1e-9
+        MEAN_TOLERANCE     = 0.01 # 1e-9
         VARIANCE_TOLERANCE = 1e-3  #1e-14
 
         if self.set_to_one:
