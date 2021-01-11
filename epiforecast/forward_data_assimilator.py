@@ -726,7 +726,7 @@ class DataAssimilator:
             #[7.]            
             if self.transmission_rate_to_update_flag:
                 print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
-                ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1), #100 x transm.
+                ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1) #100 x transm.
             else:
                 ensemble_transmission_rate_unode = ensemble_transmission_rate
 
