@@ -247,7 +247,7 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec 
             Dp_vec_full = rtDp_vec**2 + self.joint_cov_noise*(rtDp_vec[0]**2 - rtDp_vec[-1]**2) # a little regularizations
             
-            print("Dp_vec_full",Dp_vec_full)
+            #print("Dp_vec_full",Dp_vec_full)
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
