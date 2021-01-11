@@ -320,7 +320,7 @@ class DataAssimilator:
                 print(ensemble_transmission_rate.shape)
                   
         else: # set to column of empties
-            ensemble_transmission_rate = np.empty((n_ensemble, user_nodes.size), dtype=float)
+            ensemble_transmission_rate = np.empty((n_ensemble, 1), dtype=float)
 
         return ensemble_transition_rates, ensemble_transmission_rate
 
