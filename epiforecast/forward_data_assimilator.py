@@ -570,7 +570,7 @@ class DataAssimilator:
         update_nodes = list(set(update_nodes))
         #Full state #S=0, E=1 I=2 H=3 R=4 D=5
         if self.HDflag:
-            update_statuses = range(5)
+            update_statuses = range(6)
         else:
             update_statuses = [0,1,2,4]
 
@@ -578,7 +578,7 @@ class DataAssimilator:
         if self.HDflag:
             inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
         else:
-            inflate_indices = [] #range(unode_joint_state.shape[1])
+            inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
                    
         if verbose:
             print("[ Data assimilator ] Total states to be updated due to data: ",
@@ -632,7 +632,7 @@ class DataAssimilator:
             
             # (1)
             unode_ensemble_state = full_ensemble_state_at_obs[initial_time][:,update_states]  #ens_size x 6
-            full_states =  np.array([unode + n_user_nodes*i for i in range(5)])
+            full_states =  np.array([unode + n_user_nodes*i for i in range(6)])
             all_initial_ensemble_state = full_ensemble_state_at_obs[initial_time][:,full_states]
 
             # (2)
