@@ -320,7 +320,7 @@ class DataAssimilator:
                 print(ensemble_transmission_rate.shape)
                   
         else: # set to column of empties
-            ensemble_transmission_rate = np.empty((n_ensemble, 0), dtype=float)
+            ensemble_transmission_rate = np.empty((n_ensemble, user_nodes.size), dtype=float)
 
         return ensemble_transition_rates, ensemble_transmission_rate
 
@@ -722,17 +722,21 @@ class DataAssimilator:
             #print("H obs", H_obs)
             #print("effective cov", np.diag(unode_effective_cov))
             #print("joint state cov", np.cov(unode_joint_state.T))
+            
+            #[7.]            
             if self.transmission_rate_to_update_flag:
                 print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
-                
-            #[7.]
+                ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1), #100 x transm.
+            else:
+                ensemble_transmission_rate_unode = ensemble_transmission_rate
+
             (unode_joint_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate_unode
             ) = self.damethod.update(unode_joint_state, #100 x 6*n_user_nodes + n_observation_times*n_observed_nodes
                                      all_initial_ensemble_state, #100 x 1
                                      ensemble_transition_rates, #100 x transi.
-                                     ensemble_transmission_rate[:,unode].reshape(n_ensemble,1), #100 x transm.
+                                     ensemble_transmission_rate_unode, #100 x transm.
                                      unode_truth, 
                                      unode_effective_cov, 
                                      H_obs, # 6*n_user_nodes + n_observation_times*n_observed_nodes                                     
