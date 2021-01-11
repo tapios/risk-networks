@@ -578,7 +578,7 @@ class DataAssimilator:
         if self.HDflag:
             inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
         else:
-            inflate_indices = [] #range(unode_joint_state.shape[1])
+            inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
                    
         if verbose:
             print("[ Data assimilator ] Total states to be updated due to data: ",
