@@ -976,13 +976,14 @@ class DataInformedObservation:
         candidate_states = [candidate_states_modulo_population + i*self.N for i in self.obs_status_idx]
 
         self.obs_states=np.hstack(candidate_states)
-
+        
 
 class DataObservation(DataInformedObservation):
     def __init__(
             self,
             N,
             set_to_one,
+            obs_var,
             obs_status,
             data_transform,
             obs_name):
@@ -995,13 +996,14 @@ class DataObservation(DataInformedObservation):
         N (int)               : number of nodes
         set_to_one (bool)     : set_to_one=True  means we set "state = 1" when "status == obs_status"
                                 set_to_one=False means we set "state = 0" when "status != obs_status"
+        obs_var (float)       : size of variance of the observation
         obs_status (string)   : character of the status we assimilate
         obs_name (string)     : name of observation
         """
-
-        self.name=obs_name
         self.set_to_one = set_to_one
+        self.var_tol = max(obs_var,1e-16)
         self.data_transform = data_transform
+        self.name=obs_name
 
         DataInformedObservation.__init__(self,
                                          N,
@@ -1041,7 +1043,7 @@ class DataObservation(DataInformedObservation):
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
         MEAN_TOLERANCE     = 0.01 # 1e-9
-        VARIANCE_TOLERANCE = 1e-8  #1e-14
+        VARIANCE_TOLERANCE = self.var_tol  #1e-14
 
         if self.set_to_one:
             

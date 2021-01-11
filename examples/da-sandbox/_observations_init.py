@@ -23,6 +23,7 @@ data_transform = Transform("identity_clip")
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
 obs_var = arguments.observations_noise
+record_obs_var = 0.1*obs_var
 # imperfect observations #######################################################
 # sensor type observation
 sensor_readings = FixedObservation(
@@ -172,6 +173,7 @@ high_var_infection_test = HighVarianceObservation(
 positive_hospital_records = DataObservation(
         N=user_population,
         set_to_one=True,
+        obs_var=record_obs_var,
         obs_status='H',
         data_transform=data_transform,
         obs_name="positive_hospital_records")
@@ -179,6 +181,7 @@ positive_hospital_records = DataObservation(
 negative_hospital_records = DataObservation(
         N=user_population,
         set_to_one=False,
+        obs_var=record_obs_var,
         obs_status='H',
         data_transform=data_transform,
         obs_name="negative_hospital_records")
@@ -186,6 +189,7 @@ negative_hospital_records = DataObservation(
 positive_death_records = DataObservation(
         N=user_population,
         set_to_one=True,
+        obs_var=record_obs_var,
         obs_status='D',
         data_transform=data_transform,
         obs_name="positive_death_records")
@@ -193,6 +197,7 @@ positive_death_records = DataObservation(
 negative_death_records = DataObservation(
         N=user_population,
         set_to_one=False,
+        obs_var=record_obs_var,
         obs_status='D',
         data_transform=data_transform,
         obs_name="negative_death_records")
