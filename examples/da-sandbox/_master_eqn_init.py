@@ -63,7 +63,7 @@ transition_rates_max = {'latent_periods': 12,
                              'hospital_mortality_fraction': 1}
 
 # Prior of transmission rate ###################################################
-community_transmission_rate_ensemble = np.full([ensemble_size, 1],
+community_transmission_rate_ensemble = np.full([ensemble_size, user_population],
                                                community_transmission_rate)
 
 

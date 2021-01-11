@@ -261,7 +261,7 @@ class DataAssimilator:
             self,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            obs_nodes):
+            user_nodes):
         """
         Extract model parameters for update from lists into np.arrays
 
@@ -270,14 +270,14 @@ class DataAssimilator:
                                                    which to extract rates for
                                                    update
             full_ensemble_transmission_rate (list): list of floats/ints
-            obs_nodes (np.array): (m,) array of node indices
+            user_nodes (np.array): (m,) array of node indices
 
         Output:
             ensemble_transition_rates (np.array): (n_ensemble,k) array of values
             ensemble_transmission_rate (np.array): (n_ensemble,) array of values
         """
+        #[1. ] Transition rates
         n_ensemble = len(full_ensemble_transition_rates)
-
         # We extract only the transition rates we wish to be updated
         # stored as an [ensemble size x transition rates (to be updated)] np.array
         if len(self.transition_rates_to_update_str) > 0:
@@ -290,7 +290,7 @@ class DataAssimilator:
 
                     if isinstance(clinical_parameter, np.ndarray):
                         # only extract the observed values
-                        clinical_parameter = clinical_parameter[obs_nodes]
+                        clinical_parameter = clinical_parameter[user_nodes]
 
                     rates_member.append(clinical_parameter)
 
@@ -308,8 +308,17 @@ class DataAssimilator:
         else: # set to column of empties
             ensemble_transition_rates = np.empty((n_ensemble, 0), dtype=float)
 
+
+        #[2. ] Transmission_rates - just extract all of them
         if self.transmission_rate_to_update_flag:
-            ensemble_transmission_rate = full_ensemble_transmission_rate
+            if isinstance(full_ensemble_transmission_rate,list):
+                ensemble_transmission_rate = np.array(full_ensemble_transmission_rate)
+            elif full_ensemble_transmission_rate.size == n_ensemble:
+                ensemble_transmission_rate = np.tile(full_ensemble_transmission_rate, (1,user_nodes.size) )
+            else:
+                ensemble_transmission_rate = full_ensemble_transmission_rate
+                print(ensemble_transmission_rate.shape)
+                  
         else: # set to column of empties
             ensemble_transmission_rate = np.empty((n_ensemble, 0), dtype=float)
 
@@ -321,7 +330,8 @@ class DataAssimilator:
             new_ensemble_transmission_rate,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            obs_nodes):
+            user_nodes,
+            update_nodes):
         """
         Assign updated model parameters from np.arrays into corresponding lists
 
@@ -334,12 +344,13 @@ class DataAssimilator:
                                                    be updated
             full_ensemble_transmission_rate (list): list of floats/ints, to be
                                                     updated
-            obs_nodes (np.array): (m,) array of node indices
-
+            user_nodes (np.array): (m,) array of node indices
+            update_nodes (list) : list of node indices that were updated in the EAKF
         Output:
             full_ensemble_transition_rates (list): same object as in input
             full_ensemble_transmission_rate (list): same object as in input
         """
+        n_ensemble = new_ensemble_transition_rates.shape[0]
         if len(self.transition_rates_to_update_str) > 0:
             for transition_rates_from, transition_rates_to in zip(
                     new_ensemble_transition_rates,
@@ -352,9 +363,9 @@ class DataAssimilator:
                             transition_rates_to.get_clinical_parameter(
                                 rate_name))
                     if isinstance(clinical_parameter, np.ndarray):
-                        rate_size = obs_nodes.size
+                        rate_size = user_nodes.size
                         new_rates = clinical_parameter
-                        new_rates[obs_nodes] = transition_rates_from[:rate_size]
+                        new_rates[user_nodes] = transition_rates_from[:rate_size]
                     else:
                         rate_size = 1
                         new_rates = transition_rates_from[0]
@@ -367,7 +378,14 @@ class DataAssimilator:
                 transition_rates_to.calculate_from_clinical()
 
         if self.transmission_rate_to_update_flag:
-            full_ensemble_transmission_rate = new_ensemble_transmission_rate
+            if isinstance(full_ensemble_transmission_rate, list):
+                # take nonzero columns, and get their row, means. Convert to list
+                full_ensemble_transmission_rate = new_ensemble_transmission_rate[new_ensemble_transmission_rate.any(0)].mean(axis=1).tolist()
+            elif full_ensemble_transmission_rate.size == n_ensemble:
+                # take nonzero columns, and get their row, means.
+                full_ensemble_transmission_rate = new_ensemble_transmission_rate[new_ensemble_transmission_rate.any(0)].mean(axis=1)
+            else:
+                full_ensemble_transmission_rate[:,update_nodes] = new_ensemble_transmission_rate[:,update_nodes]
 
         return full_ensemble_transition_rates, full_ensemble_transmission_rate
 
@@ -498,14 +516,16 @@ class DataAssimilator:
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
         observation_times.sort()
         n_observation_times = len(observation_times)
-       
+        
         if n_observation_times == 0: # no update is performed; return input
             if verbose:
                 print("[ Data assimilator ] No assimilation within window")
             update_flag=False
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
 
+
         initial_time = observation_times[0]     
+        n_ensemble = full_ensemble_state_series[initial_time].shape[0]
         # extract from full_ensemble_state_series
         full_ensemble_state_at_obs = {obs_time : full_ensemble_state_series[obs_time] for obs_time in observation_times}
 
@@ -526,6 +546,8 @@ class DataAssimilator:
                   total_obs_states)
 
         # extract only those rates which we wish to update with DA (will not change over window)
+        n_user_nodes = user_network.get_node_count()
+        
         (ensemble_transition_rates,
          ensemble_transmission_rate
         ) = self.extract_model_parameters_to_update(
@@ -542,7 +564,6 @@ class DataAssimilator:
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[initial_time])
         
-        n_user_nodes = user_network.get_node_count()
 
         # Numbered according to Docs
         #[1.] Loop over observation states
@@ -583,6 +604,9 @@ class DataAssimilator:
         if verbose:
             print("[ Data assimilator ] Total states to be updated due to data: ",
                   len(update_nodes)*len(update_statuses))
+
+        #empty container for new rates
+        new_ensemble_transmission_rate = np.zeros( (n_ensemble ,n_user_nodes) )
 
         
         # [2.] now we loop one by one and assimilate each node
@@ -697,19 +721,18 @@ class DataAssimilator:
             #print("joint state pre DA:", unode_joint_state.mean(axis=0))
             #print("H obs", H_obs)
             #print("effective cov", np.diag(unode_effective_cov))
-
-            
-            #print("joint state pre DA", unode_joint_state.mean(axis=0))
-
             #print("joint state cov", np.cov(unode_joint_state.T))
+            if self.transmission_rate_to_update_flag:
+                print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
+                
             #[7.]
             (unode_joint_state,
              new_ensemble_transition_rates,
-             new_ensemble_transmission_rate
+             new_ensemble_transmission_rate_unode
             ) = self.damethod.update(unode_joint_state, #100 x 6*n_user_nodes + n_observation_times*n_observed_nodes
                                      all_initial_ensemble_state, #100 x 1
                                      ensemble_transition_rates, #100 x transi.
-                                     ensemble_transmission_rate, #100 x transm.
+                                     ensemble_transmission_rate[:,unode].reshape(n_ensemble,1), #100 x transm.
                                      unode_truth, 
                                      unode_effective_cov, 
                                      H_obs, # 6*n_user_nodes + n_observation_times*n_observed_nodes                                     
@@ -721,19 +744,21 @@ class DataAssimilator:
             #print("joint state post DA", unode_joint_state.mean(axis=0))
             clipped_updated_initial_states = np.clip(unode_joint_state[:,:len(update_statuses)],0,1)
             full_ensemble_state_series[initial_time][:,update_states] = clipped_updated_initial_states 
-            
+
             if self.transmission_rate_to_update_flag:
+                print("transmission rate post DA", new_ensemble_transmission_rate_unode[:,0].mean())
+
                 # Clip transmission rate into a reasonable range
-                new_ensemble_transmission_rate = np.clip(new_ensemble_transmission_rate,
-                                                         self.transmission_rate_min,
-                                                         self.transmission_rate_max)
+                new_ensemble_transmission_rate[:,unode] = np.clip(new_ensemble_transmission_rate_unode[:,0],
+                                                                  self.transmission_rate_min,
+                                                                  self.transmission_rate_max)
 
                 # Weighted-averaging based on ratio of observed nodes 
-                new_ensemble_transmission_rate = self.weighted_averaged_transmission_rate(
-                    new_ensemble_transmission_rate,
-                    ensemble_transmission_rate,
-                    n_user_nodes,
-                    user_network.get_nodes()) # changed from particular observed nodes
+                #new_ensemble_transmission_rate[:,unode] = self.weighted_averaged_transmission_rate(
+                #    new_ensemble_transmission_rate[:,unode],
+                #    ensemble_transmission_rate[:,unode],
+                #    n_user_nodes,
+                #    user_network.get_nodes()) # changed from particular observed nodes
                 
             if len(self.transition_rates_to_update_str) > 0:
                 new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
@@ -747,7 +772,8 @@ class DataAssimilator:
             new_ensemble_transmission_rate,
             full_ensemble_transition_rates,
             full_ensemble_transmission_rate,
-            user_network.get_node_count())
+            user_network.get_node_count(),
+            update_nodes)
         
         if print_error:
             print("[ Data assimilator ] EAKF error:", self.damethod.error[-1])

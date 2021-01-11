@@ -229,8 +229,8 @@ master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
                                                    time_span.size)
 
 transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              1,
-                                              time_span.size)
+                                                  user_population,
+                                                  time_span.size)
 
 transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
                                               6,
