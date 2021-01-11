@@ -240,11 +240,12 @@ class MasterEquationModelEnsemble:
             )
 
         else: # partial transmission rate per node
-            assert(transmission_rate_parameter.shape == (self.M,self.N) )        
-            self.partial_transition_rates = partial_transition_rates
+            assert(transmission_rate_parameters.shape == (self.M,self.N) )        
+            #self.partial_transition_rates = partial_transition_rates
+            self.partial_transmission_rates = transmission_rate_parameters
 
-            self.ensemble_beta_infected[:] = np.ones(N)
-            self.ensemble_beta_hospital[:] = np.ones(N) * self.hospital_transmission_reduction
+            self.ensemble_beta_infected[:] = np.ones([self.M,1])
+            self.ensemble_beta_hospital[:] = np.ones([self.M,1]) * self.hospital_transmission_reduction
 
 
 
