@@ -645,7 +645,8 @@ class DataAssimilator:
             
             # and create the effective data
             unode_truth = truth[os_idx_nearby_unode]
-            print("data", unode_truth)
+            if verbose:
+                print("data", unode_truth)
             unode_var = var[os_idx_nearby_unode] 
             unode_effective_cov = np.diag(unode_var/dist_to_obs_from_unode) # weight by distance function (larger distance = higher variance)
             
