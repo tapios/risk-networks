@@ -228,9 +228,9 @@ master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
                                                    6,
                                                    time_span.size)
 
-transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
-                                                  user_population,
-                                                  time_span.size)
+mean_transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
+                                                       1,
+                                                       time_span.size)
 
 transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
                                               6,
@@ -302,8 +302,9 @@ for j in range(spin_up_steps):
     master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
     
     if learn_transmission_rate == True:
-        transmission_rate_timeseries.push_back(
-                community_transmission_rate_ensemble)
+        mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+        mean_transmission_rate_timeseries.push_back(
+                mean_community_transmission_rate_ensemble)
     if learn_transition_rates == True:
         transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -386,7 +387,7 @@ for j in range(spin_up_steps):
             plt.close(fig)
 
             if learn_transmission_rate == True:
-                plot_transmission_rate(transmission_rate_timeseries.container[:,:, :len(current_time_span)-1].mean(axis=1)[:,np.newaxis,:],
+                plot_transmission_rate(mean_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
                                        current_time_span[:-1],
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH)
@@ -524,8 +525,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
         if learn_transmission_rate == True:
-            transmission_rate_timeseries.push_back(
-                    community_transmission_rate_ensemble)
+            mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+            mean_transmission_rate_timeseries.push_back(
+                    mean_community_transmission_rate_ensemble)
         if learn_transition_rates == True:
             transition_rates_timeseries.push_back(
                     extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -599,7 +601,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             plt.close(fig)
             
             if learn_transmission_rate == True:
-                plot_transmission_rate(transmission_rate_timeseries.container[:,:, :len(current_time_span)-1].mean(axis=1)[:,np.newaxis,:],
+                plot_transmission_rate(mean_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
                                        current_time_span[:-1],
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH)
@@ -659,8 +661,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
-             user_network,
-             verbose=True)       
+             user_network)
+             
             print("assimilated viral tests",flush=True)
         elif step % (2+n_record_sweeps) >= 2:
             (ensemble_state_series_dict, 
@@ -671,8 +673,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
              ensemble_state_series_dict, 
              transition_rates_ensemble,
              community_transmission_rate_ensemble,
-             user_network,
-             verbose=True)              
+             user_network)
+
             print("assimilated records",flush=True)
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
@@ -794,8 +796,9 @@ ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)
 master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
 if learn_transmission_rate == True:
-    transmission_rate_timeseries.push_back(
-            community_transmission_rate_ensemble)
+    mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+    mean_transmission_rate_timeseries.push_back(
+            mean_community_transmission_rate_ensemble)
 if learn_transition_rates == True:
     transition_rates_timeseries.push_back(
             extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -854,7 +857,7 @@ np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'),
 
 
 if learn_transmission_rate == True:
-    plot_transmission_rate(transmission_rate_timeseries.container.mean(axis=1)[:,np.newaxis,:],
+    plot_transmission_rate(mean_transmission_rate_timeseries.container,
             time_span,
             a_min=0.0,
             output_path=OUTPUT_PATH)
@@ -868,7 +871,7 @@ if learn_transition_rates == True:
 # save parameters ################################################################
 if learn_transmission_rate == True:
     np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
-            transmission_rate_timeseries.container)
+            mean_transmission_rate_timeseries.container)
 
 if learn_transition_rates == True:
     np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
