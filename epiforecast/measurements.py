@@ -690,6 +690,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
             N,
             obs_nodes,
             obs_status,
+            data_transform,
             obs_name,
             sensitivity=0.80,
             specificity=0.99,
@@ -705,6 +706,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
                                       obs_status)
         TestMeasurement.__init__(self,
                                  obs_status,
+                                 data_transform,
                                  sensitivity,
                                  specificity,
                                  noisy_measurement)
@@ -745,11 +747,12 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data)[0:2]
+        mean = TestMeasurement.take_measurements(self,
+                                                 observed_data)[0]
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        #prescribed variance
+        observed_variance = np.array([self.obs_var_min for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance
