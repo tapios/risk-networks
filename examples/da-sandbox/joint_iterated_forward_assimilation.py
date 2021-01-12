@@ -384,6 +384,14 @@ for j in range(spin_up_steps):
     if plot_and_save_now:
         if (current_time - static_contact_interval) > static_contact_interval: # i.e not first step
             plt.close(fig)
+
+            if learn_transmission_rate == True:
+                plot_transmission_rate(transmission_rate_timeseries.container[:,:, :len(current_time_span)-1].mean(axis=1)[:,np.newaxis,:],
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH)
+                
+
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
@@ -402,6 +410,7 @@ for j in range(spin_up_steps):
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
                         rasterized=True,
                         dpi=150)
+
 
     #intervention if required
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
@@ -588,6 +597,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                     eps=static_contact_interval)
         if plot_and_save_now:
             plt.close(fig)
+            
+            if learn_transmission_rate == True:
+                plot_transmission_rate(transmission_rate_timeseries.container[:,:, :len(current_time_span)-1].mean(axis=1)[:,np.newaxis,:],
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH)
+                
+
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
@@ -607,7 +624,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
                         rasterized=True,
                         dpi=150)
-
+            
+            
     print_info("Prediction ended: current time:", current_time)
     for step in range((2+n_record_sweeps)*n_sweeps):
          # by restarting from time of first assimilation data
@@ -836,7 +854,7 @@ np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'),
 
 
 if learn_transmission_rate == True:
-    plot_transmission_rate(transmission_rate_timeseries.container,
+    plot_transmission_rate(transmission_rate_timeseries.container.mean(axis=1)[:,np.newaxis,:],
             time_span,
             a_min=0.0,
             output_path=OUTPUT_PATH)
