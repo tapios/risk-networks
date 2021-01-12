@@ -725,7 +725,8 @@ class DataAssimilator:
             
             #[7.]            
             if self.transmission_rate_to_update_flag:
-                print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
+                if verbose:
+                    print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
                 ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1) #100 x transm.
             else:
                 ensemble_transmission_rate_unode = ensemble_transmission_rate
@@ -743,15 +744,17 @@ class DataAssimilator:
                                      print_error=print_error,
                                      inflate_indices=inflate_indices,
                                      save_matrices=0, #(self.counter == 0),
-                                     save_matrices_name = str(observation_times[-1]))
+                                     save_matrices_name = str(observation_times[-1]),
+                                     verbose=verbose)
 
             #print("joint state post DA", unode_joint_state.mean(axis=0))
             clipped_updated_initial_states = np.clip(unode_joint_state[:,:len(update_statuses)],0,1)
             full_ensemble_state_series[initial_time][:,update_states] = clipped_updated_initial_states 
 
             if self.transmission_rate_to_update_flag:
-                print("transmission rate post DA", new_ensemble_transmission_rate_unode[:,0].mean())
-
+                if verbose:
+                    print("transmission rate post DA", new_ensemble_transmission_rate_unode[:,0].mean())
+                
                 # Clip transmission rate into a reasonable range
                 new_ensemble_transmission_rate[:,unode] = np.clip(new_ensemble_transmission_rate_unode[:,0],
                                                                   self.transmission_rate_min,

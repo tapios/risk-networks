@@ -66,7 +66,8 @@ class EnsembleAdjustmentKalmanFilter:
             r=1.0,
             inflate_indices=None,
             save_matrices=False,
-            save_matrices_name=None):
+            save_matrices_name=None,
+            verbose=False):
 
         '''
         - ensemble_state (np.array): J x M of update states for each of the J ensembles
@@ -136,11 +137,12 @@ class EnsembleAdjustmentKalmanFilter:
             H_obs = Hsum_obs
         
         if not self.data_transform.name == "identity_clip":
-            print("mean state (transformed) pre DA", x.mean(axis=0))
-        
-        print("mean state (untransformed) pre DA",ensemble_state.mean(axis=0))
-        print("obs_var", np.diag(cov))
-        #print("joint state cov", np.cov(x.T))
+            if verbose:
+                print("mean state (transformed) pre DA", x.mean(axis=0))
+        if verbose:
+            print("mean state (untransformed) pre DA",ensemble_state.mean(axis=0))
+            print("obs_var", np.diag(cov))
+            #print("joint state cov", np.cov(x.T))
        
         # Stack parameters and states
         # the transition and transmission parameters act similarly in the algorithm
@@ -311,15 +313,16 @@ class EnsembleAdjustmentKalmanFilter:
         x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
         x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
         if not self.data_transform.name == "identity_clip":
-            print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
+            if verbose:
+                print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
 
       # [4.] remove summed state
         if sum_flag:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
         else:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
-
-        print("mean state (untransformed) post DA",new_ensemble_state.mean(axis=0))
+        if verbose:
+            print("mean state (untransformed) post DA",new_ensemble_state.mean(axis=0))
         
         if save_matrices:
             save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
