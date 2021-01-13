@@ -601,9 +601,8 @@ class DataAssimilator:
         else:
             inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
                    
-        if verbose:
-            print("[ Data assimilator ] Total states to be updated due to data: ",
-                  len(update_nodes)*len(update_statuses))
+        
+        print("[ Data assimilator ] Total nodes to be updated: ", len(update_nodes))
 
         #empty container for new rates
         new_ensemble_transmission_rate = np.zeros( (n_ensemble ,n_user_nodes) )
