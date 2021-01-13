@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=196G
+#SBATCH --mem=192G
 #SBATCH -J "100u"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
@@ -22,12 +22,10 @@ set -euo pipefail
 
 # parallelization
 num_cpus=${SLURM_CPUS_PER_TASK}
-bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 8)) #MB -> bytes
+bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 4)) #MB -> bytes
 echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory available"
 # parameters & constants #######################################################
 
-# network  + sensor wearers
-EXP_NAME="NYC_1e5_user100_nosensors" #1e5 = 97942 nodes
 network_size=1e5
 wearers=0
 # note: 195884 nodes
@@ -50,24 +48,26 @@ n_sweeps=1
 #observation_noise
 obs_noise=1e-8
 #reglarization parameters
-test_reg=1e-1
+test_reg=1e-3
 record_reg=1e-2
 
 # observation localization (number of nbhds observations have effect on (integer) 0 = delta at observation, 1= nbhd of observation)
-distance_threshold=1
+distance_threshold=0
 
 #inflation (No inflation is 1.0)
-test_inflation=2.0
+test_inflation=3.0
 record_inflation=5.0
 
 #param noise mean - ln((mu+bias)^2 / sqrt((mu+bias)^2 +sig^2))
 param_prior_noise=0.2
 param_prior_bias=-4
 
+# network  + sensor wearers
+EXP_NAME="1e5_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
 
 # Experimental series parameters ###############################################
-#5% 10% 25% of 97942
-test_budgets=(0 4897 9794 24486)  
+#5% 10% of 97942
+test_budgets=(0 4897 9794)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
