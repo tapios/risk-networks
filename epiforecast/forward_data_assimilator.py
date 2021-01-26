@@ -31,6 +31,7 @@ class DataAssimilator:
             transition_rates_max=None,
             transmission_rate_min=None,
             transmission_rate_max=None,
+            transmission_rate_inflation=1.0,
             distance_threshold=1,
             output_path=None):
         """
@@ -107,7 +108,8 @@ class DataAssimilator:
                 joint_cov_noise=joint_cov_noise,
                 obs_cov_noise=obs_cov_noise,
                 inflate_states = inflate_states,
-                    inflate_reg = inflate_reg,
+                inflate_reg = inflate_reg,
+            inflate_transmission_reg = transmission_rate_inflation,
                     output_path=output_path)
         else:
             raise NotImplementedError("The implemetation of reduced second SVD has been removed!")
@@ -497,7 +499,6 @@ class DataAssimilator:
         full_ensemble_transmission_rate - updated from EAKF
     
         """
-        
         update_flag = True
 
         if len(self.observations) == 0: # no update is performed; return input
@@ -511,6 +512,7 @@ class DataAssimilator:
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
             
         #get the observation times from the assimilator
+        #note some observation times could be empty
         observation_window = [min(full_ensemble_state_series.keys()), max(full_ensemble_state_series.keys())]
         observation_times = [obs_time for obs_time in self.stored_observed_states.keys() 
                              if  observation_window[0] <= obs_time <=observation_window[1] ]
@@ -524,10 +526,13 @@ class DataAssimilator:
             return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag
 
 
-        initial_time = observation_times[0]     
+        initial_time = observation_window[0] # beginning of window regardless of if there is an obs there    
         n_ensemble = full_ensemble_state_series[initial_time].shape[0]
         # extract from full_ensemble_state_series
         full_ensemble_state_at_obs = {obs_time : full_ensemble_state_series[obs_time] for obs_time in observation_times}
+        
+        if initial_time not in observation_times: 
+            full_ensemble_state_at_obs[initial_time] = full_ensemble_state_series[initial_time] 
 
         # Load states to compare with data
         obs_states = np.concatenate([self.stored_observed_states[obs_time] for obs_time in observation_times])
@@ -564,7 +569,6 @@ class DataAssimilator:
         # Perform DA model update with ensemble_state: states, transition and transmission rates
         initial_ensemble_state_pre_update = copy.deepcopy(full_ensemble_state_at_obs[initial_time])
         
-
         # Numbered according to Docs
         #[1.] Loop over observation states
         update_nodes = []
@@ -591,7 +595,7 @@ class DataAssimilator:
         update_nodes = list(set(update_nodes))
         #Full state #S=0, E=1 I=2 H=3 R=4 D=5
         if self.HDflag:
-            update_statuses = range(6)
+            update_statuses = [0,1,2,4]#range(6)
         else:
             update_statuses = [0,1,2,4]
 
@@ -601,28 +605,40 @@ class DataAssimilator:
         else:
             inflate_indices = [idx for (idx,state) in enumerate(update_statuses) if state == 2] #range(unode_joint_state.shape[1])
                    
-        
         print("[ Data assimilator ] Total nodes to be updated: ", len(update_nodes))
 
         #empty container for new rates
         new_ensemble_transmission_rate = np.zeros( (n_ensemble ,n_user_nodes) )
-
         
         # [2.] now we loop one by one and assimilate each node
         for unode in update_nodes:
-            
+
             update_states = np.array([unode + n_user_nodes*i for i in update_statuses])
         
             os_idx_nearby_unode = []
             dist_to_obs_from_unode = []
             
             #[3.] find which of the observations unode is nearby, and how far it is away
-            for (os_idx,ostate) in enumerate(obs_states):
-                if unode in self.stored_nodes_nearby_observed_state[ostate]:
+            if self.distance_threshold == 0: #local setting
+                os_idx_tuple = np.where(np.remainder(obs_states,n_user_nodes) == unode)
+                os_idx_arr = os_idx_tuple[0]
+                if os_idx_arr.size>0:
+                    os_idx=os_idx_arr[0]
                     os_idx_nearby_unode.extend([os_idx])
-                    unode_idx = np.where(self.stored_nodes_nearby_observed_state[ostate] == unode)                    
-                    dist_to_obs_from_unode.extend( self.stored_dist_to_observed_state[ostate][unode_idx].tolist() )
+                    dist_to_obs_from_unode.extend([1])
+            elif self.distance_threshold == 1:
+                #THIS IS SLOW - doesn't account for the type of locality in the threshold.
+                # A likely better way is to find the where the network neighbours are of u in the list e.g 
+                # unode_neighbors = user_network.neighbors(unode)
+                # os_idx_arr = np.where(np.remainder(obs_states,n_user_nodes) in unode_neighbors)
+                # ... 
+                for (os_idx,ostate) in enumerate(obs_states):
+                    if unode in self.stored_nodes_nearby_observed_state[ostate]:
+                        os_idx_nearby_unode.extend([os_idx])
+                        unode_idx = np.where(self.stored_nodes_nearby_observed_state[ostate] == unode)                    
+                        dist_to_obs_from_unode.extend( self.stored_dist_to_observed_state[ostate][unode_idx].tolist() )
             
+           
             #Find if any observations are at unode at initial time.
             os_idx_times_nearby_unode = [obs_idx_at_time[idx] for idx in os_idx_nearby_unode]
             os_idx_at_initial_time = [idx for (ii,idx) in enumerate(os_idx_nearby_unode) if abs(os_idx_times_nearby_unode[ii] - initial_time) < 1e-6] # contains the elements of obs_states_nearby_unode at initial_time
@@ -658,7 +674,7 @@ class DataAssimilator:
             unode_ensemble_state = full_ensemble_state_at_obs[initial_time][:,update_states]  #ens_size x 6
             full_states =  np.array([unode + n_user_nodes*i for i in range(6)])
             all_initial_ensemble_state = full_ensemble_state_at_obs[initial_time][:,full_states]
-
+            
             # (2)
             unode_observed_state = []            
             if len(os_idx_at_initial_not_at_unode)>0:
@@ -687,7 +703,6 @@ class DataAssimilator:
             else:
                 unode_joint_state = unode_ensemble_state
 
-            
             # [5.] Define the observation operator. to match the ordering of the joint state
             n_total_obs = os_idx_nearby_unode.size
             # remove the one case that unode[initial_time] is observed (similar to joint state)
@@ -716,7 +731,7 @@ class DataAssimilator:
                     H_obs[k,len(update_statuses) + k - nonzero_idx] = 1
                 else: 
                     nonzero_idx += 1
-
+            
             #print(unode_joint_state.shape, H_obs.T.shape, unode_effective_cov.shape)
             #print("joint state pre DA:", unode_joint_state.mean(axis=0))
             #print("H obs", H_obs)
@@ -730,7 +745,7 @@ class DataAssimilator:
                 ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1) #100 x transm.
             else:
                 ensemble_transmission_rate_unode = ensemble_transmission_rate
-
+            
             (unode_joint_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate_unode
@@ -746,7 +761,7 @@ class DataAssimilator:
                                      save_matrices=0, #(self.counter == 0),
                                      save_matrices_name = str(observation_times[-1]),
                                      verbose=verbose)
-
+            
             #print("joint state post DA", unode_joint_state.mean(axis=0))
             clipped_updated_initial_states = np.clip(unode_joint_state[:,:len(update_statuses)],0,1)
             full_ensemble_state_series[initial_time][:,update_states] = clipped_updated_initial_states 
@@ -770,6 +785,7 @@ class DataAssimilator:
             if len(self.transition_rates_to_update_str) > 0:
                 new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                            user_network.get_node_count())
+            
         # set the updated rates in the TransitionRates object and
         # return the full rates.
         (full_ensemble_transition_rates,
@@ -788,6 +804,6 @@ class DataAssimilator:
         # Error to truth
         if len(self.online_emodel)>0:
             self.error_to_truth_state(ensemble_state,data)
-
+            
         # Return ensemble_state, transition rates, and transmission rate
         return full_ensemble_state_series, full_ensemble_transition_rates, full_ensemble_transmission_rate, update_flag

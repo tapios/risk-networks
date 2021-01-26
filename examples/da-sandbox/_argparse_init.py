@@ -52,6 +52,7 @@ parser.add_argument('--sensor-assimilation-obs-regularization', type=float, defa
 parser.add_argument('--test-assimilation-obs-regularization', type=float, default=0)
 parser.add_argument('--record-assimilation-obs-regularization', type=float, default=0)
 parser.add_argument('--assimilation-inflation', default=True, action='store_false')
+parser.add_argument('--assimilation-sensor-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-test-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-record-inflation', type=float, default=1.0)
 parser.add_argument('--assimilation-inflate-I-only', default=True, action='store_false')
@@ -65,6 +66,7 @@ parser.add_argument('--params-transition-rates-str', type=str, default='latent_p
 parser.add_argument('--params-learn-transmission-rate', default=False,action='store_true')
 parser.add_argument('--params-transmission-rate-bias', type=float, default=0.0)
 parser.add_argument('--params-transmission-rate-noise', type=float, default=0.1)
+parser.add_argument('--params-transmission-inflation', type=float, default=1.0)
 
 # interventions ################################################################
 parser.add_argument('--intervention-frequency', type=str, default='none')

@@ -111,14 +111,18 @@ sensor_assimilator = DataAssimilator(
         data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=False,
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_sensor,
         joint_cov_noise=arguments.sensor_assimilation_joint_regularization,
         obs_cov_noise=arguments.sensor_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
+        inflate_reg=arguments.assimilation_sensor_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        distance_threshold=arguments.distance_threshold,
+        distance_threshold=arguments.distance_threshold,        
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
@@ -140,6 +144,7 @@ viral_test_assimilator = DataAssimilator(
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
 record_assimilator = DataAssimilator(
@@ -149,7 +154,7 @@ record_assimilator = DataAssimilator(
         HDflag=1,
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=False,
+        transmission_rate_to_update_flag=True,
         update_type=arguments.assimilation_update_record,
         joint_cov_noise=arguments.record_assimilation_joint_regularization,
         obs_cov_noise=arguments.record_assimilation_obs_regularization,
@@ -158,6 +163,9 @@ record_assimilator = DataAssimilator(
         inflate_reg=arguments.assimilation_record_inflation,
         inflate_I_only=arguments.assimilation_inflate_I_only,
         distance_threshold=arguments.distance_threshold,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
@@ -198,7 +206,7 @@ prediction_window = 1.0
 save_to_file_interval = 1.0
 sensor_assimilation_interval  = 1.0 # same for I
 test_assimilation_interval  = 1.0 # same for I
-record_assimilation_interval = 1000.0 # assimilate H and D data every .. days
+record_assimilation_interval = 1.0 # assimilate H and D data every .. days
 
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval

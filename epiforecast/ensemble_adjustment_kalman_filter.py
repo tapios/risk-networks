@@ -14,6 +14,7 @@ class EnsembleAdjustmentKalmanFilter:
             obs_cov_noise = 1e-2,
             inflate_states = False,
             inflate_reg = 0.1,
+            inflate_transmission_reg=1.0,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
@@ -34,6 +35,7 @@ class EnsembleAdjustmentKalmanFilter:
         self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
         self.inflate_reg = inflate_reg  # unit is in (%)
+        self.inflate_transmission_reg = inflate_transmission_reg,
         self.output_path = output_path
 
         # Compute error
@@ -332,6 +334,10 @@ class EnsembleAdjustmentKalmanFilter:
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
         new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
 
+        # Applying Whittaker style inflation after update to parameters
+        new_transmission_rates_bar = new_transmission_rates.mean(axis=0)
+        new_transmission_rates = self.inflate_transmission_reg * (new_transmission_rates - new_transmission_rates_bar) + new_transmission_rates_bar
+        
         if (ensemble_state.ndim == 1):
             new_ensemble_state=new_ensemble_state.squeeze()
 
