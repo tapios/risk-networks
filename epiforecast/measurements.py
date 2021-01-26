@@ -1003,6 +1003,7 @@ class DataObservation(DataInformedObservation):
         obs_status (string)   : character of the status we assimilate
         obs_name (string)     : name of observation
         """
+        self.N=N
         self.set_to_one = set_to_one
         self.var_tol = max(obs_var,1e-16)
         self.data_transform = data_transform
@@ -1045,7 +1046,8 @@ class DataObservation(DataInformedObservation):
         #       always check the variances in the logit transformed variables.
 
         # set_to_one=True  means we set "state = 1" when "status == obs_status"
-        MEAN_TOLERANCE     = 0.01 # 1e-9
+        
+        MEAN_TOLERANCE     = 0.0 #0.1/self.N # 1e-9
         VARIANCE_TOLERANCE = self.var_tol  #1e-14
 
         if self.set_to_one:
@@ -1057,6 +1059,7 @@ class DataObservation(DataInformedObservation):
             
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
+       
             observed_mean = MEAN_TOLERANCE * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
             transformed_mean = self.data_transform.apply_transform(observed_mean)
