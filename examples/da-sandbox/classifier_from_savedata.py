@@ -7,9 +7,13 @@ from epiforecast.epiplots import plot_roc_curve, plot_tpr_curve
 
 #file parameters
 
-EXP_NAME = '1e5_hdonly_WRR_5.0_1e-2_3.0'
+EXP_NAME = 'u100_s75_d5'
 OUTDIR = 'output'
-noda_EXP_NAME='1e5_sensors_poshd_WRI_5.0_1e-2_3.0_0'
+noda_EXP_NAME='noda_1e5_0'
+
+#EXP_PARAM_VALUES = ['noda', 0,49,98,245]
+EXP_PARAM_VALUES = ['noda', 0, 4897, 9794, 24485]
+  
 
 # data file for mean states of master equations
 # np.array of size [user_population,time_span]
@@ -18,13 +22,21 @@ intervals_per_day = 8
 
 
 #Classifier_parameters
-N_THRESHOLD = 200
+N_THRESHOLD = 100
 CLASS_METHOD='sum' #'or' or 'sum'
 CLASS_STATUSES=['I']  
 CRITICAL_TPR = 0.6 # pick classifier to attain this TPR
+PLOT_NAME=CLASS_METHOD
 
-thresholds = 1.0/(10*N_THRESHOLD-1)*np.arange(N_THRESHOLD-1)
+thresholds = 1.0/(5*N_THRESHOLD-1)*np.arange(N_THRESHOLD-1)
+#thresholds = 1.0/(10*N_THRESHOLD-1)*np.arange(N_THRESHOLD-1)
 thresholds = np.hstack([thresholds,1])
+
+exp_run = [EXP_NAME + '_' + str(val) for val in EXP_PARAM_VALUES]
+    
+#add the noda case
+exp_run[0] = noda_EXP_NAME #overwrite
+output_dirs = [os.path.join('.',OUTDIR, exp) for exp in exp_run ]  
 
 
 for day in days:
@@ -37,16 +49,7 @@ for day in days:
     # dict (of size user_population)
     kinetic_eqns_fname = 'kinetic_eqns_statuses_at_step_'+str(interval_of_recording)+'.npy'
    
-    # user base 25%
-    # EXP_PARAM_VALUES = [245,1224,6122]
-    # user base 50%
-    EXP_PARAM_VALUES = [0,4897]
     
-    exp_run = [EXP_NAME + '_' + str(val) for val in EXP_PARAM_VALUES]
-    
-    #add the noda case
-    exp_run[0] = noda_EXP_NAME #overwrite
-    output_dirs = [os.path.join('.',OUTDIR, exp) for exp in exp_run ]  
     
     #container for true rates as a [num expts  x num thresholds] 
     predicted_positive_fractions = np.zeros([len(output_dirs),N_THRESHOLD])
@@ -81,17 +84,17 @@ for day in days:
 
 
     #plot all the ROCs on one plot
-    labels = [str(param) + ' tested per day' for param in EXP_PARAM_VALUES] 
+    
+    labels = [run + ' tested per day' if i>=1 else run for (i,run) in enumerate(exp_run)] 
     fig,ax = plot_roc_curve(true_negative_rates,true_positive_rates,labels=labels,show=False)
-    fig_name = os.path.join(OUTDIR,CLASS_METHOD+'_'+EXP_NAME+'_'+str(day)+'.png')
+    fig_name = os.path.join(OUTDIR,'roc_'+PLOT_NAME+'_'+EXP_NAME+'_'+str(day)+'.png')
     fig.savefig(fig_name,dpi=300)
         
     print("plotted TPR-FPR (ROC) curves in figure: ", fig_name)
     
     #plot all the ROCs on one plot
-    labels =[str(param) + ' tests per day' for param in EXP_PARAM_VALUES] 
     fig,ax = plot_tpr_curve(predicted_positive_fractions,true_positive_rates,labels=labels,show=False)
-    fig_name = os.path.join(OUTDIR,'tprplot_'+CLASS_METHOD+'_'+EXP_NAME+'_'+str(day)+'.png')
+    fig_name = os.path.join(OUTDIR,'tpr_'+PLOT_NAME+'_'+EXP_NAME+'_'+str(day)+'.png')
     fig.savefig(fig_name,dpi=300)
 
     print("plotted TPR-PPV curves in figure: ", fig_name)
