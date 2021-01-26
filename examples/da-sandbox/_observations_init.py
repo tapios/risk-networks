@@ -23,7 +23,7 @@ data_transform = Transform("identity_clip")
 sensor_wearers=np.random.choice(user_nodes, size=arguments.observations_sensor_wearers, replace=False)
 
 obs_var = arguments.observations_noise
-record_obs_var = 0.1*obs_var
+record_obs_var = obs_var
 # imperfect observations #######################################################
 # sensor type observation
 sensor_readings = FixedObservation(
@@ -33,8 +33,8 @@ sensor_readings = FixedObservation(
     data_transform=data_transform,
     obs_name="continuous_infection_test",
     noisy_measurement=True,
-    sensitivity=0.5,
-    specificity=0.75,
+    sensitivity=0.2,
+    specificity=0.98,
     obs_var_min=obs_var)
 
 # virus test type observations
@@ -85,7 +85,7 @@ RDT_budget_random_test = BudgetedObservation(
         min_threshold=arguments.observations_I_min_threshold,
         max_threshold=arguments.observations_I_max_threshold,
         noisy_measurement=True,
-        sensitivity=0.85,
+        sensitivity=0.88,
         specificity=0.99,
         obs_var_min=obs_var)
 
