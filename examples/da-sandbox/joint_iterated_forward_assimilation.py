@@ -36,7 +36,9 @@ from _constants import (static_contact_interval,
                         time_span,
                         distanced_max_contact_rate,
                         OUTPUT_PATH,
-                        SEED_JOINT_EPIDEMIC)
+                        SEED_JOINT_EPIDEMIC,
+                        min_contact_rate,
+                        max_contact_rate)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -451,6 +453,7 @@ for j in range(spin_up_steps):
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
+            network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene) 
 
         elif intervention_type == "social_distance":
@@ -800,6 +803,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
+            network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene) 
             
         elif intervention_type == "social_distance":
