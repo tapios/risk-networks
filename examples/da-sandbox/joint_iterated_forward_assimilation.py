@@ -177,7 +177,8 @@ from _intervention_init import (intervention,
                                 intervention_frequency,
                                 intervention_nodes, 
                                 intervention_type,
-                                query_intervention) 
+                                query_intervention,
+                                intervention_sick_isolate_time) 
 
 ################################################################################
 # epidemic setup ###############################################################
@@ -433,7 +434,15 @@ for j in range(spin_up_steps):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
             #raise ValueError("Currently interventions only work for 'all', see below")
@@ -774,7 +783,15 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
             #raise ValueError("Currently interventions only work for 'all'")

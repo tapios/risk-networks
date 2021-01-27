@@ -21,6 +21,7 @@ intervention_nodes = arguments.intervention_nodes
 intervention_type = arguments.intervention_type
 
 intervention_interval = arguments.intervention_interval
+intervention_sick_isolate_time = arguments.intervention_sick_isolate_time
 
 from _utilities import are_close, modulo_is_close_to_zero
 
