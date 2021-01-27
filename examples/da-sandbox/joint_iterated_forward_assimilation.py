@@ -435,8 +435,8 @@ for j in range(spin_up_steps):
         elif intervention_nodes == "sick":
             nodes_to_intervene = intervention.find_sick(ensemble_state)
             print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all', see below")
+                nodes_to_intervene.size, network.get_node_count()))
+            #raise ValueError("Currently interventions only work for 'all', see below")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
@@ -776,8 +776,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         elif intervention_nodes == "sick":
             nodes_to_intervene = intervention.find_sick(ensemble_state)
             print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all'")
+                nodes_to_intervene.size, network.get_node_count()))
+            #raise ValueError("Currently interventions only work for 'all'")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
