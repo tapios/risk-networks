@@ -850,6 +850,10 @@ if save_ensemble_state_now:
     master_eqns_mean_states = ensemble_state.mean(axis=0)
     np.save(ensemble_state_path,master_eqns_mean_states)
 
+if intervention_nodes == 'sick':
+    np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+            intervention.stored_nodes_to_intervene)
+
 
 print("finished assimilation")
 # save & plot ##################################################################
