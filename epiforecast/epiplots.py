@@ -333,13 +333,14 @@ def plot_tpr_curve(predicted_positive_fraction,
         plt.show()
         
     return fig, ax
-
+    
 def plot_transmission_rate(transmission_rate_timeseries,
-        t,
-        color='b',
-        a_min=None,
-        a_max=None,
-        output_path='.'):
+                           t,
+                           color='b',
+                           a_min=None,
+                           a_max=None,
+                           output_path='.',
+                           output_name='transmission_rate'):
 
     rate_perc = np.percentile(transmission_rate_timeseries, 
             q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -351,7 +352,7 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.xlabel('Time (days)')
     plt.ylabel('1/community_transmission_rate')
     plt.tight_layout()
-    plt.savefig(os.path.join(output_path,'transmission_rate.png'))
+    plt.savefig(os.path.join(output_path,output_name+'.png'))
     plt.close()
 
 def plot_clinical_parameters(transition_rates_timeseries,

@@ -96,6 +96,7 @@ from _master_eqn_init import (master_eqn_ensemble,
                               transition_rates_max,
                               transmission_rate_min,
                               transmission_rate_max,
+                              param_transform,
                               n_forward_steps,
                               n_backward_steps)
 
@@ -122,6 +123,7 @@ sensor_assimilator = DataAssimilator(
         distance_threshold=arguments.distance_threshold,        
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
@@ -144,6 +146,7 @@ viral_test_assimilator = DataAssimilator(
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
@@ -154,7 +157,7 @@ record_assimilator = DataAssimilator(
         HDflag=1,
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=True,
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_record,
         joint_cov_noise=arguments.record_assimilation_joint_regularization,
         obs_cov_noise=arguments.record_assimilation_obs_regularization,
@@ -165,6 +168,7 @@ record_assimilator = DataAssimilator(
         distance_threshold=arguments.distance_threshold,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
         output_path=OUTPUT_PATH)
 
@@ -239,6 +243,14 @@ master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
 mean_transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                                        1,
                                                        time_span.size)
+if param_transform == 'log':
+    mean_logtransmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
+                                                              1,
+                                                              time_span.size)
+
+network_transmission_rate_timeseries = EnsembleTimeSeries(1,
+                                                          user_population,
+                                                          time_span.size)
 
 transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
                                               6,
@@ -313,6 +325,14 @@ for j in range(spin_up_steps):
         mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
         mean_transmission_rate_timeseries.push_back(
                 mean_community_transmission_rate_ensemble)
+        if param_transform == 'log':
+            mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+            mean_logtransmission_rate_timeseries.push_back(mean_community_logtransmission_rate_ensemble)
+
+        community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+        network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+        
     if learn_transition_rates == True:
         transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -399,7 +419,18 @@ for j in range(spin_up_steps):
                                        current_time_span[:-1],
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH)
-                
+                if param_transform == 'log':
+                    plot_transmission_rate(mean_logtransmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                           current_time_span[:-1],
+                                           a_min=0.0,
+                                           output_path=OUTPUT_PATH,
+                                           output_name='logtransmission_rate')
+
+                plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1], 0, 1),
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH,
+                                       output_name='networktransmission_rate')
 
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
@@ -536,6 +567,15 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
             mean_transmission_rate_timeseries.push_back(
                     mean_community_transmission_rate_ensemble)
+            if param_transform == 'log':
+                mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+                mean_logtransmission_rate_timeseries.push_back(
+                    mean_community_logtransmission_rate_ensemble)
+
+            community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+            network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+            
         if learn_transition_rates == True:
             transition_rates_timeseries.push_back(
                     extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -613,7 +653,19 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                        current_time_span[:-1],
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH)
-                
+                if param_transform == 'log':
+                    plot_transmission_rate(mean_logtransmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                           current_time_span[:-1],
+                                           a_min=0.0,
+                                           output_path=OUTPUT_PATH,
+                                           output_name='logtransmission_rate')
+
+                plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],0,1),
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH,
+                                       output_name='networktransmission_rate')
+
 
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
@@ -807,6 +859,15 @@ if learn_transmission_rate == True:
     mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
     mean_transmission_rate_timeseries.push_back(
             mean_community_transmission_rate_ensemble)
+    if param_transform == 'log':
+        mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+        mean_logtransmission_rate_timeseries.push_back(
+            mean_community_logtransmission_rate_ensemble)
+
+    community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+    network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+           
 if learn_transition_rates == True:
     transition_rates_timeseries.push_back(
             extract_ensemble_transition_rates(transition_rates_ensemble))
@@ -869,6 +930,18 @@ if learn_transmission_rate == True:
             time_span,
             a_min=0.0,
             output_path=OUTPUT_PATH)
+    if param_transform == 'log':
+        plot_transmission_rate(mean_logtransmission_rate_timeseries.container,
+                               current_time_span[:-1],
+                               a_min=0.0,
+                               output_path=OUTPUT_PATH,
+                               output_name='logtransmission_rate')
+
+    plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container,0,1),
+                           current_time_span[:-1],
+                           a_min=0.0,
+                           output_path=OUTPUT_PATH,
+                           output_name='networktransmission_rate')
 
 if learn_transition_rates == True:
     plot_clinical_parameters(transition_rates_timeseries.container,
@@ -880,6 +953,9 @@ if learn_transition_rates == True:
 if learn_transmission_rate == True:
     np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
             mean_transmission_rate_timeseries.container)
+    if param_transform == 'log':
+        np.save(os.path.join(OUTPUT_PATH, 'logtransmission_rate.npy'), 
+                mean_logtransmission_rate_timeseries.container)
 
 if learn_transition_rates == True:
     np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 

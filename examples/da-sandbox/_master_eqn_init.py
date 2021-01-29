@@ -67,18 +67,30 @@ community_transmission_rate_ensemble = np.full([ensemble_size, user_population],
                                                community_transmission_rate)
 
 
+
+
 learn_transmission_rate = arguments.params_learn_transmission_rate
-transmission_rate_bias = arguments.params_transmission_rate_bias
+param_transform=None
+transmission_rate_bias = arguments.params_transmission_rate_bias 
 transmission_rate_std = arguments.params_transmission_rate_noise * community_transmission_rate
 if learn_transmission_rate == True:
-    community_transmission_rate_ensemble = np.random.lognormal(
-                           np.log(community_transmission_rate + transmission_rate_bias),
-                           np.log(transmission_rate_std),
-                           community_transmission_rate_ensemble.shape)
+
+    
+    if param_transform == 'log':
+        #see wikipedia for transform!
+        community_transmission_rate_ensemble = np.random.lognormal(
+            np.log(community_transmission_rate**2/np.sqrt(community_transmission_rate**2 + transmission_rate_std**2)),
+            np.sqrt(np.log(1 + transmission_rate_std**2/community_transmission_rate**2)),
+            community_transmission_rate_ensemble.shape)
+    else:
+         community_transmission_rate_ensemble = np.random.normal(
+             community_transmission_rate+transmission_rate_bias,
+             transmission_rate_std,
+             community_transmission_rate_ensemble.shape)
 
 # range of transmission rate
-transmission_rate_min = 3
-transmission_rate_max = 21
+transmission_rate_min = 1
+transmission_rate_max = 20
 
 # Set up master equation solver ################################################
 master_eqn_ensemble = MasterEquationModelEnsemble(

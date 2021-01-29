@@ -31,6 +31,7 @@ class DataAssimilator:
             transition_rates_max=None,
             transmission_rate_min=None,
             transmission_rate_max=None,
+            transmission_rate_transform=None,
             transmission_rate_inflation=1.0,
             distance_threshold=1,
             output_path=None):
@@ -134,6 +135,7 @@ class DataAssimilator:
         # range of transmission rate
         self.transmission_rate_min = transmission_rate_min 
         self.transmission_rate_max = transmission_rate_max 
+        self.transmission_rate_transform = transmission_rate_transform
 
         self.counter = 0
     def find_observation_states(
@@ -319,7 +321,6 @@ class DataAssimilator:
                 ensemble_transmission_rate = np.tile(full_ensemble_transmission_rate, (1,user_nodes.size) )
             else:
                 ensemble_transmission_rate = full_ensemble_transmission_rate
-                print(ensemble_transmission_rate.shape)
                   
         else: # set to column of empties
             ensemble_transmission_rate = np.empty((n_ensemble, 1), dtype=float)
@@ -609,7 +610,7 @@ class DataAssimilator:
 
         #empty container for new rates
         new_ensemble_transmission_rate = np.zeros( (n_ensemble ,n_user_nodes) )
-        
+
         # [2.] now we loop one by one and assimilate each node
         for unode in update_nodes:
 
@@ -638,7 +639,9 @@ class DataAssimilator:
                         unode_idx = np.where(self.stored_nodes_nearby_observed_state[ostate] == unode)                    
                         dist_to_obs_from_unode.extend( self.stored_dist_to_observed_state[ostate][unode_idx].tolist() )
             
-           
+                
+
+
             #Find if any observations are at unode at initial time.
             os_idx_times_nearby_unode = [obs_idx_at_time[idx] for idx in os_idx_nearby_unode]
             os_idx_at_initial_time = [idx for (ii,idx) in enumerate(os_idx_nearby_unode) if abs(os_idx_times_nearby_unode[ii] - initial_time) < 1e-6] # contains the elements of obs_states_nearby_unode at initial_time
@@ -742,10 +745,15 @@ class DataAssimilator:
             if self.transmission_rate_to_update_flag:
                 if verbose:
                     print("transmission rate pre DA", ensemble_transmission_rate[:,unode].mean())
-                ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1) #100 x transm.
+                if self.transmission_rate_transform == 'log':
+                    ensemble_transmission_rate_unode = np.log(ensemble_transmission_rate[:,unode].reshape(n_ensemble,1)) #100 x tras
+                else:
+                    ensemble_transmission_rate_unode = ensemble_transmission_rate[:,unode].reshape(n_ensemble,1) #100 x tras
+                
             else:
                 ensemble_transmission_rate_unode = ensemble_transmission_rate
-            
+
+
             (unode_joint_state,
              new_ensemble_transition_rates,
              new_ensemble_transmission_rate_unode
@@ -771,10 +779,17 @@ class DataAssimilator:
                     print("transmission rate post DA", new_ensemble_transmission_rate_unode[:,0].mean())
                 
                 # Clip transmission rate into a reasonable range
-                new_ensemble_transmission_rate[:,unode] = np.clip(new_ensemble_transmission_rate_unode[:,0],
-                                                                  self.transmission_rate_min,
-                                                                  self.transmission_rate_max)
-
+                if self.transmission_rate_transform == 'log':
+                    new_ensemble_transmission_rate[:,unode] = np.clip(np.exp(new_ensemble_transmission_rate_unode[:,0]),
+                                                                      self.transmission_rate_min,
+                                                                      self.transmission_rate_max)
+                    sum_upbd_break =  sum(new_ensemble_transmission_rate[:,unode] - np.exp(new_ensemble_transmission_rate_unode[:,0]) > 1e-8 )/n_ensemble
+                    sum_lowbd_break =  sum(new_ensemble_transmission_rate[:,unode] - np.exp(new_ensemble_transmission_rate_unode[:,0]) < -1e-8 )/n_ensemble
+                else:
+                    new_ensemble_transmission_rate[:,unode] = np.clip(new_ensemble_transmission_rate_unode[:,0],
+                                                                      self.transmission_rate_min,
+                                                                      self.transmission_rate_max)
+    
                 # Weighted-averaging based on ratio of observed nodes 
                 #new_ensemble_transmission_rate[:,unode] = self.weighted_averaged_transmission_rate(
                 #    new_ensemble_transmission_rate[:,unode],
@@ -785,7 +800,6 @@ class DataAssimilator:
             if len(self.transition_rates_to_update_str) > 0:
                 new_ensemble_transition_rates = self.clip_transition_rates(new_ensemble_transition_rates,
                                                                            user_network.get_node_count())
-            
         # set the updated rates in the TransitionRates object and
         # return the full rates.
         (full_ensemble_transition_rates,
