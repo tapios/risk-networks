@@ -36,7 +36,9 @@ from _constants import (static_contact_interval,
                         time_span,
                         distanced_max_contact_rate,
                         OUTPUT_PATH,
-                        SEED_JOINT_EPIDEMIC)
+                        SEED_JOINT_EPIDEMIC,
+                        min_contact_rate,
+                        max_contact_rate)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -181,7 +183,8 @@ from _intervention_init import (intervention,
                                 intervention_frequency,
                                 intervention_nodes, 
                                 intervention_type,
-                                query_intervention) 
+                                query_intervention,
+                                intervention_sick_isolate_time) 
 
 ################################################################################
 # epidemic setup ###############################################################
@@ -464,15 +467,24 @@ for j in range(spin_up_steps):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all', see below")
+                nodes_to_intervene.size, network.get_node_count()))
+            #raise ValueError("Currently interventions only work for 'all', see below")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
+            network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene) 
 
         elif intervention_type == "social_distance":
@@ -826,15 +838,24 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all'")
+                nodes_to_intervene.size, network.get_node_count()))
+            #raise ValueError("Currently interventions only work for 'all'")
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
+            network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene) 
             
         elif intervention_type == "social_distance":
@@ -889,6 +910,10 @@ if save_ensemble_state_now:
     ensemble_state_path = os.path.join(OUTPUT_PATH, 'master_eqns_mean_states_at_step_'+str(prediction_steps)+'.npy')
     master_eqns_mean_states = ensemble_state.mean(axis=0)
     np.save(ensemble_state_path,master_eqns_mean_states)
+
+if intervention_nodes == 'sick':
+    np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+            intervention.stored_nodes_to_intervene)
 
 
 print("finished assimilation")

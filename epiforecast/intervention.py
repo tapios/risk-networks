@@ -60,6 +60,8 @@ class Intervention:
     self.E_thr = E_thr
     self.I_thr = I_thr
 
+    self.stored_nodes_to_intervene = {}
+
   def __get_complement_substate(self, ensemble_states):
     """
       Get the complement substate for the whole ensemble
@@ -102,4 +104,13 @@ class Intervention:
         (E_ensemble_mean > self.E_thr) | (I_ensemble_mean > self.I_thr)
         )[0]
 
+  def save_nodes_to_intervene(self, current_time, nodes_to_intervene):
+      """
+        Save sick nodes for intervention
 
+        Args:
+            current_time: float number
+            nodes_to_intervene: (N,) np.array, where N is the number of sick nodes 
+      """
+
+      self.stored_nodes_to_intervene[current_time] = nodes_to_intervene
