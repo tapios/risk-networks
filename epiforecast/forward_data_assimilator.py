@@ -783,8 +783,6 @@ class DataAssimilator:
                     new_ensemble_transmission_rate[:,unode] = np.clip(np.exp(new_ensemble_transmission_rate_unode[:,0]),
                                                                       self.transmission_rate_min,
                                                                       self.transmission_rate_max)
-                    sum_upbd_break =  sum(new_ensemble_transmission_rate[:,unode] - np.exp(new_ensemble_transmission_rate_unode[:,0]) > 1e-8 )/n_ensemble
-                    sum_lowbd_break =  sum(new_ensemble_transmission_rate[:,unode] - np.exp(new_ensemble_transmission_rate_unode[:,0]) < -1e-8 )/n_ensemble
                 else:
                     new_ensemble_transmission_rate[:,unode] = np.clip(new_ensemble_transmission_rate_unode[:,0],
                                                                       self.transmission_rate_min,
