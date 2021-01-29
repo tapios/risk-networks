@@ -60,6 +60,9 @@ parser.add_argument('--distance-threshold', type=int, default=1)
 parser.add_argument('--assimilation-window', type=float, default=1.0)
 parser.add_argument('--assimilation-sweeps', type=int, default=1)
 
+#prior run
+parser.add_argument('--prior-run', default=False, action='store_true')
+
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
 parser.add_argument('--params-transition-rates-str', type=str, default='latent_periods,community_infection_periods')

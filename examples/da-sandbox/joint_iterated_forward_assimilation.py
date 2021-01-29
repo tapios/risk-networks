@@ -85,6 +85,12 @@ record_observations   = [positive_hospital_records,
                          positive_death_records,
                          negative_death_records]
 
+if arguments.prior_run:
+    sensor_observations = []
+    viral_test_observations = []
+    record_observations = []
+    
+
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
                               ensemble_size,
@@ -106,7 +112,10 @@ from _master_eqn_init import (master_eqn_ensemble,
 transition_rates_to_update_str   = parameter_str
 transmission_rate_to_update_flag = learn_transmission_rate 
 
-
+if arguments.prior_run:
+    transition_rates_to_update_str   = []
+    transmission_rate_to_update_flag = False
+    
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
@@ -114,7 +123,7 @@ sensor_assimilator = DataAssimilator(
         data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
+        transmission_rate_to_update_flag=False,#transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_sensor,
         joint_cov_noise=arguments.sensor_assimilation_joint_regularization,
         obs_cov_noise=arguments.sensor_assimilation_obs_regularization,
@@ -207,13 +216,18 @@ kinetic_states_timeseries.append(kinetic_state) # storing ic
 ################################################################################
 # constants ####################################################################
 
+if arguments.prior_run:
+    noda_delay=1000.0
+else:
+    noda_delay=1.0
+
 #floats
 da_window         = arguments.assimilation_window
 prediction_window = 1.0
 save_to_file_interval = 1.0
-sensor_assimilation_interval  = 1.0 # same for I
-test_assimilation_interval  = 1.0 # same for I
-record_assimilation_interval = 1.0 # assimilate H and D data every .. days
+sensor_assimilation_interval  = 1.0*noda_delay # same for I
+test_assimilation_interval  = 1.0*noda_delay # same for I
+record_assimilation_interval = 1.0*noda_delay # assimilate H and D data every .. days
 
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
