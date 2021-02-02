@@ -493,6 +493,9 @@ for j in range(spin_up_steps):
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
             #raise ValueError("Currently interventions only work for 'all', see below")
+            np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
+
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
@@ -864,6 +867,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
             #raise ValueError("Currently interventions only work for 'all'")
+            np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
