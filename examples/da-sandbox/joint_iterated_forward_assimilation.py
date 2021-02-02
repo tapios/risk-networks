@@ -496,13 +496,28 @@ for j in range(spin_up_steps):
             np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
                     intervention.stored_nodes_to_intervene)
 
+        elif intervention_nodes == "random":
+            if current_time % intervention_sick_isolate_time == \
+               intervention_start_time % intervention_sick_isolate_time:
+                nodes_to_intervene_current = np.random.choice(network.get_nodes(),\
+                                       arguments.intervention_random_isolate_budget,\
+                                       replace=False) 
+                intervention.save_nodes_to_intervene(current_time, 
+                                                     nodes_to_intervene_current)
+            else:
+                intervention.save_nodes_to_intervene(current_time,
+                             intervention.stored_nodes_to_intervene[current_time-1.0])
+            nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
+            print("intervention applied to sick nodes: {:d}/{:d}".format(
+                nodes_to_intervene.size, network.get_node_count()))
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
             network.set_lambdas(min_contact_rate, max_contact_rate)
-            network.isolate(nodes_to_intervene) 
+            network.isolate(nodes_to_intervene, 
+                            λ_isolation=arguments.intervention_isolate_node_lambda) 
 
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
@@ -869,13 +884,28 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             #raise ValueError("Currently interventions only work for 'all'")
             np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
                     intervention.stored_nodes_to_intervene)
+        elif intervention_nodes == "random":
+            if current_time % intervention_sick_isolate_time == \
+               intervention_start_time % intervention_sick_isolate_time:
+                nodes_to_intervene_current = np.random.choice(network.get_nodes(),\
+                                       arguments.intervention_random_isolate_budget,\
+                                       replace=False) 
+                intervention.save_nodes_to_intervene(current_time, 
+                                                     nodes_to_intervene_current)
+            else:
+                intervention.save_nodes_to_intervene(current_time,
+                             intervention.stored_nodes_to_intervene[current_time-1.0])
+            nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
+            print("intervention applied to sick nodes: {:d}/{:d}".format(
+                nodes_to_intervene.size, network.get_node_count()))
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
             network.set_lambdas(min_contact_rate, max_contact_rate)
-            network.isolate(nodes_to_intervene) 
+            network.isolate(nodes_to_intervene,
+                            λ_isolation=arguments.intervention_isolate_node_lambda) 
             
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
@@ -930,8 +960,8 @@ if save_ensemble_state_now:
     master_eqns_mean_states = ensemble_state.mean(axis=0)
     np.save(ensemble_state_path,master_eqns_mean_states)
 
-if intervention_nodes == 'sick':
-    np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+if intervention_type == 'isolate':
+    np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
             intervention.stored_nodes_to_intervene)
 
 

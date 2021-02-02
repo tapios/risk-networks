@@ -4,7 +4,7 @@ from _user_network_init import user_population
 from _master_eqn_init import ensemble_size
 from _argparse_init import arguments
 
-compartment_index = { 'S' : 0, 'E' : -1, 'I' : 1, 'H' : 2, 'R' : 3, 'D' : 4}
+compartment_index = { 'S' : 0, 'E' : 1, 'I' : 2, 'H' : 3, 'R' : 4, 'D' : 5}
 
 intervention = Intervention(
         user_population,

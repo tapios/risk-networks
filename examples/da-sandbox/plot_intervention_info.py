@@ -4,13 +4,15 @@ import matplotlib
 
 import numpy as np
 
-EXP_NAME = 'u100_s0_d1_i0.1_24485'
+# Settings
+EXP_NAME = 'FOLDER_NAME'
+intervention_nodes = 'random'
 intervention_sick_isolate_time = 7.0
 population = 97942
 
 OUTPUT_PATH = os.path.join('output', EXP_NAME)
 
-stored_nodes_to_intervene = np.load(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
+stored_nodes_to_intervene = np.load(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
                                     allow_pickle=True)
 stored_nodes_to_intervene = stored_nodes_to_intervene.item()
 
@@ -18,12 +20,15 @@ times = []
 number_nodes_to_intervene = []
 
 for current_time in stored_nodes_to_intervene.keys():
-    nodes_to_intervene = \
-            np.unique( \
-            np.concatenate([v \
-            for k, v in stored_nodes_to_intervene.items() \
-            if k > current_time - intervention_sick_isolate_time and k <= current_time]) \
-            )
+    if intervention_nodes == 'random':
+        nodes_to_intervene = stored_nodes_to_intervene[current_time]
+    elif intervention_nodes == 'sick':
+        nodes_to_intervene = \
+                np.unique( \
+                np.concatenate([v \
+                for k, v in stored_nodes_to_intervene.items() \
+                if k > current_time - intervention_sick_isolate_time and k <= current_time]) \
+                )
     times.append(current_time)
     number_nodes_to_intervene.append(nodes_to_intervene.size)
 
