@@ -4,9 +4,9 @@ import matplotlib
 
 import numpy as np
 
-EXP_NAME = 'full_obs_intervention_0p05_day_18'
+EXP_NAME = 'u100_s0_d1_i0.1_24485'
 intervention_sick_isolate_time = 7.0
-population = 982
+population = 97942
 
 OUTPUT_PATH = os.path.join('output', EXP_NAME)
 
@@ -34,7 +34,7 @@ plt.plot(times, np.array(number_nodes_to_intervene)/population*100, lw=2)
 plt.xlabel("Current time (day)")
 plt.ylabel("Isolated population (%)")
 plt.xlim([times[0], times[-1]])
-plt.xticks(np.array(times)[::2])
+plt.xticks(np.array(times)[::5])
 plt.tight_layout()
 plt.savefig(os.path.join(OUTPUT_PATH, 'intervention_info.png'))
 plt.show()
