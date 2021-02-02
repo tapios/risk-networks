@@ -492,9 +492,6 @@ for j in range(spin_up_steps):
                     )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
-            #raise ValueError("Currently interventions only work for 'all', see below")
-            np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
-                    intervention.stored_nodes_to_intervene)
 
         elif intervention_nodes == "random":
             if current_time % intervention_sick_isolate_time == \
@@ -518,6 +515,9 @@ for j in range(spin_up_steps):
             network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene, 
                             λ_isolation=arguments.intervention_isolate_node_lambda) 
+            
+            np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
 
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
@@ -881,9 +881,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     )
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
-            #raise ValueError("Currently interventions only work for 'all'")
-            np.save(os.path.join(OUTPUT_PATH, 'sick_nodes.npy'),
-                    intervention.stored_nodes_to_intervene)
+
         elif intervention_nodes == "random":
             if current_time % intervention_sick_isolate_time == \
                intervention_start_time % intervention_sick_isolate_time:
@@ -906,6 +904,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             network.set_lambdas(min_contact_rate, max_contact_rate)
             network.isolate(nodes_to_intervene,
                             λ_isolation=arguments.intervention_isolate_node_lambda) 
+
+            np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
             
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
