@@ -56,17 +56,17 @@ distance_threshold=0
 
 #inflation (No inflation is 1.0)
 sensor_inflation=10.0
-test_inflation=3.0
+test_inflation=10.0
 record_inflation=2.0
 rate_inflation=1.0
 
 #param noise mean - ln((mu+bias)^2 / sqrt((mu+bias)^2 +sig^2))
-param_prior_noise_factor=0.5
+param_prior_noise_factor=0.25
 
 # network  + sensor wearers
 #EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
 EXP_NAME="u100_s0_d1" #1e5 = 97942 nodes
-
+#EXP_NAME="noda_1e5_parsd0.25"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
 test_budgets=(0 4897 9794 24485)  
@@ -111,6 +111,7 @@ python3 joint_iterated_forward_assimilation.py \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \
   >${stdout} 2>${stderr}
+#  --prior-run\
 
 
 
