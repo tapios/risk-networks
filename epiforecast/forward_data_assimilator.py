@@ -125,6 +125,7 @@ class DataAssimilator:
         self.stored_observed_states = {}
         self.stored_observed_nodes = {}
         self.stored_observed_means = {}
+        self.stored_positively_tested_nodes = {}
         self.stored_observed_variances = {}
         self.stored_nodes_nearby_observed_state = {}
         self.stored_dist_to_observed_state = {}
@@ -138,6 +139,7 @@ class DataAssimilator:
         self.transmission_rate_transform = transmission_rate_transform
 
         self.counter = 0
+
     def find_observation_states(
             self,
             user_network,
@@ -201,6 +203,7 @@ class DataAssimilator:
         else:
             observed_means = []
             observed_variances = []
+            positively_tested_nodes = []
             for observation in self.observations:
                 if (observation.obs_states.size >0):
                     observation.observe(user_network,
@@ -209,6 +212,7 @@ class DataAssimilator:
 
                     observed_means.extend(observation.mean)
                     observed_variances.extend(observation.variance)
+                    positively_tested_nodes.extend(observation.positive_nodes)
                     
                     if verbose:
                         print("[ Data assimilator ]",
@@ -220,9 +224,11 @@ class DataAssimilator:
                         
             observed_means = np.array(observed_means)
             observed_variances = np.array(observed_variances)
+            positively_tested_nodes = np.array(positively_tested_nodes,dtype=int)
+
             self.stored_observed_means[current_time] = observed_means
             self.stored_observed_variances[current_time] = observed_variances
-
+            self.stored_positively_tested_nodes[current_time] = positively_tested_nodes
 
             return observed_means, observed_variances
 

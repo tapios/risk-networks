@@ -132,7 +132,7 @@ class FixedNodeObservation:
         if len(obs_states)>0:
             self.obs_states = np.hstack(obs_states)
         else:
-            self.obs_states = np.array([])
+            self.obs_states = np.array([],dtype=int)
 
     def find_observation_states(
             self,
@@ -587,16 +587,16 @@ class Observation(StateInformedObservation, TestMeasurement):
         #convert from np.array indexing to the node id in the (sub)graph
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
-
-        mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data)[0:2]
+        
+        mean, positive_nodes = TestMeasurement.take_measurements(self,
+                                                      observed_data)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        observed_variance = np.array([self.obs_var_min for node in observed_nodes])
         
         self.mean     = observed_mean
         self.variance = observed_variance
-
+        self.positive_nodes = positive_nodes
         
 
 
@@ -672,17 +672,16 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean = TestMeasurement.take_measurements(self,
-                                                 observed_data)[0]
+        mean, positive_nodes = TestMeasurement.take_measurements(self,
+                                                                 observed_data)
 
         
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-
-        #prescribe var
         observed_variance = np.array([self.obs_var_min for node in observed_nodes])
-        
+
         self.mean     = observed_mean
         self.variance = observed_variance
+        self.positive_nodes = positive_nodes
                 
 class FixedObservation(FixedNodeObservation, TestMeasurement):
     def __init__(
@@ -747,8 +746,8 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean = TestMeasurement.take_measurements(self,
-                                                 observed_data)[0]
+        mean, positive_nodes = TestMeasurement.take_measurements(self,
+                                                 observed_data)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
         #prescribed variance
@@ -756,6 +755,7 @@ class FixedObservation(FixedNodeObservation, TestMeasurement):
 
         self.mean     = observed_mean
         self.variance = observed_variance
+        self.positive_nodes = positive_nodes
 
 
 class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurement):
@@ -838,11 +838,10 @@ class StaticNeighborObservation( StaticNeighborTransferObservation, TestMeasurem
         #for ti in true_infected:
         #    print("neighborhood of ", ti, ": ", list(user_graph.neighbors(ti)))
         
-        mean, var, positive_nodes = TestMeasurement.take_measurements(self,
-                                                                      observed_data)
+        mean, positive_nodes = TestMeasurement.take_measurements(self, observed_data)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        observed_variance = np.array([self.obs_var_min for node in observed_nodes])
 
         self.mean     = observed_mean
         self.variance = observed_variance
@@ -927,14 +926,15 @@ class HighVarianceObservation(HighVarianceStateInformedObservation, TestMeasurem
         observed_nodes = nodes[observed_states]
         observed_data = {node : data[node] for node in observed_nodes}
 
-        mean, var = TestMeasurement.take_measurements(self,
-                                                      observed_data)[0:2]
+        mean, positive_nodes = TestMeasurement.take_measurements(self,
+                                                      observed_data)
 
         observed_mean     = np.array([mean[node] for node in observed_nodes])
-        observed_variance = np.array([np.maximum(var[node], self.obs_var_min) for node in observed_nodes])
+        observed_variance = np.array([self.obs_var_min for node in observed_nodes])
         
         self.mean     = observed_mean
         self.variance = observed_variance
+        self.positive_nodes = positive_nodes
 
 
 class DataInformedObservation:
@@ -1051,15 +1051,21 @@ class DataObservation(DataInformedObservation):
         VARIANCE_TOLERANCE = self.var_tol  #1e-14
 
         if self.set_to_one:
+            nodes=network.get_nodes()
+            #mean, var np.arrays of size state
+            observed_states = np.remainder(self.obs_states,self.N)
+            #convert from np.array indexing to the node id in the (sub)graph
+            observed_nodes = nodes[observed_states]
+            positive_nodes = observed_nodes
             
+
             observed_mean = (1-MEAN_TOLERANCE) * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
             transformed_mean = self.data_transform.apply_transform(observed_mean)
             transformed_variance = self.data_transform.apply_transform(observed_variance)
-            
         # set_to_one=False means we set "state = 0" when "status != obs_status"
         else:
-       
+            positive_nodes = []
             observed_mean = MEAN_TOLERANCE * np.ones(self.obs_states.size)
             observed_variance = VARIANCE_TOLERANCE * np.ones(self.obs_states.size)
             transformed_mean = self.data_transform.apply_transform(observed_mean)
@@ -1068,5 +1074,5 @@ class DataObservation(DataInformedObservation):
          
         self.mean     = transformed_mean
         self.variance = transformed_variance
-
+        self.positive_nodes = positive_nodes
 

@@ -479,7 +479,7 @@ for j in range(spin_up_steps):
             nodes_to_intervene = network.get_nodes()
             print("intervention applied to all {:d} nodes.".format(
                 network.get_node_count()))
-            
+        
         elif intervention_nodes == "sick":
             nodes_to_intervene_current = intervention.find_sick(ensemble_state)
             intervention.save_nodes_to_intervene(current_time, 
@@ -507,14 +507,22 @@ for j in range(spin_up_steps):
             nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
+
+        elif intervention_nodes == "test_data_only":
+            #naively infer PPV or FOR from the test output
+            positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
+            nodes_to_intervene = np.unique(np.concatenate([v for k, v in positive_nodes.items() \
+                                                           if k > current_time - intervention_sick_isolate_time]) \
+                                       )
         else:
-            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
+            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick', 'random', or 'test_data_only'")
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
             network.set_lambdas(min_contact_rate, max_contact_rate)
-            network.isolate(nodes_to_intervene, 
-                            λ_isolation=arguments.intervention_isolate_node_lambda) 
+            if nodes_to_intervene.size>0:
+                network.isolate(nodes_to_intervene, 
+                                λ_isolation=arguments.intervention_isolate_node_lambda) 
             
             np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
                     intervention.stored_nodes_to_intervene)
@@ -745,40 +753,43 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         
         DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        if step % (2+n_record_sweeps) == 0:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-            ) = sensor_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network)       
-            print("assimilated sensors",flush=True)
-        elif step % (2+n_record_sweeps) == 1:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-            ) = viral_test_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network)
-             
-            print("assimilated viral tests",flush=True)
-        elif step % (2+n_record_sweeps) >= 2:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-         ) = record_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network)
-
+        if (intervention_nodes == "test_data_only"): #with test_data_only, we do no DA updates (though still test the population)
+            update_flag=False
+        else:
+            if step % (2+n_record_sweeps) == 0:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = sensor_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                user_network)       
+                print("assimilated sensors",flush=True)
+            elif step % (2+n_record_sweeps) == 1:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = viral_test_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 user_network)
+                
+                print("assimilated viral tests",flush=True)
+            elif step % (2+n_record_sweeps) >= 2:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = record_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 user_network)
+                
             print("assimilated records",flush=True)
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
@@ -896,14 +907,23 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
             print("intervention applied to sick nodes: {:d}/{:d}".format(
                 nodes_to_intervene.size, network.get_node_count()))
+
+        elif intervention_nodes == "test_data_only":
+            #naively infer PPV or FOR from the test output
+            positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
+            nodes_to_intervene = np.unique(np.concatenate([v for k, v in positive_nodes.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )            
+        
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
             network.set_lambdas(min_contact_rate, max_contact_rate)
-            network.isolate(nodes_to_intervene,
-                            λ_isolation=arguments.intervention_isolate_node_lambda) 
+            if nodes_to_intervene.size>0:
+                network.isolate(nodes_to_intervene,
+                                λ_isolation=arguments.intervention_isolate_node_lambda) 
 
             np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
                     intervention.stored_nodes_to_intervene)
