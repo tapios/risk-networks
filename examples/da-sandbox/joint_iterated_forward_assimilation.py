@@ -506,11 +506,16 @@ for j in range(spin_up_steps):
            
         elif intervention_nodes == "test_data_only":
             #naively infer PPV or FOR from the test output
-            positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
-            intervention.save_nodes_to_intervene(current_time, positive_nodes)
-            nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
-                                                           if k > current_time - intervention_sick_isolate_time]) \
-                                       )
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            intervention.save_nodes_to_intervene(current_time, current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick', 'random', or 'test_data_only'")
             
@@ -905,12 +910,16 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
             
         elif intervention_nodes == "test_data_only":
-            #naively infer PPV or FOR from the test output
-            positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
-            intervention.save_nodes_to_intervene(current_time, positive_nodes)
-            nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            intervention.save_nodes_to_intervene(current_time, current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
                                                                if k > current_time - intervention_sick_isolate_time]) \
-                                           )            
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
         
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
