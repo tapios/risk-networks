@@ -97,8 +97,9 @@ class TestMeasurement:
             else:
                 positive_test = (self.noisy_measurement and (np.random.random() < 1 - self.specificity))
                 measurements[node] = self.get_mean(positive_test = positive_test)
-                if positive_test:
-                    positive_nodes.append(node)
+              
+            if positive_test:
+                positive_nodes.append(node)
 
         return measurements, positive_nodes
 
