@@ -490,8 +490,6 @@ for j in range(spin_up_steps):
                     for k, v in intervention.stored_nodes_to_intervene.items() \
                     if k > current_time - intervention_sick_isolate_time]) \
                     )
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                nodes_to_intervene.size, network.get_node_count()))
 
         elif intervention_nodes == "random":
             if current_time % intervention_sick_isolate_time == \
@@ -505,17 +503,19 @@ for j in range(spin_up_steps):
                 intervention.save_nodes_to_intervene(current_time,
                              intervention.stored_nodes_to_intervene[current_time-1.0])
             nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                nodes_to_intervene.size, network.get_node_count()))
-
+           
         elif intervention_nodes == "test_data_only":
             #naively infer PPV or FOR from the test output
             positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
-            nodes_to_intervene = np.unique(np.concatenate([v for k, v in positive_nodes.items() \
+            intervention.save_nodes_to_intervene(current_time, positive_nodes)
+            nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
                                                            if k > current_time - intervention_sick_isolate_time]) \
                                        )
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick', 'random', or 'test_data_only'")
+            
+        print("intervention applied to sick nodes: {:d}/{:d}".format(
+            nodes_to_intervene.size, network.get_node_count()))
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
@@ -890,8 +890,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     for k, v in intervention.stored_nodes_to_intervene.items() \
                     if k > current_time - intervention_sick_isolate_time]) \
                     )
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                nodes_to_intervene.size, network.get_node_count()))
 
         elif intervention_nodes == "random":
             if current_time % intervention_sick_isolate_time == \
@@ -905,19 +903,21 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 intervention.save_nodes_to_intervene(current_time,
                              intervention.stored_nodes_to_intervene[current_time-1.0])
             nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                nodes_to_intervene.size, network.get_node_count()))
-
+            
         elif intervention_nodes == "test_data_only":
             #naively infer PPV or FOR from the test output
             positive_nodes = viral_test_assimilator.stored_positively_tested_nodes
-            nodes_to_intervene = np.unique(np.concatenate([v for k, v in positive_nodes.items() \
+            intervention.save_nodes_to_intervene(current_time, positive_nodes)
+            nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
                                                                if k > current_time - intervention_sick_isolate_time]) \
                                            )            
         
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
+        print("intervention applied to sick nodes: {:d}/{:d}".format(
+            nodes_to_intervene.size, network.get_node_count()))
+
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
             network.set_lambdas(min_contact_rate, max_contact_rate)
