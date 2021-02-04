@@ -78,6 +78,7 @@ parser.add_argument('--intervention-type', type=str, default='social_distance')
 
 parser.add_argument('--intervention-E-min-threshold', type=float, default=0.999)#1.0 not allowed...
 parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
+parser.add_argument('--intervention-sum-EI', default=False, action='store_true')
 parser.add_argument('--intervention-random-isolate-budget', type=int, default=300)
 parser.add_argument('--intervention-isolate-node-lambda', type=float, default=2.0)
 parser.add_argument('--intervention-start-time', type=float, default=10.0)
