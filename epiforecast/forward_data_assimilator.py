@@ -26,6 +26,8 @@ class DataAssimilator:
             obs_cov_noise=0,
             inflate_states=True,
             inflate_reg=1.0,
+            additive_inflate=False,
+            additive_inflate_factor=0.1,
             inflate_I_only=True,
             transition_rates_min=None,
             transition_rates_max=None,
@@ -110,6 +112,8 @@ class DataAssimilator:
                 obs_cov_noise=obs_cov_noise,
                 inflate_states = inflate_states,
                 inflate_reg = inflate_reg,
+                additive_inflate = additive_inflate,
+                additive_inflate_factor = additive_inflate_factor,
             inflate_transmission_reg = transmission_rate_inflation,
                     output_path=output_path)
         else:

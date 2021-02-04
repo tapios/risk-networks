@@ -14,6 +14,8 @@ class EnsembleAdjustmentKalmanFilter:
             obs_cov_noise = 1e-2,
             inflate_states = False,
             inflate_reg = 0.1,
+            additive_inflate=False,
+            additive_inflate_factor=0.1,
             inflate_transmission_reg=1.0,
             output_path=None):
         '''
@@ -35,6 +37,8 @@ class EnsembleAdjustmentKalmanFilter:
         self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
         self.inflate_reg = inflate_reg  # unit is in (%)
+        self.additive_inflate = additive_inflate
+        self.additive_inflate_factor = additive_inflate_factor
         self.inflate_transmission_reg = inflate_transmission_reg,
         self.output_path = output_path
 
@@ -314,6 +318,13 @@ class EnsembleAdjustmentKalmanFilter:
         x_logit_bar = x_logit.mean(axis=0)
         x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
         x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
+        if self.additive_inflate == True:
+            # Additional additive inflation
+            x_logit[:,inflate_indices] = x_logit[:,inflate_indices] + \
+                        np.random.normal(0*x_logit_bar, \
+                        np.maximum(self.additive_inflate_factor*x_logit_bar,0.0), \
+                        x_logit.shape)[:,inflate_indices]
+
         if not self.data_transform.name == "identity_clip":
             if verbose:
                 print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
