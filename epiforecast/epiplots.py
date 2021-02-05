@@ -138,7 +138,7 @@ def plot_ensemble_states(
         axes[0].fill_between(t, np.clip(residual_state[2], a_min, a_max), np.clip(residual_state[-3], a_min, a_max), alpha = .2, color = 'C0', linewidth = 0.)
         axes[0].plot(t, np.clip(residual_state[3], a_min, a_max), color = 'C0')
         
-    axes[0].legend(['Exposed','Resistant','Susceptible'],
+    axes[0].legend(['Susceptible','Exposed','Resistant'],
         bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
         ncol=3, mode="expand", borderaxespad=0.);
     axes[1].legend(['Infected'],
