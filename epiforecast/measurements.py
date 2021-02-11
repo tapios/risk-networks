@@ -670,11 +670,11 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
             TestMeasurement.update_prevalence(self,
                                               state)
         else:
-        data_prevalence = np.sum([v=='I' for v in data.values()])/len(data) * \
-                          np.ones(state.shape[0])
-        TestMeasurement.update_prevalence(self,
-                                          state,
-                                          fixed_prevalence=data_prevalence)
+            data_prevalence = np.sum([v=='I' for v in data.values()])/len(data) * \
+                              np.ones(state.shape[0])
+            TestMeasurement.update_prevalence(self,
+                                              state,
+                                              fixed_prevalence=data_prevalence)
 
         nodes=network.get_nodes()
         observed_states = np.remainder(self.obs_states,self.N)
