@@ -614,10 +614,12 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
             sensitivity=0.80,
             specificity=0.99,
             noisy_measurement=True,
-            obs_var_min = 1e-3):
+            obs_var_min = 1e-3,
+            true_prevalence = False):
 
         self.name=obs_name
         self.obs_var_min = obs_var_min
+        self.true_prevalence = true_prevalence
 
         BudgetedInformedObservation.__init__(self,
                                           N,
@@ -664,8 +666,15 @@ class BudgetedObservation(BudgetedInformedObservation, TestMeasurement):
         """
 
         #make a measurement of the data
+        if self.true_prevalence == False:
+            TestMeasurement.update_prevalence(self,
+                                              state)
+        else:
+        data_prevalence = np.sum([v=='I' for v in data.values()])/len(data) * \
+                          np.ones(state.shape[0])
         TestMeasurement.update_prevalence(self,
-                                          state)
+                                          state,
+                                          fixed_prevalence=data_prevalence)
 
         nodes=network.get_nodes()
         observed_states = np.remainder(self.obs_states,self.N)
