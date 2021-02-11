@@ -87,7 +87,8 @@ RDT_budget_random_test = BudgetedObservation(
         noisy_measurement=True,
         sensitivity=0.88,
         specificity=0.99,
-        obs_var_min=obs_var)
+        obs_var_min=obs_var,
+        true_prevalence=arguments.observations_true_prevalence)
 
 poor_RDT_budget_random_test = BudgetedObservation(
         N=user_population,

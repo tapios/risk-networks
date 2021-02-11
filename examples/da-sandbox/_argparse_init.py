@@ -37,6 +37,7 @@ parser.add_argument('--observations-I-min-threshold', type=float, default=0.0)
 parser.add_argument('--observations-I-max-threshold', type=float, default=1.0)
 parser.add_argument('--observations-sensor-wearers', type=int, default=0)
 parser.add_argument('--observations-noise', type=float, default=1e-4)
+parser.add_argument('--observations-true-prevalence', default=False, action='store_true')
 
 # data assimilation ############################################################
 parser.add_argument('--assimilation-update-sensor', type=str, default='full_global')
