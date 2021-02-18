@@ -34,6 +34,7 @@ class DataAssimilator:
             transmission_rate_min=None,
             transmission_rate_max=None,
             transmission_rate_transform=None,
+            mass_conservation_flag=True,
             transmission_rate_inflation=1.0,
             distance_threshold=1,
             output_path=None):
@@ -114,7 +115,8 @@ class DataAssimilator:
                 inflate_reg = inflate_reg,
                 additive_inflate = additive_inflate,
                 additive_inflate_factor = additive_inflate_factor,
-            inflate_transmission_reg = transmission_rate_inflation,
+                inflate_transmission_reg = transmission_rate_inflation,
+                mass_conservation_flag=mass_conservation_flag,
                     output_path=output_path)
         else:
             raise NotImplementedError("The implemetation of reduced second SVD has been removed!")

@@ -17,6 +17,7 @@ class EnsembleAdjustmentKalmanFilter:
             additive_inflate=False,
             additive_inflate_factor=0.1,
             inflate_transmission_reg=1.0,
+            mass_conservation_flag=True,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
@@ -40,6 +41,7 @@ class EnsembleAdjustmentKalmanFilter:
         self.additive_inflate = additive_inflate
         self.additive_inflate_factor = additive_inflate_factor
         self.inflate_transmission_reg = inflate_transmission_reg,
+        self.mass_conservation_flag = mass_conservation_flag
         self.output_path = output_path
 
         # Compute error
@@ -113,14 +115,12 @@ class EnsembleAdjustmentKalmanFilter:
         # [0.] Process to include mass conservation in [X.] stages                
         # [1.] Augment states with sum_states
         x = self.data_transform.apply_transform(ensemble_state)
-        xall = all_initial_ensemble_state #do not transform the sum states
-        
-        xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
-        x = np.hstack([x, xsum])
-        sum_flag=True
-                  
-        # [2.] Augment the observations with the desired mass (1) for sum_states
-        if sum_flag:
+        if self.mass_conservation_flag:
+            xall = all_initial_ensemble_state #do not transform the sum states            
+            xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
+            x = np.hstack([x, xsum])
+            
+            # [2.] Augment the observations with the desired mass (1) for sum_states
             x_t = np.hstack([truth,1.]) 
             cov = np.diag(np.hstack([np.diag(cov),np.min(np.diag(cov)) ]))
 
@@ -135,7 +135,7 @@ class EnsembleAdjustmentKalmanFilter:
             save_cov_file =os.path.join(output_path, 'cov_matrix'+save_matrices_name+'.npy')
             np.save(save_cov_file, cov)
         
-        if sum_flag:
+        if self.mass_conservation_flag:
             # [3.] Augment H_obs
             Hsum_obs = np.zeros((H_obs.shape[0] + 1,H_obs.shape[1]+1))
             Hsum_obs[:-1,:-1] = H_obs
@@ -330,7 +330,7 @@ class EnsembleAdjustmentKalmanFilter:
                 print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
 
       # [4.] remove summed state
-        if sum_flag:
+        if self.mass_conservation_flag:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
         else:
             new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)

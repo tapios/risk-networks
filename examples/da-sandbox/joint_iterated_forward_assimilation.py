@@ -138,6 +138,7 @@ sensor_assimilator = DataAssimilator(
         transmission_rate_max=transmission_rate_max,
         transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.sensor_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
@@ -163,6 +164,7 @@ viral_test_assimilator = DataAssimilator(
         transmission_rate_max=transmission_rate_max,
         transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.test_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 record_assimilator = DataAssimilator(
@@ -187,6 +189,7 @@ record_assimilator = DataAssimilator(
         transmission_rate_max=transmission_rate_max,
         transmission_rate_transform=param_transform,
         transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.record_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
