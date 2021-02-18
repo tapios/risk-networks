@@ -52,6 +52,7 @@ parser.add_argument('--record-assimilation-joint-regularization', type=float, de
 parser.add_argument('--sensor-assimilation-obs-regularization', type=float, default=0)
 parser.add_argument('--test-assimilation-obs-regularization',   type=float, default=0)
 parser.add_argument('--record-assimilation-obs-regularization', type=float, default=0)
+parser.add_argument('--assimilation-elementwise-regularization', default=False, action='store_true')
 parser.add_argument('--assimilation-inflation', default=True, action='store_false')
 parser.add_argument('--assimilation-additive-inflation', default=False, action='store_true')
 parser.add_argument('--assimilation-additive-inflation-factor', type=float, default=0.1)

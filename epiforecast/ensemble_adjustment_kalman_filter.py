@@ -10,6 +10,7 @@ class EnsembleAdjustmentKalmanFilter:
     def __init__(
             self,
             data_transform,
+            elementwise_reg = False,
             joint_cov_noise = 1e-2,
             obs_cov_noise = 1e-2,
             inflate_states = False,
@@ -34,6 +35,7 @@ class EnsembleAdjustmentKalmanFilter:
         
         self.data_transform = data_transform
         self.error = np.empty(0)
+        self.elementwise_reg = elementwise_reg
         self.joint_cov_noise = joint_cov_noise
         self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
@@ -253,7 +255,11 @@ class EnsembleAdjustmentKalmanFilter:
             F = F_full
            
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec 
-            Dp_vec_full = rtDp_vec**2 + np.maximum(self.joint_cov_noise*(rtDp_vec[0]**2 - rtDp_vec[-1]**2), np.mean(np.diag(cov))) # a little regularizations
+            if self.elementwise_reg:
+                rtDp_vec = rtDp_vec + np.maximum(self.joint_cov_noise*(rtDp_vec), np.sqrt(np.mean(np.diag(cov))))
+                Dp_vec_full = rtDp_vec**2
+            else:
+                Dp_vec_full = rtDp_vec**2 + np.maximum(self.joint_cov_noise*(rtDp_vec[0]**2 - rtDp_vec[-1]**2), np.mean(np.diag(cov))) # a little regularizations
             
             #print("Dp_vec_full",Dp_vec_full)
             Dp = np.diag(Dp_vec_full)

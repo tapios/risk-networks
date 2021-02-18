@@ -22,6 +22,7 @@ class DataAssimilator:
             transmission_rate_to_update_flag=None,
             update_type='global',
             full_svd=True,
+            elementwise_reg=False,
             joint_cov_noise=1e-2,
             obs_cov_noise=0,
             inflate_states=True,
@@ -109,6 +110,7 @@ class DataAssimilator:
         if full_svd:
             self.damethod = EnsembleAdjustmentKalmanFilter(
                 data_transform,
+                elementwise_reg=elementwise_reg,
                 joint_cov_noise=joint_cov_noise,
                 obs_cov_noise=obs_cov_noise,
                 inflate_states = inflate_states,
