@@ -17,6 +17,7 @@ parser.add_argument('--parallel-memory', type=int, default=4_000_000_000) # 4GB
 parser.add_argument('--parallel-temp-dir', type=str, default='')
 
 # constants ####################################################################
+parser.add_argument('--constants-seed-shift', type=int, default=0)
 parser.add_argument('--constants-output-path', type=str, default='')
 parser.add_argument('--constants-save-path', type=str, default='')
 

@@ -11,12 +11,13 @@ from _utilities import print_start_of, print_end_of
 print_start_of(__name__)
 ################################################################################
 # seeds ########################################################################
-SEED_GENERAL_INIT      = 942395
-SEED_STOCHASTIC_INIT_1 = 4669
-SEED_STOCHASTIC_INIT_2 = 31415
-SEED_STOCHASTIC_INIT_3 = 271828
-SEED_BACKWARD_FORWARD  = 10958
-SEED_JOINT_EPIDEMIC    = 10958
+seed_shift = arguments.constants_seed_shift #default 0
+SEED_GENERAL_INIT      = 942395 + seed_shift
+SEED_STOCHASTIC_INIT_1 = 4669   + seed_shift
+SEED_STOCHASTIC_INIT_2 = 31415  + seed_shift
+SEED_STOCHASTIC_INIT_3 = 271828 + seed_shift
+SEED_BACKWARD_FORWARD  = 10958  + seed_shift
+SEED_JOINT_EPIDEMIC    = 10958  + seed_shift
 
 
 # paths, flags etc #############################################################
