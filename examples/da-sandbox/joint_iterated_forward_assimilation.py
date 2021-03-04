@@ -50,7 +50,7 @@ from _utilities import (print_info,
 import _general_init
 
 # contact network ##############################################################
-from _network_init import population, network
+from _network_init import population, network, populace
 
 # stochastic model #############################################################
 from _stochastic_init import (kinetic_ic, 
@@ -222,6 +222,14 @@ statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
 kinetic_states_timeseries = []
 kinetic_states_timeseries.append(kinetic_state) # storing ic
+  
+if user_population < population:
+    full_state = dict_slice(kinetic_state, populace)
+    n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+    full_statuses_sum_trace = []
+    full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
+  
 
 ################################################################################
 # master equations + data assimilation init ####################################
@@ -329,7 +337,13 @@ for j in range(spin_up_steps):
         kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(j)+'.npy')
         kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
         np.save(kinetic_state_path, kinetic_eqns_statuses)
-  
+        if user_population < population:
+            full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(j)+'.npy')
+            full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+            np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+        
+
+
     kinetic_state = epidemic_simulator.kinetic_model.current_statuses
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
@@ -340,10 +354,17 @@ for j in range(spin_up_steps):
     user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+    
+    if user_population < population:
+        full_state = dict_slice(kinetic_state, populace)
+        n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+        full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
 
     kinetic_states_timeseries.append(kinetic_state)
     print("store KE statuses and timeseries runtime", timer() - PS_timer,flush=True)
-  
+    
+    
   
 
     # now for the master eqn
@@ -466,7 +487,7 @@ for j in range(spin_up_steps):
                                       statuses_sum_trace, 
                                       axes, 
                                       current_time_span)
-          
+    
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
             
             axes = plot_ensemble_states(user_population,
@@ -493,8 +514,8 @@ for j in range(spin_up_steps):
                 network.get_node_count()))
         
         elif intervention_nodes == "sick":
-            nodes_to_intervene_current = intervention.find_sick(ensemble_state,
-                    sum_EI=arguments.intervention_sum_EI)
+            #returns full network nodes to intervene 
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state, user_nodes, sum_EI=arguments.intervention_sum_EI)
             intervention.save_nodes_to_intervene(current_time, 
                                                  nodes_to_intervene_current)
             nodes_to_intervene = \
@@ -616,7 +637,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(k*steps_per_prediction_window+j)+'.npy')
             kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
             np.save(kinetic_state_path, kinetic_eqns_statuses)
-        
+            if user_population < population:
+                full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(k*steps_per_prediction_window+j)+'.npy')
+                full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+                np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+
+
         kinetic_state = epidemic_simulator.kinetic_model.current_statuses
         epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
@@ -626,7 +652,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         user_state = dict_slice(kinetic_state, user_nodes)
         n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
         statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
-        
+        if user_population < population:
+            full_state = dict_slice(kinetic_state, populace)
+            n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+            full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
+
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
@@ -899,8 +930,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene_current = intervention.find_sick(ensemble_state,
-                    sum_EI=arguments.intervention_sum_EI)
+            #returns full network nodes to intervene 
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state, user_nodes, sum_EI=arguments.intervention_sum_EI)
             intervention.save_nodes_to_intervene(current_time, 
                                                  nodes_to_intervene_current)
             nodes_to_intervene = \
@@ -995,6 +1026,12 @@ if save_kinetic_state_now:
     kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(prediction_steps)+'.npy')
     kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
     np.save(kinetic_state_path, kinetic_eqns_statuses)
+    if user_population < population:
+        full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(prediction_steps)+'.npy')
+        full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+        np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+
+
 
 save_ensemble_state_now = modulo_is_close_to_zero(current_time,
                                                   save_to_file_interval,  
@@ -1032,6 +1069,10 @@ plt.close()
 
 np.save(os.path.join(OUTPUT_PATH, 'trace_kinetic_statuses_sum.npy'), 
         statuses_sum_trace)
+
+if user_population < population:
+    np.save(os.path.join(OUTPUT_PATH, 'trace_full_kinetic_statuses_sum.npy'), 
+            full_statuses_sum_trace)
 
 
 np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'), 
