@@ -77,7 +77,7 @@ class Intervention:
 
     return 1 - ensemble_states.reshape( (self.M, -1, self.N) ).sum(axis=1)
 
-  def find_sick(self, ensemble_states, sum_EI=False):
+  def find_sick(self, ensemble_states, user_nodes, sum_EI=False):
     """
       Find node indices that are considered sick according to E and I thresholds
 
@@ -101,13 +101,15 @@ class Intervention:
     I_ensemble_mean = I_substate.mean(axis=0)
 
     if sum_EI == False:
-        return np.where(
+        sick_user_subset = np.where(
             (E_ensemble_mean > self.E_thr) | (I_ensemble_mean > self.I_thr)
             )[0]
     else:
-        return np.where(
+        sick_user_subset = np.where(
             (E_ensemble_mean + I_ensemble_mean) > (self.E_thr + self.I_thr)
             )[0]
+
+    return user_nodes[sick_user_subset]
 
   def save_nodes_to_intervene(self, current_time, nodes_to_intervene):
       """
