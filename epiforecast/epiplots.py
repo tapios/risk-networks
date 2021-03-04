@@ -269,7 +269,8 @@ def plot_roc_curve(true_negative_rates,
         
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(fpr,tpr,colors,labels):
-        plt.plot(xrate, yrate, color=clr, label=lbl , marker='|')
+        #plt.plot(xrate, yrate, color=clr, label=lbl , marker='|')
+        plt.plot(xrate, yrate, color=clr, label=lbl)
             
     plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
     plt.xlabel('False Positive Rate')
@@ -285,6 +286,7 @@ def plot_roc_curve(true_negative_rates,
 
 def plot_tpr_curve(predicted_positive_fraction,
                    true_positive_rates,
+                   xmin=1e-3,
                    labels = None,
                    show = True,
                    fig_size=(10, 5)):
@@ -319,15 +321,30 @@ def plot_tpr_curve(predicted_positive_fraction,
     if labels is None:
         labels = ['Curve_' + str(i) for i in range(tpr.shape[0])]
         
+
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(ppf,tpr,colors,labels):
-        plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
+        #first sort the lower bound with interpolation 
+        # xrate,yrate are monotone DECREASING)
+        idxabovemin = np.max(np.where(xrate>=xmin))
+        xabovemin = xrate[idxabovemin]
+        xbelowmin = xrate[idxabovemin+1]
+        yabovemin = yrate[idxabovemin]
+        ybelowmin = yrate[idxabovemin+1]
+        yatmin = ybelowmin + (xmin - xbelowmin) / (xabovemin - xbelowmin) * (yabovemin - ybelowmin)
+
+        xplot = np.hstack((xrate[xrate>=xmin], xmin))
+        yplot = np.hstack((yrate[xrate>=xmin], yatmin))
+        # plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
+        plt.plot(xplot, yplot, color=clr, label=lbl)
             
-    plt.plot([0, 1], [0, 1], color='darkblue', linestyle='--')
+    #plt.plot([1e-3, 1], [1e-3, 1], color='darkblue', linestyle='--')
+    plt.plot(np.logspace(np.log10(xmin),0,num=100),np.logspace(np.log10(xmin),0,num=100),color='darkblue', linestyle='--')
+    ax.set_xscale('log')
     plt.xlabel('Predicted Positive Fraction')
     plt.ylabel('True Positive Rate')
     plt.title('PPF vs TPR Curve')
-    plt.legend(loc='lower right')
+    plt.legend(loc='upper left')# 'lower right'
 
     if show:
         plt.show()
