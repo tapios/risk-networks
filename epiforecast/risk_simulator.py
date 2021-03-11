@@ -54,6 +54,7 @@ class MasterEquationModelEnsemble:
             transmission_rate_parameters,
             hospital_transmission_reduction=0.25,
             ensemble_size=1,
+            neighbor_weights=None,
             start_time=0.0,
             parallel_cpu=False,
             num_cpus=1):
@@ -75,6 +76,7 @@ class MasterEquationModelEnsemble:
             hospital_transmission_reduction (float): fraction of beta in
                                                      hospitals
             ensemble_size (int): number of ensemble members
+            neighbor_weights (numpy): gives weights > 0 with which to weight user network nodes (based on connectivity to the network and general population graph)
             start_time (float): start time of the simulation
             parallel_cpu (bool): whether to run computation in parallel on CPU
             num_cpus (int): number of CPUs available; only used in parallel mode
@@ -82,6 +84,12 @@ class MasterEquationModelEnsemble:
 
         self.M = ensemble_size
         self.N = population
+        
+        if neighbor_weights is None:
+            self.neighbor_weights = None
+        else:
+            self.neighbor_weights = neighbor_weights
+        
         self.start_time = start_time
 
         self.S_slice = slice(       0,   self.N)
@@ -128,6 +136,7 @@ class MasterEquationModelEnsemble:
                     RemoteIntegrator.remote(members_chunks[j],
                                             self.M,
                                             self.N,
+                                            self.neighbor_weights,
                                             self.y0_shm.name,
                                             self.coefficients_shm.name,
                                             self.closure_shm.name)
@@ -321,7 +330,7 @@ class MasterEquationModelEnsemble:
         E_substate = member_state[self.E_slice]
         I_substate = member_state[self.I_slice]
         H_substate = member_state[self.H_slice]
- 
+        
         (sigma,
          gamma,
          delta,
@@ -334,8 +343,13 @@ class MasterEquationModelEnsemble:
 
         rhs = np.empty(6 * self.N)
 
-        rhs[self.S_slice] = -self.closure[j] * S_substate
-        rhs[self.E_slice] = self.closure[j] * S_substate - sigma * E_substate
+        if self.neighbor_weights is None:
+            rhs[self.S_slice] = -self.closure[j] * S_substate 
+            rhs[self.E_slice] =  self.closure[j] * S_substate - sigma * E_substate
+        else:
+            rhs[self.S_slice] = -(self.closure[j] + self.neighbor_weights) * S_substate
+            rhs[self.E_slice] =  (self.closure[j] + self.neighbor_weights) * S_substate - sigma * E_substate
+        
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
         rhs[self.R_slice] = xi    * I_substate + xip    * H_substate
@@ -547,6 +561,7 @@ class RemoteIntegrator:
             members_to_compute,
             M,
             N,
+            neighbor_weights,
             ensemble_state_shared_memory_name,
             coefficients_shared_memory_name,
             closure_shared_memory_name):
@@ -564,6 +579,10 @@ class RemoteIntegrator:
         """
         self.M = M
         self.N = N
+        if neighbor_weights is None:
+            self.neighbor_weights = None
+        else:
+            self.neighbor_weights = neighbor_weights
         self.shared_memory_names = {
                 'ensemble_state': ensemble_state_shared_memory_name,
                 'coefficients'  : coefficients_shared_memory_name,
@@ -672,8 +691,13 @@ class RemoteIntegrator:
 
         rhs = np.empty(6*self.N)
 
-        rhs[self.S_slice] = -member_closure * S_substate
-        rhs[self.E_slice] = member_closure * S_substate - sigma * E_substate
+        if self.neighbor_weights is None:
+            rhs[self.S_slice] = -member_closure * S_substate 
+            rhs[self.E_slice] =  member_closure * S_substate - sigma * E_substate
+        else:
+            rhs[self.S_slice] = -(member_closure + self.neighbor_weights) * S_substate
+            rhs[self.E_slice] =  (member_closure + self.neighbor_weights) * S_substate - sigma * E_substate
+        
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
         rhs[self.R_slice] = xi    * I_substate + xip    * H_substate

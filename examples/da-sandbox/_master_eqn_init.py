@@ -7,7 +7,9 @@ from _constants import (start_time,
                         community_transmission_rate,
                         hospital_transmission_reduction)
 from _stochastic_init import transition_rates
-from _user_network_init import user_nodes, user_population, user_network
+from _user_network_init import user_nodes, user_population, user_network, exogenous_scale_factor
+from _network_init import population
+
 from _utilities import print_start_of, print_end_of
 
 from epiforecast.populations import TransitionRates
@@ -74,8 +76,7 @@ param_transform=None
 transmission_rate_bias = arguments.params_transmission_rate_bias 
 transmission_rate_std = arguments.params_transmission_rate_noise * community_transmission_rate
 if learn_transmission_rate == True:
-
-    
+  
     if param_transform == 'log':
         #see wikipedia for transform!
         community_transmission_rate_ensemble = np.random.lognormal(
@@ -99,6 +100,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         transmission_rate_parameters=community_transmission_rate_ensemble,
         hospital_transmission_reduction=hospital_transmission_reduction,
         ensemble_size=ensemble_size,
+        neighbor_weights=exogenous_scale_factor,
         start_time=start_time,
         parallel_cpu=arguments.parallel_flag,
         num_cpus=arguments.parallel_num_cpus

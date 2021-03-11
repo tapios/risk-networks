@@ -27,6 +27,9 @@ parser.add_argument('--network-node-count', type=str, default='1e3')
 # user_network #################################################################
 parser.add_argument('--user-network-user-fraction', type=float, default=1.0)
 parser.add_argument('--user-network-seed-user', type=int, default=190)
+parser.add_argument('--user-network-type', type=str, default='random')
+parser.add_argument('--user-network-weighted', default=False, action='store_true')
+parser.add_argument('--user-network-weight-factor', type=float, default=1.0)
 
 # transformation #################################################################
 parser.add_argument('--transform-lengthscale', type=float, default=0.7)
