@@ -6,7 +6,7 @@ from epiforecast.epiplots import plot_epidemic_data
 from matplotlib import pyplot as plt
 
 
-EXP_NAME = 'u75rand_s0_d1_i0.03' 
+EXP_NAME = 'u75rand_s0_d1_i0.03_exog' 
 OUTDIR = 'output'
 
 # user base percentage
@@ -16,7 +16,8 @@ if user_base == 100:
     EXP_PARAM_VALUES = [0, 4897, 9794, 24485, 97942]
 
 elif user_base == 75:
-    EXP_PARAM_VALUES = [0, 7347, 18364] #3672, 7347, 18364, 73456]
+    EXP_PARAM_VALUES = [0, 3672, 7347, 18364, 73456]
+    EXP_PARAM_VALUES = [0, 3672, 7347, 18364, 73353]
 
 elif user_base == 25:
     EXP_PARAM_VALUES = [0, 1224, 2448, 6121, 24485]

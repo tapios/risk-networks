@@ -286,6 +286,9 @@ def plot_roc_curve(true_negative_rates,
 
 def plot_tpr_curve(predicted_positive_fraction,
                    true_positive_rates,
+                   test_and_isolate_flag=False,
+                   tai_predicted_positive_fraction=None,
+                   tai_true_positive_rates=None,
                    xmin=1e-3,
                    labels = None,
                    show = True,
@@ -300,8 +303,12 @@ def plot_tpr_curve(predicted_positive_fraction,
     
     Args
     ----
-    predicted_positive_fraction(np.array): array of predicted_positive_fraction
-    true_positive_rates(np.array): array of true_positive_rates of the same dimensions
+    predicted_positive_fraction     (np.array): array of predicted_positive_fraction
+    true_positive_rates             (np.array): array of true_positive_rates of the same dimensions
+    test_and_isolate_flag               (bool): bool for adding "test and isolate tprs to graph
+    tai_predicted_positive_fraction (np.array): data for "test and isolate"
+    tai_true_positive_rates         (np.array): data for "test and isolate"
+   
     show                   (bool): bool to display graph
     labels                 (list): list of labels for the line plots
     """
@@ -320,8 +327,8 @@ def plot_tpr_curve(predicted_positive_fraction,
 
     if labels is None:
         labels = ['Curve_' + str(i) for i in range(tpr.shape[0])]
-        
-
+    
+    #plot tpr curves in range
     fig, ax = plt.subplots(figsize=fig_size)
     for xrate,yrate,clr,lbl in zip(ppf,tpr,colors,labels):
         #first sort the lower bound with interpolation 
@@ -338,6 +345,12 @@ def plot_tpr_curve(predicted_positive_fraction,
         # plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
         plt.plot(xplot, yplot, color=clr, label=lbl)
             
+    #plot test_and_isolate_curves
+    if test_and_isolate_flag:
+        for (xplot,yplot,clr) in zip(tai_predicted_positive_fraction, tai_true_positive_rates, colors[-len(tai_true_positive_rates):]):
+            plt.scatter([xplot],[yplot], color=[clr], marker='X')
+
+    #plot random case
     #plt.plot([1e-3, 1], [1e-3, 1], color='darkblue', linestyle='--')
     plt.plot(np.logspace(np.log10(xmin),0,num=100),np.logspace(np.log10(xmin),0,num=100),color='darkblue', linestyle='--')
     ax.set_xscale('log')
