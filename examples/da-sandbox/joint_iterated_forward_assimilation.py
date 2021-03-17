@@ -272,9 +272,10 @@ assert n_prediction_windows > n_prediction_windows_spin_up
 # Set an upper limit on number of stored contact networks:
 if intervention_nodes == "contact_tracing": #then we have a history
     steps_per_contact_trace = int(arguments.intervention_contact_trace_days/static_contact_interval)
-    max_networks = np.max(steps_per_da_window + steps_per_prediction_window, steps_per_contact_trace)
+    max_networks = max(steps_per_da_window + steps_per_prediction_window, steps_per_contact_trace)
 else:
     max_networks = steps_per_da_window + steps_per_prediction_window 
+
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
@@ -580,16 +581,17 @@ for j in range(spin_up_steps):
             
             for i in np.arange(steps_per_contact_trace):
                 trace_time = current_time - (steps_per_contact_trace - i) * static_contact_interval 
-                loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
-                mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
-                neighbors_with_long_contact_at_trace_time = []
-
-                for node in current_positive_nodes:
-                    mean_contact_with_node = mean_contact_duration[node,:]
-                    long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
-                    neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                if trace_time > 0:
+                    loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                    mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                    neighbors_with_long_contact_at_trace_time = []
                     
-                neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+                    for node in current_positive_nodes:
+                        mean_contact_with_node = mean_contact_duration[node,:]
+                        long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
+                        neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                    
+                    neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
             
             #now save them and get all the nodes
             intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
@@ -1046,16 +1048,17 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
             for i in np.arange(steps_per_contact_trace):
                 trace_time = current_time - (steps_per_contact_trace - i) * static_contact_interval 
-                loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
-                mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
-                neighbors_with_long_contact_at_trace_time = []
-
-                for node in current_positive_nodes:
-                    mean_contact_with_node = mean_contact_duration[node,:]
-                    long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
-                    neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                if trace_time > 0.0:
+                    loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                    mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                    neighbors_with_long_contact_at_trace_time = []
                     
-                neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+                    for node in current_positive_nodes:
+                        mean_contact_with_node = mean_contact_duration[node,:]
+                        long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
+                        neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                        
+                    neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
             
             #now save them and get all the nodes
             intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
