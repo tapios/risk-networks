@@ -16,6 +16,7 @@ user_fraction = arguments.user_network_user_fraction
 
 if user_fraction >= 1.0:
     user_network = network.build_user_network_using(FullUserGraphBuilder())
+    exogenous_scale_factor = None
 else:
     user_network_type = arguments.user_network_type #"neighbor", or "random"
     if user_network_type == "neighbor":
