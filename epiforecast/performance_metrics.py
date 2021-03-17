@@ -5,6 +5,7 @@ import warnings
 
 def confusion_matrix(data,
                      ensemble_states,
+                     user_nodes,
                      statuses = ['S', 'E' ,'I' ,'H' ,'R' ,'D'],
                      threshold = 0.5,
                      method='or'):
@@ -13,28 +14,29 @@ def confusion_matrix(data,
     Wrapper of `sklearn.metrics.confusion_matrix`.
     Args:
     -----
-        ensemble_states: (ensemble_size, 5 * population) `np.array` of the current state of the ensemble ODE system.
+        ensemble_states: (ensemble_size, 6 * population) `np.array` of the current state of the ensemble ODE system.
         statuses       : `list` of statuses of interest.
         threshold      : float in [0,1] used to determine a binary classification
         method: string, 'sum': means you assign true if the sum exceeds the threshold
                         'or' : means you assign true if either exceeds the threshold
     """
+    if user_nodes is not None:
+        data = {node: data[node] for node in user_nodes}
 
     status_catalog = dict(zip(['S', 'E', 'I', 'H', 'R', 'D'], np.arange(6)))
     status_of_interest = np.array([status_catalog[status] for status in statuses])
     if ensemble_states.ndim == 1:
         #in the case of "1" ensemble member - ensure array is 2 dimensional
         ensemble_states = np.array([ensemble_states])
+    
+    population = len(data)
+    ensemble_size = ensemble_states.shape[0]
+    user_population = int(ensemble_states.shape[1] / 6)
 
-    ensemble_size = len(ensemble_states)
-    population    = len(data)
-
-    ensemble_probabilities = np.zeros((6, population))
+    ensemble_probabilities = np.zeros((6, user_population))
     
     #obtain the prediction of the ensemble by averaging
-    ensemble_probabilities = ensemble_states.reshape(ensemble_size, 6, population).mean(axis = 0)
-#    ensemble_probabilities[ [1, 2, 3, 4, 5] ] = ensemble_states.reshape(ensemble_size, 5, population).mean(axis = 0)
-#    ensemble_probabilities[0] = 1 - ensemble_probabilities.sum(axis = 0)
+    ensemble_probabilities = ensemble_states.reshape(ensemble_size, 6, user_population).mean(axis = 0)
    
     #obtain a binary classification of the prediction
     if method == 'sum':
@@ -68,6 +70,7 @@ class PredictedNegativeFraction:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
                  method = 'or'):
@@ -78,7 +81,7 @@ class PredictedNegativeFraction:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses,threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         return (tn + fn) / (tn + fn + tp + fp)
@@ -95,6 +98,7 @@ class PredictedPositiveFraction:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
                  method = 'or'):
@@ -105,7 +109,7 @@ class PredictedPositiveFraction:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         return (tp + fp) / (tn + fn + tp + fp)
@@ -122,6 +126,7 @@ class Accuracy:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
                  method = 'or'):
@@ -132,7 +137,7 @@ class Accuracy:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
         return (tn+tp) / (tn+fp+fn+tp)
     
@@ -149,6 +154,7 @@ class TrueNegativeRate:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
                  method = 'or'):
@@ -159,7 +165,7 @@ class TrueNegativeRate:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         #the setting where we cannot measure a negative rate as there are no negative values
@@ -183,6 +189,7 @@ class TruePositiveRate:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['S', 'E', 'I', 'H', 'R', 'D'],
                  threshold = 0.5,
                  method = 'or'):
@@ -193,7 +200,7 @@ class TruePositiveRate:
                 ensemble_state : (ensemble size, 5 * population) `np.array` with probabilities
                 statuses       : statuses of interest.
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         #the setting where we cannot measure a positive rate as there are no positive values
@@ -217,6 +224,7 @@ class F1Score:
     def __call__(self,
                  data,
                  ensemble_states,
+                 user_nodes,
                  statuses = ['E', 'I'],
                  threshold = 0.5,
                  method = 'or'):
@@ -227,7 +235,7 @@ class F1Score:
             fn : false negative
             tp : true positive
         """
-        cm = confusion_matrix(data, ensemble_states, statuses, threshold, method)
+        cm = confusion_matrix(data, ensemble_states, user_nodes, statuses, threshold, method)
         tn, fp, fn, tp = cm.ravel()
 
         #the setting where everything is negative, and captured perfectly 
@@ -242,10 +250,11 @@ class PerformanceTracker:
     Container to track how a classification model behaves over time.
     """
     def __init__(self,
-                  metrics   = [TrueNegativeRate(),TruePositiveRate()],
-                  statuses  = ['E', 'I'],
-                  threshold = 0.5,
-                  method = 'or' ):
+                 metrics   = [TrueNegativeRate(),TruePositiveRate()],
+                 user_nodes = None,
+                 statuses  = ['E', 'I'],
+                 threshold = 0.5,
+                 method = 'or' ):
         """
         Args:
         ------
@@ -254,8 +263,8 @@ class PerformanceTracker:
             threshold: a threshold probabilitiy for classification
             method: 'sum' or 'or' to determine how statuses exceed a threshold
         """
-
         self.statuses  = statuses
+        self.user_nodes = user_nodes
         self.metrics   = metrics
         self.threshold = threshold
         self.method = method
@@ -284,7 +293,7 @@ class PerformanceTracker:
             ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
         """
 
-        results = [metric(data, ensemble_states, self.statuses, self.threshold, self.method) for metric in self.metrics]
+        results = [metric(data, ensemble_states, self.user_nodes, self.statuses, self.threshold, self.method) for metric in self.metrics]
         if self.performance_track is None:
             self.performance_track = np.array(results).reshape(1, len(self.metrics))
         else:
@@ -298,10 +307,11 @@ class PerformanceTracker:
             -----
                 data: dictionary with {node : status}
         """
-
+        
+        
         status_catalog = dict(zip(['S','E', 'I', 'H', 'R', 'D'], np.arange(6)))
         population = len(data)
-
+     
         a, b = np.unique([v for v in data.values()], return_counts=True)
         status_counts = defaultdict(int, zip(a, b))
 
@@ -321,7 +331,7 @@ class PerformanceTracker:
             Args:
             -----
                 data: dictionary with {node : status}
-                ensemble_state: (ensemble size, 5 * population) `np.array` with probabilities
+                ensemble_state: (ensemble size, 6 * population) `np.array` with probabilities
         """
         self.eval_metrics(data, ensemble_states)
         self.eval_prevalence(data)
