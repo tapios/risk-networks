@@ -286,6 +286,7 @@ def plot_roc_curve(true_negative_rates,
 
 def plot_tpr_curve(predicted_positive_fraction,
                    true_positive_rates,
+                   noda_flag=False,
                    test_and_isolate_flag=False,
                    tai_predicted_positive_fraction=None,
                    tai_true_positive_rates=None,
@@ -305,6 +306,7 @@ def plot_tpr_curve(predicted_positive_fraction,
     ----
     predicted_positive_fraction     (np.array): array of predicted_positive_fraction
     true_positive_rates             (np.array): array of true_positive_rates of the same dimensions
+    noda_flag                           (bool): bool for adding "prior" tprs to graph
     test_and_isolate_flag               (bool): bool for adding "test and isolate tprs to graph
     tai_predicted_positive_fraction (np.array): data for "test and isolate"
     tai_true_positive_rates         (np.array): data for "test and isolate"
@@ -321,16 +323,28 @@ def plot_tpr_curve(predicted_positive_fraction,
         tpr = np.array([true_positive_rates])
     else:
         tpr = true_positive_rates
+    
+    #take out the prior
+    if noda_flag:
+        prior_ppf = ppf[0]
+        prior_tpr = tpr[0]
+        prior_label = labels[0]
+        ppf = ppf[1:]
+        tpr = tpr[1:]
+        labels = labels[1:]
+        
 
     # ppf,tpr size num_line_plots x num_samples_per_plot 
-    colors = ['C'+str(i) for i in range(tpr.shape[0])]
+    #colors = ['C'+str(i) for i in range(tpr.shape[0])]
+    #get colors from a color map
+    colors = [plt.cm.OrRd(x) for x in np.linspace(0.2,1.0,tpr.shape[0])]
 
     if labels is None:
         labels = ['Curve_' + str(i) for i in range(tpr.shape[0])]
     
-    #plot tpr curves in range
+    # plot tpr curves in range
     fig, ax = plt.subplots(figsize=fig_size)
-    for xrate,yrate,clr,lbl in zip(ppf,tpr,colors,labels):
+    for xrate,yrate,clr,lbl in list(zip(ppf,tpr,colors,labels))[::-1]:
         #first sort the lower bound with interpolation 
         # xrate,yrate are monotone DECREASING)
         idxabovemin = np.max(np.where(xrate>=xmin))
@@ -345,18 +359,33 @@ def plot_tpr_curve(predicted_positive_fraction,
         # plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
         plt.plot(xplot, yplot, color=clr, label=lbl)
             
-    #plot test_and_isolate_curves
+    #plot prior
+    if noda_flag:
+        idxabovemin = np.max(np.where(prior_ppf>=xmin))
+        xabovemin = prior_ppf[idxabovemin]
+        xbelowmin = prior_ppf[idxabovemin+1]
+        yabovemin = prior_tpr[idxabovemin]
+        ybelowmin = prior_tpr[idxabovemin+1]
+        yatmin = ybelowmin + (xmin - xbelowmin) / (xabovemin - xbelowmin) * (yabovemin - ybelowmin)
+
+        xplot = np.hstack((prior_ppf[prior_ppf>=xmin], xmin))
+        yplot = np.hstack((prior_tpr[prior_ppf>=xmin], yatmin))
+        # plt.plot(prior_ppf, prior_tpr, color=clr, label=lbl, marker='|')
+        plt.plot(xplot, yplot, color="black", label=prior_label, linestyle=':')
+        
+
+    #plot test_and_isolate curves
     if test_and_isolate_flag:
         for (xplot,yplot,clr) in zip(tai_predicted_positive_fraction, tai_true_positive_rates, colors[-len(tai_true_positive_rates):]):
             plt.scatter([xplot],[yplot], color=[clr], marker='X')
 
     #plot random case
     #plt.plot([1e-3, 1], [1e-3, 1], color='darkblue', linestyle='--')
-    plt.plot(np.logspace(np.log10(xmin),0,num=100),np.logspace(np.log10(xmin),0,num=100),color='darkblue', linestyle='--')
+    plt.plot(np.logspace(np.log10(xmin),0,num=100),np.logspace(np.log10(xmin),0,num=100),color='black', linestyle='--')
     ax.set_xscale('log')
-    plt.xlabel('Predicted Positive Fraction')
-    plt.ylabel('True Positive Rate')
-    plt.title('PPF vs TPR Curve')
+    plt.xlabel('PPF')#Predicted Positive Fraction')
+    plt.ylabel('TPR') #True Positive Rate')
+    #plt.title('PPF vs TPR Curve')
     plt.legend(loc='upper left')# 'lower right'
 
     if show:
