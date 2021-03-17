@@ -58,6 +58,10 @@ from _stochastic_init import (kinetic_ic,
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
+
+np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
+        user_nodes)
+
 # observations #################################################################
 from _observations_init import (sensor_readings,
                                 MDT_neighbor_test,
@@ -266,7 +270,11 @@ assert n_prediction_windows > n_prediction_windows_spin_up
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
-max_networks = steps_per_da_window + steps_per_prediction_window 
+if intervention_nodes == "contact_tracing": #then we have a history
+    steps_per_contact_trace = int(arguments.intervention_contact_trace_days/static_contact_interval)
+    max_networks = np.max(steps_per_da_window + steps_per_prediction_window, steps_per_contact_trace)
+else:
+    max_networks = steps_per_da_window + steps_per_prediction_window 
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
@@ -546,10 +554,55 @@ for j in range(spin_up_steps):
                                             if k > current_time - intervention_sick_isolate_time])
             if (n_intervention_nodes>0):
                 nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+        elif intervention_nodes == "test_data_neighbors":
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            nbhd_current_positive_nodes = []
+            [nbhd_current_positive_nodes.extend(user_network.get_neighbors(node).tolist()) for node in current_positive_nodes]
+            intervention.save_nodes_to_intervene(current_time, nbhd_current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
                                                                if k > current_time - intervention_sick_isolate_time]) \
                                            )
             else:
                 nodes_to_intervene = np.array([],dtype=int)
+
+        elif intervention_nodes == "contact_tracing":
+            #we check the history of contacts with current positive nodes 
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
+            #now we need to check through history, at the duration of contacts
+            fifteen_mins = 1.0 / 24.0 / 4.0
+            neighbors_with_long_contact = current_positive_nodes
+            
+            for i in np.arange(steps_per_contact_trace):
+                trace_time = current_time - (steps_per_contact_trace - i) * static_contact_interval 
+                loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                neighbors_with_long_contact_at_trace_time = []
+
+                for node in current_positive_nodes:
+                    mean_contact_with_node = mean_contact_duration[node,:]
+                    long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
+                    neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                    
+                neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+            
+            #now save them and get all the nodes
+            intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+
+
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick', 'random', or 'test_data_only'")
             
@@ -574,6 +627,9 @@ for j in range(spin_up_steps):
             λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
             λ_max[:] = distanced_max_contact_rate 
             user_network.set_lambdas(λ_min,λ_max)
+        elif intervention_type == "nothing":
+            np.save(os.path.join(OUTPUT_PATH, 'positive_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
 
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
@@ -802,7 +858,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         
         DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        if (intervention_nodes == "test_data_only"): #with test_data_only, we do no DA updates (though still test the population)
+        non_model_based_interventions = ["test_data_only", "random", "test_data_neighbors", "contact_tracing"]
+        if intervention_nodes in non_model_based_interventions: #we do no DA updates (though still test the population)
             update_flag=False
         else:
             if step % (2+n_record_sweeps) == 0:
@@ -966,6 +1023,51 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             else:
                 nodes_to_intervene = np.array([],dtype=int)
         
+        elif intervention_nodes == "test_data_neighbors":
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            nbhd_current_positive_nodes = []
+            [nbhd_current_positive_nodes.extend(user_network.get_neighbors(node).tolist()) for node in current_positive_nodes]
+            intervention.save_nodes_to_intervene(current_time, nbhd_current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+        
+        elif intervention_nodes == "contact_tracing":
+            #we check the history of contacts with current positive nodes 
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
+            #now we need to check through history, at the duration of contacts
+            fifteen_mins = 1.0 / 24.0 / 4.0
+            neighbors_with_long_contact = current_positive_nodes
+            
+            for i in np.arange(steps_per_contact_trace):
+                trace_time = current_time - (steps_per_contact_trace - i) * static_contact_interval 
+                loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                neighbors_with_long_contact_at_trace_time = []
+
+                for node in current_positive_nodes:
+                    mean_contact_with_node = mean_contact_duration[node,:]
+                    long_contact_list = [i for (i,val) in enumerate(mean_contact_with_node) if val  > fifteen_mins]
+                    neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+                    
+                neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+            
+            #now save them and get all the nodes
+            intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
@@ -991,6 +1093,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             λ_max[:] = distanced_max_contact_rate 
             user_network.set_lambdas(λ_min,λ_max)
 
+        elif intervention_type == "nothing":
+            np.save(os.path.join(OUTPUT_PATH, 'positive_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
+            
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
 
@@ -1080,8 +1186,6 @@ np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'),
 
 np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'), 
         time_span)
-np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
-        user_nodes)
 
 
 if learn_transmission_rate == True:

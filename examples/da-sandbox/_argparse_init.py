@@ -98,6 +98,8 @@ parser.add_argument('--intervention-start-time', type=float, default=10.0)
 parser.add_argument('--intervention-interval', type=float, default=1.0)
 parser.add_argument('--intervention-sick-isolate-time', type=float, default=7.0)
 
+parser.add_argument('--intervention-contact-trace-days', type=float, default=10.0)
+
 # epidemic #####################################################################
 parser.add_argument('--epidemic-load-data', default=True, action='store_false')
 parser.add_argument('--epidemic-save-data', default=False, action='store_true')
