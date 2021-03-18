@@ -68,8 +68,12 @@ class EpidemicSimulator:
             buffer_margin = 1
         else:
             buffer_margin = 1.2 # 20% margin seems conservative
+            
+        #calculate mean_degree for the edges
+        mean_degree = np.mean([d for n, d in contact_network.degree()])
 
         self.contact_simulator = ContactSimulator(contact_network.get_edges(),
+                                                  mean_degree,
                                                   day_inception_rate = day_inception_rate,
                                                   night_inception_rate = night_inception_rate,
                                                   mean_event_lifetime = mean_contact_lifetime,
