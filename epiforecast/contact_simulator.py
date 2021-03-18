@@ -360,7 +360,7 @@ def simulate_contact(
             while Λⁿ < τ:
                 n += 1
                 λᵐ = λⁿ
-                λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + n * δ)
+                λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, mean_degree, event_time + n * δ)
                 Λⁿ += δ / 2 * (λᵐ + λⁿ)
 
             # Calculate time_step with error = O(δ²)
