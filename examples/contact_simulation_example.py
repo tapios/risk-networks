@@ -99,7 +99,7 @@ plt.sca(axs[1])
 t = measurement_times
 λ = np.zeros(steps)
 for i in range(steps):
-    λ[i] = diurnal_inception_rate(λ_min, λ_max, 1/2 * (t[i] + t[i+1]))
+    λ[i] = diurnal_inception_rate(λ_min, λ_max, mean_degree, 1/2 * (t[i] + t[i+1]))
 
 plt.plot(t[1:],
          λ / (λ + μ),

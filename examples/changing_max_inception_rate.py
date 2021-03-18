@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from tqdm.autonotebook import tqdm
 
-from epiforecast.contact_simulator import ContactSimulator, diurnal_inception_rate
+from epiforecast.contact_simulator import ContactSimulator
 from epiforecast.contact_network import ContactNetwork
 
 np.random.seed(1234)
@@ -32,8 +32,10 @@ n_contacts_barabasi = 10000
 contact_graph = nx.barabasi_albert_graph(int(n_contacts_barabasi / 10), 10)
 network = ContactNetwork.from_networkx_graph(contact_graph)
 network.set_lambdas(λ_min, λ_max)
+mean_degree = np.mean([d for n, d in network.get_graph().degree()])
 
 simulator = ContactSimulator(network.get_edges(),
+                             mean_degree,
                              day_inception_rate = λ_max,
                              night_inception_rate = λ_min,
                              mean_event_lifetime = 1 / μ,
