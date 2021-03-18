@@ -560,27 +560,27 @@ for j in range(spin_up_steps):
                 nodes_to_intervene = np.array([],dtype=int)
 
         elif intervention_nodes == "contact_tracing":
-            #we check the history of contacts with current positive nodes 
             current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
+            neighbors_of_positive_nodes = {node : list(user_network.get_graph().neighbors(node)) for node in current_positive_nodes}
             #now we need to check through history, at the duration of contacts
-            neighbors_of_positive_nodes = {node : list(user_network.graph.neighbors(node)) for node in current_positive_nodes}
-            two_hrs = 1.0 / 12.0 
-            neighbors_with_long_contact = current_positive_nodes
-            
+            fifteen_mins = 1.0 / 24.0 / 4.0 
+            neighbors_with_long_contact = copy.deepcopy(current_positive_nodes)
+                    
             for step in np.arange(steps_per_contact_trace):
                 trace_time = current_time - (steps_per_contact_trace - step) * static_contact_interval 
-                if trace_time >= 0:
+                if trace_time >= 0.0:
                     loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
                     mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
                     neighbors_with_long_contact_at_trace_time = []
-                    
+                    contact_sum = 0
                     for node in current_positive_nodes:
-                        mean_contact_with_node = mean_contact_duration[node,:]
-                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > two_hrs]
+                        mean_contact_with_node = mean_contact_duration[node,:] 
+                        contact_sum += np.sum(mean_contact_with_node.data > 0.0)
+                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
                         neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
-                    
+
                     neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
-            
+
             #now save them and get all the nodes
             neighbors_with_long_contact = np.unique(neighbors_with_long_contact)
             intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
@@ -609,7 +609,7 @@ for j in range(spin_up_steps):
             
             np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
                     intervention.stored_nodes_to_intervene)
-
+        
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
             λ_max[:] = distanced_max_contact_rate 
@@ -659,7 +659,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
     
     ## 1a) Run epidemic simulator
     ## 1b) forward run w/o data assimilation; prediction
-    print("Start time = ", current_time)
+    print("Start time = ", current_time, flush=True)
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
                 
@@ -852,6 +852,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         non_model_based_interventions = ["test_data_only", "random", "contact_tracing"]
         if intervention_nodes in non_model_based_interventions: #we do no DA updates (though still test the population)
             update_flag=False
+            print("no assimilation performed",flush=True)
         else:
             if step % (2+n_record_sweeps) == 0:
                 (ensemble_state_series_dict, 
@@ -891,7 +892,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
         walltime_DA_update += timer() - DA_update_timer
-        
+    
         if update_flag:
             # update with the new initial state and parameters 
             master_eqn_ensemble.set_states_ensemble(ensemble_state_series_dict[past_time])
@@ -1018,15 +1019,13 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             #we check the history of contacts with current positive nodes 
             current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
             neighbors_of_positive_nodes = {node : list(user_network.get_graph().neighbors(node)) for node in current_positive_nodes}
-            print(neighbors_of_positive_nodes,flush=True)
             #now we need to check through history, at the duration of contacts
-            two_hrs = 1.0 / 12.0 
+            fifteen_mins = 1.0 / 24.0 / 4.0 
             neighbors_with_long_contact = copy.deepcopy(current_positive_nodes)
                     
             for step in np.arange(steps_per_contact_trace):
                 trace_time = current_time - (steps_per_contact_trace - step) * static_contact_interval 
                 if trace_time >= 0.0:
-                    print(trace_time,flush=True)
                     loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
                     mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
                     neighbors_with_long_contact_at_trace_time = []
@@ -1034,13 +1033,10 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     for node in current_positive_nodes:
                         mean_contact_with_node = mean_contact_duration[node,:] 
                         contact_sum += np.sum(mean_contact_with_node.data > 0.0)
-                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > two_hrs]
+                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
                         neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
 
-                    print("contact sum", contact_sum,flush=True)
-                    if len(neighbors_with_long_contact_at_trace_time)>0:
-                        print("time", trace_time, "nodes", neighbors_with_long_contact_at_trace_time)
-                        
+                       
                     neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
 
             #now save them and get all the nodes
