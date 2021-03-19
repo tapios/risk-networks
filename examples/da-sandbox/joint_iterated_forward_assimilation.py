@@ -565,17 +565,14 @@ for j in range(spin_up_steps):
             #now we need to check through history, at the duration of contacts
             fifteen_mins = 1.0 / 24.0 / 4.0 
             neighbors_with_long_contact = copy.deepcopy(current_positive_nodes)
-                    
             for step in np.arange(steps_per_contact_trace):
                 trace_time = current_time - (steps_per_contact_trace - step) * static_contact_interval 
                 if trace_time >= 0.0:
                     loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
                     mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
                     neighbors_with_long_contact_at_trace_time = []
-                    contact_sum = 0
                     for node in current_positive_nodes:
                         mean_contact_with_node = mean_contact_duration[node,:] 
-                        contact_sum += np.sum(mean_contact_with_node.data > 0.0)
                         long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
                         neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
 
@@ -1029,10 +1026,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                     loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
                     mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
                     neighbors_with_long_contact_at_trace_time = []
-                    contact_sum = 0
                     for node in current_positive_nodes:
                         mean_contact_with_node = mean_contact_duration[node,:] 
-                        contact_sum += np.sum(mean_contact_with_node.data > 0.0)
                         long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
                         neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
 
