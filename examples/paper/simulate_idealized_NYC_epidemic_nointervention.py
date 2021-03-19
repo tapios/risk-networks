@@ -45,11 +45,11 @@ community_transmission_rate = {
 
 hospital_transmission_reduction = 0.1
 
-λ_min = 2  # minimum contact rate
-λ_max = 22 # maximum contact rate
+λ_min = 4  # minimum contact rate
+λ_max = 75 # maximum contact rate
 
 static_contact_interval = 3 * hour
-mean_contact_lifetime = 0.5 * minute
+mean_contact_lifetime = 2.0 * minute
 
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
 age_distribution = [0.207, 0.400, 0.245, 0.083, 0.065]
@@ -136,7 +136,7 @@ epidemic_simulator.set_statuses(statuses)
 # set the new contact rates on the network
 # run the kinetic model [kinetic produces the current statuses used as data]
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 185,
+    stop_time = epidemic_simulator.time + 100,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -146,7 +146,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_nointerventions_1e5.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_nointerventions_1e5_0.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],
@@ -155,6 +155,6 @@ if SAVE_FLAG:
                 kinetic_model.statuses['H'],
                 kinetic_model.statuses['R'],
                 kinetic_model.statuses['D']],
-            header = 'S E I H R D seed: %d'%seed)
+            header = 'S E I H R D seed1: %d seed2: %d seed3: %d seed4: %d'%(SEED1,SEED2,SEED3,SEED4))
 
 

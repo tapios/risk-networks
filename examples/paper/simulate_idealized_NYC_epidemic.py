@@ -46,10 +46,10 @@ community_transmission_rate = {
 hospital_transmission_reduction = 0.1
 
 λ_min = 2  # minimum contact rate
-λ_max = 22 # maximum contact rate
+λ_max = 75 # maximum contact rate
 
 static_contact_interval = 3 * hour
-mean_contact_lifetime = 0.5 * minute
+mean_contact_lifetime = 2.0 * minute
 
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
 age_distribution = [0.207, 0.400, 0.245, 0.083, 0.065]
@@ -138,7 +138,7 @@ epidemic_simulator.set_statuses(statuses)
 # set the new contact rates on the network
 # run the kinetic model [kinetic produces the current statuses used as data]
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 18,
+    stop_time = epidemic_simulator.time + 19,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -147,8 +147,8 @@ kinetic_model = epidemic_simulator.kinetic_model
 # SD intervention ##############################################################
 ################################################################################
 
-λ_min = 2  # minimum contact rate
-λ_max = 8  # maximum contact rate
+λ_min = 2   # minimum contact rate
+λ_max = 27  # maximum contact rate
 
 health_service = epidemic_simulator.health_service
 
@@ -170,56 +170,20 @@ epidemic_simulator.set_statuses(statuses)
 
 # run the kinetic model
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 83,
+    stop_time = epidemic_simulator.time + 40,
     current_network = network)
 
 for key in kinetic_model.statuses.keys():
    kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
 
-
-kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_model.times)
-
-################################################################################
-# loosening SD intervention ####################################################
-################################################################################
-
-λ_min = 2  # minimum contact rate
-λ_max = 22 # maximum contact rate
-
-health_service = epidemic_simulator.health_service
-
-statuses = epidemic_simulator.kinetic_model.current_statuses
-
-epidemic_simulator = EpidemicSimulator(
-        network,
-        community_transmission_rate = community_transmission_rate['mean'],
-        hospital_transmission_reduction = hospital_transmission_reduction,
-        static_contact_interval = static_contact_interval,
-        mean_contact_lifetime = mean_contact_lifetime,
-        day_inception_rate = λ_max,
-        night_inception_rate = λ_min,
-        health_service = health_service,
-        start_time = epidemic_simulator.time,
-        seed = SEED6)
-
-epidemic_simulator.set_statuses(statuses)
-
-# run the kinetic model
-network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 90,
-    current_network = network)
-
-for key in kinetic_model.statuses.keys():
-   kinetic_model.statuses[key].extend(epidemic_simulator.kinetic_model.statuses[key])
-
-kinetic_model.times.extend(kinetic_model.times[-1]+epidemic_simulator.kinetic_model.times)
+kinetic_model.times.extend(epidemic_simulator.kinetic_model.times)
 
 ################################################################################
 # save #########################################################################
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_0.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],
@@ -228,6 +192,6 @@ if SAVE_FLAG:
                 kinetic_model.statuses['H'],
                 kinetic_model.statuses['R'],
                 kinetic_model.statuses['D']],
-            header = 'S E I H R D seed: %d'%seed)
+            header = 'S E I H R D seed1: %d seed2: %d seed3: %d seed4: %d seed 5: %d seed 6: %d'%(SEED1,SEED2,SEED3,SEED4,SEED5,SEED6))
 
 
