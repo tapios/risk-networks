@@ -72,6 +72,7 @@ EXP_NAME="contact_trace" #1e5 = 97942 nodes
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
 test_budgets=(0 4897 9794 24485 97942)  
+#test_budgets=(0 49 98 245 982)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
