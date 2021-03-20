@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u75s0d1i0.03"
+#SBATCH -J "u100s0d1"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
@@ -30,21 +30,15 @@ network_size=1e5
 wearers=0
 
 # user base
-user_fraction=0.75
-user_base_weight=2e-4
-
+user_fraction=1.0
 
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
 
 # intervention
-intervention_freq='interval'
-intervention_type='isolate'
-intervention_nodes='sick'
-intervention_interval=1.0
-intervention_start_time=8
-intervention_threshold=0.03
+#int_freq='single'
+#intervention_start_time=18
 
 #da params 
 da_window=1.0
@@ -72,11 +66,10 @@ param_prior_noise_factor=0.25
 
 # network  + sensor wearers
 #EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
-EXP_NAME="u75rand_s0_d1_i0.03_exog" #1e5 = 97942 nodes
-#EXP_NAME="noda_1e5_parsd0.25_nosd"
+EXP_NAME="noda_u100_prior"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
-test_budgets=(0 3672 7347 18364 73353)  
+test_budgets=(0 4897 9794 24485 97942)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
@@ -89,14 +82,12 @@ mkdir -p "${output_path}"
 
 echo "output to be found in: ${output_path}, stdout in $stdout, stderr in $stderr "
 
-cp batch_scripts/run_u75rand_s0_d1_i0.03.sh ${output_path}
+cp batch_scripts/run_u100_prior.sh ${output_path}
 
 # launch #######################################################################
 # launch #######################################################################
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
-  --user-network-weighted \
-  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \
@@ -105,12 +96,6 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
-  --intervention-frequency=${intervention_freq} \
-  --intervention-start-time=${intervention_start_time} \
-  --intervention-nodes=${intervention_nodes}\
-  --intervention-type=${intervention_type}\
-  --intervention-I-min-threshold=${intervention_threshold}\
-  --intervention-nodes=${intervention_nodes}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \
@@ -123,10 +108,11 @@ python3 joint_iterated_forward_assimilation.py \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \
-  --assimilation-additive-inflation\
-  --assimilation-additive-inflation-factor=${additive_inflation}\
   --record-ignore-mass-constraint\
+  --prior-run\
   >${stdout} 2>${stderr}
+#  --intervention-frequency=${int_freq} \
+#  --intervention-start-time=${intervention_start_time} \
 
 
 

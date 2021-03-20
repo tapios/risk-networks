@@ -42,7 +42,7 @@ hour = 60 * minute
 day = 1.0
 
 static_contact_interval = 3 * hour
-mean_contact_lifetime = 0.5 * minute
+mean_contact_lifetime = 2 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
 end_time    = 90.0  # the ultimate end time
@@ -62,8 +62,8 @@ age_dep_dprime = [0.019   ,  0.073  ,  0.193,  0.327,  0.512]
 assert sum(age_distribution) == 1.0
 
 min_contact_rate = 2
-max_contact_rate = 22
-distanced_max_contact_rate=8
+max_contact_rate = 75
+distanced_max_contact_rate=27
 
 latent_periods               = 3.7 # == 1/σ
 community_infection_periods  = 3.2 # == 1/γ
@@ -74,6 +74,9 @@ hospital_mortality_fraction  = AgeDependentConstant(age_dep_dprime)
 
 community_transmission_rate = 12.0    # == β
 hospital_transmission_reduction = 0.1 # == α
+
+#ICs for kinetic
+fraction_infected = 0.0025
 
 ################################################################################
 print_end_of(__name__)

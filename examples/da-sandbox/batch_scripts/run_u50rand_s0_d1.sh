@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u100s0d1blanket"
+#SBATCH -J "u50rands0d1"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
@@ -30,15 +30,12 @@ network_size=1e5
 wearers=0
 
 # user base
-user_fraction=1.0
+user_fraction=0.5
+user_base_weight=2e-4
 
 # testing: virus tests
 I_min_threshold=0.0
 I_max_threshold=1.0
-
-# intervention
-intervention_freq='single'
-intervention_start_time=8
 
 #da params 
 da_window=1.0
@@ -65,12 +62,11 @@ additive_inflation=0.1
 param_prior_noise_factor=0.25
 
 # network  + sensor wearers
-#EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
-EXP_NAME="u100_s0_d1_blanket_social_dist" #1e5 = 97942 nodes
+EXP_NAME="u50rand_s0_d1" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
-#5% 10% 25%, of 97942
-test_budgets=(0 4897 9794 24485 97942)  
+#5% 10% 25%, of 48971
+test_budgets=(0 2448 4897 12242 48971)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
@@ -83,12 +79,14 @@ mkdir -p "${output_path}"
 
 echo "output to be found in: ${output_path}, stdout in $stdout, stderr in $stderr "
 
-cp batch_scripts/run_u100_s0_d1_blanket_social_dist.sh ${output_path}
+cp batch_scripts/run_u50rand_s0_d1.sh ${output_path}
 
 # launch #######################################################################
 # launch #######################################################################
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
+  --user-network-weighted \
+  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \
@@ -97,8 +95,6 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
-  --intervention-frequency=${intervention_freq} \
-  --intervention-start-time=${intervention_start_time} \
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \
