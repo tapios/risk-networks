@@ -38,7 +38,7 @@ I_max_threshold=1.0
 
 # intervention
 intervention_freq='single'
-intervention_start_time=8
+intervention_start_time=18
 
 #da params 
 da_window=1.0
@@ -114,7 +114,9 @@ python3 joint_iterated_forward_assimilation.py \
   --assimilation-additive-inflation\
   --assimilation-additive-inflation-factor=${additive_inflation}\
   --record-ignore-mass-constraint\
+  --prior-run\
   >${stdout} 2>${stderr}
+
 
 
 
