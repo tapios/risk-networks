@@ -45,11 +45,11 @@ community_transmission_rate = {
 
 hospital_transmission_reduction = 0.1
 
-λ_min = 2  # minimum contact rate
+λ_min = 4  # minimum contact rate
 λ_max = 75 # maximum contact rate
 
 static_contact_interval = 3 * hour
-mean_contact_lifetime = 2.0 * minute
+mean_contact_lifetime = 1.5 * minute
 
 # 5 age groups (0-17, 18-44, 45-64, 65-74, >=75) and their respective rates
 age_distribution = [0.207, 0.400, 0.245, 0.083, 0.065]
@@ -67,7 +67,7 @@ assert sum(age_distribution) == 1.0
 set_num_threads(1)
       
 # Set random seeds for reproducibility
-SEED1 = 942395
+SEED1 = 9421395
 SEED2 = 10958
 SEED3 = 4669201
 SEED4 = 2502907
@@ -127,7 +127,7 @@ epidemic_simulator = EpidemicSimulator(
 statuses = random_epidemic(
         network.get_node_count(),
         network.get_nodes(),
-        fraction_infected=0.0025,
+        fraction_infected=0.0015,
         seed=SEED4)
 
 epidemic_simulator.set_statuses(statuses)
@@ -138,7 +138,7 @@ epidemic_simulator.set_statuses(statuses)
 # set the new contact rates on the network
 # run the kinetic model [kinetic produces the current statuses used as data]
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 19,
+    stop_time = epidemic_simulator.time + 5,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -147,8 +147,10 @@ kinetic_model = epidemic_simulator.kinetic_model
 # SD intervention ##############################################################
 ################################################################################
 
-λ_min = 2   # minimum contact rate
-λ_max = 27  # maximum contact rate
+λ_min = 4   # minimum contact rate
+λ_max = 28  # maximum contact rate
+
+network.set_lambdas(λ_min, λ_max)
 
 health_service = epidemic_simulator.health_service
 
@@ -170,7 +172,7 @@ epidemic_simulator.set_statuses(statuses)
 
 # run the kinetic model
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 40,
+    stop_time = epidemic_simulator.time + 1,
     current_network = network)
 
 for key in kinetic_model.statuses.keys():
