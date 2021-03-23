@@ -46,7 +46,7 @@ community_transmission_rate = {
 hospital_transmission_reduction = 0.1
 
 λ_min = 4  # minimum contact rate
-λ_max = 75 # maximum contact rate
+λ_max = 90 # maximum contact rate
 
 static_contact_interval = 3 * hour
 mean_contact_lifetime = 2.0 * minute
@@ -136,7 +136,7 @@ epidemic_simulator.set_statuses(statuses)
 # set the new contact rates on the network
 # run the kinetic model [kinetic produces the current statuses used as data]
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 60,
+    stop_time = epidemic_simulator.time + 100,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model

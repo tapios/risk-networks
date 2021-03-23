@@ -46,7 +46,7 @@ community_transmission_rate = {
 hospital_transmission_reduction = 0.1
 
 λ_min = 4  # minimum contact rate
-λ_max = 75 # maximum contact rate
+λ_max = 90 # maximum contact rate
 
 static_contact_interval = 3 * hour
 mean_contact_lifetime = 2.0 * minute
@@ -151,7 +151,7 @@ time_delta = epidemic_simulator.time
 
 # run the kinetic model
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 30,
+    stop_time = epidemic_simulator.time + 50,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -160,7 +160,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_1.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_4.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],
