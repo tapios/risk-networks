@@ -136,7 +136,7 @@ epidemic_simulator.set_statuses(statuses)
 # set the new contact rates on the network
 # run the kinetic model [kinetic produces the current statuses used as data]
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 100,
+    stop_time = epidemic_simulator.time + 20,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -146,7 +146,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_nointerventions_1e5_1.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_nointerventions_1e5_0.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],

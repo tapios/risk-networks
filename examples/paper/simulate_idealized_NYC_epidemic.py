@@ -151,7 +151,7 @@ time_delta = epidemic_simulator.time
 
 # run the kinetic model
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 50,
+    stop_time = epidemic_simulator.time + 5,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -160,7 +160,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_4.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_0.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],
