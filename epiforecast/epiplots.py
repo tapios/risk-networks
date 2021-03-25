@@ -442,7 +442,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
         plt.close()
 
 def plot_transition_rates(transition_rates_obj_timeseries,
