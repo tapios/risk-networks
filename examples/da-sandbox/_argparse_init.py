@@ -79,6 +79,7 @@ parser.add_argument('--prior-run', default=False, action='store_true')
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
 parser.add_argument('--params-transition-rates-str', type=str, default='latent_periods,community_infection_periods')
+
 parser.add_argument('--params-learn-transmission-rate', default=False,action='store_true')
 parser.add_argument('--params-transmission-rate-bias', type=float, default=0.0)
 parser.add_argument('--params-transmission-rate-noise', type=float, default=0.1)

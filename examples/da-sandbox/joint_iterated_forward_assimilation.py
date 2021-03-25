@@ -286,6 +286,7 @@ master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
                                                    6,
                                                    time_span.size)
 
+#to store the ensemble of the mean over the network of the parameters
 mean_transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
                                                        1,
                                                        time_span.size)
@@ -294,13 +295,20 @@ if param_transform == 'log':
                                                               1,
                                                               time_span.size)
 
+
+mean_transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
+                                              6,
+                                              time_span.size)
+
+
+#to store the network parameters of the mean over the ensemble
 network_transmission_rate_timeseries = EnsembleTimeSeries(1,
                                                           user_population,
                                                           time_span.size)
 
-transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              6,
-                                              time_span.size)
+network_transition_rates_timeseries = EnsembleTimeSeries(6,
+                                                        user_population,
+                                                        time_span.size)
 
 # intial conditions  ###########################################################
 
@@ -393,8 +401,12 @@ for j in range(spin_up_steps):
                 community_transmission_rate_means)
         
     if learn_transition_rates == True:
-        transition_rates_timeseries.push_back(
+        mean_transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
+        network_transition_rates_timeseries.push_back(
+            extract_network_transition_rates(transition_rates_ensemble),
+            user_population)
+        
 
     #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
     save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
@@ -491,6 +503,18 @@ for j in range(spin_up_steps):
                                        output_path=OUTPUT_PATH,
                                        output_name='networktransmission_rate')
 
+            if learn_transition_rates == True:
+                plot_clinical_parameters(mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                                         current_time_span[:-1],
+                                         a_min=0.0,
+                                         output_path=OUTPUT_PATH,
+                                         output_name='mean')
+                plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                                         current_time_span[:-1],
+                                         a_min=0.0,
+                                         output_path=OUTPUT_PATH,
+                                         output_name='network')
+                
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
@@ -720,11 +744,14 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
             network_transmission_rate_timeseries.push_back(
                 community_transmission_rate_means)
-            
-        if learn_transition_rates == True:
-            transition_rates_timeseries.push_back(
-                    extract_ensemble_transition_rates(transition_rates_ensemble))
 
+        if learn_transition_rates == True:
+            mean_transition_rates_timeseries.push_back(
+                extract_ensemble_transition_rates(transition_rates_ensemble))
+            network_transition_rates_timeseries.push_back(
+                extract_network_transition_rates(transition_rates_ensemble),
+                user_population)
+            
         #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
         save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
                                                           save_to_file_interval, 
@@ -810,8 +837,19 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH,
                                        output_name='networktransmission_rate')
-
-
+            
+            if learn_transition_rates == True:                
+                plot_clinical_parameters(mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                                         current_time_span[:-1],
+                                         a_min=0.0,
+                                         output_path=OUTPUT_PATH,
+                                         output_name='mean')
+                plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                                         current_time_span[:-1],
+                                         a_min=0.0,
+                                         output_path=OUTPUT_PATH,
+                                         output_name='network')
+            
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
@@ -1096,10 +1134,14 @@ if learn_transmission_rate == True:
     community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
     network_transmission_rate_timeseries.push_back(
                 community_transmission_rate_means)
-           
+       
 if learn_transition_rates == True:
-    transition_rates_timeseries.push_back(
-            extract_ensemble_transition_rates(transition_rates_ensemble))
+    mean_transition_rates_timeseries.push_back(
+        extract_ensemble_transition_rates(transition_rates_ensemble))
+    network_transition_rates_timeseries.push_back(
+        extract_network_transition_rates(transition_rates_ensemble))
+        
+    
 
 
 ## Final save after last step
@@ -1183,24 +1225,37 @@ if learn_transmission_rate == True:
                            a_min=0.0,
                            output_path=OUTPUT_PATH,
                            output_name='networktransmission_rate')
-
-if learn_transition_rates == True:
-    plot_clinical_parameters(transition_rates_timeseries.container,
-            time_span,
-            a_min=0.0,
-            output_path=OUTPUT_PATH)
+if learn_transition_rates == True:                
+    plot_clinical_parameters(mean_transition_rates_timeseries.container,
+                             current_time_span[:-1],
+                             a_min=0.0,
+                             output_path=OUTPUT_PATH,
+                             output_name='mean')
+    plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container, 0, 1),
+                             current_time_span[:-1],
+                             a_min=0.0,
+                             output_path=OUTPUT_PATH,
+                             output_name='network')
+            
 
 # save parameters ################################################################
 if learn_transmission_rate == True:
-    np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
+    np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_transmission_rate.npy'), 
             mean_transmission_rate_timeseries.container)
     if param_transform == 'log':
-        np.save(os.path.join(OUTPUT_PATH, 'logtransmission_rate.npy'), 
+        np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_logtransmission_rate.npy'), 
                 mean_logtransmission_rate_timeseries.container)
+    
+    np.save(os.path.join(OUTPUT_PATH, 'network_mean_transmission_rate.npy'), 
+            network_transmission_rate_timeseries.container)
+    
 
 if learn_transition_rates == True:
-    np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
-            transition_rates_timeseries.container)
+    np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_transition_rates.npy'), 
+            mean_transition_rates_timeseries.container)
+
+    np.save(os.path.join(OUTPUT_PATH, 'network_mean_transition_rates.npy'), 
+         network_transition_rates_timeseries.container)
 
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_states_sum.npy'), master_states_sum_timeseries.container) #save the ensemble fracs for graphing
 

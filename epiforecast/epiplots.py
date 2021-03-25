@@ -415,12 +415,13 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.close()
 
 def plot_clinical_parameters(transition_rates_timeseries,
-        t,
-        color='b',
-        a_min=None,
-        a_max=None,
-        num_rates=6,
-        output_path='.'):
+                             t,
+                             color='b',
+                             a_min=None,
+                             a_max=None,
+                             num_rates=6,
+                             output_path='.',
+                             output_name=''):
 
     rate_timeseries = transition_rates_timeseries
     rate_perc = np.percentile(rate_timeseries, 
@@ -441,7 +442,7 @@ def plot_clinical_parameters(transition_rates_timeseries,
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path,ylabel_list[k]+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name'.png'))
         plt.close()
 
 def plot_transition_rates(transition_rates_obj_timeseries,
