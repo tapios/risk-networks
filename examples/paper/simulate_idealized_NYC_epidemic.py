@@ -46,7 +46,7 @@ community_transmission_rate = {
 hospital_transmission_reduction = 0.1
 
 λ_min = 4  # minimum contact rate
-λ_max = 90 # maximum contact rate
+λ_max = 80 # maximum contact rate
 
 static_contact_interval = 3 * hour
 mean_contact_lifetime = 2.0 * minute
@@ -67,10 +67,10 @@ assert sum(age_distribution) == 1.0
 set_num_threads(1)
       
 # Set random seeds for reproducibility
-SEED1 = 942395
-SEED2 = 10958
-SEED3 = 4669201
-SEED4 = 2502907
+SEED1 = 89127235
+SEED2 = 5397825
+SEED3 = 12957
+SEED4 = 912685
 
 seed_three_random_states(SEED1)
 
@@ -125,7 +125,7 @@ epidemic_simulator = EpidemicSimulator(
 statuses = random_epidemic(
         network.get_node_count(),
         network.get_nodes(),
-        fraction_infected=0.0015,
+        fraction_infected=0.0017,
         seed=SEED4)
 
 epidemic_simulator.set_statuses(statuses)
@@ -144,14 +144,14 @@ network = epidemic_simulator.run(
 ################################################################################
 
 λ_min = 4   # minimum contact rate
-λ_max = 30  # maximum contact rate
+λ_max = 37  # maximum contact rate
 
 network.set_lambdas(λ_min, λ_max)
 time_delta = epidemic_simulator.time
 
 # run the kinetic model
 network = epidemic_simulator.run(
-    stop_time = epidemic_simulator.time + 5,
+    stop_time = epidemic_simulator.time + 100,
     current_network = network)
 
 kinetic_model = epidemic_simulator.kinetic_model
@@ -160,7 +160,7 @@ kinetic_model = epidemic_simulator.kinetic_model
 ################################################################################
 if SAVE_FLAG:
     np.savetxt(
-            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_0.txt'),
+            os.path.join(SIMULATION_PATH, 'NYC_interventions_1e5_6.txt'),
             np.c_[
                 kinetic_model.times,
                 kinetic_model.statuses['S'],
