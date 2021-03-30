@@ -775,7 +775,8 @@ class DataAssimilator:
                     
                 par_idx = [unode + i*n_user_nodes for i in range(len(self.transition_rates_to_update_str) )]
                 ensemble_transition_rates_unode = ensemble_transition_rates[:,par_idx].reshape(n_ensemble, len(self.transition_rates_to_update_str))
-                print("pre-update rates:", ensemble_transition_rates_unode.mean(axis=0))
+                if verbose:
+                    print("pre-update transition rates:", ensemble_transition_rates_unode.mean(axis=0))
             else:
                 ensemble_transition_rates_unode = ensemble_transition_rates
 
@@ -825,8 +826,8 @@ class DataAssimilator:
                 updated_par_idx = [iii + i*len(update_nodes) for i in range(len(self.transition_rates_to_update_str) )]
                 new_ensemble_transition_rates[:,updated_par_idx] = self.clip_transition_rates(new_ensemble_transition_rates_unode,1)
                 #user_network.get_node_count())
-                print("pos-update rates:", new_ensemble_transition_rates_unode.mean(axis=0))
-                print("pos-update clipped rates:", new_ensemble_transition_rates[:,updated_par_idx].mean(axis=0))
+                if verbose:
+                    print("post-update transition rates:", new_ensemble_transition_rates[:,updated_par_idx].mean(axis=0))
 
         # set the updated rates in the TransitionRates object and
         # return the full rates.
