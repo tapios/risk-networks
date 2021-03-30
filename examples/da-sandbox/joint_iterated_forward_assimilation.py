@@ -16,7 +16,7 @@ from epiforecast.epiplots import (plot_roc_curve,
                                   plot_transmission_rate, 
                                   plot_clinical_parameters)
 from epiforecast.utilities import dict_slice, compartments_count
-from epiforecast.populations import extract_ensemble_transition_rates
+from epiforecast.populations import extract_ensemble_transition_rates, extract_network_transition_rates
 
 def get_start_time(start_end_time):
     return start_end_time.start
@@ -404,8 +404,7 @@ for j in range(spin_up_steps):
         mean_transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
         network_transition_rates_timeseries.push_back(
-            extract_network_transition_rates(transition_rates_ensemble),
-            user_population)
+            extract_network_transition_rates(transition_rates_ensemble, user_population))
         
 
     #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
@@ -502,7 +501,7 @@ for j in range(spin_up_steps):
                                        a_min=0.0,
                                        output_path=OUTPUT_PATH,
                                        output_name='networktransmission_rate')
-
+            
             if learn_transition_rates == True:
                 plot_clinical_parameters(mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
                                          current_time_span[:-1],
@@ -749,8 +748,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             mean_transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
             network_transition_rates_timeseries.push_back(
-                extract_network_transition_rates(transition_rates_ensemble),
-                user_population)
+                extract_network_transition_rates(transition_rates_ensemble, user_population))
             
         #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
         save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
@@ -923,7 +921,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                  community_transmission_rate_ensemble,
                  user_network)
                 
-            print("assimilated records",flush=True)
+                print("assimilated records",flush=True)
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
         walltime_DA_update += timer() - DA_update_timer
@@ -940,7 +938,6 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 #            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
                     
             for j in range(steps_per_da_window):
-
                 walltime_master_eqn = 0.0
                 master_eqn_ensemble.reset_walltimes()
                 # load the new network
@@ -1005,7 +1002,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
     #4) Intervention
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
-            
+    
     if intervene_now:
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
@@ -1139,7 +1136,7 @@ if learn_transition_rates == True:
     mean_transition_rates_timeseries.push_back(
         extract_ensemble_transition_rates(transition_rates_ensemble))
     network_transition_rates_timeseries.push_back(
-        extract_network_transition_rates(transition_rates_ensemble))
+        extract_network_transition_rates(transition_rates_ensemble, user_population))
         
     
 
