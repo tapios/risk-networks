@@ -115,6 +115,10 @@ parser.add_argument('--epidemic-kinetic-states-name',
 parser.add_argument('--ic-alpha', type=float, default=0.0025)
 parser.add_argument('--ic-beta', type=float, default=1)
 
+#for 1% IC infected
+#parser.add_argument('--ic-alpha', type=float, default=0.04)
+#parser.add_argument('--ic-beta', type=float, default=4)
+
 # parser setup #################################################################
 arguments = parser.parse_args()
 print_info_module(__name__, arguments)

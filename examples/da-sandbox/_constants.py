@@ -61,9 +61,9 @@ age_dep_dprime = [0.019   ,  0.073  ,  0.193,  0.327,  0.512]
 
 assert sum(age_distribution) == 1.0
 
-min_contact_rate = 2
-max_contact_rate = 75
-distanced_max_contact_rate=27
+min_contact_rate = 4
+max_contact_rate = 84
+distanced_max_contact_rate = 33
 
 latent_periods               = 3.7 # == 1/σ
 community_infection_periods  = 3.2 # == 1/γ
@@ -76,7 +76,15 @@ community_transmission_rate = 12.0    # == β
 hospital_transmission_reduction = 0.1 # == α
 
 #ICs for kinetic
-fraction_infected = 0.0025
+fraction_infected = 0.0015
+
+#true values:
+age_indep_transition_rates_true = {'latent_periods' : latent_periods, 
+                                   'community_infection_periods' : community_infection_periods,
+                                   'hospital_infection_periods' : hospital_infection_periods}
+age_dep_transition_rates_true = {'hospitalization_fraction' : age_dep_h,
+                                 'community_mortality_fraction' : age_dep_d,
+                                 'hospital_mortality_fraction' : age_dep_dprime}
 
 ################################################################################
 print_end_of(__name__)
