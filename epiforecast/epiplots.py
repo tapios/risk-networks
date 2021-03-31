@@ -414,15 +414,21 @@ def plot_transmission_rate(transmission_rate_timeseries,
     plt.savefig(os.path.join(output_path,output_name+'.png'))
     plt.close()
 
-def plot_clinical_parameters(transition_rates_timeseries,
-                             t,
-                             color='b',
-                             a_min=None,
-                             a_max=None,
-                             num_rates=6,
-                             output_path='.',
-                             output_name=''):
-
+def plot_network_averaged_clinical_parameters(
+        transition_rates_timeseries,
+        t,
+        nodal_ages,
+        age_indep_rates_true = None,
+        age_dep_rates_true = None,
+        color='b',
+        a_min=None,
+        a_max=None,
+        num_rates=6,
+        num_ages=5,
+        age_dep_rates=[3,4,5],
+        output_path='.',
+        output_name=''):
+    
     rate_timeseries = transition_rates_timeseries
     rate_perc = np.percentile(rate_timeseries, 
             q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
@@ -433,17 +439,101 @@ def plot_clinical_parameters(transition_rates_timeseries,
             'hospitalization_fraction',
             'community_mortality_fraction',
             'hospital_mortality_fraction']
+    age_indep_rates = [i for i in range(num_rates) if i not in age_dep_rates]
 
-    for k in range(num_rates):
+    for k in age_indep_rates:
         plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
         plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
         plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
         plt.plot(t, rate_perc[3,k], color = color)
+        if age_indep_rates_true is not None:
+            plt.axhline(age_indep_rates_true[ylabel_list[k]], color = 'black', ls = '--')
+            
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
         plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
         plt.close()
+    
+    #where the network truth is an age dependent object
+    
+    for k in age_dep_rates:
+        plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.plot(t, rate_perc[3,k], color = color)
+            
+        plt.xlabel('Time (days)')
+        plt.ylabel(ylabel_list[k])
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
+        plt.close()
+    
+def plot_ensemble_averaged_clinical_parameters(
+        transition_rates_timeseries,
+        t,
+        nodal_ages,
+        age_indep_rates_true = None,
+        age_dep_rates_true = None,
+        color='b',
+        a_min=None,
+        a_max=None,
+        num_rates=6,
+        num_ages=5,
+        age_dep_rates=[3,4,5],
+        output_path='.',
+        output_name=''):
+    
+    rate_timeseries = transition_rates_timeseries
+    rate_perc = np.percentile(rate_timeseries, 
+            q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+    ylabel_list = ['latent_periods',
+            'community_infection_periods',
+            'hospital_infection_periods',
+            'hospitalization_fraction',
+            'community_mortality_fraction',
+            'hospital_mortality_fraction']
+    age_indep_rates = [i for i in range(num_rates) if i not in age_dep_rates]
+
+    for k in age_indep_rates:
+        plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = color, linewidth = 0.)
+        plt.plot(t, rate_perc[3,k], color = color)
+        if age_indep_rates_true is not None:
+            plt.axhline(age_indep_rates_true[ylabel_list[k]], color = 'black', ls = '--')
+            
+        plt.xlabel('Time (days)')
+        plt.ylabel(ylabel_list[k])
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
+        plt.close()
+    
+    #where the network truth is an age dependent object
+    age_colors = ['C'+ str(i) for i in np.arange(num_ages)]
+
+    for k in age_dep_rates:
+        for age_cat in range(num_ages):
+            age_cat_nodes = [node for (node,cat) in enumerate(nodal_ages) if cat == age_cat]
+            
+            rate_perc = np.percentile(transition_rates_timeseries[age_cat_nodes,:], 
+                                      q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+
+            plt.fill_between(t, np.clip(rate_perc[0,k], a_min, a_max), np.clip(rate_perc[-1,k], a_min, a_max), alpha = .2, color = age_colors[age_cat], linewidth = 0.)
+            plt.fill_between(t, np.clip(rate_perc[1,k], a_min, a_max), np.clip(rate_perc[-2,k], a_min, a_max), alpha = .2, color = age_colors[age_cat], linewidth = 0.)
+            plt.fill_between(t, np.clip(rate_perc[2,k], a_min, a_max), np.clip(rate_perc[-3,k], a_min, a_max), alpha = .2, color = age_colors[age_cat], linewidth = 0.)
+            plt.plot(t, rate_perc[3,k], color = age_colors[age_cat])
+            if age_dep_rates_true is not None:
+                plt.axhline(age_dep_rates_true[ylabel_list[k]][age_cat], color = age_colors[age_cat], ls = '--')
+
+        plt.xlabel('Time (days)')
+        plt.ylabel(ylabel_list[k])
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
+        plt.close()
+
+
 
 def plot_transition_rates(transition_rates_obj_timeseries,
         t,

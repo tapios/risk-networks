@@ -14,7 +14,8 @@ from epiforecast.epiplots import (plot_roc_curve,
                                   plot_ensemble_states, 
                                   plot_epidemic_data,
                                   plot_transmission_rate, 
-                                  plot_clinical_parameters)
+                                  plot_network_averaged_clinical_parameters,
+                                  plot_ensemble_averaged_clinical_parameters)
 from epiforecast.utilities import dict_slice, compartments_count
 from epiforecast.populations import extract_ensemble_transition_rates, extract_network_transition_rates
 
@@ -38,7 +39,9 @@ from _constants import (static_contact_interval,
                         OUTPUT_PATH,
                         SEED_JOINT_EPIDEMIC,
                         min_contact_rate,
-                        max_contact_rate)
+                        max_contact_rate,
+                        age_indep_transition_rates_true,
+                        age_dep_transition_rates_true)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -58,6 +61,8 @@ from _stochastic_init import (kinetic_ic,
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
+
+age_category_of_users = user_network.get_age_groups() 
 
 np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
         user_nodes)
@@ -192,6 +197,8 @@ record_assimilator = DataAssimilator(
         additive_inflate_factor=arguments.assimilation_additive_inflation_factor,
         inflate_I_only=arguments.assimilation_inflate_I_only,
         distance_threshold=arguments.distance_threshold,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
         transmission_rate_transform=param_transform,
@@ -503,16 +510,25 @@ for j in range(spin_up_steps):
                                        output_name='networktransmission_rate')
             
             if learn_transition_rates == True:
-                plot_clinical_parameters(mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
-                                         current_time_span[:-1],
-                                         a_min=0.0,
-                                         output_path=OUTPUT_PATH,
-                                         output_name='mean')
-                plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
-                                         current_time_span[:-1],
-                                         a_min=0.0,
-                                         output_path=OUTPUT_PATH,
-                                         output_name='network')
+                
+                plot_network_averaged_clinical_parameters(
+                    mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='mean')
+                plot_ensemble_averaged_clinical_parameters(
+                    np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='network')
                 
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
@@ -837,16 +853,24 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                        output_name='networktransmission_rate')
             
             if learn_transition_rates == True:                
-                plot_clinical_parameters(mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
-                                         current_time_span[:-1],
-                                         a_min=0.0,
-                                         output_path=OUTPUT_PATH,
-                                         output_name='mean')
-                plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
-                                         current_time_span[:-1],
-                                         a_min=0.0,
-                                         output_path=OUTPUT_PATH,
-                                         output_name='network')
+                plot_network_averaged_clinical_parameters(
+                    mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='mean')
+                plot_ensemble_averaged_clinical_parameters(
+                    np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='network')
             
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
@@ -1170,26 +1194,7 @@ if intervention_type == 'isolate':
 
 
 print("finished assimilation")
-# save & plot ##################################################################
-plt.close(fig)
-fig, axes = plt.subplots(1, 3, figsize = (16, 4))
-axes = plot_epidemic_data(user_population, statuses_sum_trace, axes, time_span)
-plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
-
-# plot trajectories
-axes = plot_ensemble_states(user_population,
-                            population,
-                            master_states_sum_timeseries.container,
-                            time_span,
-                            axes=axes,
-                            xlims=(-0.1, total_time),
-                            a_min=0.0)
-plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
-            rasterized=True,
-            dpi=150)
-
-plt.close()
-
+# save state #####################################################################
 np.save(os.path.join(OUTPUT_PATH, 'trace_kinetic_statuses_sum.npy'), 
         statuses_sum_trace)
 
@@ -1203,37 +1208,6 @@ np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'),
 
 np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'), 
         time_span)
-
-
-if learn_transmission_rate == True:
-    plot_transmission_rate(mean_transmission_rate_timeseries.container,
-            time_span,
-            a_min=0.0,
-            output_path=OUTPUT_PATH)
-    if param_transform == 'log':
-        plot_transmission_rate(mean_logtransmission_rate_timeseries.container,
-                               current_time_span,
-                               a_min=0.0,
-                               output_path=OUTPUT_PATH,
-                               output_name='logtransmission_rate')
-
-    plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container,0,1),
-                           current_time_span,
-                           a_min=0.0,
-                           output_path=OUTPUT_PATH,
-                           output_name='networktransmission_rate')
-if learn_transition_rates == True:                
-    plot_clinical_parameters(mean_transition_rates_timeseries.container,
-                             current_time_span[:-1],
-                             a_min=0.0,
-                             output_path=OUTPUT_PATH,
-                             output_name='mean')
-    plot_clinical_parameters(np.swapaxes(network_transition_rates_timeseries.container, 0, 1),
-                             current_time_span[:-1],
-                             a_min=0.0,
-                             output_path=OUTPUT_PATH,
-                             output_name='network')
-            
 
 # save parameters ################################################################
 if learn_transmission_rate == True:
@@ -1256,10 +1230,63 @@ if learn_transition_rates == True:
 
 np.save(os.path.join(OUTPUT_PATH, 'master_eqns_states_sum.npy'), master_states_sum_timeseries.container) #save the ensemble fracs for graphing
 
-#kinetic_eqns_statuses = []
-#for kinetic_state in kinetic_states_timeseries:
-#    kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
+# save & plot ##################################################################
+plt.close(fig)
+fig, axes = plt.subplots(1, 3, figsize = (16, 4))
+axes = plot_epidemic_data(user_population, statuses_sum_trace, axes, time_span)
+plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
 
-#np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
+# plot trajectories
+axes = plot_ensemble_states(user_population,
+                            population,
+                            master_states_sum_timeseries.container,
+                            time_span,
+                            axes=axes,
+                            xlims=(-0.1, total_time),
+                            a_min=0.0)
+plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
+            rasterized=True,
+            dpi=150)
+
+plt.close()
+
+
+if learn_transmission_rate == True:
+    plot_transmission_rate(mean_transmission_rate_timeseries.container,
+            time_span,
+            a_min=0.0,
+            output_path=OUTPUT_PATH)
+    if param_transform == 'log':
+        plot_transmission_rate(mean_logtransmission_rate_timeseries.container,
+                               current_time_span,
+                               a_min=0.0,
+                               output_path=OUTPUT_PATH,
+                               output_name='logtransmission_rate')
+
+    plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container,0,1),
+                           current_time_span,
+                           a_min=0.0,
+                           output_path=OUTPUT_PATH,
+                           output_name='networktransmission_rate')
+if learn_transition_rates == True:                
+    plot_network_averaged_clinical_parameters(
+        mean_transition_rates_timeseries.container,
+        current_time_span,
+        age_category_of_users,
+        age_indep_rates_true = age_indep_transition_rates_true,
+        age_dep_rates_true = age_dep_transition_rates_true,
+        a_min=0.0,
+        output_path=OUTPUT_PATH,
+        output_name='mean')
+    plot_ensemble_averaged_clinical_parameters(
+        np.swapaxes(network_transition_rates_timeseries.container, 0, 1),
+        current_time_span,
+        age_category_of_users,
+        age_indep_rates_true = age_indep_transition_rates_true,
+        age_dep_rates_true = age_dep_transition_rates_true,
+        a_min=0.0,
+        output_path=OUTPUT_PATH,
+        output_name='network')
+    
 
 
