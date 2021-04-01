@@ -71,6 +71,7 @@ EXP_NAME="u100_s0_d1" #1e5 = 97942 nodes
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
 test_budgets=(0 4897 9794 24485 97942)  
+#test_budgets=(0 49 98 245 982)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
@@ -106,14 +107,13 @@ python3 joint_iterated_forward_assimilation.py \
   --distance-threshold=${distance_threshold} \
   --assimilation-window=${da_window} \
   --assimilation-sweeps=${n_sweeps} \
+  --params-learn-transition-rates \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \
   --record-ignore-mass-constraint\
   >${stdout} 2>${stderr}
 #  --prior-run\
-#  --intervention-frequency=${int_freq} \
-#  --intervention-start-time=${intervention_start_time} \
 
 
 

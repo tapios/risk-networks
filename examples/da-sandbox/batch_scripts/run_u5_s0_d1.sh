@@ -107,6 +107,7 @@ python3 joint_iterated_forward_assimilation.py \
   --distance-threshold=${distance_threshold} \
   --assimilation-window=${da_window} \
   --assimilation-sweeps=${n_sweeps} \
+  --params-learn-transition-rates \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \

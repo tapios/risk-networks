@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u75s0d1i0.03"
+#SBATCH -J "u75s0d1i0.01"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
@@ -43,8 +43,7 @@ intervention_freq='interval'
 intervention_type='isolate'
 intervention_nodes='sick'
 intervention_interval=1.0
-intervention_start_time=8
-intervention_threshold=0.03
+intervention_threshold=0.01
 
 #da params 
 da_window=1.0
@@ -72,7 +71,7 @@ param_prior_noise_factor=0.25
 
 # network  + sensor wearers
 #EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
-EXP_NAME="u75rand_s0_d1_i0.03_exog" #1e5 = 97942 nodes
+EXP_NAME="u75rand_s0_d1_i0.01" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
@@ -89,7 +88,7 @@ mkdir -p "${output_path}"
 
 echo "output to be found in: ${output_path}, stdout in $stdout, stderr in $stderr "
 
-cp batch_scripts/run_u75rand_s0_d1_i0.03.sh ${output_path}
+cp batch_scripts/run_u75rand_s0_d1_i0.01.sh ${output_path}
 
 # launch #######################################################################
 # launch #######################################################################
@@ -106,7 +105,6 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${intervention_freq} \
-  --intervention-start-time=${intervention_start_time} \
   --intervention-nodes=${intervention_nodes}\
   --intervention-type=${intervention_type}\
   --intervention-I-min-threshold=${intervention_threshold}\
@@ -120,6 +118,7 @@ python3 joint_iterated_forward_assimilation.py \
   --distance-threshold=${distance_threshold} \
   --assimilation-window=${da_window} \
   --assimilation-sweeps=${n_sweeps} \
+  --params-learn-transition-rates \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \

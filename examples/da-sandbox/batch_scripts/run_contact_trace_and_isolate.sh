@@ -41,7 +41,6 @@ intervention_freq='interval'
 intervention_type='isolate'
 intervention_nodes='contact_tracing'
 intervention_interval=1.0
-intervention_start_time=8
 #da params 
 da_window=1.0
 n_sweeps=1
@@ -99,7 +98,6 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${intervention_freq} \
-  --intervention-start-time=${intervention_start_time} \
   --intervention-nodes=${intervention_nodes}\
   --intervention-type=${intervention_type}\
   --intervention-nodes=${intervention_nodes}\
@@ -112,6 +110,7 @@ python3 joint_iterated_forward_assimilation.py \
   --distance-threshold=${distance_threshold} \
   --assimilation-window=${da_window} \
   --assimilation-sweeps=${n_sweeps} \
+  --params-learn-transition-rates \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \

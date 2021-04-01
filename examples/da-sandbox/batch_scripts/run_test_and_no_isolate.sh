@@ -42,25 +42,8 @@ intervention_type='nothing'
 intervention_nodes='test_data_only'
 intervention_interval=1.0
 intervention_start_time=8
-#da params 
-da_window=1.0
-n_sweeps=1
-
-#observation_noise
-obs_noise=1e-8
-#reglarization parameters
-sensor_reg=1e-1
-test_reg=1e-2
-record_reg=1e-2
-
-# observation localization (number of nbhds observations have effect on (integer) 0 = delta at observation, 1= nbhd of observation)
-distance_threshold=0
 
 #inflation (No inflation is 1.0)
-sensor_inflation=10.0
-test_inflation=3.0
-record_inflation=2.0
-rate_inflation=1.0
 
 #param noise mean - ln((mu+bias)^2 / sqrt((mu+bias)^2 +sig^2))
 param_prior_noise_factor=0.25
@@ -91,7 +74,6 @@ cp batch_scripts/run_test_and_no_isolate.sh ${output_path}
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --constants-output-path=${output_path} \
-  --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \
   --observations-sensor-wearers=${wearers} \
   --network-node-count=${network_size} \
@@ -99,22 +81,13 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
   --intervention-frequency=${intervention_freq} \
-  --intervention-start-time=${intervention_start_time} \
   --intervention-nodes=${intervention_nodes}\
   --intervention-type=${intervention_type}\
   --intervention-nodes=${intervention_nodes}\
-  --sensor-assimilation-joint-regularization=${sensor_reg} \
-  --test-assimilation-joint-regularization=${test_reg} \
-  --record-assimilation-joint-regularization=${record_reg} \
-  --assimilation-sensor-inflation=${sensor_inflation} \
-  --assimilation-test-inflation=${test_inflation} \
-  --assimilation-record-inflation=${record_inflation} \
-  --distance-threshold=${distance_threshold} \
-  --assimilation-window=${da_window} \
-  --assimilation-sweeps=${n_sweeps} \
+  --intervention-start-time=${intervention_start_time} \
+  --params-learn-transition-rates \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
-  --params-transmission-inflation=${rate_inflation} \
   >${stdout} 2>${stderr}
 
 
