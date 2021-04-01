@@ -76,7 +76,7 @@ community_transmission_rate = 12.0    # == β
 hospital_transmission_reduction = 0.1 # == α
 
 #ICs for kinetic
-fraction_infected = 0.0015
+fraction_infected = 0.0016
 
 #true values:
 age_indep_transition_rates_true = {'latent_periods' : latent_periods, 

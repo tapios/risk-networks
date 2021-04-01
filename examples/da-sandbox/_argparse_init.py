@@ -78,7 +78,7 @@ parser.add_argument('--prior-run', default=False, action='store_true')
 
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
-parser.add_argument('--params-transition-rates-str', type=str, default='latent_periods,community_infection_periods')
+parser.add_argument('--params-transition-rates-str', type=str, default='latent_periods,community_infection_periods,hospital_infection_periods')
 
 parser.add_argument('--params-learn-transmission-rate', default=False,action='store_true')
 parser.add_argument('--params-transmission-rate-bias', type=float, default=0.0)
@@ -95,7 +95,7 @@ parser.add_argument('--intervention-I-min-threshold', type=float, default=0.999)
 parser.add_argument('--intervention-sum-EI', default=False, action='store_true')
 parser.add_argument('--intervention-random-isolate-budget', type=int, default=300)
 parser.add_argument('--intervention-isolate-node-lambda', type=float, default=2.0)
-parser.add_argument('--intervention-start-time', type=float, default=10.0)
+parser.add_argument('--intervention-start-time', type=float, default=18.0)
 parser.add_argument('--intervention-interval', type=float, default=1.0)
 parser.add_argument('--intervention-sick-isolate-time', type=float, default=7.0)
 
@@ -112,7 +112,7 @@ parser.add_argument('--epidemic-kinetic-states-name',
                     default='epidemic_kinetic_states.pkl')
 
 # initial condition ############################################################
-parser.add_argument('--ic-alpha', type=float, default=0.0025)
+parser.add_argument('--ic-alpha', type=float, default=0.0016)
 parser.add_argument('--ic-beta', type=float, default=1)
 
 #for 1% IC infected
