@@ -45,7 +45,7 @@ static_contact_interval = 3 * hour
 mean_contact_lifetime = 2 * minute
 
 start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    = 90.0  # the ultimate end time
+end_time    = 127.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
