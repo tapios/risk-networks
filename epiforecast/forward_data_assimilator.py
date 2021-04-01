@@ -306,9 +306,11 @@ class DataAssimilator:
                     clinical_parameter = (
                             transition_rates.get_clinical_parameter(rate_name))
 
-                    if isinstance(clinical_parameter, np.ndarray):
+                    # NB we now only store clinical parameters for the users, so this is 
+                    # not required
+                    #if isinstance(clinical_parameter, np.ndarray):
                         # only extract the observed values
-                        clinical_parameter = clinical_parameter[user_nodes]
+                        #clinical_parameter = clinical_parameter[user_nodes]
 
                     rates_member.append(clinical_parameter)
 

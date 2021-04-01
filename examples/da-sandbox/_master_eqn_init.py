@@ -27,20 +27,35 @@ learn_transition_rates = arguments.params_learn_transition_rates
 transition_rates_ensemble = []
 if learn_transition_rates == True:
     parameter_str = arguments.params_transition_rates_str.split(',')
+    #extract the true rates users, in case we wish to use the true values on the user_network
+    transition_rates_for_users = transition_rates[user_nodes]
+    user_stochastic_clinical_parameters = transition_rates_for_users.get_clinical_parameters_as_dict()
     for i in range(ensemble_size):
+        #transition_rates = TransitionRates.from_samplers(
+        #        population=user_network.get_node_count(),
+        #        lp_sampler=GammaSampler(1.7,2.,1.),
+        #        cip_sampler=GammaSampler(1.5,2.,1.),
+        #        hip_sampler=GammaSampler(1.5,3.,1.),
+        #        hf_sampler=BetaSampler(4.,0.036),
+        #        cmf_sampler=BetaSampler(4.,0.001),
+        #        hmf_sampler=BetaSampler(4.,0.18)
+        #)
+        
         transition_rates = TransitionRates.from_samplers(
                 population=user_network.get_node_count(),
-                lp_sampler=GammaSampler(1.7,2.,1.),
-                cip_sampler=GammaSampler(1.5,2.,1.),
-                hip_sampler=GammaSampler(1.5,3.,1.),
-                hf_sampler=BetaSampler(4.,0.036),
-                cmf_sampler=BetaSampler(4.,0.001),
-                hmf_sampler=BetaSampler(4.,0.18)
+                lp_sampler=GammaSampler(1.35,2.,1.),
+                cip_sampler=GammaSampler(1.1,2.,1.),
+                hip_sampler=GammaSampler(1.0,4.,1.),
+                hf_sampler=user_stochastic_clinical_parameters['hf'],
+                cmf_sampler=user_stochastic_clinical_parameters['cmf'],
+                hmf_sampler=user_stochastic_clinical_parameters['hmf']
         )
+    
         transition_rates.calculate_from_clinical()
-        transition_rates_particle = transition_rates[user_nodes]
-        transition_rates_particle.calculate_from_clinical()
-        transition_rates_ensemble.append(transition_rates_particle)
+        transition_rates_ensemble.append(transition_rates)
+        #transition_rates_particle = transition_rates #[user_nodes]
+        #transition_rates_particle.calculate_from_clinical()
+        #transition_rates_ensemble.append(transition_rates_particle)
 
 else:
     parameter_str = None
