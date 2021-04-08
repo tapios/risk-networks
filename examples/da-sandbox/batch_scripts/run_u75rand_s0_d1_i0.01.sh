@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u75s0d1i0.01"
+#SBATCH -J "u75rands0d1i0.01"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
