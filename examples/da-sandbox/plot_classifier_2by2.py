@@ -354,13 +354,20 @@ for day_idx,day in enumerate(days):
     ax0 = axs[0][day_idx]
     ax1 = axs[1][day_idx]
 
+    #where to put subplot a,b,c,d
+    text_x = 0.45*plot_min
+    text_y = 0.95
     if day_idx == 0:
         ax0.set_title("April 9")
+        ax0.text(text_x,text_y,'a', weight='bold')
         ax0.set_ylabel("TPR")
+        ax1.text(text_x,text_y,'c', weight='bold')
         ax1.set_ylabel("TPR")
-
+        
     if day_idx == 1:
+        ax0.text(text_x,text_y,'b', weight='bold')
         ax0.set_title("April 30")
+        ax1.text(text_x,text_y,'d', weight='bold')
     
 
     ##################
@@ -433,8 +440,8 @@ for day_idx,day in enumerate(days):
         lbls = [lbl if i==k else '' for i,lbl in enumerate(user_EXP_LABELS)]
 
         # a trick to get the entry in the legend
-        if k == 0:
-            ax1.hlines(0.5,xmin=plot_min,xmax=1.0,label='100%', alpha=0.0)
+        #if k == 0:
+        #    ax1.hlines(0.5,xmin=plot_min,xmax=1.0,label='100%', alpha=0.0)
         
         for xrate,yrate,clr,lbl in list(zip(user_ppf[k,:,:],user_tpr[k,:,:],colors,lbls))[::-1]:
             #first sort the lower bound with interpolation 
@@ -460,14 +467,14 @@ for day_idx,day in enumerate(days):
     ax1.spines['right'].set_visible(False)
     ax1.spines['top'].set_visible(False)
     if day_idx == 0:
-        ax1.legend(loc='upper left',title='User base', frameon=False)# 'lower right'
+        ax1.legend(loc='upper left', title='User base', frameon=False)# 'lower right'
         #set these to be black
         leg = ax1.get_legend()
         [lgd.set_color('grey') for lgd in leg.legendHandles]
         leg._legend_box.align = "left"
 
 #when all days are plotted   
-fig.tight_layout()
+fig.tight_layout(pad=2.0)
 fig_name = os.path.join(OUTDIR,'tpr_'+OUT_NAME+'.pdf')
 fig.savefig(fig_name,dpi=300)
 
