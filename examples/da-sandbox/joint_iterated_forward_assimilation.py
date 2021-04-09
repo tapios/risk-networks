@@ -1250,6 +1250,12 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
 
 plt.close()
 
+if arguments.save_closure_coeffs:
+    idx_interval = int(1.0/static_contact_interval)
+    CM_SI_coeff = np.array(master_eqn_ensemble.CM_SI_coeff_history[::idx_interval])
+    CM_SH_coeff = np.array(master_eqn_ensemble.CM_SH_coeff_history[::idx_interval])
+    np.save(os.path.join(OUTPUT_PATH, 'CM_SI_coeff.npy'), CM_SI_coeff)
+    np.save(os.path.join(OUTPUT_PATH, 'CM_SH_coeff.npy'), CM_SH_coeff)
 
 if learn_transmission_rate == True:
     plot_transmission_rate(mean_transmission_rate_timeseries.container,

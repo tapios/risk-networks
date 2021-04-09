@@ -8,43 +8,57 @@ from timeit import default_timer as timer
 import ray
 from numba import jit 
 
-
-
 @jit(nopython=True)
-def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean):
+def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean, ensemble_correction=True):
     CM_SI_data = np.zeros(nonzeros)
     CM_SH_data = np.zeros(nonzeros)
+    CM_SI_coeff = np.zeros(nonzeros)
+    CM_SH_coeff = np.zeros(nonzeros)
     for k,i,j,v in zip(range(nonzeros), rows, cols, data):
         #for SI interactions
-        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>} 
-        CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
-        CM_SI_data[k] *= v                      #multiply by the weight matrix wij
+        if ensemble_correction==True:
+            CM_SI_coeff[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
+            CM_SI_coeff[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
+        else:
+            CM_SI_coeff[k] = 1.
+        CM_SI_data[k] = CM_SI_coeff[k] * v       #multiply by the weight matrix wij
 
         #for SH interactions
-        CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
-        CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
-        CM_SH_data[k] *= v
-    
-    return CM_SI_data, CM_SH_data 
+        if ensemble_correction==True:
+            CM_SH_coeff[k] = yS[:,i].dot(yH[:,j])/M
+            CM_SH_coeff[k] /= Smean[i]*Hmean[j]+1e-8
+        else:
+            CM_SH_coeff[k] = 1.
+        CM_SH_data[k] = CM_SH_coeff[k] * v
+
+    return CM_SI_data, CM_SH_data, CM_SI_coeff, CM_SH_coeff
 
 @jit(nopython=True)
-def create_CM_data_ptr(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean, ptr):
+def create_CM_data_ptr(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean, ptr, ensemble_correction=True):
     CM_SI_data = np.zeros(nonzeros)
     CM_SH_data = np.zeros(nonzeros)
+    CM_SI_coeff = np.zeros(nonzeros)
+    CM_SH_coeff = np.zeros(nonzeros)
     for k,i,j,v in zip(range(nonzeros), rows, cols, data):
         #for SI interactions
-        CM_SI_data[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>} 
-        CM_SI_data[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
-        CM_SI_data[k] *= v                      #multiply by the weight matrix wij
+        if ensemble_correction==True:
+            CM_SI_coeff[k] = yS[:,i].dot(yI[:,j])/M  #create bar{<S_i,I_j>}
+            CM_SI_coeff[k] /= Smean[i]*Imean[j]+1e-8 #divide by <S_i><I_j>+eps
+        else:
+            CM_SI_coeff[k] = 1.
+        CM_SI_data[k] = CM_SI_coeff[k] * v       #multiply by the weight matrix wij
         CM_SI_data[k] *= 0.5*(ptr[:,i] + ptr[:,j]).mean()
 
         #for SH interactions
-        CM_SH_data[k] = yS[:,i].dot(yH[:,j])/M
-        CM_SH_data[k] /= Smean[i]*Hmean[j]+1e-8
-        CM_SH_data[k] *= v
+        if ensemble_correction==True:
+            CM_SH_coeff[k] = yS[:,i].dot(yH[:,j])/M
+            CM_SH_coeff[k] /= Smean[i]*Hmean[j]+1e-8
+        else:
+            CM_SH_coeff[k] = 1.
+        CM_SH_data[k] = CM_SH_coeff[k] * v
         CM_SH_data[k] *= 0.5*(ptr[:,i] + ptr[:,j]).mean()
-    
-    return CM_SI_data, CM_SH_data
+
+    return CM_SI_data, CM_SH_data, CM_SI_coeff, CM_SH_coeff
 
 class MasterEquationModelEnsemble:
     def __init__(
@@ -57,7 +71,8 @@ class MasterEquationModelEnsemble:
             neighbor_weights=None,
             start_time=0.0,
             parallel_cpu=False,
-            num_cpus=1):
+            num_cpus=1,
+            ensemble_correction=True):
         """
         Constructor
 
@@ -100,6 +115,11 @@ class MasterEquationModelEnsemble:
         self.D_slice = slice(5*self.N, 6*self.N)
 
         self.hospital_transmission_reduction = hospital_transmission_reduction
+
+        self.CM_SI_coeff_history = []
+        self.CM_SH_coeff_history = []
+
+        self.ensemble_correction = ensemble_correction
 
         self.parallel_cpu = parallel_cpu
         if parallel_cpu:
@@ -390,24 +410,11 @@ class MasterEquationModelEnsemble:
             # if we have a nodally defined transmission parameter, the partial transmissions are 
             # accounted for in the closure calculation
             if self.full_transmission_rate_flag:
-                CM_SI_data,CM_SH_data = create_CM_data(
+                CM_SI_data,CM_SH_data, CM_SI_coeff, CM_SH_coeff = create_CM_data(
                     nonzeros,
                     cooL_rows,
                     cooL_cols,
-                    cooL_data, 
-                    self.M,
-                    yS,
-                    yI,
-                    yH,
-                    S_ensemble_mean,
-                    I_ensemble_mean,
-                    H_ensemble_mean)
-            else:
-                CM_SI_data,CM_SH_data = create_CM_data_ptr(
-                    nonzeros,
-                    cooL_rows,
-                    cooL_cols,
-                    cooL_data, 
+                    cooL_data,
                     self.M,
                     yS,
                     yI,
@@ -415,7 +422,25 @@ class MasterEquationModelEnsemble:
                     S_ensemble_mean,
                     I_ensemble_mean,
                     H_ensemble_mean,
-                    self.partial_transmission_rates)
+                    ensemble_correction=self.ensemble_correction)
+            else:
+                CM_SI_data,CM_SH_data, CM_SI_coeff, CM_SH_coeff = create_CM_data_ptr(
+                    nonzeros,
+                    cooL_rows,
+                    cooL_cols,
+                    cooL_data,
+                    self.M,
+                    yS,
+                    yI,
+                    yH,
+                    S_ensemble_mean,
+                    I_ensemble_mean,
+                    H_ensemble_mean,
+                    self.partial_transmission_rates,
+                    ensemble_correction=self.ensemble_correction)
+
+            self.CM_SI_coeff_history.append(CM_SI_coeff)
+            self.CM_SH_coeff_history.append(CM_SH_coeff)
 
             CM_S = coo_matrix((np.array(CM_SI_data),(cooL.row,cooL.col)),shape=(self.N,self.N)).tocsr()
             CM_S @= y[:,iI].T
