@@ -118,7 +118,8 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         neighbor_weights=exogenous_scale_factor,
         start_time=start_time,
         parallel_cpu=arguments.parallel_flag,
-        num_cpus=arguments.parallel_num_cpus
+        num_cpus=arguments.parallel_num_cpus,
+        ensemble_correction=arguments.ensemble_closure
 )
 
 

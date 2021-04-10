@@ -76,6 +76,10 @@ parser.add_argument('--record-ignore-mass-constraint',default=False, action='sto
 #prior run
 parser.add_argument('--prior-run', default=False, action='store_true')
 
+#closure study
+parser.add_argument('--ensemble-closure', default=False, action='store_true') 
+parser.add_argument('--save-closure-coeffs', default=False, action='store_true') 
+
 # parameters learning ##########################################################
 parser.add_argument('--params-learn-transition-rates', default=False, action='store_true')
 parser.add_argument('--params-transition-rates-str', type=str, default='latent_periods,community_infection_periods,hospital_infection_periods')
