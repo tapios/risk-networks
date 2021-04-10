@@ -1,6 +1,7 @@
 import os, sys; sys.path.append(os.path.join('..', '..'))
 
 import numpy as np
+from matplotlib import rcParams
 import matplotlib.pyplot as plt
 
 from epiforecast.performance_metrics import PredictedPositiveFraction, TrueNegativeRate, TruePositiveRate, PerformanceTracker
@@ -15,12 +16,13 @@ from epiforecast.performance_metrics import PredictedPositiveFraction, TrueNegat
 
 ###########################
 # Some general parameters #
-###s75########################
+###########################
+
+#'rand' or 'nbhd'
+user_base_type = 'rand'
+
 
 OUTDIR = 'output'
-
-user_base_type = 'nbhd'
-
 if user_base_type == 'nbhd':
     OUT_NAME = '2by2_classifiers'
 elif user_base_type == 'rand':
@@ -53,7 +55,7 @@ tani_EXP_NAME = 'test_and_no_isolate'
 tact_EXP_NAME = 'contact_trace'
 s75_EXP_NAME  = 'u100_s75_d1_0'
 
-u100_EXP_LABELS = ['5%','10%','25%']
+u100_EXP_LABELS = ['5\%','10\%','25\%']
 s75_EXP_LABEL = 'Sensors only'
 
 u100_EXP_PARAM_VALUES = [4897, 9794, 24485]
@@ -89,7 +91,7 @@ elif user_base_type == 'rand':
 population = 97942
 user_base=[25,50,75]
 
-user_EXP_LABELS=['25%','50%','75%']
+user_EXP_LABELS=['25\%','50\%','75\%']
 user_EXP_PARAM_VALUES = np.zeros((len(user_base),len(user_EXP_LABELS)), dtype=int)
 for idx,n_user in enumerate(user_base):
     if n_user== 75:
@@ -123,7 +125,22 @@ fig_width = fig_width_pt * inches_per_pt  # width in inches
 fig_height = fig_width*ratio  # height in inches
 fig_size = [1.5*fig_width, 1.5*fig_height]
 
-fig, axs = plt.subplots(nrows = 2, ncols = 2, figsize = fig_size)
+params = {  # 'backend': 'ps',
+    'font.family': 'serif',
+    'font.serif': 'Helvetica',
+    'font.size': 11,
+    'axes.labelsize': 'large',
+    'axes.titlesize': 'large',
+    'legend.fontsize': 'large',
+    'xtick.labelsize': 'medium',
+    'ytick.labelsize': 'medium',
+    'savefig.dpi': 150,
+    'text.usetex': True,
+    'figure.figsize': fig_size}
+rcParams.update(params)
+
+
+fig, axs = plt.subplots(nrows = 2, ncols = 2)
 
 #######################################
 # Create/load all the classifier data #
@@ -357,17 +374,18 @@ for day_idx,day in enumerate(days):
     #where to put subplot a,b,c,d
     text_x = 0.45*plot_min
     text_y = 0.95
+    fontweight = "bold"
     if day_idx == 0:
         ax0.set_title("April 9")
-        ax0.text(text_x,text_y,'a', weight='bold')
+        ax0.text(text_x,text_y,'a', fontweight=fontweight, fontsize='large')
         ax0.set_ylabel("TPR")
-        ax1.text(text_x,text_y,'c', weight='bold')
+        ax1.text(text_x,text_y,'c', fontweight=fontweight, fontsize='large')
         ax1.set_ylabel("TPR")
         
     if day_idx == 1:
-        ax0.text(text_x,text_y,'b', weight='bold')
+        ax0.text(text_x,text_y,'b', fontweight=fontweight, fontsize='large')
         ax0.set_title("April 30")
-        ax1.text(text_x,text_y,'d', weight='bold')
+        ax1.text(text_x,text_y,'d', fontweight=fontweight, fontsize='large')
     
 
     ##################
@@ -420,8 +438,6 @@ for day_idx,day in enumerate(days):
 
     ax0.set_xscale('log')
     ax0.set_xlim([plot_min,1.])
-    #ax0.set_xlabel('PPF')#Predicted Positive Fraction')
-    #ax0.set_ylabel('TPR') #True Positive Rate')
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
 
