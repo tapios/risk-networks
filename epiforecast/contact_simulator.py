@@ -137,7 +137,7 @@ class ContactSimulator:
         self.active_contacts = np.zeros(self.buffer, dtype=bool)
 
         if initialize_contacts:
-            λ = night_inception_rate
+            λ = night_inception_rate / mean_degree
             μ = 1 / mean_event_lifetime
             initial_fraction_active_contacts = λ / (μ + λ)
 
