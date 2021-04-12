@@ -207,6 +207,6 @@ def contiguous_indicators(graph, subgraph):
             #additive weights
             exterior_neighbor_weights[idx] = len(exterior_neighbors)
 
-    mean_neighbors_exterior = exterior_neighbor_count / boundary_nodes
+    mean_neighbors_exterior = exterior_neighbor_count / (interior_nodes + boundary_nodes)
                     
     return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list, exterior_neighbor_weights
