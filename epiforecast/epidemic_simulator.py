@@ -198,6 +198,11 @@ class EpidemicSimulator:
             edge_weights = self.contact_simulator.compute_edge_weights()
             next_network.set_edge_weights(edge_weights)
 
+            λ_integrated = self.contact_simulator.compute_diurnally_averaged_nodal_activation_rate(
+                nodal_day_inception_rate = λ_max,
+                nodal_night_inception_rate = λ_min)
+            next_network.set_lambda_integrated(λ_integrated)
+
             end_contact_simulation = timer()
 
             #

@@ -429,6 +429,9 @@ for j in range(spin_up_steps):
     user_network.update_from(loaded_data.contact_network)
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
+    master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+        user_network.get_lambda_integrated())
+
     timer_master_eqn = timer()
     
 
@@ -779,6 +782,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         user_network.update_from(loaded_data.contact_network)
         master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+        master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+            user_network.get_lambda_integrated())
 
         # run ensemble forward
         timer_master_eqn = timer()
@@ -971,6 +976,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 user_network.update_from(loaded_data.contact_network)
                 master_eqn_ensemble.set_mean_contact_duration(
                     user_network.get_edge_weights())
+                master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+                    user_network.get_lambda_integrated())
+
                 timer_master_eqn = timer()
                 
                 # simulate the master equations

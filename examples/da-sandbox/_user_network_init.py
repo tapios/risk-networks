@@ -16,7 +16,7 @@ user_fraction = arguments.user_network_user_fraction
 
 if user_fraction >= 1.0:
     user_network = network.build_user_network_using(FullUserGraphBuilder())
-    exogenous_scale_factor = None
+    exterior_neighbors = None
 else:
     user_network_type = arguments.user_network_type #"neighbor", or "random"
     if user_network_type == "neighbor":
@@ -43,19 +43,14 @@ else:
      mean_neighbors_exterior,
      edge_indicator_list,
      node_indicator_list,
-     exterior_neighbor_weights) = contiguous_indicators(network.graph,user_network.graph)
+     exterior_neighbors) = contiguous_indicators(network.graph,user_network.graph)
     print(interior_nodes, boundary_nodes, mean_neighbors_exterior)
 
     # if we wish to weight the boundary of the user network
-    if arguments.user_network_weighted:
-        exogenous_factor = arguments.user_network_weight_factor
-        exogenous_scale_factor = exogenous_factor * exterior_neighbor_weights
-        print("number of weights > 0", sum(exogenous_scale_factor>0.0))
-        print("number of weights > 2", sum(exogenous_scale_factor>exogenous_factor * 2.0))
-        print("number of weights > 5", sum(exogenous_scale_factor>exogenous_factor * 5.0))
+    print("number of weights > 0", sum(exterior_neighbors>0.0))
+    print("number of weights > 2", sum(exterior_neighbors>2.0))
+    print("number of weights > 5", sum(exterior_neighbors>5.0))
 
-    else:
-        exogenous_scale_factor = None
     
 user_nodes = user_network.get_nodes()
 user_population = user_network.get_node_count()

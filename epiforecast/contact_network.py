@@ -4,6 +4,7 @@ import scipy.sparse as scspa
 import networkx as nx
 
 from epiforecast.utilities import complement_mask
+from .contact_simulator import diurnal_inception_rate
 
 class ContactNetwork:
     """
@@ -18,7 +19,7 @@ class ContactNetwork:
 
     LAMBDA_MIN = 'minimum_contact_rate'
     LAMBDA_MAX = 'maximum_contact_rate'
-
+    LAMBDA_INTEGRATED = 'integrated_contact_rate'
     WJI = 'edge_weights'
 
     E_TO_I = 'exposed_to_infected'
@@ -358,6 +359,17 @@ class ContactNetwork:
         return (np.fromiter(λ_min_dict.values(), dtype=float),
                 np.fromiter(λ_max_dict.values(), dtype=float))
 
+    def get_lambda_integrated(self):
+        """
+        Get λ_integrated attribute of the nodes
+
+        Output:
+            λ_integrated (np.array): (n_nodes,) array of values
+        """
+        λ_integrated_dict = nx.get_node_attributes(
+            self.graph, name=ContactNetwork.LAMBDA_INTEGRATED)
+        return np.fromiter(λ_integrated_dict.values(), dtype=float)    
+
     def set_lambdas(
             self,
             λ_min,
@@ -414,6 +426,21 @@ class ContactNetwork:
             None
         """
         self.__set_node_attributes(λ_max, ContactNetwork.LAMBDA_MAX)
+
+    def set_lambda_integrated(
+            self,
+            λ_integrated):
+        """
+        Set λ_integrated attribute to the nodes
+
+        Input:
+            λ_integrated (np.array): (n_nodes,) array of values
+
+        Output:
+            None
+        """
+        self.__set_node_attributes(λ_integrated, ContactNetwork.LAMBDA_INTEGRATED)
+
 
     def __set_node_attributes(
             self,

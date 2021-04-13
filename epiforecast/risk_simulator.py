@@ -8,6 +8,8 @@ from timeit import default_timer as timer
 import ray
 from numba import jit 
 
+from .contact_simulator import diurnal_inception_rate
+
 @jit(nopython=True)
 def create_CM_data(nonzeros, rows, cols, data, M, yS, yI, yH, Smean, Imean, Hmean, ensemble_correction=True):
     CM_SI_data = np.zeros(nonzeros)
@@ -68,7 +70,7 @@ class MasterEquationModelEnsemble:
             transmission_rate_parameters,
             hospital_transmission_reduction=0.25,
             ensemble_size=1,
-            neighbor_weights=None,
+            exterior_neighbors=None,
             start_time=0.0,
             parallel_cpu=False,
             num_cpus=1,
@@ -91,7 +93,7 @@ class MasterEquationModelEnsemble:
             hospital_transmission_reduction (float): fraction of beta in
                                                      hospitals
             ensemble_size (int): number of ensemble members
-            neighbor_weights (numpy): gives weights > 0 with which to weight user network nodes (based on connectivity to the network and general population graph)
+            exterior_neighbors (numpy): gives weights > 0 with which to weight user network nodes (based on connectivity to the network and general population graph)
             start_time (float): start time of the simulation
             parallel_cpu (bool): whether to run computation in parallel on CPU
             num_cpus (int): number of CPUs available; only used in parallel mode
@@ -100,10 +102,12 @@ class MasterEquationModelEnsemble:
         self.M = ensemble_size
         self.N = population
         
-        if neighbor_weights is None:
-            self.neighbor_weights = None
+        if exterior_neighbors is None:
+            self.exterior_neighbors = None
+            self.exogenous_flag = False
         else:
-            self.neighbor_weights = neighbor_weights
+            self.exterior_neighbors = exterior_neighbors
+            self.exogenous_flag = True
         
         self.start_time = start_time
 
@@ -150,22 +154,31 @@ class MasterEquationModelEnsemble:
                                            dtype=np.float_,
                                            buffer=self.coefficients_shm.buf)
 
+            exog_nbytes = self.N * 8 * float_nbytes
+            self.exog_shm = shared_memory.SharedMemory(
+                create=True,
+                size=exog_nbytes)
+            self.prevalence_indep_exogenous_rates = np.ndarray(self.N,
+                                                               dtype=np.float_,
+                                                               buffer=self.exog_shm.buf)
+
             members_chunks = np.array_split(np.arange(self.M), num_cpus)
 
             self.integrators = [
                     RemoteIntegrator.remote(members_chunks[j],
                                             self.M,
                                             self.N,
-                                            self.neighbor_weights,
                                             self.y0_shm.name,
                                             self.coefficients_shm.name,
-                                            self.closure_shm.name)
+                                            self.closure_shm.name,
+                                            self.exog_shm.name)
                     for j in range(num_cpus)
             ]
         else:
             self.y0           = np.empty( (self.M, 6*self.N) )
             self.closure      = np.empty( (self.M,   self.N) )
             self.coefficients = np.empty( (self.M, 8*self.N) )
+            self.prevalence_indep_exogenous_rates = np.empty( (self.N) )
 
         self.update_transition_rates(transition_rates)
 
@@ -240,6 +253,22 @@ class MasterEquationModelEnsemble:
             None
         """
         self.L = mean_contact_duration
+
+    def set_diurnally_averaged_nodal_activation_rate(
+            self,
+            diurnally_averaged_nodal_activation_rate):
+        """
+        Set diurnally averaged nodal activation rates (saved to the network as integrated_lambda)
+        Used to approximate the edge contacts for edges extenral to a user_network
+
+        Input:
+            diurnally_averaged_nodal_activation_rate (np.array): array of rates
+
+        Output:
+            None
+        """
+        self.diurnally_averaged_nodal_activation_rate = diurnally_averaged_nodal_activation_rate
+
 
     def update_transmission_rate_parameters(
             self,
@@ -363,12 +392,15 @@ class MasterEquationModelEnsemble:
 
         rhs = np.empty(6 * self.N)
 
-        if self.neighbor_weights is None:
+        
+        if not self.exogenous_flag:
             rhs[self.S_slice] = -self.closure[j] * S_substate 
             rhs[self.E_slice] =  self.closure[j] * S_substate - sigma * E_substate
         else:
-            rhs[self.S_slice] = -(self.closure[j] + self.neighbor_weights) * S_substate
-            rhs[self.E_slice] =  (self.closure[j] + self.neighbor_weights) * S_substate - sigma * E_substate
+            prevalence = I_substate.mean(axis = 1)
+
+            rhs[self.S_slice] = -(self.closure[j] + prevalence * self.prevalence_indep_exogenous_rates) * S_substate
+            rhs[self.E_slice] =  (self.closure[j] + prevalence * self.prevalence_indep_exogenous_rates) * S_substate - sigma * E_substate
         
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate
@@ -377,6 +409,24 @@ class MasterEquationModelEnsemble:
 
         return rhs
 
+    def compute_prevalence_indep_exogenous_rates(self):
+        """
+        Compute the exogenous rate as a product of terms, except for the prevalence term. 
+        This will be multiplied during the calculation based on current infectious rate
+
+        If no rate is required the we set this to a None
+        """
+        #We make the approximation of taking ensemble means for the transmission rates
+        if self.exogenous_flag:
+            if self.full_transmission_rate_flag:
+                self.prevalence_indep_exogenous_rates[:] = (self.exterior_neighbors *  
+                                                            self.diurnally_averaged_nodal_activation_rate * 
+                                                            self.ensemble_beta_infected.mean(axis=0)) 
+            else:
+                self.prevalence_indep_exogenous_rates[:] = (self.exterior_neighbors *  
+                                                            self.diurnally_averaged_nodal_activation_rate * 
+                                                            self.partial_transmission_rates.mean(axis=0)) 
+                      
     def eval_closure(
             self,
             closure_name):
@@ -493,9 +543,12 @@ class MasterEquationModelEnsemble:
             self.eval_closure(closure_name)
             self.walltime_eval_closure += timer() - timer_eval_closure
 
+        
+        self.compute_prevalence_indep_exogenous_rates()
+
         if self.parallel_cpu:
             futures = []
-            args = (self.start_time, stop_time, maxdt)
+            args = (self.start_time, stop_time, maxdt, self.exogenous_flag)
 
             for integrator in self.integrators:
                 futures.append(integrator.integrate.remote(*args))
@@ -573,11 +626,12 @@ class MasterEquationModelEnsemble:
             self.y0_shm.close()
             self.closure_shm.close()
             self.coefficients_shm.close()
+            self.exog_shm.close()
     
             self.y0_shm.unlink()
             self.closure_shm.unlink()
             self.coefficients_shm.unlink()
-    
+            self.exog_shm.unlink()
 
 @ray.remote
 class RemoteIntegrator:
@@ -586,10 +640,10 @@ class RemoteIntegrator:
             members_to_compute,
             M,
             N,
-            neighbor_weights,
             ensemble_state_shared_memory_name,
             coefficients_shared_memory_name,
-            closure_shared_memory_name):
+            closure_shared_memory_name,
+            exog_shared_memory_name):
         """
         Constructor
 
@@ -604,14 +658,12 @@ class RemoteIntegrator:
         """
         self.M = M
         self.N = N
-        if neighbor_weights is None:
-            self.neighbor_weights = None
-        else:
-            self.neighbor_weights = neighbor_weights
+        
         self.shared_memory_names = {
-                'ensemble_state': ensemble_state_shared_memory_name,
-                'coefficients'  : coefficients_shared_memory_name,
-                'closure'       : closure_shared_memory_name          
+            'ensemble_state'                   : ensemble_state_shared_memory_name,
+            'coefficients'                     : coefficients_shared_memory_name,
+            'closure'                          : closure_shared_memory_name,
+            'prevalence_indep_exogenous_rates' : exog_shared_memory_name
         }
 
         self.S_slice = slice(  0,   N)
@@ -627,7 +679,8 @@ class RemoteIntegrator:
             self,
             start_time,
             stop_time,
-            maxdt):
+            maxdt,
+            exogenous_flag):
         """
         Integrate members assigned to the current integrator
 
@@ -646,6 +699,8 @@ class RemoteIntegrator:
                 name=self.shared_memory_names['coefficients'])
         closure_shm = shared_memory.SharedMemory(
                 name=self.shared_memory_names['closure'])
+        exog_shm = shared_memory.SharedMemory(
+            name=self.shared_memory_names['prevalence_indep_exogenous_rates'])
         
         ensemble_state = np.ndarray((self.M, 6*self.N),
                                     dtype=np.float_,
@@ -656,6 +711,9 @@ class RemoteIntegrator:
         closure        = np.ndarray((self.M, self.N),
                                     dtype=np.float_,
                                     buffer=closure_shm.buf)
+        prevalence_indep_exogenous_rates = np.ndarray(self.N,
+                                                      dtype=np.float_,
+                                                      buffer=exog_shm.buf)
 
         t_span = np.array([start_time, stop_time])
         t_eval = np.array([stop_time])
@@ -666,7 +724,7 @@ class RemoteIntegrator:
             member_closure      = closure[j]
 
             compute_rhs_member = lambda t, y: (
-                    self.compute_rhs(y, member_coefficients, member_closure)
+                    self.compute_rhs(y, member_coefficients, member_closure, prevalence_indep_exogenous_rates,exogenous_flag)
             )
 
             ode_result = solve_ivp(fun=compute_rhs_member,
@@ -680,6 +738,7 @@ class RemoteIntegrator:
         y0_shm.close()
         coefficients_shm.close()
         closure_shm.close()
+        exog_shm.close()
 
         return
 
@@ -687,7 +746,9 @@ class RemoteIntegrator:
             self,
             member_state,
             member_coefficients,
-            member_closure):
+            member_closure,
+            prevalence_indep_exogenous_rates,
+            exogenous_flag):
         """
         Compute right-hand side of master equations
 
@@ -696,6 +757,8 @@ class RemoteIntegrator:
             member_coefficients (np.array): (8*N,) array of coefficients of the
                                             linear part of the RHS
             member_closure (np.array): (N,) array of coefficients for S_i's
+            prevalence_indep_exogenous_rates (N,): when mult. by prevalence, gives the exogenous rate
+            exogenous_flag (Bool) : whether to use exogenous rates
         Output:
             rhs (np.array): (6*N,) right-hand side of master equations
         """
@@ -716,12 +779,15 @@ class RemoteIntegrator:
 
         rhs = np.empty(6*self.N)
 
-        if self.neighbor_weights is None:
+        if not exogenous_flag:
             rhs[self.S_slice] = -member_closure * S_substate 
             rhs[self.E_slice] =  member_closure * S_substate - sigma * E_substate
         else:
-            rhs[self.S_slice] = -(member_closure + self.neighbor_weights) * S_substate
-            rhs[self.E_slice] =  (member_closure + self.neighbor_weights) * S_substate - sigma * E_substate
+            
+            prevalence = I_substate.mean()
+            
+            rhs[self.S_slice] = -(member_closure + prevalence * prevalence_indep_exogenous_rates) * S_substate
+            rhs[self.E_slice] =  (member_closure + prevalence * prevalence_indep_exogenous_rates) * S_substate - sigma * E_substate
         
         rhs[self.I_slice] = sigma * E_substate - gamma  * I_substate
         rhs[self.H_slice] = delta * I_substate - gammap * H_substate

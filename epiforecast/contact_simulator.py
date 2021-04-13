@@ -258,6 +258,46 @@ class ContactSimulator:
         self.overshoot_duration *= 0
 
 
+    def compute_diurnally_averaged_nodal_activation_rate(
+            self, 
+            nodal_day_inception_rate, 
+            nodal_night_inception_rate,
+            integration_steps = 40):
+        """
+        Compute and return diurnally averaged rate: The effective interval-integrated diurnal contact rate for any node
+        Use case: to approximating a contact rate external to a user-network, by using nodal information instead of 
+        edge information
+        
+        Inputs:
+            nodal_day_inception_rate (np.array): day rate nodally defined
+            nodal_night_inception_rate (np.array): night rate nodally defined
+            integration_steps: number of integration steps for trapezoidal rule
+        Output:
+            interval_integrated_diurnal(np.array): nodal rates in units of (days)
+        """
+        #NB 1 day = 1
+        
+        λnight = nodal_night_inception_rate
+        λday = nodal_day_inception_rate
+
+        integration_mesh = np.linspace(0,1,integration_steps+1)
+        #evaluate diurnally varying contact rate on mesh
+        diurnal_on_mesh = np.zeros((λday.size,integration_steps+1))
+        for idx,t in enumerate(integration_mesh):
+            diurnal_on_mesh[:,idx] = diurnal_inception_rate(λnight, λday, self.mean_degree,t) 
+        
+        #trapezoid integration over mesh
+        λi = 0.5*(diurnal_on_mesh[:,0] + diurnal_on_mesh[:,-1])
+        λi += np.sum(diurnal_on_mesh[:,1:-1],axis=1) 
+        λi *= 1 / integration_steps
+
+        # calculate the nodal activation from this 
+        μ = 1/self.mean_event_lifetime
+        diurnally_averaged_nodal_activation_rate = λi / (μ + λi)
+
+        
+        return diurnally_averaged_nodal_activation_rate
+
 # For implementation of Gillespie simulation with time-dependent rates, see discussion in
 #
 # Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation
@@ -390,4 +430,5 @@ def simulate_contact(
     contact_duration -= overshoot_duration
 
     return event_time, active_contact, contact_duration, overshoot_duration
+
 

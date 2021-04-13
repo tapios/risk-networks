@@ -7,7 +7,7 @@ from _constants import (start_time,
                         community_transmission_rate,
                         hospital_transmission_reduction)
 from _stochastic_init import transition_rates
-from _user_network_init import user_nodes, user_population, user_network, exogenous_scale_factor
+from _user_network_init import user_nodes, user_population, user_network, exterior_neighbors
 from _network_init import population
 
 from _utilities import print_start_of, print_end_of
@@ -115,7 +115,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         transmission_rate_parameters=community_transmission_rate_ensemble,
         hospital_transmission_reduction=hospital_transmission_reduction,
         ensemble_size=ensemble_size,
-        neighbor_weights=exogenous_scale_factor,
+        exterior_neighbors=exterior_neighbors,
         start_time=start_time,
         parallel_cpu=arguments.parallel_flag,
         num_cpus=arguments.parallel_num_cpus,
