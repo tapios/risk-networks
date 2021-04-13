@@ -32,7 +32,6 @@ wearers=0
 # user base
 user_fraction=0.75
 user_base_type="neighbor"
-user_base_weight=2e-4
 
 # testing: virus tests
 I_min_threshold=0.0
@@ -88,7 +87,6 @@ python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --user-network-type=${user_base_type} \
   --user-network-weighted \
-  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \

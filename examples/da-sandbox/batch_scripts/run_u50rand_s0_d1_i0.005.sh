@@ -31,7 +31,6 @@ wearers=0
 
 # user base
 user_fraction=0.5
-user_base_weight=2e-4
 
 
 # testing: virus tests
@@ -95,7 +94,6 @@ cp batch_scripts/run_u50rand_s0_d1_i0.005.sh ${output_path}
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --user-network-weighted \
-  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \

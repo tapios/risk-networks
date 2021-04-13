@@ -31,7 +31,6 @@ wearers=0
 
 # user base
 user_fraction=0.75
-user_base_weight=2e-4
 
 # testing: virus tests
 I_min_threshold=0.0
@@ -91,7 +90,6 @@ cp batch_scripts/run_u75rand_contact_trace_and_isolate.sh ${output_path}
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --user-network-weighted \
-  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \
@@ -103,7 +101,6 @@ python3 joint_iterated_forward_assimilation.py \
   --intervention-frequency=${intervention_freq} \
   --intervention-nodes=${intervention_nodes}\
   --intervention-type=${intervention_type}\
-  --intervention-nodes=${intervention_nodes}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \
