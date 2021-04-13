@@ -484,11 +484,14 @@ def plot_ensemble_averaged_clinical_parameters(
         num_ages=5,
         age_dep_rates=[3,4,5],
         output_path='.',
-        output_name=''):
+        output_name='',
+        font_size=18,
+        font_family='sans-serif'):
     
+    matplotlib.rcParams.update({'font.size': font_size, 'font.family': font_family})
     rate_timeseries = transition_rates_timeseries
     rate_perc = np.percentile(rate_timeseries, 
-            q = [1, 10, 25, 50, 75, 90, 99], axis = 0)
+            q = [5, 10, 25, 50, 75, 90, 95], axis = 0)
 
     ylabel_list = ['latent_periods',
             'community_infection_periods',
@@ -507,7 +510,9 @@ def plot_ensemble_averaged_clinical_parameters(
             plt.axhline(age_indep_rates_true[ylabel_list[k]], color = 'black', ls = '--')
             
         plt.xlabel('Time (days)')
-        plt.ylabel(ylabel_list[k])
+        ylabel_names = ylabel_list[k].split('_')
+        ylabel_names[0] = ylabel_names[0].capitalize()
+        plt.ylabel(' '.join(ylabel_names))
         plt.tight_layout()
         plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
         plt.close()
