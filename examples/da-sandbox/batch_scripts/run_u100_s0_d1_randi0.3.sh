@@ -43,6 +43,8 @@ intervention_nodes='random'
 intervention_interval=1.0
 intervention_start_time=8
 random_intervention_budget=29383
+intervention_duration=14.0
+
 #da params 
 da_window=1.0
 n_sweeps=1
@@ -105,6 +107,7 @@ python3 joint_iterated_forward_assimilation.py \
   --intervention-type=${intervention_type}\
   --intervention-random-isolate-budget=${random_intervention_budget} \
   --intervention-nodes=${intervention_nodes}\
+  --intervention-sick-isolate-time=${intervention_duration}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \

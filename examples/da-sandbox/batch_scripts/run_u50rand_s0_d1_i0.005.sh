@@ -43,6 +43,7 @@ intervention_type='isolate'
 intervention_nodes='sick'
 intervention_interval=1.0
 intervention_threshold=0.005
+intervention_duration=5.0
 
 #da params 
 da_window=1.0
@@ -70,7 +71,7 @@ param_prior_noise_factor=0.25
 
 # network  + sensor wearers
 #EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
-EXP_NAME="u50rand_s0_d1_i0.005_exog${user_base_weight}" #1e5 = 97942 nodes
+EXP_NAME="u50rand_s0_d1_i0.005" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 97942
@@ -107,6 +108,7 @@ python3 joint_iterated_forward_assimilation.py \
   --intervention-type=${intervention_type}\
   --intervention-I-min-threshold=${intervention_threshold}\
   --intervention-nodes=${intervention_nodes}\
+  --intervention-sick-isolate-time=${intervention_duration}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \

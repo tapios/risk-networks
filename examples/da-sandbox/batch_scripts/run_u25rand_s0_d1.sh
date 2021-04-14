@@ -31,7 +31,6 @@ wearers=0
 
 # user base
 user_fraction=0.25
-user_base_weight=2e-4
 
 # testing: virus tests
 I_min_threshold=0.0
@@ -86,7 +85,6 @@ cp batch_scripts/run_u25rand_s0_d1.sh ${output_path}
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
   --user-network-weighted \
-  --user-network-weight-factor=${user_base_weight} \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \
   --observations-I-budget=${budget} \

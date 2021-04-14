@@ -41,6 +41,7 @@ intervention_freq='interval'
 intervention_type='isolate'
 intervention_nodes='contact_tracing'
 intervention_interval=1.0
+intervention_duration=14.0
 
 #da params 
 da_window=1.0
@@ -102,6 +103,7 @@ python3 joint_iterated_forward_assimilation.py \
   --intervention-frequency=${intervention_freq} \
   --intervention-nodes=${intervention_nodes}\
   --intervention-type=${intervention_type}\
+  --intervention-sick-isolate-time=${intervention_duration}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \
