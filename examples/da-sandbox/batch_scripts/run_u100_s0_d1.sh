@@ -111,9 +111,10 @@ python3 joint_iterated_forward_assimilation.py \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \
+  --assimilation-additive-inflation\
+  --assimilation-additive-inflation-factor=${additive_inflation}\
   --record-ignore-mass-constraint\
   >${stdout} 2>${stderr}
-#  --prior-run\
 
 
 
