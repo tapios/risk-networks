@@ -514,7 +514,7 @@ def plot_ensemble_averaged_clinical_parameters(
         ylabel_names[0] = ylabel_names[0].capitalize()
         plt.ylabel(' '.join(ylabel_names))
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.pdf'))
         plt.close()
     
     #where the network truth is an age dependent object
@@ -537,7 +537,7 @@ def plot_ensemble_averaged_clinical_parameters(
         plt.xlabel('Time (days)')
         plt.ylabel(ylabel_list[k])
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.png'))
+        plt.savefig(os.path.join(output_path,ylabel_list[k]+output_name+'.pdf'))
         plt.close()
 
 
