@@ -29,7 +29,7 @@ elif user_base_type == 'rand':
     OUT_NAME = '2by2_classifiers_rand'
 
 #which days to plot
-days = [35,56]
+days = [35,56] 
 
 intervals_per_day = 8
 #Plot parameters (need 1e-3 when tani_flag=True)
@@ -55,7 +55,7 @@ tani_EXP_NAME = 'test_and_no_isolate'
 tact_EXP_NAME = 'contact_trace'
 s75_EXP_NAME  = 'u100_s75_d1_0'
 
-u100_EXP_LABELS = ['5\%','10\%','25\%']
+u100_EXP_LABELS = ['5%','10%','25%']
 s75_EXP_LABEL = 'Sensors only'
 
 u100_EXP_PARAM_VALUES = [4897, 9794, 24485]
@@ -91,7 +91,7 @@ elif user_base_type == 'rand':
 population = 97942
 user_base=[25,50,75]
 
-user_EXP_LABELS=['25\%','50\%','75\%']
+user_EXP_LABELS=['25%','50%','75%']
 user_EXP_PARAM_VALUES = np.zeros((len(user_base),len(user_EXP_LABELS)), dtype=int)
 for idx,n_user in enumerate(user_base):
     if n_user== 75:
@@ -126,8 +126,8 @@ fig_height = fig_width*ratio  # height in inches
 fig_size = [1.5*fig_width, 1.5*fig_height]
 
 params = {  # 'backend': 'ps',
-    'font.family': 'serif',
-    'font.serif': 'Helvetica',
+    #'font.family': 'sans-serif',
+    #'font.sans-serif': 'Helvetica',
     'font.size': 11,
     'axes.labelsize': 'large',
     'axes.titlesize': 'large',
@@ -135,7 +135,7 @@ params = {  # 'backend': 'ps',
     'xtick.labelsize': 'medium',
     'ytick.labelsize': 'medium',
     'savefig.dpi': 150,
-    'text.usetex': True,
+    #'text.usetex': True,
     'figure.figsize': fig_size}
 rcParams.update(params)
 
@@ -277,8 +277,8 @@ for day_idx,day in enumerate(days):
             tnr[i,:] = classifier_rates[1,:]
             tpr[i,:] = classifier_rates[2,:]
             print("loaded saved rates from: ", output_dir)
-            #for thr,ppf_i,tpr_i in zip(thresholds,ppf[i,:],tpr[i,:]):
-            #    print(thr,ppf_i,tpr_i)
+            for thr,ppf_i,tpr_i in zip(thresholds,ppf[i,:],tpr[i,:]):
+                print(thr,ppf_i,tpr_i)
 
         else:
             
@@ -409,6 +409,7 @@ for day_idx,day in enumerate(days):
         yplot = np.hstack((yrate[xrate>=plot_min], yatmin))
         # plt.plot(xrate, yrate, color=clr, label=lbl, marker='|')
         ax0.plot(xplot, yplot, color=clr, label=lbl)
+        #ax1.plot(xplot, yplot, color="black")
 
     #plot sensor-only case   
     #only 1 case

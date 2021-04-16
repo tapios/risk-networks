@@ -14,7 +14,7 @@ sns.set_style("ticks")
 # Model - based intervention
 #
 #cases '100', '75n', '75r', 50r
-plot_case = '50r'
+plot_case = '75r'
 
 
 # Set plotting cases
@@ -28,6 +28,8 @@ elif plot_case == '75r':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75rand.pdf')
 elif plot_case == '50r':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50rand.pdf')
+elif plot_case == '50n':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50nbhd.pdf')
 else:
     raise ValueError("unknown plot_case")
 
@@ -59,10 +61,17 @@ elif plot_case == '75r':
         "blanket_social_dist_0"]
 elif plot_case == '50r':
     INTERVENTION_CASE_NAMES = [
-        "u50rand_s0_d1_i0.005_2448",
-        "u50rand_s0_d1_i0.005_12242",
+        "u50rand_s0_d1_i0.0025_2448",
+        "u50rand_s0_d1_i0.0025_12242",
         "u50rand_contact_trace_and_isolate_2448",
         "u50rand_contact_trace_and_isolate_12242",
+        "blanket_social_dist_0"]
+elif plot_case == '50n':
+    INTERVENTION_CASE_NAMES = [
+        "u50_s0_d1_i0.005_2448",
+        "u50_s0_d1_i0.005_12242",
+        "u50_contact_trace_and_isolate_2448",
+        "u50_contact_trace_and_isolate_12242",
         "blanket_social_dist_0"]
     
 #if there is no isolated_nodes.npy
@@ -74,6 +83,13 @@ INTERVENTION_TYPE = [
     "daily",     
     "daily",     
     None ]
+INTERVENTION_DURATIONS=[
+    5.0,
+    5.0,
+    14.0,
+    14.0,
+    None]
+
 MODEL_BASED = [
     True,
     True,   
@@ -94,23 +110,7 @@ INTERVENTION_LABELS = [
     'TTI (25\%)',
     'Lockdown']
 
-#if plot_case == '50r':
-#    INTERVENTION_TYPE = [
-#        "daily", 
-#        "daily",     
-#        None ]
-#    MODEL_BASED = [
-#        True,
-#        True,   
-#        False]
-#    USE_ISOLATED_NODES_NPY = [
-#        True,
-#        True,
-#        False]
-#    INTERVENTION_LABELS = [
-#        'Network DA (5\%)', 
-#        'Network DA (25\%)',
-#        'Lockdown']
+
 
 NO_INTERVENTION_CASE_NAMES = ["noda_u100_prior_0"]
 NO_INTERVENTION_LABELS = ['No intervention']
@@ -118,10 +118,9 @@ NO_INTERVENTION_LABELS = ['No intervention']
 
 model_intervention_colors = [plt.cm.YlGn(0.4), plt.cm.YlGn(0.9)]
 other_intervention_colors = [plt.cm.Purples(0.4), plt.cm.Purples(0.8), '#6394EB'] #Lockdown is blue
+#other_intervention_colors = ['#6394EB'] #Lockdown is blue
 no_intervention_colors    = ['#EBBD63'] #orange
 
-#if plot_case == '50r':
-#    other_intervention_colors = ['#6394EB'] #Lockdown is blue
 
 colors_list = model_intervention_colors + other_intervention_colors + no_intervention_colors
 
@@ -134,6 +133,7 @@ elif plot_case == '75n':
     USER_POPULATION[1] = 73456 
     USER_POPULATION[2] = 73456
     USER_POPULATION[3] = 73456 
+
 elif plot_case == '75r':
     USER_POPULATION[0] = 73353
     USER_POPULATION[1] = 73353 
@@ -146,6 +146,12 @@ elif plot_case == '50r':
     USER_POPULATION[2] = 48371
     USER_POPULATION[3] = 48371 
     
+elif plot_case == '50n':
+    USER_POPULATION[0] = 48971
+    USER_POPULATION[1] = 48971 
+    USER_POPULATION[2] = 48971
+    USER_POPULATION[3] = 48971 
+
 #paths and files
 INTERVENTION_CASE_PATH = [os.path.join(OUTPUT_PATH, name) for name in INTERVENTION_CASE_NAMES]
 NO_INTERVENTION_CASE_PATH = [os.path.join(OUTPUT_PATH, name) for name in NO_INTERVENTION_CASE_NAMES]
@@ -169,9 +175,10 @@ isolation_trace_list_nointervention = [ None for path in NO_INTERVENTION_CASE_PA
 
 data_list = statuses_sum_trace_list + statuses_sum_trace_nointervention_list
 model_based_list = MODEL_BASED + [False for name in NO_INTERVENTION_CASE_NAMES]
+
 idata_list = isolation_trace_list + isolation_trace_list_nointervention
 idata_type_list = INTERVENTION_TYPE + [None for name in NO_INTERVENTION_CASE_NAMES]
-
+intervention_durations = INTERVENTION_DURATIONS + [None for name in NO_INTERVENTION_CASE_NAMES]
 # Assemble list of cases for plotting - qualitative
 
 #colors_list = ['C'+ str(i) for i in np.arange(len(data_list))]
@@ -183,8 +190,8 @@ time_arr = [base + dt.timedelta(hours=3*i) for i in range(statuses_sum_trace_lis
 days_per_tick=14
 # Customized settings for plotting
 params = {  # 'backend': 'ps',
-    'font.family': 'serif',
-    'font.serif': 'Helvetica',
+#    'font.family': 'sans-serif',
+#    'font.sans-serif': 'Helvetica',
     'font.size': 11,
     'axes.labelsize': 'large',
     'axes.titlesize': 'large',
@@ -283,7 +290,7 @@ ax11.xaxis.set_major_locator(ticker.MultipleLocator(days_per_tick))
 ax11.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax11.get_yaxis().set_major_formatter(
     ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
-for data, data_type, color  in zip(idata_list, idata_type_list, colors_list):
+for data, data_type, duration, color  in zip(idata_list, idata_type_list, intervention_durations, colors_list):
     
     if data is not None:
         data = data.item()
@@ -293,7 +300,7 @@ for data, data_type, color  in zip(idata_list, idata_type_list, colors_list):
             for current_time in data.keys():
                 intervened_nodes = np.unique(np.concatenate(
                     [v for k, v in data.items() 
-                     if k > current_time - 7.0 and k <= current_time]))
+                     if k > current_time - duration and k <= current_time]))
                 number_in_isolation.append(intervened_nodes.size)
                         
         elif data_type == "const":
