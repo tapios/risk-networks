@@ -13,8 +13,8 @@ sns.set_style("ticks")
 #Plot comparison script for interventions different user bases
 # Model - based intervention
 #
-#cases '100', '75n', '75r', 50r
-plot_case = '75r'
+#cases '100', '75n', '75r', 50r, 50n
+plot_case = '50r'
 
 
 # Set plotting cases
@@ -25,9 +25,9 @@ if plot_case == '100':
 elif plot_case == '75n':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75nbhd.pdf')
 elif plot_case == '75r':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75rand.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75rand_i0.0025.pdf')
 elif plot_case == '50r':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50rand.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50rand_i0.0025.pdf')
 elif plot_case == '50n':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50nbhd.pdf')
 else:
@@ -54,8 +54,8 @@ elif plot_case == '75n':
     
 elif plot_case == '75r':
     INTERVENTION_CASE_NAMES = [
-        "u75rand_s0_d1_i0.005_3672",
-        "u75rand_s0_d1_i0.005_18364",
+        "u75rand_s0_d1_i0.0025_3672",
+        "u75rand_s0_d1_i0.0025_18364",
         "u75rand_contact_trace_and_isolate_3672",
         "u75rand_contact_trace_and_isolate_18364",
         "blanket_social_dist_0"]
@@ -116,7 +116,7 @@ NO_INTERVENTION_CASE_NAMES = ["noda_u100_prior_0"]
 NO_INTERVENTION_LABELS = ['No intervention']
 
 
-model_intervention_colors = [plt.cm.YlGn(0.4), plt.cm.YlGn(0.9)]
+model_intervention_colors = [plt.cm.Greens(0.3), plt.cm.Greens(0.9)]
 other_intervention_colors = [plt.cm.Purples(0.4), plt.cm.Purples(0.8), '#6394EB'] #Lockdown is blue
 #other_intervention_colors = ['#6394EB'] #Lockdown is blue
 no_intervention_colors    = ['#EBBD63'] #orange
@@ -221,7 +221,6 @@ labelpad=10.0
 ax00 = axs[0][0]
 ax00.set_title(r'Infections per 100,000')
 ax00.set_ylabel("Cumulative",labelpad=labelpad)
-#ax00.set_ylim(0,60000)
 ax00.set_xlim([time_arr[0], time_arr[-1]])
 ax00.xaxis.set_major_locator(ticker.MultipleLocator(days_per_tick))
 ax00.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
@@ -238,13 +237,13 @@ for data, color,label in zip(data_list, colors_list, label_list):
     ax00.plot(time_arr, cumulative_Iin, 
               color=color, linewidth = 1.5, zorder = 100, label=label)
 
-ax00.yaxis.grid(zorder=0)
+ax00.set_ylim([0,None])
+ax00.yaxis.grid()
 
 # Cumulative death panel
 ax01 = axs[0][1]
 ax01.set_title(r'Deaths per 100,000')
 ax01.set_ylabel("Cumulative",labelpad=labelpad)
-#ax01.set_ylim(0,800)
 ax01.set_xlim([time_arr[0], time_arr[-1]])
 ax01.xaxis.set_major_locator(ticker.MultipleLocator(days_per_tick))
 ax01.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
@@ -254,14 +253,13 @@ for data, color in zip(data_list, colors_list):
     #No construction as D accumulates naturally
     ax01.plot(time_arr, data[:,-1], 
               color=color, linewidth = 1.5, zorder = 100)
-    #print(data[-1,-1])
+
+ax01.set_ylim([0, None])
 ax01.yaxis.grid()
 
 # Daily new infection panel
 ax10 = axs[1][0]
-#ax10.set_title("Infections per 100,000")
 ax10.set_ylabel("Daily",labelpad=labelpad)
-
 ax10.set_xlim([time_arr[0], time_arr[-1]])
 ax10.xaxis.set_major_locator(ticker.MultipleLocator(days_per_tick))
 ax10.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
@@ -278,12 +276,14 @@ for data, color,label in zip(data_list, colors_list, label_list):
     daily_cumulative_Iin = [np.sum(Iin[8*i : 8*(i+1) - 1]) for i in np.arange(n_days)]     
     ax10.plot(time_arr[7::8], daily_cumulative_Iin, 
               color=color, linewidth = 1.5, zorder = 100, label=label)
+
+ax10.set_ylim([0, None])
 ax10.legend(loc='upper right')
-ax10.yaxis.grid(zorder=0)
+ax10.yaxis.grid()
 
 #percent isolated panel
 ax11 = axs[1][1]
-ax11.set_title("Isolated people")
+ax11.set_title("Isolated Fraction")
 ax11.set_ylabel("Percentage of population",labelpad=labelpad)
 ax11.set_xlim([time_arr[0], time_arr[-1]])
 ax11.xaxis.set_major_locator(ticker.MultipleLocator(days_per_tick))
@@ -313,16 +313,15 @@ for data, data_type, duration, color  in zip(idata_list, idata_type_list, interv
         ax11.plot(time_arr[::8], number_in_isolation / population * 100, 
                   color=color, linewidth = 1.5, zorder = 100)
 
-
 ax11.yaxis.grid()
 
 
 # Other settings for plotting
 #ax00.set_zorder(1)  
-ax00.patch.set_visible(False)  
+#ax00.patch.set_visible(False)  
 #ax10.set_zorder(1)  
-ax10.patch.set_visible(False)
-plt.tight_layout()
+#ax10.patch.set_visible(False)
 plt.margins(0,0)
+plt.tight_layout()
 sns.despine(top=True, right=True, left=True)
 plt.savefig(OUTPUT_FIGURE_NAME)

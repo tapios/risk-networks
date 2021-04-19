@@ -365,8 +365,8 @@ for day_idx,day in enumerate(days):
     # X_ppf
 
     #get colors from a color map
-    colors = [plt.cm.YlGn(x) for x in np.linspace(0.4,0.9,tpr.shape[0])]
-
+    colors = [plt.cm.Greens(x) for x in np.linspace(0.3,0.9,tpr.shape[0])]
+    
     #the day gives the column:
     ax0 = axs[0][day_idx]
     ax1 = axs[1][day_idx]
@@ -424,7 +424,7 @@ for day_idx,day in enumerate(days):
     
     xplot = np.hstack((s75_ppfvec[s75_ppfvec>=plot_min], plot_min))
     yplot = np.hstack((s75_tprvec[s75_ppfvec>=plot_min], yatmin))
-    ax0.plot(xplot, yplot, color=plt.cm.YlGn(0.25), label=s75_EXP_LABEL, linestyle="-")
+    ax0.plot(xplot, yplot, color=plt.cm.YlOrRd(0.15), label=s75_EXP_LABEL, linestyle="-")
 
     # plot test_and_no_isolate points
     for (xplot,yplot,clr) in zip(tani_ppf, tani_tpr, colors[-len(tani_tpr):]):
