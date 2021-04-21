@@ -125,11 +125,11 @@ ax00.bar(NYC_data_date_of_interest_deaths, cumulative_deaths_NYC, facecolor='#ED
 #ax00.text(dt.date(2020, 6, 14), 350, r'model')
 #ax00.text(dt.date(2020, 4, 28), 650, r'no SD')
 
-ax00.set_ylabel("cumulative")
+ax00.set_ylabel("Cumulative")
 
 ax00.set_ylim(0,800)
 ax00.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax00.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax00.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax00.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax00.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax00.get_yaxis().set_major_formatter(
@@ -137,32 +137,33 @@ ax00.get_yaxis().set_major_formatter(
 
 ax00_2.set_yticks([])
 
-ax00.yaxis.grid()
+ax00.yaxis.grid(zorder=0)
 
 # cumulative infection panel
 ax01 = axs[0][1]
 ax01.set_title(r'Infections per 100,000')
 
+ax01.yaxis.grid(zorder=0)
 ax01_2 = axs[0][1].twinx()
-
+ax01_2.yaxis.grid(zorder=0)
 #ax01.text(dt.date(2020, 2, 26), 0.9*60000, r'(b)')
 
-ax01_2.bar(NYC_date_of_interest_cases, cumulative_reported_cases_NYC, facecolor='#ED7B64', edgecolor='#ED7B64', alpha = 1, width = 0.00001, align = 'center', zorder = 0)
+ax01_2.bar(NYC_date_of_interest_cases, cumulative_reported_cases_NYC, facecolor='#ED7B64', edgecolor='#ED7B64', alpha = 1, width = 0.00001, align = 'center', zorder = 10)
     
 #ax01.text(dt.date(2020, 4, 29), 6000, r'data')
 #ax01.text(dt.date(2020, 6, 11), 31000, r'model')
 #ax01.text(dt.date(2020, 4, 10), 52000, r'no SD')
                            
-ax01.set_ylim(0,60000)
+ax01.set_ylim(0,80000)
 ax01.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax01.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax01.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax01.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax01.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax01.get_yaxis().set_major_formatter(
     ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
 
-ax01_2.set_ylim(0,6000)
-ax01_2.set_yticks([0,2000,4000,6000])
+ax01_2.set_ylim(0,8000)
+ax01_2.set_yticks([0,2000,4000,6000,8000])
 ax01_2.tick_params(axis='y', colors='indianred')
 ax01_2.get_yaxis().set_major_formatter(
     ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
@@ -174,7 +175,7 @@ ax01.yaxis.grid(zorder=0)
 ax10 = axs[1][0]
 
 ax10_2 = axs[1][0].twinx()
-
+ax10_2.yaxis.grid(zorder=0)
 #ax10.text(dt.date(2020, 2, 26), 0.9*25, r'(c)')
 
 ax10.fill_between(NYC_data_date_of_interest_deaths[::7]+dt.timedelta(days = 3.5), NYC_death_data_weekly, edgecolor = '#ED7B64', facecolor = '#ED7B64', alpha = 0.2, linewidth = 1.)
@@ -186,12 +187,12 @@ ax10.bar(NYC_data_date_of_interest_deaths, reported_deaths_NYC, facecolor='#ED7B
 #ax10.text(dt.date(2020, 5, 18), 8, r'7-day average', fontsize = 7)
 #ax10.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 28)], [8.0, 3.2], color = 'k', linewidth = 0.5)
                  
-ax10.set_ylabel("daily")
+ax10.set_ylabel("Daily")
 
 ax10.set_ylim(0,25)
 #ax10.set_yticks([0,10,20])
 ax10.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax10.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax10.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax10.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax10.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax10.get_yaxis().set_major_formatter(
@@ -217,16 +218,17 @@ ax11_2.bar(NYC_date_of_interest_cases, reported_cases_NYC, facecolor='#ED7B64', 
 #ax11.text(dt.date(2020, 5, 17), 400, r'7-day average', fontsize = 7)
 #ax11.plot([dt.date(2020, 5, 16), dt.date(2020, 4, 28)], [420, 240], color = 'k', linewidth = 0.5)
 
-ax11.set_ylim(0,2000)
+ax11.set_ylim(0,3000)
+ax11.set_yticks([0,1000,2000,3000])
 ax11.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax11.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax11.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax11.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax11.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax11.get_yaxis().set_major_formatter(
 ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
 
-ax11_2.set_ylim(0,2000*6000/60000)
-ax11_2.set_yticks([0,100,200])
+ax11_2.set_ylim(0,3000*6000/60000)
+ax11_2.set_yticks([0,100,200,300])
 ax11_2.tick_params(axis='y', colors='indianred')
 ax11_2.get_yaxis().set_major_formatter(
 ticker.FuncFormatter(lambda x, p: format(int(x), ',')))
@@ -244,7 +246,7 @@ cases_simulation_nointervention_mean_arr = []
 
 infection_mean_arr = []
 
-for i in range(1):
+for i in range(20):
     #%% load simulation data (with and without interventions)
     simulation_data = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'NYC_interventions_1e5_%d.txt'%i))
     simulation_data_nointervention = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'NYC_nointerventions_1e5_%d.txt'%i))
@@ -254,6 +256,13 @@ for i in range(1):
     
     kinetic_model = {'S': simulation_data[:,1], 'E': simulation_data[:,2], 'I': simulation_data[:,3], 'H': simulation_data[:,4], 'R': simulation_data[:,5], 'D': simulation_data[:,6]}
     kinetic_model_nointervention = {'S': simulation_data_nointervention[:,1], 'E': simulation_data_nointervention[:,2], 'I': simulation_data_nointervention[:,3], 'H': simulation_data_nointervention[:,4], 'R': simulation_data_nointervention[:,5], 'D': simulation_data_nointervention[:,6]}
+    
+    #plt.figure()
+    #plt.plot(times,simulation_data[:,3])
+    #plt.plot(times_nointervention,simulation_data_nointervention[:,3])
+    #plt.xlabel(r"$t$")
+    #plt.ylabel(r"$I(t)$")
+    #plt.show()
     
     #%% determine averages of simulation data
     # daily averages of simulation data
@@ -374,7 +383,7 @@ ax00_2 = axs[0].twinx()
 ax00.set_zorder(ax00_2.get_zorder()+1)
 ax00.patch.set_visible(False)
 
-ax00.set_ylabel("cumulative")
+ax00.set_ylabel("Cumulative")
 
 #ax00.text(dt.date(2020, 3, 12), 0.9*1500, r'(a)')
 
@@ -383,7 +392,7 @@ ax00.set_ylabel("cumulative")
 ax00.set_ylim(0,1500)
 ax00.set_yticks([0,500,1000,1500])
 ax00.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax00.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax00.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax00.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax00.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax00.get_yaxis().set_major_formatter(
@@ -391,7 +400,7 @@ ax00.get_yaxis().set_major_formatter(
 
 ax00_2.set_yticks([])
 
-ax00.yaxis.grid()
+ax00.yaxis.grid(zorder=0)
 
 # cumulative death panel
 ax01 = axs[1]
@@ -401,15 +410,15 @@ ax01_2 = axs[1].twinx()
 ax01.set_zorder(ax01_2.get_zorder()+1)
 ax01.patch.set_visible(False)
 
-ax01.set_ylabel("daily")
+ax01.set_ylabel("Daily")
 
 #ax01.text(dt.date(2020, 3, 12), 0.9*40, r'(b)')
 
 #ax01.text(dt.date(2020, 5, 2), 35, r'no SD')
 
-ax01.set_ylim(0,40)
+ax01.set_ylim(0,50)
 ax01.set_xlim([dt.date(2020, 3, 5), dt.date(2020, 7, 9)])
-ax01.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 45)
+ax01.set_xticklabels(NYC_date_of_interest_cases[::14], rotation = 0)
 ax01.xaxis.set_major_locator(ticker.MultipleLocator(14))
 ax01.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 ax01.get_yaxis().set_major_formatter(
@@ -417,16 +426,16 @@ ax01.get_yaxis().set_major_formatter(
 
 ax01_2.set_yticks([])
 
-ax01.yaxis.grid()
+ax01.yaxis.grid(zorder=0)
 
-fig.suptitle(r'Hospitalization per 100,000', y = 1.05)
+fig.suptitle(r'Hospitalizations per 100,000', y = 0.92, fontsize=10)
 
 hospitalizations_simulation_mean_arr = []
 hospitalizations_simulation_nointervention_mean_arr = []
 hospitalizations_simulation_daily_mean_arr = []
 hospitalizations_simulation_nointervention_daily_mean_arr = []
 
-for i in range(1):
+for i in range(20):
     #%% load simulation data (with and without interventions)
     simulation_data = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'NYC_interventions_1e5_%d.txt'%i))
     simulation_data_nointervention = np.loadtxt(os.path.join('..', 'data', 'simulation_data', 'NYC_nointerventions_1e5_%d.txt'%i))
