@@ -9,7 +9,6 @@ from epiforecast.user_base import FullUserGraphBuilder
 from epiforecast.forward_data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-#from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
 from epiforecast.epiplots import (plot_roc_curve, 
                                   plot_ensemble_states, 
                                   plot_epidemic_data,
@@ -18,6 +17,11 @@ from epiforecast.epiplots import (plot_roc_curve,
                                   plot_ensemble_averaged_clinical_parameters)
 from epiforecast.utilities import dict_slice, compartments_count
 from epiforecast.populations import extract_ensemble_transition_rates, extract_network_transition_rates
+
+# Runs an epidemic with probabilistic master equations alongside one another 
+# feedback from epidemic to master equations using an iterated forward sweep data assimilator
+# feedback from master equations to epidemic using model based interventions
+
 
 def get_start_time(start_end_time):
     return start_end_time.start
@@ -274,6 +278,8 @@ assert n_prediction_windows_spin_up * prediction_window + prediction_window > da
 earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
 assert n_prediction_windows > n_prediction_windows_spin_up
 
+spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
+prediction_steps = n_prediction_windows * steps_per_prediction_window
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
@@ -327,8 +333,6 @@ master_eqn_ensemble.set_start_time(start_time)
 ################################################################################
 # spin-up w/o data assimilation ################################################
 current_time = start_time
-spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
-prediction_steps = n_prediction_windows * steps_per_prediction_window
 ensemble_state = ensemble_ic
 
 timer_spin_up = timer()
