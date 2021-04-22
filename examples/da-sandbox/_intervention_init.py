@@ -4,7 +4,7 @@ from _user_network_init import user_population
 from _master_eqn_init import ensemble_size
 from _argparse_init import arguments
 
-compartment_index = { 'S' : 0, 'E' : -1, 'I' : 1, 'H' : 2, 'R' : 3, 'D' : 4}
+compartment_index = { 'S' : 0, 'E' : 1, 'I' : 2, 'H' : 3, 'R' : 4, 'D' : 5}
 
 intervention = Intervention(
         user_population,
@@ -13,13 +13,27 @@ intervention = Intervention(
         E_thr = arguments.intervention_E_min_threshold,
         I_thr = arguments.intervention_I_min_threshold)
 
-#intervention_frequency: 'none' (default), 'single', 'interval'
+#intervention_frequency: 
+#'none' (default),  - no interventions
+#'single', - intervene at a fixed time
+#'interval' - intervene on an interval (after a fixed time)
 intervention_frequency = arguments.intervention_frequency
-#intervention_nodes: 'all' (default), 'sick'
+#intervention_nodes: 
+#'all' (default), - intervene all nodes
+#'sick', - intervene model determined 'sick' nodes
+#'random', - intervene on a random selection (given by a fixed budget)
+#'test_data_only', - intervene if node tests positive
+#'test_data_neighbors', - intervene all neighbors of nodes testing positive
+#'contact_tracing'- intervene neighbors of a positive node if they have spent > 15 mins with the node over a given time period (default 10 days)
 intervention_nodes = arguments.intervention_nodes
-#intervention_type: 'social_distance' (default), 'isolate'
+#intervention_type: 
+#'social_distance' (default), - reduce daytime contact rate
+#'isolate', - make daytime contact rate = nighttime contact rate
+#'nothing' - do not apply an intervention (just test and record which nodes are subject to it)
 intervention_type = arguments.intervention_type
 
+intervention_interval = arguments.intervention_interval
+intervention_sick_isolate_time = arguments.intervention_sick_isolate_time
 
 from _utilities import are_close, modulo_is_close_to_zero
 

@@ -192,16 +192,21 @@ def contiguous_indicators(graph, subgraph):
     interior_nodes=0
     boundary_nodes=0
     exterior_neighbor_count=0
-    for node in subgraph.nodes:
+    exterior_neighbor_weights = np.zeros(subgraph.number_of_nodes())
+    for (idx,node) in enumerate(subgraph.nodes):
 
-        if list(subgraph.neighbors(node)) == list(graph.neighbors(node)):
+        if len(list(subgraph.neighbors(node))) == len(list(graph.neighbors(node))):
             interior_nodes+=1
         else:
             boundary_nodes+=1
             #count number of exterior neighbors of an boundary node
             exterior_neighbors=[nbr for nbr in filter(lambda nbr: nbr not in list(subgraph.neighbors(node)),list(graph.neighbors(node)))]
             exterior_neighbor_count+=len(exterior_neighbors)
+            #multiplicative weights
+            #exterior_neighbor_weights[idx] =  len(list(graph.neighbors(node)))/(len(list(graph.neighbors(node))) - len(exterior_neighbors)) 
+            #additive weights
+            exterior_neighbor_weights[idx] = len(exterior_neighbors)
 
-    mean_neighbors_exterior=exterior_neighbor_count / boundary_nodes
+    mean_neighbors_exterior = exterior_neighbor_count / (interior_nodes + boundary_nodes)
                     
-    return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list
+    return interior_nodes, boundary_nodes, mean_neighbors_exterior, edge_indicator_list, node_indicator_list, exterior_neighbor_weights

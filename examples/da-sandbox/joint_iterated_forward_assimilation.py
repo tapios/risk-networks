@@ -6,17 +6,22 @@ from matplotlib import pyplot as plt
 import copy 
 
 from epiforecast.user_base import FullUserGraphBuilder
-from epiforecast.data_assimilator import DataAssimilator
+from epiforecast.forward_data_assimilator import DataAssimilator
 from epiforecast.time_series import EnsembleTimeSeries
 from epiforecast.epidemic_data_storage import StaticIntervalDataSeries
-from epiforecast.risk_simulator_initial_conditions import kinetic_to_master_same_fraction, random_risk_range
 from epiforecast.epiplots import (plot_roc_curve, 
                                   plot_ensemble_states, 
                                   plot_epidemic_data,
                                   plot_transmission_rate, 
-                                  plot_clinical_parameters)
+                                  plot_network_averaged_clinical_parameters,
+                                  plot_ensemble_averaged_clinical_parameters)
 from epiforecast.utilities import dict_slice, compartments_count
-from epiforecast.populations import extract_ensemble_transition_rates
+from epiforecast.populations import extract_ensemble_transition_rates, extract_network_transition_rates
+
+# Runs an epidemic with probabilistic master equations alongside one another 
+# feedback from epidemic to master equations using an iterated forward sweep data assimilator
+# feedback from master equations to epidemic using model based interventions
+
 
 def get_start_time(start_end_time):
     return start_end_time.start
@@ -36,7 +41,11 @@ from _constants import (static_contact_interval,
                         time_span,
                         distanced_max_contact_rate,
                         OUTPUT_PATH,
-                        SEED_JOINT_EPIDEMIC)
+                        SEED_JOINT_EPIDEMIC,
+                        min_contact_rate,
+                        max_contact_rate,
+                        age_indep_transition_rates_true,
+                        age_dep_transition_rates_true)
 
 # utilities ####################################################################
 from _utilities import (print_info,
@@ -48,7 +57,7 @@ from _utilities import (print_info,
 import _general_init
 
 # contact network ##############################################################
-from _network_init import population, network
+from _network_init import population, network, populace
 
 # stochastic model #############################################################
 from _stochastic_init import (kinetic_ic, 
@@ -56,6 +65,12 @@ from _stochastic_init import (kinetic_ic,
 
 # user network #################################################################
 from _user_network_init import user_network, user_nodes, user_population
+
+age_category_of_users = user_network.get_age_groups() 
+
+np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
+        user_nodes)
+
 # observations #################################################################
 from _observations_init import (sensor_readings,
                                 MDT_neighbor_test,
@@ -66,7 +81,8 @@ from _observations_init import (sensor_readings,
                                 positive_hospital_records,
                                 negative_hospital_records,
                                 positive_death_records,
-                                negative_death_records)
+                                negative_death_records,
+                                data_transform)
 
 
 sensor_observations = [sensor_readings]
@@ -74,13 +90,19 @@ sensor_observations = [sensor_readings]
 viral_test_observations = [RDT_budget_random_test]
 test_result_delay = RDT_result_delay # delay to results of the virus test
 
-record_observations   = [positive_hospital_records,
-                          positive_death_records]
+#record_observations   = [positive_hospital_records,
+#                          positive_death_records]
 
-# record_observations   = [positive_hospital_records,
-#                           negative_hospital_records,
-#                           positive_death_records,
-#                           negative_death_records]
+record_observations   = [positive_hospital_records,
+                         negative_hospital_records,
+                         positive_death_records,
+                         negative_death_records]
+
+if arguments.prior_run:
+    sensor_observations = []
+    viral_test_observations = []
+    record_observations = []
+    
 
 # master equations #############################################################
 from _master_eqn_init import (master_eqn_ensemble,
@@ -95,6 +117,7 @@ from _master_eqn_init import (master_eqn_ensemble,
                               transition_rates_max,
                               transmission_rate_min,
                               transmission_rate_max,
+                              param_transform,
                               n_forward_steps,
                               n_backward_steps)
 
@@ -102,59 +125,89 @@ from _master_eqn_init import (master_eqn_ensemble,
 transition_rates_to_update_str   = parameter_str
 transmission_rate_to_update_flag = learn_transmission_rate 
 
-# None or 'log'
-data_scale = 'log'
-
+if arguments.prior_run:
+    transition_rates_to_update_str   = []
+    transmission_rate_to_update_flag = False
+    
 
 sensor_assimilator = DataAssimilator(
         observations=sensor_observations,
         errors=[],
+        data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_sensor,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=False,
+        transmission_rate_to_update_flag=False,#transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_sensor,
+        elementwise_reg=arguments.sensor_assimilation_elementwise_regularization,
         joint_cov_noise=arguments.sensor_assimilation_joint_regularization,
         obs_cov_noise=arguments.sensor_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
+        inflate_reg=arguments.assimilation_sensor_inflation,
+        additive_inflate=arguments.assimilation_additive_inflation,
+        additive_inflate_factor=arguments.assimilation_additive_inflation_factor,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
+        distance_threshold=arguments.distance_threshold,        
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.sensor_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 viral_test_assimilator = DataAssimilator(
         observations=viral_test_observations,
         errors=[],
+        data_transform=data_transform,
         n_assimilation_batches = arguments.assimilation_batches_test,
         transition_rates_to_update_str=transition_rates_to_update_str,
         transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_test,
+        elementwise_reg=arguments.test_assimilation_elementwise_regularization,
         joint_cov_noise=arguments.test_assimilation_joint_regularization,
         obs_cov_noise=arguments.test_assimilation_obs_regularization,
         full_svd=True,
         inflate_states=arguments.assimilation_inflation,
         inflate_reg=arguments.assimilation_test_inflation,
+        additive_inflate=arguments.assimilation_additive_inflation,
+        additive_inflate_factor=arguments.assimilation_additive_inflation_factor,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
+        distance_threshold=arguments.distance_threshold,
         transition_rates_min=transition_rates_min,
         transition_rates_max=transition_rates_max,
         transmission_rate_min=transmission_rate_min,
         transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.test_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 record_assimilator = DataAssimilator(
         observations=record_observations,
         errors=[],
+        data_transform=data_transform,
+        HDflag=1,
         n_assimilation_batches=arguments.assimilation_batches_record,
         transition_rates_to_update_str=[],
-        transmission_rate_to_update_flag=False,
+        transmission_rate_to_update_flag=transmission_rate_to_update_flag,
         update_type=arguments.assimilation_update_record,
+        elementwise_reg=arguments.record_assimilation_elementwise_regularization,
         joint_cov_noise=arguments.record_assimilation_joint_regularization,
         obs_cov_noise=arguments.record_assimilation_obs_regularization,
         full_svd=True,    
         inflate_states=arguments.assimilation_inflation,
         inflate_reg=arguments.assimilation_record_inflation,
+        additive_inflate=arguments.assimilation_additive_inflation,
+        additive_inflate_factor=arguments.assimilation_additive_inflation_factor,
         inflate_I_only=arguments.assimilation_inflate_I_only,
-        scale=data_scale,
+        distance_threshold=arguments.distance_threshold,
+        transition_rates_min=transition_rates_min,
+        transition_rates_max=transition_rates_max,
+        transmission_rate_min=transmission_rate_min,
+        transmission_rate_max=transmission_rate_max,
+        transmission_rate_transform=param_transform,
+        transmission_rate_inflation=arguments.params_transmission_inflation,
+    mass_conservation_flag = not (arguments.record_ignore_mass_constraint),
         output_path=OUTPUT_PATH)
 
 # post-processing ##############################################################
@@ -166,7 +219,8 @@ from _intervention_init import (intervention,
                                 intervention_frequency,
                                 intervention_nodes, 
                                 intervention_type,
-                                query_intervention) 
+                                query_intervention,
+                                intervention_sick_isolate_time) 
 
 ################################################################################
 # epidemic setup ###############################################################
@@ -183,24 +237,37 @@ statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
 
 kinetic_states_timeseries = []
 kinetic_states_timeseries.append(kinetic_state) # storing ic
+  
+if user_population < population:
+    full_state = dict_slice(kinetic_state, populace)
+    n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+    full_statuses_sum_trace = []
+    full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
+  
 
 ################################################################################
 # master equations + data assimilation init ####################################
 ################################################################################
 # constants ####################################################################
 
+if arguments.prior_run:
+    noda_delay=1000.0
+else:
+    noda_delay=1.0
+
 #floats
-da_window         = 5.0
+da_window         = arguments.assimilation_window
 prediction_window = 1.0
 save_to_file_interval = 1.0
-sensor_assimilation_interval  = 1.0 # same for I
-test_assimilation_interval  = 1.0 # same for I
-record_assimilation_interval = 1.0 # assimilate H and D data every .. days
+sensor_assimilation_interval  = 1.0*noda_delay # same for I
+test_assimilation_interval  = 1.0*noda_delay # same for I
+record_assimilation_interval = 1.0*noda_delay # assimilate H and D data every .. days
 
 intervention_start_time = arguments.intervention_start_time
 intervention_interval = arguments.intervention_interval
 #ints
-n_sweeps                     = 1
+n_sweeps                     = arguments.assimilation_sweeps
 n_record_sweeps              = 1
 n_prediction_windows_spin_up = 8
 n_prediction_windows         = int(total_time/prediction_window)
@@ -211,10 +278,17 @@ assert n_prediction_windows_spin_up * prediction_window + prediction_window > da
 earliest_assimilation_time = (n_prediction_windows_spin_up + 1)* prediction_window - da_window 
 assert n_prediction_windows > n_prediction_windows_spin_up
 
+spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
+prediction_steps = n_prediction_windows * steps_per_prediction_window
 
 # epidemic storage #############################################################
 # Set an upper limit on number of stored contact networks:
-max_networks = steps_per_da_window + steps_per_prediction_window 
+if intervention_nodes == "contact_tracing": #then we have a history
+    steps_per_contact_trace = int(arguments.intervention_contact_trace_days/static_contact_interval)
+    max_networks = max(steps_per_da_window + steps_per_prediction_window, steps_per_contact_trace)
+else:
+    max_networks = steps_per_da_window + steps_per_prediction_window 
+
 epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_networks=max_networks)
 
 # storing ######################################################################
@@ -222,16 +296,32 @@ epidemic_data_storage = StaticIntervalDataSeries(static_contact_interval, max_ne
 ensemble_state_series_dict = {} 
 
 master_states_sum_timeseries  = EnsembleTimeSeries(ensemble_size,
-                                                   5,
+                                                   6,
                                                    time_span.size)
 
-transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
-                                              1,
-                                              time_span.size)
+#to store the ensemble of the mean over the network of the parameters
+mean_transmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
+                                                       1,
+                                                       time_span.size)
+if param_transform == 'log':
+    mean_logtransmission_rate_timeseries = EnsembleTimeSeries(ensemble_size,
+                                                              1,
+                                                              time_span.size)
 
-transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
+
+mean_transition_rates_timeseries = EnsembleTimeSeries(ensemble_size,
                                               6,
                                               time_span.size)
+
+
+#to store the network parameters of the mean over the ensemble
+network_transmission_rate_timeseries = EnsembleTimeSeries(1,
+                                                          user_population,
+                                                          time_span.size)
+
+network_transition_rates_timeseries = EnsembleTimeSeries(6,
+                                                        user_population,
+                                                        time_span.size)
 
 # intial conditions  ###########################################################
 
@@ -243,8 +333,6 @@ master_eqn_ensemble.set_start_time(start_time)
 ################################################################################
 # spin-up w/o data assimilation ################################################
 current_time = start_time
-spin_up_steps = n_prediction_windows_spin_up * steps_per_prediction_window
-prediction_steps = n_prediction_windows * steps_per_prediction_window
 ensemble_state = ensemble_ic
 
 timer_spin_up = timer()
@@ -277,7 +365,13 @@ for j in range(spin_up_steps):
         kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(j)+'.npy')
         kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
         np.save(kinetic_state_path, kinetic_eqns_statuses)
-  
+        if user_population < population:
+            full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(j)+'.npy')
+            full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+            np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+        
+
+
     kinetic_state = epidemic_simulator.kinetic_model.current_statuses
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
@@ -288,22 +382,41 @@ for j in range(spin_up_steps):
     user_state = dict_slice(kinetic_state, user_nodes)
     n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
     statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+    
+    if user_population < population:
+        full_state = dict_slice(kinetic_state, populace)
+        n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+        full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
 
     kinetic_states_timeseries.append(kinetic_state)
     print("store KE statuses and timeseries runtime", timer() - PS_timer,flush=True)
-  
+    
+    
   
 
     # now for the master eqn
-    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
     master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
     
     if learn_transmission_rate == True:
-        transmission_rate_timeseries.push_back(
-                community_transmission_rate_ensemble)
+        mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+        mean_transmission_rate_timeseries.push_back(
+                mean_community_transmission_rate_ensemble)
+        if param_transform == 'log':
+            mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+            mean_logtransmission_rate_timeseries.push_back(mean_community_logtransmission_rate_ensemble)
+
+        community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+        network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+        
     if learn_transition_rates == True:
-        transition_rates_timeseries.push_back(
+        mean_transition_rates_timeseries.push_back(
                 extract_ensemble_transition_rates(transition_rates_ensemble))
+        network_transition_rates_timeseries.push_back(
+            extract_network_transition_rates(transition_rates_ensemble, user_population))
+        
 
     #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
     save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
@@ -320,6 +433,9 @@ for j in range(spin_up_steps):
     user_network.update_from(loaded_data.contact_network)
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
+    master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+        user_network.get_lambda_integrated())
+
     timer_master_eqn = timer()
     
 
@@ -381,12 +497,52 @@ for j in range(spin_up_steps):
     if plot_and_save_now:
         if (current_time - static_contact_interval) > static_contact_interval: # i.e not first step
             plt.close(fig)
+
+            if learn_transmission_rate == True:
+                plot_transmission_rate(mean_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH)
+                if param_transform == 'log':
+                    plot_transmission_rate(mean_logtransmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                           current_time_span[:-1],
+                                           a_min=0.0,
+                                           output_path=OUTPUT_PATH,
+                                           output_name='logtransmission_rate')
+
+                plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1], 0, 1),
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH,
+                                       output_name='networktransmission_rate')
+            
+            if learn_transition_rates == True:
+                
+                plot_network_averaged_clinical_parameters(
+                    mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='mean')
+                plot_ensemble_averaged_clinical_parameters(
+                    np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='network')
+                
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
                                       axes, 
                                       current_time_span)
-          
+    
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic.png'), rasterized=True, dpi=150)
             
             axes = plot_ensemble_states(user_population,
@@ -400,6 +556,7 @@ for j in range(spin_up_steps):
                         rasterized=True,
                         dpi=150)
 
+
     #intervention if required
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
     
@@ -410,19 +567,92 @@ for j in range(spin_up_steps):
             nodes_to_intervene = network.get_nodes()
             print("intervention applied to all {:d} nodes.".format(
                 network.get_node_count()))
-            
+        
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all', see below")
+            #returns full network nodes to intervene 
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state, user_nodes, sum_EI=arguments.intervention_sum_EI)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
+
+        elif intervention_nodes == "random":
+            if current_time % intervention_sick_isolate_time == \
+               intervention_start_time % intervention_sick_isolate_time:
+                nodes_to_intervene_current = np.random.choice(network.get_nodes(),\
+                                       arguments.intervention_random_isolate_budget,\
+                                       replace=False) 
+                intervention.save_nodes_to_intervene(current_time, 
+                                                     nodes_to_intervene_current)
+            else:
+                intervention.save_nodes_to_intervene(current_time,
+                             intervention.stored_nodes_to_intervene[current_time-1.0])
+            nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
+           
+        elif intervention_nodes == "test_data_only":
+            #naively infer PPV or FOR from the test output
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            intervention.save_nodes_to_intervene(current_time, current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+
+        elif intervention_nodes == "contact_tracing":
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
+            neighbors_of_positive_nodes = {node : list(user_network.get_graph().neighbors(node)) for node in current_positive_nodes}
+            #now we need to check through history, at the duration of contacts
+            fifteen_mins = 1.0 / 24.0 / 4.0 
+            neighbors_with_long_contact = copy.deepcopy(current_positive_nodes)
+            for step in np.arange(steps_per_contact_trace):
+                trace_time = current_time - (steps_per_contact_trace - step) * static_contact_interval 
+                if trace_time >= 0.0:
+                    loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                    mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                    neighbors_with_long_contact_at_trace_time = []
+                    for node in current_positive_nodes:
+                        mean_contact_with_node = mean_contact_duration[node,:] 
+                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
+                        neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+
+                    neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+
+            #now save them and get all the nodes
+            neighbors_with_long_contact = np.unique(neighbors_with_long_contact)
+            intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+
+
         else:
-            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
+            raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick', 'random', or 'test_data_only'")
+            
+        print("intervention applied to sick nodes: {:d}/{:d}".format(
+            nodes_to_intervene.size, network.get_node_count()))
 
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
-            network.isolate(nodes_to_intervene) 
-
+            network.set_lambdas(min_contact_rate, max_contact_rate)
+            if nodes_to_intervene.size>0:
+                network.isolate(nodes_to_intervene, 
+                                λ_isolation=arguments.intervention_isolate_node_lambda) 
+            
+            np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
+        
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
             λ_max[:] = distanced_max_contact_rate 
@@ -431,6 +661,9 @@ for j in range(spin_up_steps):
             λ_min, λ_max = user_network.get_lambdas() #returns np.aray( num_nodes,) [ not a dict!]
             λ_max[:] = distanced_max_contact_rate 
             user_network.set_lambdas(λ_min,λ_max)
+        elif intervention_type == "nothing":
+            np.save(os.path.join(OUTPUT_PATH, 'positive_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
 
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
@@ -464,10 +697,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                      eps=static_contact_interval)
     current_time = k * prediction_window # to avoid build-up of errors
 
+    ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
+    print(current_time, ensemble_state_frac.mean(axis=0))
     
     ## 1a) Run epidemic simulator
     ## 1b) forward run w/o data assimilation; prediction
-    print("Start time = ", current_time)
+    print("Start time = ", current_time, flush=True)
     master_eqn_ensemble.set_start_time(current_time)
     for j in range(steps_per_prediction_window):
                 
@@ -492,7 +727,12 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(k*steps_per_prediction_window+j)+'.npy')
             kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
             np.save(kinetic_state_path, kinetic_eqns_statuses)
-        
+            if user_population < population:
+                full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(k*steps_per_prediction_window+j)+'.npy')
+                full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+                np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+
+
         kinetic_state = epidemic_simulator.kinetic_model.current_statuses
         epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
@@ -502,20 +742,37 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         user_state = dict_slice(kinetic_state, user_nodes)
         n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(user_state)
         statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
-        
+        if user_population < population:
+            full_state = dict_slice(kinetic_state, populace)
+            n_S, n_E, n_I, n_H, n_R, n_D = compartments_count(full_state)
+            full_statuses_sum_trace.append([n_S, n_E, n_I, n_H, n_R, n_D])
+
+
         kinetic_states_timeseries.append(kinetic_state)
 
         # storage of data first (we do not store end of prediction window)
-        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+        ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
         master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
         if learn_transmission_rate == True:
-            transmission_rate_timeseries.push_back(
-                    community_transmission_rate_ensemble)
-        if learn_transition_rates == True:
-            transition_rates_timeseries.push_back(
-                    extract_ensemble_transition_rates(transition_rates_ensemble))
+            mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+            mean_transmission_rate_timeseries.push_back(
+                    mean_community_transmission_rate_ensemble)
+            if param_transform == 'log':
+                mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+                mean_logtransmission_rate_timeseries.push_back(
+                    mean_community_logtransmission_rate_ensemble)
 
+            community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+            network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+
+        if learn_transition_rates == True:
+            mean_transition_rates_timeseries.push_back(
+                extract_ensemble_transition_rates(transition_rates_ensemble))
+            network_transition_rates_timeseries.push_back(
+                extract_network_transition_rates(transition_rates_ensemble, user_population))
+            
         #save the ensemble if required - we do here are we do not save master eqn at end of DA-windows
         save_ensemble_state_now = modulo_is_close_to_zero(current_time - static_contact_interval, 
                                                           save_to_file_interval, 
@@ -529,6 +786,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
 
         user_network.update_from(loaded_data.contact_network)
         master_eqn_ensemble.set_mean_contact_duration(user_network.get_edge_weights())
+        master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+            user_network.get_lambda_integrated())
 
         # run ensemble forward
         timer_master_eqn = timer()
@@ -583,6 +842,45 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                                                     eps=static_contact_interval)
         if plot_and_save_now:
             plt.close(fig)
+            
+            if learn_transmission_rate == True:
+                plot_transmission_rate(mean_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH)
+                if param_transform == 'log':
+                    plot_transmission_rate(mean_logtransmission_rate_timeseries.container[:,:, :len(current_time_span)-1],
+                                           current_time_span[:-1],
+                                           a_min=0.0,
+                                           output_path=OUTPUT_PATH,
+                                           output_name='logtransmission_rate')
+
+                plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container[:,:, :len(current_time_span)-1],0,1),
+                                       current_time_span[:-1],
+                                       a_min=0.0,
+                                       output_path=OUTPUT_PATH,
+                                       output_name='networktransmission_rate')
+            
+            if learn_transition_rates == True:                
+                plot_network_averaged_clinical_parameters(
+                    mean_transition_rates_timeseries.container[:,:,:len(current_time_span)-1],
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='mean')
+                plot_ensemble_averaged_clinical_parameters(
+                    np.swapaxes(network_transition_rates_timeseries.container[:,:,:len(current_time_span)-1], 0, 1),
+                    current_time_span[:-1],
+                    age_category_of_users,
+                    age_indep_rates_true = age_indep_transition_rates_true,
+                    age_dep_rates_true = age_dep_transition_rates_true,
+                    a_min=0.0,
+                    output_path=OUTPUT_PATH,
+                    output_name='network')
+            
             fig, axes = plt.subplots(1, 3, figsize = (16, 4))
             axes = plot_epidemic_data(user_population, 
                                       statuses_sum_trace, 
@@ -602,7 +900,8 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
                         rasterized=True,
                         dpi=150)
-
+            
+            
     print_info("Prediction ended: current time:", current_time)
     for step in range((2+n_record_sweeps)*n_sweeps):
          # by restarting from time of first assimilation data
@@ -616,53 +915,61 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
         
         DA_update_timer = timer()
         # DA update of initial state IC and parameters at t0, due to data collected in window [t0,t1]
-        if step % (2+n_record_sweeps) == 0:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-            ) = sensor_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network)       
-            print("assimilated sensors",flush=True)
-        elif step % (2+n_record_sweeps) == 1:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-            ) = viral_test_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network,
-             verbose=True)       
-            print("assimilated viral tests",flush=True)
-        elif step % (2+n_record_sweeps) >= 2:
-            (ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             update_flag
-         ) = record_assimilator.update_initial_from_series(
-             ensemble_state_series_dict, 
-             transition_rates_ensemble,
-             community_transmission_rate_ensemble,
-             user_network,
-             verbose=True)              
-            print("assimilated records",flush=True)
+        non_model_based_interventions = ["test_data_only", "random", "contact_tracing"]
+        if intervention_nodes in non_model_based_interventions: #we do no DA updates (though still test the population)
+            update_flag=False
+            print("no assimilation performed",flush=True)
+        else:
+            if step % (2+n_record_sweeps) == 0:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = sensor_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                user_network)       
+                print("assimilated sensors",flush=True)
+            elif step % (2+n_record_sweeps) == 1:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = viral_test_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 user_network)
+                
+                print("assimilated viral tests",flush=True)
+            elif step % (2+n_record_sweeps) >= 2:
+                (ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 update_flag
+             ) = record_assimilator.update_initial_from_series(
+                 ensemble_state_series_dict, 
+                 transition_rates_ensemble,
+                 community_transmission_rate_ensemble,
+                 user_network)
+                
+                print("assimilated records",flush=True)
             
         # run ensemble of master equations again over the da windowprediction loop again without data collection
         walltime_DA_update += timer() - DA_update_timer
-        
+    
         if update_flag:
             # update with the new initial state and parameters 
             master_eqn_ensemble.set_states_ensemble(ensemble_state_series_dict[past_time])
             master_eqn_ensemble.set_start_time(past_time)
             master_eqn_ensemble.update_ensemble(
                 new_transition_rates=transition_rates_ensemble,
-                new_transmission_rate=community_transmission_rate_ensemble)
+                new_transmission_rate_parameters=community_transmission_rate_ensemble)
             
+            ensemble_state_frac = ensemble_state_series_dict[past_time].reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
+#            print(past_time, np.var(ensemble_state[:,982:2*982], axis=0))
+                    
             for j in range(steps_per_da_window):
                 walltime_master_eqn = 0.0
                 master_eqn_ensemble.reset_walltimes()
@@ -673,6 +980,9 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 user_network.update_from(loaded_data.contact_network)
                 master_eqn_ensemble.set_mean_contact_duration(
                     user_network.get_edge_weights())
+                master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
+                    user_network.get_lambda_integrated())
+
                 timer_master_eqn = timer()
                 
                 # simulate the master equations
@@ -728,7 +1038,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             
     #4) Intervention
     intervene_now = query_intervention(intervention_frequency,current_time,intervention_start_time, static_contact_interval)    
-            
+    
     if intervene_now:
         # now see which nodes have intervention applied
         if intervention_nodes == "all":
@@ -737,16 +1047,91 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
                 network.get_node_count()))
             
         elif intervention_nodes == "sick":
-            nodes_to_intervene = intervention.find_sick(ensemble_state)
-            print("intervention applied to sick nodes: {:d}/{:d}".format(
-                sick_nodes.size, network.get_node_count()))
-            raise ValueError("Currently interventions only work for 'all'")
+            #returns full network nodes to intervene 
+            nodes_to_intervene_current = intervention.find_sick(ensemble_state, user_nodes, sum_EI=arguments.intervention_sum_EI)
+            intervention.save_nodes_to_intervene(current_time, 
+                                                 nodes_to_intervene_current)
+            nodes_to_intervene = \
+                    np.unique( \
+                    np.concatenate([v \
+                    for k, v in intervention.stored_nodes_to_intervene.items() \
+                    if k > current_time - intervention_sick_isolate_time]) \
+                    )
+
+        elif intervention_nodes == "random":
+            if current_time % intervention_sick_isolate_time == \
+               intervention_start_time % intervention_sick_isolate_time:
+                nodes_to_intervene_current = np.random.choice(network.get_nodes(),\
+                                       arguments.intervention_random_isolate_budget,\
+                                       replace=False) 
+                intervention.save_nodes_to_intervene(current_time, 
+                                                     nodes_to_intervene_current)
+            else:
+                intervention.save_nodes_to_intervene(current_time,
+                             intervention.stored_nodes_to_intervene[current_time-1.0])
+            nodes_to_intervene = intervention.stored_nodes_to_intervene[current_time]
+            
+        elif intervention_nodes == "test_data_only":
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time]
+            intervention.save_nodes_to_intervene(current_time, current_positive_nodes)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+                
+        elif intervention_nodes == "contact_tracing":
+            #we check the history of contacts with current positive nodes 
+            current_positive_nodes = viral_test_assimilator.stored_positively_tested_nodes[current_time].tolist()
+            neighbors_of_positive_nodes = {node : list(user_network.get_graph().neighbors(node)) for node in current_positive_nodes}
+            #now we need to check through history, at the duration of contacts
+            fifteen_mins = 1.0 / 24.0 / 4.0 
+            neighbors_with_long_contact = copy.deepcopy(current_positive_nodes)
+                    
+            for step in np.arange(steps_per_contact_trace):
+                trace_time = current_time - (steps_per_contact_trace - step) * static_contact_interval 
+                if trace_time >= 0.0:
+                    loaded_data = epidemic_data_storage.get_network_from_start_time(start_time=trace_time)
+                    mean_contact_duration = loaded_data.contact_network.get_edge_weights() #weighted sparse adjacency matrix
+                    neighbors_with_long_contact_at_trace_time = []
+                    for node in current_positive_nodes:
+                        mean_contact_with_node = mean_contact_duration[node,:] 
+                        long_contact_list = [idx for (i,idx) in enumerate(mean_contact_with_node.indices) if mean_contact_with_node.data[i] > fifteen_mins]
+                        neighbors_with_long_contact_at_trace_time.extend(long_contact_list)
+
+                       
+                    neighbors_with_long_contact.extend(neighbors_with_long_contact_at_trace_time)
+
+            #now save them and get all the nodes
+            neighbors_with_long_contact = np.unique(neighbors_with_long_contact)
+            intervention.save_nodes_to_intervene(current_time, neighbors_with_long_contact)
+            n_intervention_nodes =  np.sum([len(v) for k, v in intervention.stored_nodes_to_intervene.items() 
+                                            if k > current_time - intervention_sick_isolate_time])
+            if (n_intervention_nodes>0):
+                nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
+                                                               if k > current_time - intervention_sick_isolate_time]) \
+                                           )
+            else:
+                nodes_to_intervene = np.array([],dtype=int)
+
         else:
             raise ValueError("unknown 'intervention_nodes', choose from 'all' (default), 'sick'")
             
+        print("intervention applied to sick nodes: {:d}/{:d}".format(
+            nodes_to_intervene.size, network.get_node_count()))
+
         # Apply the the chosen form of intervention
         if intervention_type == "isolate":
-            network.isolate(nodes_to_intervene) 
+            network.set_lambdas(min_contact_rate, max_contact_rate)
+            if nodes_to_intervene.size>0:
+                network.isolate(nodes_to_intervene,
+                                λ_isolation=arguments.intervention_isolate_node_lambda) 
+
+            np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
             
         elif intervention_type == "social_distance":
             λ_min, λ_max = network.get_lambdas() #returns np.array (num_nodes,) for each lambda [Not a dict!]
@@ -757,21 +1142,39 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             λ_max[:] = distanced_max_contact_rate 
             user_network.set_lambdas(λ_min,λ_max)
 
+        elif intervention_type == "nothing":
+            np.save(os.path.join(OUTPUT_PATH, 'positive_nodes.npy'),
+                    intervention.stored_nodes_to_intervene)
+            
         else:
             raise ValueError("unknown intervention type, choose from 'social_distance' (default), 'isolate' ")
 
 
 
 ## Final storage after last step
-ensemble_state_frac = ensemble_state.reshape(ensemble_size, 5, -1).sum(axis = 2)/user_population
+ensemble_state_frac = ensemble_state.reshape(ensemble_size, 6, -1).sum(axis = 2)/user_population
 master_states_sum_timeseries.push_back(ensemble_state_frac) # storage
 
 if learn_transmission_rate == True:
-    transmission_rate_timeseries.push_back(
-            community_transmission_rate_ensemble)
+    mean_community_transmission_rate_ensemble = community_transmission_rate_ensemble.mean(axis=1)[:,np.newaxis]
+    mean_transmission_rate_timeseries.push_back(
+            mean_community_transmission_rate_ensemble)
+    if param_transform == 'log':
+        mean_community_logtransmission_rate_ensemble = np.log(community_transmission_rate_ensemble).mean(axis=1)[:,np.newaxis]
+        mean_logtransmission_rate_timeseries.push_back(
+            mean_community_logtransmission_rate_ensemble)
+
+    community_transmission_rate_means = community_transmission_rate_ensemble.mean(axis=0)[np.newaxis,:] #here we avereage the ensemble!
+    network_transmission_rate_timeseries.push_back(
+                community_transmission_rate_means)
+       
 if learn_transition_rates == True:
-    transition_rates_timeseries.push_back(
-            extract_ensemble_transition_rates(transition_rates_ensemble))
+    mean_transition_rates_timeseries.push_back(
+        extract_ensemble_transition_rates(transition_rates_ensemble))
+    network_transition_rates_timeseries.push_back(
+        extract_network_transition_rates(transition_rates_ensemble, user_population))
+        
+    
 
 
 ## Final save after last step
@@ -782,6 +1185,12 @@ if save_kinetic_state_now:
     kinetic_state_path = os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses_at_step_'+str(prediction_steps)+'.npy')
     kinetic_eqns_statuses = dict_slice(kinetic_state, user_nodes)
     np.save(kinetic_state_path, kinetic_eqns_statuses)
+    if user_population < population:
+        full_kinetic_state_path = os.path.join(OUTPUT_PATH, 'full_kinetic_eqns_statuses_at_step_'+str(prediction_steps)+'.npy')
+        full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
+        np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
+
+
 
 save_ensemble_state_now = modulo_is_close_to_zero(current_time,
                                                   save_to_file_interval,  
@@ -791,8 +1200,48 @@ if save_ensemble_state_now:
     master_eqns_mean_states = ensemble_state.mean(axis=0)
     np.save(ensemble_state_path,master_eqns_mean_states)
 
+if intervention_type == 'isolate':
+    np.save(os.path.join(OUTPUT_PATH, 'isolated_nodes.npy'),
+            intervention.stored_nodes_to_intervene)
+
 
 print("finished assimilation")
+# save state #####################################################################
+np.save(os.path.join(OUTPUT_PATH, 'trace_kinetic_statuses_sum.npy'), 
+        statuses_sum_trace)
+
+if user_population < population:
+    np.save(os.path.join(OUTPUT_PATH, 'trace_full_kinetic_statuses_sum.npy'), 
+            full_statuses_sum_trace)
+
+
+np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'), 
+        master_states_sum_timeseries.container)
+
+np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'), 
+        time_span)
+
+# save parameters ################################################################
+if learn_transmission_rate == True:
+    np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_transmission_rate.npy'), 
+            mean_transmission_rate_timeseries.container)
+    if param_transform == 'log':
+        np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_logtransmission_rate.npy'), 
+                mean_logtransmission_rate_timeseries.container)
+    
+    np.save(os.path.join(OUTPUT_PATH, 'network_mean_transmission_rate.npy'), 
+            network_transmission_rate_timeseries.container)
+    
+
+if learn_transition_rates == True:
+    np.save(os.path.join(OUTPUT_PATH, 'ensemble_mean_transition_rates.npy'), 
+            mean_transition_rates_timeseries.container)
+
+    np.save(os.path.join(OUTPUT_PATH, 'network_mean_transition_rates.npy'), 
+         network_transition_rates_timeseries.container)
+
+np.save(os.path.join(OUTPUT_PATH, 'master_eqns_states_sum.npy'), master_states_sum_timeseries.container) #save the ensemble fracs for graphing
+
 # save & plot ##################################################################
 plt.close(fig)
 fig, axes = plt.subplots(1, 3, figsize = (16, 4))
@@ -813,46 +1262,49 @@ plt.savefig(os.path.join(OUTPUT_PATH, 'epidemic_and_master_eqn.png'),
 
 plt.close()
 
-np.save(os.path.join(OUTPUT_PATH, 'trace_kinetic_statuses_sum.npy'), 
-        statuses_sum_trace)
-
-
-np.save(os.path.join(OUTPUT_PATH, 'trace_master_states_sum.npy'), 
-        master_states_sum_timeseries.container)
-
-np.save(os.path.join(OUTPUT_PATH, 'time_span.npy'), 
-        time_span)
-np.save(os.path.join(OUTPUT_PATH, 'user_nodes.npy'), 
-        user_nodes)
-
+if arguments.save_closure_coeffs:
+    idx_interval = int(1.0/static_contact_interval)
+    CM_SI_coeff = np.array(master_eqn_ensemble.CM_SI_coeff_history[::idx_interval])
+    CM_SH_coeff = np.array(master_eqn_ensemble.CM_SH_coeff_history[::idx_interval])
+    np.save(os.path.join(OUTPUT_PATH, 'CM_SI_coeff.npy'), CM_SI_coeff)
+    np.save(os.path.join(OUTPUT_PATH, 'CM_SH_coeff.npy'), CM_SH_coeff)
 
 if learn_transmission_rate == True:
-    plot_transmission_rate(transmission_rate_timeseries.container,
+    plot_transmission_rate(mean_transmission_rate_timeseries.container,
             time_span,
             a_min=0.0,
             output_path=OUTPUT_PATH)
+    if param_transform == 'log':
+        plot_transmission_rate(mean_logtransmission_rate_timeseries.container,
+                               current_time_span,
+                               a_min=0.0,
+                               output_path=OUTPUT_PATH,
+                               output_name='logtransmission_rate')
 
-if learn_transition_rates == True:
-    plot_clinical_parameters(transition_rates_timeseries.container,
-            time_span,
-            a_min=0.0,
-            output_path=OUTPUT_PATH)
-
-# save parameters ################################################################
-if learn_transmission_rate == True:
-    np.save(os.path.join(OUTPUT_PATH, 'transmission_rate.npy'), 
-            transmission_rate_timeseries.container)
-
-if learn_transition_rates == True:
-    np.save(os.path.join(OUTPUT_PATH, 'transition_rates.npy'), 
-            transition_rates_timeseries.container)
-
-np.save(os.path.join(OUTPUT_PATH, 'master_eqns_states_sum.npy'), master_states_sum_timeseries.container) #save the ensemble fracs for graphing
-
-#kinetic_eqns_statuses = []
-#for kinetic_state in kinetic_states_timeseries:
-#    kinetic_eqns_statuses.append(dict_slice(kinetic_state, user_nodes))
-
-#np.save(os.path.join(OUTPUT_PATH, 'kinetic_eqns_statuses.npy'), kinetic_eqns_statuses)
+    plot_transmission_rate(np.swapaxes(network_transmission_rate_timeseries.container,0,1),
+                           current_time_span,
+                           a_min=0.0,
+                           output_path=OUTPUT_PATH,
+                           output_name='networktransmission_rate')
+if learn_transition_rates == True:                
+    plot_network_averaged_clinical_parameters(
+        mean_transition_rates_timeseries.container,
+        current_time_span,
+        age_category_of_users,
+        age_indep_rates_true = age_indep_transition_rates_true,
+        age_dep_rates_true = age_dep_transition_rates_true,
+        a_min=0.0,
+        output_path=OUTPUT_PATH,
+        output_name='mean')
+    plot_ensemble_averaged_clinical_parameters(
+        np.swapaxes(network_transition_rates_timeseries.container, 0, 1),
+        current_time_span,
+        age_category_of_users,
+        age_indep_rates_true = age_indep_transition_rates_true,
+        age_dep_rates_true = age_dep_transition_rates_true,
+        a_min=0.0,
+        output_path=OUTPUT_PATH,
+        output_name='network')
+    
 
 

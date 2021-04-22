@@ -9,10 +9,16 @@ class EnsembleAdjustmentKalmanFilter:
 
     def __init__(
             self,
+            data_transform,
+            elementwise_reg = False,
             joint_cov_noise = 1e-2,
             obs_cov_noise = 1e-2,
             inflate_states = False,
             inflate_reg = 0.1,
+            additive_inflate=False,
+            additive_inflate_factor=0.1,
+            inflate_transmission_reg=1.0,
+            mass_conservation_flag=True,
             output_path=None):
         '''
         Instantiate an object that implements an Ensemble Adjustment Kalman Filter.
@@ -27,12 +33,17 @@ class EnsembleAdjustmentKalmanFilter:
         Follow Anderson 2001 Month. Weath. Rev. Appendix A.
         '''
         
-        # Error
+        self.data_transform = data_transform
         self.error = np.empty(0)
+        self.elementwise_reg = elementwise_reg
         self.joint_cov_noise = joint_cov_noise
         self.obs_cov_noise = obs_cov_noise
         self.inflate_states = inflate_states
         self.inflate_reg = inflate_reg  # unit is in (%)
+        self.additive_inflate = additive_inflate
+        self.additive_inflate_factor = additive_inflate_factor
+        self.inflate_transmission_reg = inflate_transmission_reg,
+        self.mass_conservation_flag = mass_conservation_flag
         self.output_path = output_path
 
         # Compute error
@@ -55,17 +66,18 @@ class EnsembleAdjustmentKalmanFilter:
     def update(
             self,
             ensemble_state,
+            all_initial_ensemble_state,
             clinical_statistics,
             transmission_rates,
             truth,
             cov,
             H_obs,
-            scale=None,
             print_error=False,
             r=1.0,
             inflate_indices=None,
             save_matrices=False,
-            save_matrices_name=None):
+            save_matrices_name=None,
+            verbose=False):
 
         '''
         - ensemble_state (np.array): J x M of update states for each of the J ensembles
@@ -87,25 +99,32 @@ class EnsembleAdjustmentKalmanFilter:
         #TODO: how to deal with no transition and/or transmission rates. i.e empty array input.
                (Could we just use an ensemble sized column of zeros? then output the empty array
                 '''
-
+        
         assert (truth.ndim == 1), 'EAKF init: truth must be 1d array'
         assert (cov.ndim == 2), 'EAKF init: covariance must be 2d array'
         assert (truth.size == cov.shape[0] and truth.size == cov.shape[1]),\
             'EAKF init: truth and cov are not the correct sizes'
         output_path = self.output_path
 
-        output_path = self.output_path
 
         # Observation data statistics at the observed nodes
         x_t = truth
         cov = r**2 * cov
-
-        if scale is None: 
-            cov = np.clip((1./np.maximum(x_t, 1e-12)/np.maximum(1-x_t, 1e-12)), -5, 5)**2 * cov
-            x_t = np.log(np.maximum(x_t, 1e-12)/np.maximum(1.-x_t, 1e-12))
-
+    
         #add reg to observations too
-        cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))
+        cov = cov + np.diag(self.obs_cov_noise*np.ones(cov.shape[0]))        
+
+        # [0.] Process to include mass conservation in [X.] stages                
+        # [1.] Augment states with sum_states
+        x = self.data_transform.apply_transform(ensemble_state)
+        if self.mass_conservation_flag:
+            xall = all_initial_ensemble_state #do not transform the sum states            
+            xsum = xall.sum(axis=1)[:,np.newaxis] #100 x 1
+            x = np.hstack([x, xsum])
+            
+            # [2.] Augment the observations with the desired mass (1) for sum_states
+            x_t = np.hstack([truth,1.]) 
+            cov = np.diag(np.hstack([np.diag(cov),np.min(np.diag(cov)) ]))
 
         try:
             # We assume independent variances (i.e diagonal covariance)
@@ -117,10 +136,23 @@ class EnsembleAdjustmentKalmanFilter:
         if save_matrices:
             save_cov_file =os.path.join(output_path, 'cov_matrix'+save_matrices_name+'.npy')
             np.save(save_cov_file, cov)
-                
-        # States
-        x = np.log(np.maximum(ensemble_state, 1e-9) / np.maximum(1.0 - ensemble_state, 1e-9))
-        # Stacked parameters and states
+        
+        if self.mass_conservation_flag:
+            # [3.] Augment H_obs
+            Hsum_obs = np.zeros((H_obs.shape[0] + 1,H_obs.shape[1]+1))
+            Hsum_obs[:-1,:-1] = H_obs
+            Hsum_obs[-1,-1] = 1
+            H_obs = Hsum_obs
+        
+        if not self.data_transform.name == "identity_clip":
+            if verbose:
+                print("mean state (transformed) pre DA", x.mean(axis=0))
+        if verbose:
+            print("mean state (untransformed) pre DA",ensemble_state.mean(axis=0))
+            print("obs_var", np.diag(cov))
+            #print("joint state cov", np.cov(x.T))
+       
+        # Stack parameters and states
         # the transition and transmission parameters act similarly in the algorithm
         p = clinical_statistics
         q = transmission_rates
@@ -129,10 +161,16 @@ class EnsembleAdjustmentKalmanFilter:
         if (ensemble_state.ndim == 1):
             x=x[np.newaxis].T
 
+        # Whittaker Hamill 01 Inflation prior to update
+        #x_bar = x.mean(axis=0)
+        #x_inflated = self.inflate_reg * (x - x_bar) + x_bar
+        #x[:,inflate_indices] = x_inflated[:,inflate_indices]
+            
+        # if all present we do [transition, transmission, joint_state, sum_state]
         if p.size>0 and q.size>0:
             zp = np.hstack([p, q, x])
         elif p.size>0 and q.size==0:
-            zp = np.hstack([p,x])
+            zp = np.hstack([p, x])
         elif q.size>0 and p.size==0:
             zp = np.hstack([q, x])
         else:
@@ -142,9 +180,9 @@ class EnsembleAdjustmentKalmanFilter:
         J = x.shape[0]
 
         # Sizes of q and x
-        pqs = q[0].size +p[0].size
-        xs = x[0].size
-        xt = truth.size #observations over all times
+        pqs = q[0].size + p[0].size
+        xs = x[0].size  
+        xt = x_t.size #observations over all times + 1 
         
         zp_bar = np.mean(zp, 0)
         
@@ -157,13 +195,8 @@ class EnsembleAdjustmentKalmanFilter:
         # Performing the first SVD of EAKF
         svd_failed = False
         num_svd_attempts = 0
-
-        # Whittaker Hamill 01 Inflation prior to update
-        zp_inflated = self.inflate_reg * (zp - zp_bar) + zp_bar
-        zp[:,inflate_indices] = zp_inflated[:,inflate_indices]
-
-        #observation operators:
-        # full state to data:
+        
+        # build observation operators with parameters, states
         H = np.hstack([np.zeros((xt, pqs)), H_obs])
         Hpq = np.hstack([np.eye(pqs), np.zeros((pqs, xs))])
         Hs = np.hstack([np.zeros((xs, pqs)), np.eye(xs)])
@@ -174,6 +207,7 @@ class EnsembleAdjustmentKalmanFilter:
         
 
         # if ensemble_size < observations size, we pad the singular value matrix with added noise
+        # unlikely but possible situation
         if zp.shape[0] < zp.shape[1]:    
             
             try:
@@ -197,20 +231,7 @@ class EnsembleAdjustmentKalmanFilter:
             rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
             rtDp_vec_full = np.zeros(zp.shape[1])
             rtDp_vec_full[:J-1] = rtDp_vec
-            reg = 1
-            sum_Dp_vec = sum(rtDp_vec**2)
-            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
-                reg+=1
-            
-            
-            if reg < J-1:
-                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
-                
-                Dp_vec_full = rtDp_vec_full**2 + rtDp_vec_full[reg]**2*np.ones(rtDp_vec_full.shape)
-            else:
-                print("reg value lower than all evalues using 0.1*min(eval>0)")
-                Dp_vec_full = rtDp_vec_full**2 
-                Dp_vec_full[reg:] = rtDp_vec_full[reg:]**2 + 0.1*(rtDp_vec.min()**2)*np.ones(rtDp_vec_full[reg:].shape )  
+            Dp_vec_full = rtDp_vec_full**2 + np.maximum(self.joint_cov_noise*(rtDp_vec_full[0]**2 - rtDp_vec_full[J-2]**2), np.mean(np.diag(cov))) # a little regularizations
             
             Dp = np.diag(Dp_vec_full)
         
@@ -233,21 +254,14 @@ class EnsembleAdjustmentKalmanFilter:
                     print("First SVD not converge!")
             F = F_full
            
-            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec
-            reg = 1
-            sum_Dp_vec = sum(rtDp_vec**2)
-            while (sum(rtDp_vec[:reg]**2) <= self.joint_cov_noise*sum_Dp_vec) and (reg < J-1):
-                reg+=1
-            
-            if reg < J-1:
-                print("reg value ",rtDp_vec[reg]**2," at index ",reg, " achieves threshold",sum(rtDp_vec[:reg]**2) / sum_Dp_vec)
-                Dp_vec_full = rtDp_vec**2 + rtDp_vec[reg]**2*np.ones(rtDp_vec.shape)
-            
-            else:
-                print("reg value lower than all evalues")
+            rtDp_vec = 1./np.sqrt(J-1) * rtDp_vec 
+            if self.elementwise_reg:
+                rtDp_vec = rtDp_vec + np.maximum(self.joint_cov_noise*(rtDp_vec), np.sqrt(np.mean(np.diag(cov))))
                 Dp_vec_full = rtDp_vec**2
-                Dp_vec_full[-1] += rtDp_vec[-1]**2   
-           
+            else:
+                Dp_vec_full = rtDp_vec**2 + np.maximum(self.joint_cov_noise*(rtDp_vec[0]**2 - rtDp_vec[-1]**2), np.mean(np.diag(cov))) # a little regularizations
+            
+            #print("Dp_vec_full",Dp_vec_full)
             Dp = np.diag(Dp_vec_full)
 
         # compute np.linalg.multi_dot([F_full, Dp, F_full.T])            
@@ -268,8 +282,6 @@ class EnsembleAdjustmentKalmanFilter:
             np.save(os.path.join(output_path, 'svd_matrix_2.npy'), \
                     np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, \
                     np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]))
-            U, rtD_vec, _ = la.svd(np.linalg.multi_dot([np.multiply(F_full,np.diag(G_full)).T, np.multiply(H.T, np.sqrt(np.diag(cov_inv)))]), \
-                               full_matrices=True)
             svd_failed = True
         while svd_failed == True:
             num_svd_attempts = num_svd_attempts+1
@@ -308,8 +320,28 @@ class EnsembleAdjustmentKalmanFilter:
         # Avoid overflow for exp
         x_logit = np.minimum(x_logit, 1e2)
         
-        # replace unchanged states
-        new_ensemble_state = np.exp(x_logit)/(np.exp(x_logit) + 1.0)
+        # Applying Whittaker style inflation after update instead
+        x_logit_bar = x_logit.mean(axis=0)
+        x_logit_inflated = self.inflate_reg * (x_logit - x_logit_bar) + x_logit_bar
+        x_logit[:,inflate_indices] = x_logit_inflated[:,inflate_indices]
+        if self.additive_inflate == True:
+            # Additional additive inflation
+            x_logit[:,inflate_indices] = x_logit[:,inflate_indices] + \
+                        np.random.normal(0*x_logit_bar, \
+                        np.maximum(self.additive_inflate_factor*x_logit_bar,0.0), \
+                        x_logit.shape)[:,inflate_indices]
+
+        if not self.data_transform.name == "identity_clip":
+            if verbose:
+                print("mean joint-state (transformed) post DA", x_logit.mean(axis=0))
+
+      # [4.] remove summed state
+        if self.mass_conservation_flag:
+            new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit[:,:-1])
+        else:
+            new_ensemble_state = self.data_transform.apply_inverse_transform(x_logit)
+        if verbose:
+            print("mean state (untransformed) post DA",new_ensemble_state.mean(axis=0))
         
         if save_matrices:
             save_state_file =os.path.join(output_path, 'updated_state_matrix'+save_matrices_name+'.npy')
@@ -319,6 +351,10 @@ class EnsembleAdjustmentKalmanFilter:
         new_clinical_statistics = pqout[:, :clinical_statistics.shape[1]]
         new_transmission_rates  = pqout[:, clinical_statistics.shape[1]:]
 
+        # Applying Whittaker style inflation after update to parameters
+        new_transmission_rates_bar = new_transmission_rates.mean(axis=0)
+        new_transmission_rates = self.inflate_transmission_reg * (new_transmission_rates - new_transmission_rates_bar) + new_transmission_rates_bar
+        
         if (ensemble_state.ndim == 1):
             new_ensemble_state=new_ensemble_state.squeeze()
 

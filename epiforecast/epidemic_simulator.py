@@ -68,8 +68,12 @@ class EpidemicSimulator:
             buffer_margin = 1
         else:
             buffer_margin = 1.2 # 20% margin seems conservative
+            
+        #calculate mean_degree for the edges
+        mean_degree = np.mean([d for n, d in contact_network.get_graph().degree()])
 
         self.contact_simulator = ContactSimulator(contact_network.get_edges(),
+                                                  mean_degree,
                                                   day_inception_rate = day_inception_rate,
                                                   night_inception_rate = night_inception_rate,
                                                   mean_event_lifetime = mean_contact_lifetime,
@@ -193,6 +197,11 @@ class EpidemicSimulator:
 
             edge_weights = self.contact_simulator.compute_edge_weights()
             next_network.set_edge_weights(edge_weights)
+
+            λ_integrated = self.contact_simulator.compute_diurnally_averaged_nodal_activation_rate(
+                nodal_day_inception_rate = λ_max,
+                nodal_night_inception_rate = λ_min)
+            next_network.set_lambda_integrated(λ_integrated)
 
             end_contact_simulation = timer()
 

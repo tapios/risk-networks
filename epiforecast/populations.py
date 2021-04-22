@@ -541,7 +541,7 @@ class TransitionRates:
         return np.array([sampler.constants[param]
                          for param in distributional_parameters])
 
-
+#take a mean over the network, to obtain an ensemble of parameters
 def extract_ensemble_transition_rates(
         transition_rates_ensemble,
         num_params=6):
@@ -552,3 +552,15 @@ def extract_ensemble_transition_rates(
                 transition_rates_ensemble[i].get_clinical_parameters_as_array().reshape(num_params,-1),
                 axis=1)
     return ensemble_transition_rates_array
+
+#take a mean over the ensemble to obtain network parameters
+def extract_network_transition_rates(
+        transition_rates_ensemble,
+        num_users,
+        num_params=6):
+    ensemble_size = len(transition_rates_ensemble)
+    network_transition_rates_array = np.zeros((num_params,num_users))
+    for i in range(ensemble_size):
+        network_transition_rates_array += (1.0 / ensemble_size) * transition_rates_ensemble[i].get_clinical_parameters_as_array().reshape(num_params,-1)
+    
+    return network_transition_rates_array

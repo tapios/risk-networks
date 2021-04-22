@@ -85,6 +85,7 @@ class ContactSimulator:
     def __init__(
             self,
             original_edges,
+            mean_degree,
             initialize_contacts = True,
             day_inception_rate = None,
             night_inception_rate = None,
@@ -96,6 +97,7 @@ class ContactSimulator:
         """
         Args
         ----
+        mean_degree (float): Mean degree of the network
 
         initialize_contacts (bool): Whether or not to initialize the contact activity.
 
@@ -119,6 +121,7 @@ class ContactSimulator:
         """
         # TODO implement Edges and use original_edges.get_count()
         n_contacts = len(original_edges)
+        self.mean_degree = mean_degree
 
         self.buffer_margin = buffer_margin
         self.buffer = int(np.round(n_contacts * self.buffer_margin))
@@ -134,7 +137,7 @@ class ContactSimulator:
         self.active_contacts = np.zeros(self.buffer, dtype=bool)
 
         if initialize_contacts:
-            λ = night_inception_rate
+            λ = night_inception_rate / mean_degree
             μ = 1 / mean_event_lifetime
             initial_fraction_active_contacts = λ / (μ + λ)
 
@@ -158,6 +161,7 @@ class ContactSimulator:
 
         self.interval_stop_time = start_time
         self.interval_start_time = 0.0
+        
 
     # TODO implement conversion from int/float to array for nodal rates
     def run(
@@ -224,7 +228,8 @@ class ContactSimulator:
                           self.night_inception_rate,
                           self.day_inception_rate,
                           self.mean_event_lifetime,
-                          self.rate_integral_increment)
+                          self.rate_integral_increment,
+                          self.mean_degree)
 
         # Record the start and stop times of the current simulation interval
         self.interval_start_time = self.interval_stop_time
@@ -253,6 +258,46 @@ class ContactSimulator:
         self.overshoot_duration *= 0
 
 
+    def compute_diurnally_averaged_nodal_activation_rate(
+            self, 
+            nodal_day_inception_rate, 
+            nodal_night_inception_rate,
+            integration_steps = 40):
+        """
+        Compute and return diurnally averaged rate: The effective interval-integrated diurnal contact rate for any node
+        Use case: to approximating a contact rate external to a user-network, by using nodal information instead of 
+        edge information
+        
+        Inputs:
+            nodal_day_inception_rate (np.array): day rate nodally defined
+            nodal_night_inception_rate (np.array): night rate nodally defined
+            integration_steps: number of integration steps for trapezoidal rule
+        Output:
+            interval_integrated_diurnal(np.array): nodal rates in units of (days)
+        """
+        #NB 1 day = 1
+        
+        λnight = nodal_night_inception_rate
+        λday = nodal_day_inception_rate
+
+        integration_mesh = np.linspace(0,1,integration_steps+1)
+        #evaluate diurnally varying contact rate on mesh
+        diurnal_on_mesh = np.zeros((λday.size,integration_steps+1))
+        for idx,t in enumerate(integration_mesh):
+            diurnal_on_mesh[:,idx] = diurnal_inception_rate(λnight, λday, self.mean_degree,t) 
+        
+        #trapezoid integration over mesh
+        λi = 0.5*(diurnal_on_mesh[:,0] + diurnal_on_mesh[:,-1])
+        λi += np.sum(diurnal_on_mesh[:,1:-1],axis=1) 
+        λi *= 1 / integration_steps
+
+        # calculate the nodal activation from this 
+        μ = 1/self.mean_event_lifetime
+        diurnally_averaged_nodal_activation_rate = λi / (μ + λi)
+
+        
+        return diurnally_averaged_nodal_activation_rate
+
 # For implementation of Gillespie simulation with time-dependent rates, see discussion in
 #
 # Christian L. Vestergaard , Mathieu Génois, "Temporal Gillespie Algorithm: Fast Simulation
@@ -261,8 +306,8 @@ class ContactSimulator:
 # https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004579
 
 @njit
-def diurnal_inception_rate(λnight, λday, t):
-    return np.maximum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
+def diurnal_inception_rate(λnight, λday, mean_degree, t):
+    return 1. / mean_degree * np.maximum(λnight, λday * (1 - np.cos(np.pi * t)**4)**4)
 
 @njit
 def simulate_contacts(
@@ -275,7 +320,8 @@ def simulate_contacts(
         night_inception_rate,
         day_inception_rate,
         mean_event_lifetime,
-        rate_integral_increment):
+        rate_integral_increment,
+        mean_degree):
     """
     """
     for i in range(n_contacts):
@@ -291,7 +337,8 @@ def simulate_contacts(
                              night_inception_rate[i],
                              day_inception_rate[i],
                              mean_event_lifetime,
-                             rate_integral_increment)
+                             rate_integral_increment,
+                             mean_degree)
 
 @njit
 def simulate_contact(
@@ -303,7 +350,8 @@ def simulate_contact(
         night_inception_rate,
         day_inception_rate,
         mean_event_lifetime,
-        rate_integral_increment):
+        rate_integral_increment,
+        mean_degree):
     """
     """
     contact_duration = overshoot_duration
@@ -345,14 +393,14 @@ def simulate_contact(
 
             δ = rate_integral_increment  # 0.05 # day
             n = 1
-            λᵐ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time)
-            λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + δ)
+            λᵐ = diurnal_inception_rate(night_inception_rate, day_inception_rate, mean_degree, event_time)
+            λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, mean_degree, event_time + δ)
             Λⁿ = δ / 2 * (λᵐ + λⁿ)
 
             while Λⁿ < τ:
                 n += 1
                 λᵐ = λⁿ
-                λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, event_time + n * δ)
+                λⁿ = diurnal_inception_rate(night_inception_rate, day_inception_rate, mean_degree, event_time + n * δ)
                 Λⁿ += δ / 2 * (λᵐ + λⁿ)
 
             # Calculate time_step with error = O(δ²)
@@ -382,4 +430,5 @@ def simulate_contact(
     contact_duration -= overshoot_duration
 
     return event_time, active_contact, contact_duration, overshoot_duration
+
 

@@ -16,6 +16,7 @@ from _constants import (latent_periods,
                         min_contact_rate,
                         max_contact_rate,
                         start_time,
+                        fraction_infected,
                         SEED_STOCHASTIC_INIT_1,
                         SEED_STOCHASTIC_INIT_2,
                         SEED_STOCHASTIC_INIT_3)
@@ -62,7 +63,7 @@ epidemic_simulator = EpidemicSimulator(
 
 kinetic_ic = random_epidemic(population,
                              populace,
-                             fraction_infected=0.01,
+                             fraction_infected=fraction_infected,
                              seed=SEED_STOCHASTIC_INIT_3)
 epidemic_simulator.set_statuses(kinetic_ic)
 

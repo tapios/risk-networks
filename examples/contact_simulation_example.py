@@ -20,7 +20,7 @@ dt = 1 / 24 # days
 days = 7
 steps = int(days / dt)
 
-λ_min = 3  # minimum contact rate
+λ_min = 2  # minimum contact rate
 λ_max = 22 # maximum contact rate
 
 μ = 1.0 / minute
@@ -32,8 +32,11 @@ n_contacts_barabasi = 100000
 contact_graph = nx.barabasi_albert_graph(int(n_contacts_barabasi / 10), 10)
 network = ContactNetwork.from_networkx_graph(contact_graph)
 network.set_lambdas(λ_min, λ_max)
+mean_degree = np.mean([d for n, d in network.get_graph().degree()])
+
 
 simulator = ContactSimulator(network.get_edges(),
+                             mean_degree,
                              day_inception_rate = λ_max,
                              night_inception_rate = λ_min,
                              mean_event_lifetime = 1 / μ,
@@ -96,7 +99,7 @@ plt.sca(axs[1])
 t = measurement_times
 λ = np.zeros(steps)
 for i in range(steps):
-    λ[i] = diurnal_inception_rate(λ_min, λ_max, 1/2 * (t[i] + t[i+1]))
+    λ[i] = diurnal_inception_rate(λ_min, λ_max, mean_degree, 1/2 * (t[i] + t[i+1]))
 
 plt.plot(t[1:],
          λ / (λ + μ),

@@ -11,12 +11,13 @@ from _utilities import print_start_of, print_end_of
 print_start_of(__name__)
 ################################################################################
 # seeds ########################################################################
-SEED_GENERAL_INIT      = 942395
-SEED_STOCHASTIC_INIT_1 = 4669
-SEED_STOCHASTIC_INIT_2 = 31415
-SEED_STOCHASTIC_INIT_3 = 271828
-SEED_BACKWARD_FORWARD  = 10958
-SEED_JOINT_EPIDEMIC    = 10958
+seed_shift = arguments.constants_seed_shift #default 0
+SEED_GENERAL_INIT      = 942395 + seed_shift
+SEED_STOCHASTIC_INIT_1 = 4669   + seed_shift
+SEED_STOCHASTIC_INIT_2 = 31415  + seed_shift
+SEED_STOCHASTIC_INIT_3 = 271828 + seed_shift
+SEED_BACKWARD_FORWARD  = 10958  + seed_shift
+SEED_JOINT_EPIDEMIC    = 10958  + seed_shift
 
 
 # paths, flags etc #############################################################
@@ -41,10 +42,10 @@ hour = 60 * minute
 day = 1.0
 
 static_contact_interval = 3 * hour
-mean_contact_lifetime = 0.5 * minute
+mean_contact_lifetime = 2 * minute
 
-start_time  = 0.0   # the ultimate start time, i.e. when the simulation starts
-end_time    = 90.0  # the ultimate end time
+start_time  = 0.0    # the ultimate start time, i.e. when the simulation starts
+end_time    = 127.0  # the ultimate end time
 total_time  = end_time - start_time
 total_steps = int(total_time/static_contact_interval)
 
@@ -60,9 +61,9 @@ age_dep_dprime = [0.019   ,  0.073  ,  0.193,  0.327,  0.512]
 
 assert sum(age_distribution) == 1.0
 
-min_contact_rate = 2
-max_contact_rate = 22
-distanced_max_contact_rate=8
+min_contact_rate = 4
+max_contact_rate = 84
+distanced_max_contact_rate = 33
 
 latent_periods               = 3.7 # == 1/σ
 community_infection_periods  = 3.2 # == 1/γ
@@ -73,6 +74,17 @@ hospital_mortality_fraction  = AgeDependentConstant(age_dep_dprime)
 
 community_transmission_rate = 12.0    # == β
 hospital_transmission_reduction = 0.1 # == α
+
+#ICs for kinetic
+fraction_infected = 0.0016
+
+#true values:
+age_indep_transition_rates_true = {'latent_periods' : latent_periods, 
+                                   'community_infection_periods' : community_infection_periods,
+                                   'hospital_infection_periods' : hospital_infection_periods}
+age_dep_transition_rates_true = {'hospitalization_fraction' : age_dep_h,
+                                 'community_mortality_fraction' : age_dep_d,
+                                 'hospital_mortality_fraction' : age_dep_dprime}
 
 ################################################################################
 print_end_of(__name__)

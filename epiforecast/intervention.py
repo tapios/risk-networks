@@ -60,6 +60,8 @@ class Intervention:
     self.E_thr = E_thr
     self.I_thr = I_thr
 
+    self.stored_nodes_to_intervene = {}
+
   def __get_complement_substate(self, ensemble_states):
     """
       Get the complement substate for the whole ensemble
@@ -75,7 +77,7 @@ class Intervention:
 
     return 1 - ensemble_states.reshape( (self.M, -1, self.N) ).sum(axis=1)
 
-  def find_sick(self, ensemble_states):
+  def find_sick(self, ensemble_states, user_nodes, sum_EI=False):
     """
       Find node indices that are considered sick according to E and I thresholds
 
@@ -98,8 +100,24 @@ class Intervention:
     E_ensemble_mean = E_substate.mean(axis=0)
     I_ensemble_mean = I_substate.mean(axis=0)
 
-    return np.where(
-        (E_ensemble_mean > self.E_thr) | (I_ensemble_mean > self.I_thr)
-        )[0]
+    if sum_EI == False:
+        sick_user_subset = np.where(
+            (E_ensemble_mean > self.E_thr) | (I_ensemble_mean > self.I_thr)
+            )[0]
+    else:
+        sick_user_subset = np.where(
+            (E_ensemble_mean + I_ensemble_mean) > (self.E_thr + self.I_thr)
+            )[0]
 
+    return user_nodes[sick_user_subset]
 
+  def save_nodes_to_intervene(self, current_time, nodes_to_intervene):
+      """
+        Save sick nodes for intervention
+
+        Args:
+            current_time: float number
+            nodes_to_intervene: (N,) np.array, where N is the number of sick nodes 
+      """
+
+      self.stored_nodes_to_intervene[current_time] = nodes_to_intervene
