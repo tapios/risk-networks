@@ -20,11 +20,11 @@ dt = 1 / 24 # days
 days = 7
 steps = int(days / dt)
 
-λ_min = 2  # minimum contact rate
-λ_max = 22 # maximum contact rate
+λ_min = 4  # minimum contact rate
+λ_max = 84 # maximum contact rate
 
-μ = 1.0 / minute
-n_contacts_barabasi = 100000
+μ = 1.0 /(2.0 * minute)
+n_contacts_barabasi = 10000
 
 ################################################################################
 # initialization ###############################################################
@@ -120,3 +120,6 @@ plt.ylabel("Ensemble-averaged $T_i$")
 plt.legend(loc='upper right')
 
 plt.show()
+plt.savefig('simulated_contacts.png',
+            rasterized=True,
+            dpi=150)
