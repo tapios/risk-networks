@@ -44,6 +44,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.          #
 #################################################################################
 
+import warnings
 import numpy as np
 
 class EnsembleTimeSeries:
