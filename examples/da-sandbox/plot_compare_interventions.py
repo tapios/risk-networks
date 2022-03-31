@@ -13,23 +13,33 @@ sns.set_style("ticks")
 #Plot comparison script for interventions different user bases
 # Model - based intervention
 #
-#cases '100', '75n', '75r', 50r, 50n
+#cases '100', '75n', '75r', '50r', '50n', '25r', '25n'
 plot_case = '50r'
 
+#for reviewer
+remove_no_intervention_case = True 
+if remove_no_intervention_case:
+    removed_str='only_interventions'
+else:
+    removed_str='compare_interventions'
 
 # Set plotting cases
 population = 97942
 OUTPUT_PATH = "output/"
 if plot_case == '100':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u100.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u100.pdf')
 elif plot_case == '75n':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75nbhd.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75nbhd.pdf')
 elif plot_case == '75r':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u75rand_i0.0025.pdf')
-elif plot_case == '50r':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50rand_i0.0025.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75rand_i0.0025.pdf')
 elif plot_case == '50n':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, 'compare_interventions_u50nbhd.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u50nbhd.pdf')
+elif plot_case == '50r':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u50rand_i0.0025.pdf')
+elif plot_case == '25n':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u25nbhd_i0.001.pdf')
+elif plot_case == '25r':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u25rand_i0.001.pdf')
 else:
     raise ValueError("unknown plot_case")
 
@@ -38,40 +48,72 @@ days_pre_intervention = 9
 
 if plot_case == '100':
     INTERVENTION_CASE_NAMES = [
+        "u100_s0_d1_i0.01_979",
+#        "u100_s0_d1_i0.01_2448",
         "u100_s0_d1_i0.01_4897",
         "u100_s0_d1_i0.01_24485",
+        "contact_trace_and_isolate_979",
+#        "contact_trace_and_isolate_2448",
         "contact_trace_and_isolate_4897",
         "contact_trace_and_isolate_24485",
         "blanket_social_dist_0"]
 
 elif plot_case == '75n':
     INTERVENTION_CASE_NAMES = [
+        "u75_s0_d1_i0.01_734",
+#        "u75_s0_d1_i0.01_1836",
         "u75_s0_d1_i0.01_3672",
         "u75_s0_d1_i0.01_18364",
+        "u75_contact_trace_and_isolate_734",
+#        "u75_contact_trace_and_isolate_1836",
         "u75_contact_trace_and_isolate_3672",
         "u75_contact_trace_and_isolate_18364",
         "blanket_social_dist_0"]
     
 elif plot_case == '75r':
     INTERVENTION_CASE_NAMES = [
+        "u75rand_s0_d1_i0.0025_734",
         "u75rand_s0_d1_i0.0025_3672",
         "u75rand_s0_d1_i0.0025_18364",
+        "u75rand_contact_trace_and_isolate_734",
         "u75rand_contact_trace_and_isolate_3672",
         "u75rand_contact_trace_and_isolate_18364",
         "blanket_social_dist_0"]
+elif plot_case == '50n':
+    INTERVENTION_CASE_NAMES = [
+        "u50_s0_d1_i0.005_489",
+        "u50_s0_d1_i0.005_2448",
+        "u50_s0_d1_i0.005_12242",
+        "u50_contact_trace_and_isolate_489",
+        "u50_contact_trace_and_isolate_2448",
+        "u50_contact_trace_and_isolate_12242",
+        "blanket_social_dist_0"]
 elif plot_case == '50r':
     INTERVENTION_CASE_NAMES = [
+        "u50rand_s0_d1_i0.0025_489",
         "u50rand_s0_d1_i0.0025_2448",
         "u50rand_s0_d1_i0.0025_12242",
+        "u50rand_contact_trace_and_isolate_489",
         "u50rand_contact_trace_and_isolate_2448",
         "u50rand_contact_trace_and_isolate_12242",
         "blanket_social_dist_0"]
-elif plot_case == '50n':
+elif plot_case == '25n':
     INTERVENTION_CASE_NAMES = [
-        "u50_s0_d1_i0.005_2448",
-        "u50_s0_d1_i0.005_12242",
-        "u50_contact_trace_and_isolate_2448",
-        "u50_contact_trace_and_isolate_12242",
+        "u25_s0_d1_i0.001_245",
+        "u25_s0_d1_i0.001_1224",
+        "u25_s0_d1_i0.001_6121",
+        "u25_contact_trace_and_isolate_245",
+        "u25_contact_trace_and_isolate_1224",
+        "u25_contact_trace_and_isolate_6121",
+        "blanket_social_dist_0"]
+elif plot_case == '25r':
+    INTERVENTION_CASE_NAMES = [
+        "u25rand_s0_d1_i0.001_245",
+        "u25rand_s0_d1_i0.001_1224",
+        "u25rand_s0_d1_i0.001_6121",
+        "u25rand_contact_trace_and_isolate_245",
+        "u25rand_contact_trace_and_isolate_1224",
+        "u25rand_contact_trace_and_isolate_6121",
         "blanket_social_dist_0"]
     
 #if there is no isolated_nodes.npy
@@ -80,23 +122,31 @@ elif plot_case == '50n':
 INTERVENTION_TYPE = [
     "daily", 
     "daily", 
+    "daily", 
+    "daily", 
     "daily",     
     "daily",     
     None ]
 INTERVENTION_DURATIONS=[
     5.0,
     5.0,
+    5.0,
+    14.0,
     14.0,
     14.0,
     None]
 
 MODEL_BASED = [
     True,
+    True,
     True,   
+    False,
     False,
     False,
     False]
 USE_ISOLATED_NODES_NPY = [
+    True,
+    True,
     True,
     True, 
     True,
@@ -104,8 +154,10 @@ USE_ISOLATED_NODES_NPY = [
     False]
 
 INTERVENTION_LABELS = [
+    'Network DA (1\%)', 
     'Network DA (5\%)', 
     'Network DA (25\%)',
+    'TTI (1\%)',
     'TTI (5\%)',
     'TTI (25\%)',
     'Lockdown']
@@ -116,8 +168,8 @@ NO_INTERVENTION_CASE_NAMES = ["noda_u100_prior_0"]
 NO_INTERVENTION_LABELS = ['No intervention']
 
 
-model_intervention_colors = [plt.cm.Greens(0.3), plt.cm.Greens(0.9)]
-other_intervention_colors = [plt.cm.Purples(0.4), plt.cm.Purples(0.8), '#6394EB'] #Lockdown is blue
+model_intervention_colors = [plt.cm.Greens(0.3), plt.cm.Greens(0.6), plt.cm.Greens(0.9)]
+other_intervention_colors = [plt.cm.Purples(0.4), plt.cm.Purples(0.6), plt.cm.Purples(0.8), '#6394EB'] #Lockdown is blue
 #other_intervention_colors = ['#6394EB'] #Lockdown is blue
 no_intervention_colors    = ['#EBBD63'] #orange
 
@@ -129,28 +181,17 @@ USER_POPULATION = [population for x in np.arange(len(INTERVENTION_CASE_NAMES+NO_
 if plot_case == '100':
     pass
 elif plot_case == '75n':
-    USER_POPULATION[0] = 73456
-    USER_POPULATION[1] = 73456 
-    USER_POPULATION[2] = 73456
-    USER_POPULATION[3] = 73456 
-
+    USER_POPULATION = [73456 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)] #i.e crude way to exclude lockdown
 elif plot_case == '75r':
-    USER_POPULATION[0] = 73353
-    USER_POPULATION[1] = 73353 
-    USER_POPULATION[2] = 73353
-    USER_POPULATION[3] = 73353 
-
+    USER_POPULATION = [73353 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)]
 elif plot_case == '50r':
-    USER_POPULATION[0] = 48371
-    USER_POPULATION[1] = 48371 
-    USER_POPULATION[2] = 48371
-    USER_POPULATION[3] = 48371 
-    
+    USER_POPULATION = [48371 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)]
 elif plot_case == '50n':
-    USER_POPULATION[0] = 48971
-    USER_POPULATION[1] = 48971 
-    USER_POPULATION[2] = 48971
-    USER_POPULATION[3] = 48971 
+    USER_POPULATION = [48971 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)]
+elif plot_case == '25r':
+    USER_POPULATION = [24515 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)]
+elif plot_case == '25n':
+    USER_POPULATION = [24485 if i < len(INTERVENTION_CASE_NAMES) - 1 else x for (i,x) in enumerate(USER_POPULATION)]
 
 #paths and files
 INTERVENTION_CASE_PATH = [os.path.join(OUTPUT_PATH, name) for name in INTERVENTION_CASE_NAMES]
@@ -217,6 +258,18 @@ fig, axs = plt.subplots(nrows = 2, ncols = 2)
 
 labelpad=10.0
 
+
+#if no intervention
+print("total deaths:", data_list[-1][-1,-1])
+
+if remove_no_intervention_case:
+    data_list = data_list[:-1]
+    idata_list = idata_list[:-1]
+    colors_list = colors_list[:-1]
+    label_list = label_list[:-1]
+    idata_type_list = idata_type_list[:-1]
+    intervention_durations = intervention_durations[:-1] 
+
 # Cumulative infection panel
 ax00 = axs[0][0]
 ax00.set_title(r'Infections per 100,000')
@@ -253,6 +306,7 @@ for data, color in zip(data_list, colors_list):
     #No construction as D accumulates naturally
     ax01.plot(time_arr, data[:,-1], 
               color=color, linewidth = 1.5, zorder = 100)
+    print("total deaths:", data[-1,-1])
 
 ax01.set_ylim([0, None])
 ax01.yaxis.grid()

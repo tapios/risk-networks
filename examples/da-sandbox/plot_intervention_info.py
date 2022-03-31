@@ -13,12 +13,17 @@ import numpy as np
 #EXP_NAME = 'u75rand_s0_d1_i0.01' 
 #EXP_PARAMS = [0, 3672, 7347, 18364, 73353]
 
-EXP_NAME = 'u75_s0_d1_i0.01' 
-EXP_PARAMS = [0, 3672, 7347, 18364, 73456]
+#EXP_NAME = 'u75_s0_d1_i0.01' 
+#EXP_PARAMS = [0, 3672, 7347, 18364, 73456]
 #EXP_PARAMS = [3672, 18364]
 
 #EXP_NAME = 'u50rand_s0_d1_i0.005' 
 #EXP_PARAMS = [0, 2448, 4897, 12242, 48371]
+
+#EXP_NAME = 'u25_s0_d1_i0.005'
+EXP_NAME = 'u25rand_s0_d1_i0.0025' 
+EXP_PARAMS = [1224, 6121]
+
 
 intervention_nodes = 'sick'
 intervention_sick_isolate_time = 5.0

@@ -55,10 +55,10 @@ tani_EXP_NAME = 'test_and_no_isolate'
 tact_EXP_NAME = 'contact_trace'
 s75_EXP_NAME  = 'u100_s75_d1_0'
 
-u100_EXP_LABELS = ['5%','10%','25%']
+u100_EXP_LABELS = ['1%','5%','25%']
 s75_EXP_LABEL = 'Sensors only'
 
-u100_EXP_PARAM_VALUES = [4897, 9794, 24485]
+u100_EXP_PARAM_VALUES = [979, 4897, 24485]
 
 u100_exp_run = [u100_EXP_NAME + '_' + str(val) for val in u100_EXP_PARAM_VALUES]
 tani_exp_run = [tani_EXP_NAME + '_' + str(val) for val in u100_EXP_PARAM_VALUES]
@@ -95,11 +95,11 @@ user_EXP_LABELS=['25%','50%','75%']
 user_EXP_PARAM_VALUES = np.zeros((len(user_base),len(user_EXP_LABELS)), dtype=int)
 for idx,n_user in enumerate(user_base):
     if n_user== 75:
-        user_EXP_PARAM_VALUES[idx,:] = np.array([3672, 7347, 18364])
+        user_EXP_PARAM_VALUES[idx,:] = np.array([734, 3672, 18364])
     elif n_user  == 50:
-        user_EXP_PARAM_VALUES[idx,:] = np.array([2448, 4897, 12242])
+        user_EXP_PARAM_VALUES[idx,:] = np.array([489, 2448, 12242])
     elif n_user == 25:
-        user_EXP_PARAM_VALUES[idx,:] = np.array([1224, 2448, 6121])
+        user_EXP_PARAM_VALUES[idx,:] = np.array([245, 1224, 6121])
 
 user_exp_run = np.empty(user_EXP_PARAM_VALUES.shape, dtype='<U100')
 for i in range(len(user_base)):
@@ -166,6 +166,7 @@ for day_idx,day in enumerate(days):
     for i,output_dir in enumerate(tani_output_dirs):
         #n_tested_nodes 
         n_test_nodes = u100_EXP_PARAM_VALUES[i]
+        print(n_test_nodes)
         if n_test_nodes > 0:
             #load isolated nodes (i.e the positively tested nodes)
             kinetic_eqns_statuses = np.load(os.path.join(output_dir,kinetic_eqns_fname),allow_pickle=True).tolist()
