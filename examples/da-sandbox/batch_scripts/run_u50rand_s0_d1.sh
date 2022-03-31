@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=0-4
+#SBATCH --array=1-2
 
 ################################
 # Intervention test experiment #
@@ -65,7 +65,7 @@ EXP_NAME="u50rand_s0_d1" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 48971
-test_budgets=(0 2448 4897 12242 48371)  
+test_budgets=(0 489 1224 2448 4897 12242 48371)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters

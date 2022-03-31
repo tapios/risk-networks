@@ -5,12 +5,12 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u25s0d1"
+#SBATCH -J "1e3_u50rands0d1"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=1-2
+#SBATCH --array=0-4
 
 ################################
 # Intervention test experiment #
@@ -26,12 +26,11 @@ bytes_of_memory=$((${SLURM_MEM_PER_NODE}*1000000 / 4)) #MB -> bytes
 echo "requested ${num_cpus} cores and ray is told ${bytes_of_memory} memory available"
 # parameters & constants #######################################################
 
-network_size=1e5
+network_size=1e3
 wearers=0
 
 # user base
-user_fraction=0.25
-user_base_type="neighbor"
+user_fraction=0.5
 
 # testing: virus tests
 I_min_threshold=0.0
@@ -62,11 +61,11 @@ additive_inflation=0.1
 param_prior_noise_factor=0.25
 
 # network  + sensor wearers
-EXP_NAME="u25_s0_d1" #1e5 = 97942 nodes
+EXP_NAME="1e3_u50rand_s0_d1" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
 #5% 10% 25%, of 48971
-test_budgets=(0 245 612 1224 2448 6121 24485)  
+test_budgets=(0 25 49 122 482)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
 # output parameters
@@ -79,13 +78,12 @@ mkdir -p "${output_path}"
 
 echo "output to be found in: ${output_path}, stdout in $stdout, stderr in $stderr "
 
-cp batch_scripts/run_u25_s0_d1.sh ${output_path}
+cp batch_scripts/run_1e3_u50rand_s0_d1.sh ${output_path}
 
 # launch #######################################################################
 # launch #######################################################################
 python3 joint_iterated_forward_assimilation.py \
   --user-network-user-fraction=${user_fraction} \
-  --user-network-type=${user_base_type} \
   --user-network-weighted \
   --constants-output-path=${output_path} \
   --observations-noise=${obs_noise} \

@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=192G
-#SBATCH -J "u25s0d1"
+#SBATCH -J "contact_trace_and_isolate"
 #SBATCH --output=output/slurm_%A_%a.out
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
@@ -37,15 +37,22 @@ user_base_type="neighbor"
 I_min_threshold=0.0
 I_max_threshold=1.0
 
+# intervention
+intervention_freq='interval'
+intervention_type='isolate'
+intervention_nodes='contact_tracing'
+intervention_interval=1.0
+intervention_duration=14.0
+
 #da params 
 da_window=1.0
 n_sweeps=1
 
 #observation_noise
-obs_noise=1e-12
+obs_noise=1e-8
 #reglarization parameters
 sensor_reg=1e-1
-test_reg=5e-2
+test_reg=1e-2
 record_reg=1e-2
 
 # observation localization (number of nbhds observations have effect on (integer) 0 = delta at observation, 1= nbhd of observation)
@@ -56,16 +63,16 @@ sensor_inflation=10.0
 test_inflation=3.0
 record_inflation=2.0
 rate_inflation=1.0
-additive_inflation=0.1
 
 #param noise mean - ln((mu+bias)^2 / sqrt((mu+bias)^2 +sig^2))
 param_prior_noise_factor=0.25
 
 # network  + sensor wearers
-EXP_NAME="u25_s0_d1" #1e5 = 97942 nodes
+#EXP_NAME="1e5_params_WRI_${da_window}_${test_reg}_${test_inflation}" #1e5 = 97942 nodes
+EXP_NAME="u25_contact_trace_and_isolate" #1e5 = 97942 nodes
 #EXP_NAME="noda_1e5_parsd0.25_nosd"
 # Experimental series parameters ###############################################
-#5% 10% 25%, of 48971
+#5% 10% 25%, of 97942
 test_budgets=(0 245 612 1224 2448 6121 24485)  
 budget=${test_budgets[${SLURM_ARRAY_TASK_ID}]}
 
@@ -79,7 +86,7 @@ mkdir -p "${output_path}"
 
 echo "output to be found in: ${output_path}, stdout in $stdout, stderr in $stderr "
 
-cp batch_scripts/run_u25_s0_d1.sh ${output_path}
+cp batch_scripts/run_u25_contact_trace_and_isolate.sh ${output_path}
 
 # launch #######################################################################
 # launch #######################################################################
@@ -95,6 +102,10 @@ python3 joint_iterated_forward_assimilation.py \
   --parallel-flag \
   --parallel-memory=${bytes_of_memory} \
   --parallel-num-cpus=${num_cpus} \
+  --intervention-frequency=${intervention_freq} \
+  --intervention-nodes=${intervention_nodes}\
+  --intervention-type=${intervention_type}\
+  --intervention-sick-isolate-time=${intervention_duration}\
   --sensor-assimilation-joint-regularization=${sensor_reg} \
   --test-assimilation-joint-regularization=${test_reg} \
   --record-assimilation-joint-regularization=${record_reg} \
@@ -108,9 +119,6 @@ python3 joint_iterated_forward_assimilation.py \
   --params-learn-transmission-rate \
   --params-transmission-rate-noise=${param_prior_noise_factor} \
   --params-transmission-inflation=${rate_inflation} \
-  --assimilation-additive-inflation\
-  --assimilation-additive-inflation-factor=${additive_inflation}\
-  --record-ignore-mass-constraint\
   >${stdout} 2>${stderr}
 
 
