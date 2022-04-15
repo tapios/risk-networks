@@ -14,7 +14,7 @@ sns.set_style("ticks")
 # Model - based intervention
 #
 #cases '100', '75n', '75r', '50r', '50n', '25r', '25n'
-plot_case = '50r'
+plot_case = '75r_avg'
 
 #for reviewer
 remove_no_intervention_case = True 
@@ -30,14 +30,18 @@ if plot_case == '100':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u100.pdf')
 elif plot_case == '75n':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75nbhd.pdf')
+elif plot_case == '75n_avg':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75nbhd_avg.pdf')
 elif plot_case == '75r':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75rand_i0.0025.pdf')
+elif plot_case == '75r_avg':
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u75rand_i0.0025_avg.pdf')
 elif plot_case == '50n':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u50nbhd.pdf')
 elif plot_case == '50r':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u50rand_i0.0025.pdf')
 elif plot_case == '25n':
-    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u25nbhd_i0.001.pdf')
+    OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u25nbhd_i0.0025.pdf')
 elif plot_case == '25r':
     OUTPUT_FIGURE_NAME = os.path.join(OUTPUT_PATH, removed_str+'_u25rand_i0.001.pdf')
 else:
@@ -49,11 +53,9 @@ days_pre_intervention = 9
 if plot_case == '100':
     INTERVENTION_CASE_NAMES = [
         "u100_s0_d1_i0.01_979",
-#        "u100_s0_d1_i0.01_2448",
         "u100_s0_d1_i0.01_4897",
         "u100_s0_d1_i0.01_24485",
         "contact_trace_and_isolate_979",
-#        "contact_trace_and_isolate_2448",
         "contact_trace_and_isolate_4897",
         "contact_trace_and_isolate_24485",
         "blanket_social_dist_0"]
@@ -61,11 +63,19 @@ if plot_case == '100':
 elif plot_case == '75n':
     INTERVENTION_CASE_NAMES = [
         "u75_s0_d1_i0.01_734",
-#        "u75_s0_d1_i0.01_1836",
         "u75_s0_d1_i0.01_3672",
         "u75_s0_d1_i0.01_18364",
         "u75_contact_trace_and_isolate_734",
-#        "u75_contact_trace_and_isolate_1836",
+        "u75_contact_trace_and_isolate_3672",
+        "u75_contact_trace_and_isolate_18364",
+        "blanket_social_dist_0"]
+
+elif plot_case == '75n_avg':
+    INTERVENTION_CASE_NAMES = [
+        "u75_avgnbhd_s0_d1_i0.01_734",
+        "u75_avgnbhd_s0_d1_i0.01_3672",
+        "u75_avgnbhd_s0_d1_i0.01_18364",
+        "u75_contact_trace_and_isolate_734",
         "u75_contact_trace_and_isolate_3672",
         "u75_contact_trace_and_isolate_18364",
         "blanket_social_dist_0"]
@@ -79,6 +89,17 @@ elif plot_case == '75r':
         "u75rand_contact_trace_and_isolate_3672",
         "u75rand_contact_trace_and_isolate_18364",
         "blanket_social_dist_0"]
+
+elif plot_case == '75r_avg':
+    INTERVENTION_CASE_NAMES = [
+        "u75rand_avgnbhd_s0_d1_i0.0025_734",
+        "u75rand_avgnbhd_s0_d1_i0.0025_3672",
+        "u75rand_avgnbhd_s0_d1_i0.0025_18364",
+        "u75rand_contact_trace_and_isolate_734",
+        "u75rand_contact_trace_and_isolate_3672",
+        "u75rand_contact_trace_and_isolate_18364",
+        "blanket_social_dist_0"]
+
 elif plot_case == '50n':
     INTERVENTION_CASE_NAMES = [
         "u50_s0_d1_i0.005_489",
@@ -99,9 +120,9 @@ elif plot_case == '50r':
         "blanket_social_dist_0"]
 elif plot_case == '25n':
     INTERVENTION_CASE_NAMES = [
-        "u25_s0_d1_i0.001_245",
-        "u25_s0_d1_i0.001_1224",
-        "u25_s0_d1_i0.001_6121",
+        "u25_s0_d1_i0.0025_245",
+        "u25_s0_d1_i0.0025_1224",
+        "u25_s0_d1_i0.0025_6121",
         "u25_contact_trace_and_isolate_245",
         "u25_contact_trace_and_isolate_1224",
         "u25_contact_trace_and_isolate_6121",

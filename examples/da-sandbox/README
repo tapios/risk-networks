@@ -51,6 +51,14 @@ batch_scripts/run_u25_contact_trace_and_isolate.sh
 batch_scripts/run_u25rand_s0_d1_i0.001.sh
 batch_scripts/run_u25rand_contact_trace_and_isolate.sh
 
+%for the 75% nbhd with 'averaged' external neighbors (75n_avg)
+batch_scripts/run_u75_avgnbd_s0_d1_i0.01.sh
+(already run: batch_scripts/run_u75_contact_trace_and_isolate.sh)
+
+%for 75% rand with 'averaged' external neighbors (75r_avg)
+batch_scripts/run_u75rand_avgnbhd_s0_d1_i0.0025.sh
+(already_run: batch_scripts/run_u75rand_contact_trace_and_isolate.sh)
+
 ## For the intervention user vs non-user: 
 plot_user_base_intervention_statistics.py
 
