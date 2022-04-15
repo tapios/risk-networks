@@ -11,7 +11,7 @@
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 # just the new cases 1-2
-#SBATCH --array=1-2 
+#SBATCH --array=0-6 
 
 
 ################################

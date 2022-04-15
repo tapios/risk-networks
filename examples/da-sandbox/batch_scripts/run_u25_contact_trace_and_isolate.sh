@@ -10,7 +10,7 @@
 #SBATCH --error=output/slurm_%A_%a.err  
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --array=1-2
+#SBATCH --array=0-6
 
 ################################
 # Intervention test experiment #
