@@ -108,6 +108,14 @@ if learn_transmission_rate == True:
 transmission_rate_min = 1
 transmission_rate_max = 20
 
+#exogenous rates - neighbor-weighted:
+if arguments.user_network_external_neighbor_type == 'exact':
+    exterior_neighbor_weights = exterior_neighbors
+elif arguments.user_network_external_neighbor_type == 'average':
+    exterior_neighbor_weights = np.mean(exterior_neighbors)*np.ones(exterior_neighbors.shape)
+else:
+    raise ValueError("unknown method, choose from: exact, average")
+
 # Set up master equation solver ################################################
 master_eqn_ensemble = MasterEquationModelEnsemble(
         population=user_population,
@@ -115,7 +123,7 @@ master_eqn_ensemble = MasterEquationModelEnsemble(
         transmission_rate_parameters=community_transmission_rate_ensemble,
         hospital_transmission_reduction=hospital_transmission_reduction,
         ensemble_size=ensemble_size,
-        exterior_neighbors=exterior_neighbors,
+        exterior_neighbors=exterior_neighbor_weights,
         start_time=start_time,
         parallel_cpu=arguments.parallel_flag,
         num_cpus=arguments.parallel_num_cpus,

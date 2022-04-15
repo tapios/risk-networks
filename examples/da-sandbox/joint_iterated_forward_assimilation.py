@@ -48,6 +48,7 @@ import os, sys; sys.path.append(os.path.join('..', '..'))
 
 from timeit import default_timer as timer
 import numpy as np
+from scipy import sparse
 from matplotlib import pyplot as plt
 import copy 
 
@@ -416,8 +417,8 @@ for j in range(spin_up_steps):
             full_kinetic_eqns_statuses = dict_slice(kinetic_state, populace)
             np.save(full_kinetic_state_path, full_kinetic_eqns_statuses)
         
-
-
+        
+            
     kinetic_state = epidemic_simulator.kinetic_model.current_statuses
     epidemic_data_storage.save_end_statuses_to_network(
             end_time=current_time+static_contact_interval,
@@ -476,7 +477,13 @@ for j in range(spin_up_steps):
     loaded_data = epidemic_data_storage.get_network_from_start_time(
             start_time=current_time)
 
+    
     user_network.update_from(loaded_data.contact_network)
+    
+    # For the purpose of generating a plot of contacts, save the spin up contact matrices every 3 hours
+    mean_contact_durations_path = os.path.join(OUTPUT_PATH,'user_mean_contact_durations_sparse_at_step_'+str(j)+'.npz')
+    sparse.save_npz(mean_contact_durations_path,user_network.get_edge_weights())
+
     master_eqn_ensemble.set_mean_contact_duration(
             user_network.get_edge_weights())
     master_eqn_ensemble.set_diurnally_averaged_nodal_activation_rate(
@@ -1159,7 +1166,7 @@ for k in range(n_prediction_windows_spin_up, n_prediction_windows):
             if (n_intervention_nodes>0):
                 nodes_to_intervene = np.unique(np.concatenate([v for k, v in intervention.stored_nodes_to_intervene.items() \
                                                                if k > current_time - intervention_sick_isolate_time]) \
-                                           )
+                                           ).astype(int)
             else:
                 nodes_to_intervene = np.array([],dtype=int)
 

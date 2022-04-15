@@ -26,6 +26,8 @@ steps = int(days / dt)
 μ = 1.0 /(2.0 * minute)
 n_contacts_barabasi = 10000
 
+
+
 ################################################################################
 # initialization ###############################################################
 ################################################################################
@@ -114,6 +116,7 @@ plt.plot(measurement_times[1:],
          color="k",
          linewidth=1,
          label="$ \\bar{T}_i(t) $")
+
 
 plt.xlabel("Time (days)")
 plt.ylabel("Ensemble-averaged $T_i$")
